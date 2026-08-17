@@ -63,7 +63,14 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
     // Open WA in new tab
     const phone = party.whatsapp?.replace(/[^0-9]/g, '');
     if (phone) {
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+      const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     } else {
       alert("No valid WhatsApp number found. Please update the profile.");
       return;
