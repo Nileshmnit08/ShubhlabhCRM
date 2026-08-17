@@ -1,0 +1,307 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import { ArrowLeft, Save } from 'lucide-react';
+import { State, City } from 'country-state-city';
+
+export default function CustomerForm() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const isEditing = Boolean(id);
+
+  const [loading, setLoading] = useState(false);
+  const [pincode, setPincode] = useState('');
+  const [fetchingPincode, setFetchingPincode] = useState(false);
+  const [formData, setFormData] = useState({
+    display_name: '',
+    legal_or_core_name: '',
+    city: '',
+    state: '',
+    mobile: '',
+    whatsapp: '',
+    communication_preference: 'WhatsApp',
+    crm_status: 'Active',
+    notes: ''
+  });
+
+  useEffect(() => {
+    if (isEditing) {
+      fetchCustomer();
+    }
+  }, [id]);
+
+  async function fetchCustomer() {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('crm_parties')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (error) throw error;
+      if (data) {
+        setFormData({
+          display_name: data.display_name || '',
+          legal_or_core_name: data.legal_or_core_name || '',
+          city: data.city || '',
+          state: data.state || '',
+          mobile: data.mobile || '',
+          whatsapp: data.whatsapp || '',
+          communication_preference: data.communication_preference || 'WhatsApp',
+          crm_status: data.crm_status || 'Active',
+          notes: data.notes || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching customer:', error);
+      alert('Error loading customer data.');
+      navigate('/customers');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePincodeChange = async (e) => {
+    const val = e.target.value.replace(/\D/g, '');
+    setPincode(val);
+    
+    if (val.length === 6) {
+      setFetchingPincode(true);
+      try {
+        const response = await fetch(`https://api.postalpincode.in/pincode/${val}`);
+        const data = await response.json();
+        
+        if (data && data[0] && data[0].Status === 'Success') {
+          const postOffice = data[0].PostOffice[0];
+          setFormData(prev => ({
+            ...prev,
+            city: postOffice.District || postOffice.Block || prev.city,
+            state: postOffice.State || prev.state
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch pincode data:", err);
+      } finally {
+        setFetchingPincode(false);
+      }
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Basic Validation
+    if (!formData.display_name.trim()) {
+      alert('Display Name is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (isEditing) {
+        const { error } = await supabase
+          .from('crm_parties')
+          .update(formData)
+          .eq('id', id);
+        if (error) throw error;
+      } else {
+        const { error, data } = await supabase
+          .from('crm_parties')
+          .insert([formData])
+          .select();
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          navigate(`/customers/${data[0].id}`);
+          return;
+        }
+      }
+      navigate('/customers');
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      alert('Error saving customer.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const allStates = State.getStatesOfCountry('IN');
+  const selectedStateObj = allStates.find(s => s.name === formData.state);
+  const citiesInState = selectedStateObj ? City.getCitiesOfState('IN', selectedStateObj.isoCode) : [];
+
+  return (
+    <div className="animate-fade-in">
+      <div className="page-header">
+        <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+          <Link to={isEditing ? `/customers/${id}` : '/customers'} className="btn-icon">
+            <ArrowLeft size={24} />
+          </Link>
+          <div>
+            <h1>{isEditing ? 'Edit Customer' : 'New Customer'}</h1>
+            <p className="text-secondary" style={{marginTop: '0.25rem'}}>
+              {isEditing ? 'Update party details and preferences.' : 'Create a new CRM party profile.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="glass-panel" style={{maxWidth: '800px', padding: '2rem'}}>
+        {loading && isEditing ? (
+          <p>Loading...</p>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem'}}>
+              
+              <div style={{gridColumn: '1 / -1'}}>
+                <label>Display Name *</label>
+                <input 
+                  type="text" 
+                  name="display_name" 
+                  value={formData.display_name} 
+                  onChange={handleChange} 
+                  placeholder="Business or Party Name"
+                  required
+                />
+              </div>
+
+              <div style={{gridColumn: '1 / -1'}}>
+                <label>Legal/Core Name</label>
+                <input 
+                  type="text" 
+                  name="legal_or_core_name" 
+                  value={formData.legal_or_core_name} 
+                  onChange={handleChange} 
+                  placeholder="Official registered name if different"
+                />
+              </div>
+
+              <div style={{gridColumn: '1 / -1', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '0.5rem'}}>
+                <h4 style={{marginBottom: '1rem'}}>Location Information</h4>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem'}}>
+                  <div>
+                    <label>Pincode (Auto-fill)</label>
+                    <div style={{position: 'relative'}}>
+                      <input 
+                        type="text" 
+                        value={pincode} 
+                        onChange={handlePincodeChange} 
+                        placeholder="6-digit Pincode"
+                        maxLength={6}
+                      />
+                      {fetchingPincode && <span style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', color: 'var(--primary)'}}>Fetching...</span>}
+                    </div>
+                  </div>
+                  <div>
+                    <label>State</label>
+                    <select 
+                      name="state" 
+                      value={formData.state} 
+                      onChange={(e) => {
+                        setFormData(prev => ({ ...prev, state: e.target.value, city: '' }));
+                      }}
+                    >
+                      <option value="">-- Select State --</option>
+                      {allStates.map(s => (
+                        <option key={s.isoCode} value={s.name}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label>City</label>
+                    <select 
+                      name="city" 
+                      value={formData.city} 
+                      onChange={handleChange} 
+                      disabled={!selectedStateObj && citiesInState.length === 0}
+                    >
+                      <option value="">-- Select City --</option>
+                      {citiesInState.map(c => (
+                        <option key={c.name} value={c.name}>{c.name}</option>
+                      ))}
+                      {/* Allow custom existing city if not in list */}
+                      {formData.city && !citiesInState.find(c => c.name === formData.city) && (
+                        <option value={formData.city}>{formData.city}</option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label>Mobile Number</label>
+                <input 
+                  type="tel" 
+                  name="mobile" 
+                  value={formData.mobile} 
+                  onChange={handleChange} 
+                  placeholder="+91..."
+                />
+              </div>
+
+              <div>
+                <label>WhatsApp Number</label>
+                <input 
+                  type="tel" 
+                  name="whatsapp" 
+                  value={formData.whatsapp} 
+                  onChange={handleChange} 
+                  placeholder="+91..."
+                />
+              </div>
+
+              <div>
+                <label>Communication Preference</label>
+                <select name="communication_preference" value={formData.communication_preference} onChange={handleChange}>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Call">Call</option>
+                  <option value="WhatsApp + Call">WhatsApp + Call</option>
+                  <option value="No WhatsApp">No WhatsApp</option>
+                  <option value="Do Not Contact">Do Not Contact</option>
+                </select>
+              </div>
+
+              <div>
+                <label>CRM Status</label>
+                <select name="crm_status" value={formData.crm_status} onChange={handleChange}>
+                  <option value="Active">Active</option>
+                  <option value="Dormant">Dormant</option>
+                  <option value="At Risk">At Risk</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Blocked">Blocked</option>
+                </select>
+              </div>
+
+              <div style={{gridColumn: '1 / -1'}}>
+                <label>Notes</label>
+                <textarea 
+                  name="notes" 
+                  value={formData.notes} 
+                  onChange={handleChange} 
+                  rows="4" 
+                  placeholder="Internal notes about this party..."
+                />
+              </div>
+
+            </div>
+
+            <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem'}}>
+              <Link to={isEditing ? `/customers/${id}` : '/customers'} className="btn btn-secondary">
+                Cancel
+              </Link>
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                <Save size={18} />
+                {loading ? 'Saving...' : 'Save Customer'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
