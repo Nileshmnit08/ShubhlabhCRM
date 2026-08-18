@@ -469,7 +469,7 @@ export default function CustomerList() {
           </div>
         ) : (
           <table className="data-table mobile-cards-table" style={{minWidth: '1000px'}}>
-            <thead style={{position: 'sticky', top: '70px', zIndex: 10, background: 'var(--bg-surface)'}}>
+            <thead>
               <tr>
                 <th style={{width: '40px', textAlign: 'center'}}>
                   <input type="checkbox" checked={selectedRows.size === customers.length && customers.length > 0} onChange={toggleAllSelection} />
