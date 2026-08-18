@@ -20,11 +20,11 @@ BEGIN
             RETURN NEW; -- No owner assigned on creation
         END IF;
     ELSIF TG_OP = 'UPDATE' THEN
-        -- Only trigger if owner changed to a non-null value
-        IF NEW.assigned_owner_id IS DISTINCT FROM OLD.assigned_owner_id AND NEW.assigned_owner_id IS NOT NULL THEN
+        -- Only trigger if owner changed from UNASSIGNED to ASSIGNED
+        IF OLD.assigned_owner_id IS NULL AND NEW.assigned_owner_id IS NOT NULL THEN
             v_trigger_type := 'REASSIGNMENT';
         ELSE
-            RETURN NEW; -- No owner change or removed owner
+            RETURN NEW; -- Skip if already had an owner, or if removed owner
         END IF;
     END IF;
 
