@@ -14,7 +14,6 @@ export default function Today() {
   const [biStats, setBiStats] = useState({
     openRequirements: 0,
     pendingQuotations: 0,
-    expectedBusiness: 0,
     contactedToday: 0,
     atRiskCustomers: [],
     demandByProduct: {}
@@ -102,22 +101,21 @@ export default function Today() {
       const { data: attentionData } = await supabase.from('v_customer_attention').select('*');
       
       let openReqs = openReqsData?.length || 0;
-      let pendingQuotes = 0, expectedBiz = 0;
+      let pendingQuotes = 0;
       let demand = {};
 
       if (openReqsData) {
         openReqsData.forEach(r => {
           if (r.status === 'Quotation Required') pendingQuotes++;
-          if (['Negotiation', 'Quotation Sent'].includes(r.status) && r.expected_rate && r.quantity) {
-            expectedBiz += (r.expected_rate * r.quantity);
-          }
         });
       }
 
       if (reqDemandData) {
         reqDemandData.forEach(d => {
-          if (!demand[d.product_type]) demand[d.product_type] = { qty: 0, unit: d.unit };
-          demand[d.product_type].qty += d.total_quantity;
+          const cat = d.category || 'Uncategorized';
+          if (!demand[cat]) demand[cat] = {};
+          if (!demand[cat][d.product_type]) demand[cat][d.product_type] = { qty: 0, unit: d.unit };
+          demand[cat][d.product_type].qty += d.total_quantity;
         });
       }
 
@@ -130,7 +128,6 @@ export default function Today() {
       setBiStats({
         openRequirements: openReqs,
         pendingQuotations: pendingQuotes,
-        expectedBusiness: expectedBiz,
         contactedToday,
         atRiskCustomers: attentionData || [],
         demandByProduct: demand
@@ -314,16 +311,12 @@ export default function Today() {
             <BarChart3 size={16} /> Active Pipeline
           </div>
           <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
-            <span className="text-secondary">Open Requirements</span>
+            <span className="text-secondary">Open Requirements <span style={{fontSize: '0.7rem', display: 'block', color: 'var(--text-muted)'}}>(Excludes Confirmed, Lost, Closed)</span></span>
             <strong style={{fontSize: '1.1rem'}}>{biStats.openRequirements}</strong>
           </div>
           <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem'}}>
             <span className="text-secondary">Pending Quotations</span>
             <strong style={{color: biStats.pendingQuotations > 0 ? 'var(--warning)' : 'inherit'}}>{biStats.pendingQuotations}</strong>
-          </div>
-          <div style={{display: 'flex', justifyContent: 'space-between', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)'}}>
-            <span className="text-secondary">Expected Business</span>
-            <strong style={{color: 'var(--success)'}}>₹{biStats.expectedBusiness.toLocaleString()}</strong>
           </div>
         </div>
 
@@ -335,11 +328,18 @@ export default function Today() {
           {Object.keys(biStats.demandByProduct).length === 0 ? (
             <p className="text-secondary text-sm">No active demand.</p>
           ) : (
-            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-              {Object.entries(biStats.demandByProduct).map(([product, details]) => (
-                <div key={product} style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem'}}>
-                  <span>{product}</span>
-                  <strong>{details.qty} {details.unit}</strong>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+              {Object.entries(biStats.demandByProduct).map(([cat, products]) => (
+                <div key={cat}>
+                  <strong style={{fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase'}}>{cat}</strong>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.25rem'}}>
+                    {Object.entries(products).map(([product, details]) => (
+                      <div key={product} style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem'}}>
+                        <span>{product}</span>
+                        <strong>{details.qty} {details.unit}</strong>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -370,9 +370,12 @@ export default function Today() {
                       <span style={{fontWeight: 600, fontSize: '0.9rem'}}>{p.display_name}</span>
                       <ChevronRight size={14} className="text-muted" />
                     </div>
-                    <div style={{fontSize: '0.75rem', color: p.attention_reason === 'Dormant Candidate' ? 'var(--text-muted)' : 'var(--warning)', marginTop: '0.25rem', display: 'flex', gap: '0.5rem'}}>
-                       <span>{p.attention_reason}</span>
-                       {p.attention_reason === 'Follow-up Risk' && <span>({p.max_postpones} Postpones)</span>}
+                    <div style={{fontSize: '0.75rem', color: p.attention_reason === 'Dormant Candidate' ? 'var(--text-muted)' : 'var(--warning)', marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
+                       <div style={{display: 'flex', gap: '0.5rem', fontWeight: 600}}>
+                         <span>{p.attention_reason}</span>
+                         {p.attention_reason === 'Follow-up Risk' && <span>({p.max_postpones} Postpones)</span>}
+                       </div>
+                       <span style={{color: 'var(--text-muted)', fontStyle: 'italic'}}>{p.attention_rule_desc}</span>
                     </div>
                   </Link>
                 ))}

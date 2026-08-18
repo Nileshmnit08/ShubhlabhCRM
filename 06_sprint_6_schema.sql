@@ -23,12 +23,14 @@ WHERE r.status NOT IN ('Closed', 'Lost', 'Confirmed');
 -- 3. Requirement Demand View
 CREATE OR REPLACE VIEW v_requirement_demand AS
 SELECT 
-    product_type, 
-    unit, 
-    SUM(quantity) as total_quantity, 
+    r.product_type, 
+    p.category,
+    r.unit, 
+    SUM(r.quantity) as total_quantity, 
     COUNT(*) as open_req_count 
-FROM v_open_requirements 
-GROUP BY product_type, unit;
+FROM v_open_requirements r
+LEFT JOIN public.products p ON r.product_type = p.name
+GROUP BY r.product_type, p.category, r.unit;
 
 -- 4. Today's Follow-ups View
 CREATE OR REPLACE VIEW v_today_followups AS
@@ -82,7 +84,13 @@ SELECT
         WHEN COALESCE(orq.req_count, 0) > 0 AND (pf.last_followup_date IS NULL OR pf.last_followup_date < CURRENT_DATE - INTERVAL '3 days') THEN 'At-Risk Candidate'
         WHEN COALESCE(pf.max_postpones, 0) >= 3 THEN 'Follow-up Risk'
         ELSE 'Healthy'
-    END as attention_reason
+    END as attention_reason,
+    CASE
+        WHEN c.crm_status = 'Active' AND (li.last_contact_date IS NULL OR li.last_contact_date < CURRENT_DATE - INTERVAL '30 days') AND COALESCE(orq.req_count, 0) = 0 THEN 'Active customer with no contact in 30 days & no open requirements.'
+        WHEN COALESCE(orq.req_count, 0) > 0 AND (pf.last_followup_date IS NULL OR pf.last_followup_date < CURRENT_DATE - INTERVAL '3 days') THEN 'Open requirement exists but no follow-up scheduled within 3 days.'
+        WHEN COALESCE(pf.max_postpones, 0) >= 3 THEN 'Follow-up has been postponed 3 or more times.'
+        ELSE 'No risk detected.'
+    END as attention_rule_desc
 FROM public.crm_parties c
 LEFT JOIN latest_interactions li ON c.id = li.party_id
 LEFT JOIN open_req_counts orq ON c.id = orq.party_id
