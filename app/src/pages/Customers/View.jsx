@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Edit2, MapPin, Phone, MessageCircle, Trash2, ShieldAlert, Calendar, Plus, CheckCircle2 } from 'lucide-react';
+import { AuthContext } from '../../App';
 import WhatsAppAction from '../../components/WhatsAppAction';
 
 export default function CustomerView() {
@@ -11,6 +12,7 @@ export default function CustomerView() {
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('details'); // details, followups, activity, requirements
+  const { userProfile } = React.useContext(AuthContext);
   
   const [followUps, setFollowUps] = useState([]);
   const [interactions, setInteractions] = useState([]);
@@ -293,7 +295,9 @@ export default function CustomerView() {
       {/* Tabs */}
       <div style={{display: 'flex', gap: '2rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', overflowX: 'auto'}}>
         <button className={`nav-item ${activeTab==='details'?'active':''}`} style={{borderRadius: 0, padding: '0.75rem 1rem', whiteSpace: 'nowrap'}} onClick={() => setActiveTab('details')}>Profile Details</button>
-        <button className={`nav-item ${activeTab==='financials'?'active':''}`} style={{borderRadius: 0, padding: '0.75rem 1rem', whiteSpace: 'nowrap'}} onClick={() => setActiveTab('financials')}>Financial Intel</button>
+        {userProfile?.role === 'Admin' && (
+          <button className={`nav-item ${activeTab==='financials'?'active':''}`} style={{borderRadius: 0, padding: '0.75rem 1rem', whiteSpace: 'nowrap'}} onClick={() => setActiveTab('financials')}>Financial Intel</button>
+        )}
         <button className={`nav-item ${activeTab==='requirements'?'active':''}`} style={{borderRadius: 0, padding: '0.75rem 1rem', whiteSpace: 'nowrap'}} onClick={() => setActiveTab('requirements')}>Requirements ({requirements.length})</button>
         <button className={`nav-item ${activeTab==='followups'?'active':''}`} style={{borderRadius: 0, padding: '0.75rem 1rem', whiteSpace: 'nowrap'}} onClick={() => setActiveTab('followups')}>Follow-ups ({followUps.length})</button>
         <button className={`nav-item ${activeTab==='activity'?'active':''}`} style={{borderRadius: 0, padding: '0.75rem 1rem', whiteSpace: 'nowrap'}} onClick={() => setActiveTab('activity')}>Activity ({interactions.length})</button>
@@ -325,7 +329,7 @@ export default function CustomerView() {
       )}
 
       {/* Tab Content: Financial Intel */}
-      {activeTab === 'financials' && (
+      {activeTab === 'financials' && userProfile?.role === 'Admin' && (
         <div className="animate-fade-in">
           {tallyTxns.length === 0 ? (
             <div className="glass-panel" style={{padding: '3rem', textAlign: 'center'}}>

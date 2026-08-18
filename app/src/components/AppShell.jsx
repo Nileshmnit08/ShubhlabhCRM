@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database } from 'lucide-react';
+import { AuthContext } from '../App';
 
 const navItems = [
   { path: '/', label: 'Today', icon: LayoutDashboard },
@@ -13,6 +14,7 @@ const navItems = [
 ];
 
 export default function AppShell() {
+  const { userProfile } = useContext(AuthContext);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   return (
@@ -26,6 +28,7 @@ export default function AppShell() {
         </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => {
+            if (item.path === '/data' && userProfile?.role !== 'Admin') return null;
             const Icon = item.icon;
             return (
               <NavLink
@@ -58,7 +61,7 @@ export default function AppShell() {
                background: 'var(--bg-surface-hover)', display: 'flex', 
                alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
              }}>
-               PO
+               {userProfile?.role === 'Admin' ? 'AD' : 'OP'}
              </div>
           </div>
         </header>

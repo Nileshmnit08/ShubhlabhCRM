@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
 
+export const AuthContext = React.createContext(null);
+
 import Today from './pages/Today';
 import CustomerList from './pages/Customers/List';
 import CustomerForm from './pages/Customers/Form';
@@ -27,33 +29,85 @@ const Placeholder = ({ title }) => (
 
 function App() {
   const [session, setSession] = React.useState(null);
+  const [userProfile, setUserProfile] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
+  const [authError, setAuthError] = React.useState(null);
 
   React.useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setLoading(false);
+      if (session) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setLoading(false);
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        fetchUserProfile(session.user.id);
+      } else {
+        setUserProfile(null);
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
+  const fetchUserProfile = async (userId) => {
+    try {
+      const { data, error } = await supabase.from('app_users').select('*').eq('id', userId).single();
+      if (error) {
+        // If row doesn't exist yet (e.g. trigger hasn't finished), retry or handle
+        if (error.code === 'PGRST116') {
+           // Poll briefly for auto-provisioning
+           setTimeout(async () => {
+             const { data: retryData } = await supabase.from('app_users').select('*').eq('id', userId).single();
+             setUserProfile(retryData || { role: 'Operator', is_active: false });
+             setLoading(false);
+           }, 1000);
+           return;
+        }
+        throw error;
+      }
+      setUserProfile(data);
+    } catch (err) {
+      console.error(err);
+      setAuthError("Failed to fetch user profile.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--text-muted)'}}>Loading secure session...</div>;
+
+  if (authError) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{authError}</div>;
 
   if (!session) {
     return <Auth />;
   }
 
+  if (userProfile && !userProfile.is_active) {
+    return (
+      <div style={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)'}}>
+        <div className="glass-panel" style={{padding: '3rem', textAlign: 'center', maxWidth: '400px'}}>
+          <h2 className="text-danger">Unauthorized</h2>
+          <p className="text-secondary" style={{marginTop: '1rem'}}>Your account is currently inactive. Please contact your system administrator for access.</p>
+          <button className="btn btn-secondary" style={{marginTop: '2rem'}} onClick={() => supabase.auth.signOut()}>Sign Out</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ErrorBoundary>
-      <BrowserRouter>
-        <Routes>
+      <AuthContext.Provider value={{ session, userProfile }}>
+        <BrowserRouter>
+          <Routes>
           <Route path="/" element={<AppShell />}>
             <Route index element={<Today />} />
             
@@ -80,8 +134,9 @@ function App() {
             
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
-        </Routes>
-      </BrowserRouter>
+          </Routes>
+        </BrowserRouter>
+      </AuthContext.Provider>
     </ErrorBoundary>
   );
 }
