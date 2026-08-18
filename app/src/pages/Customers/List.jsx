@@ -16,10 +16,12 @@ export default function CustomerList() {
   const [error, setError] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
 
+  const isAdmin = userProfile?.role === 'Admin';
+
   // Unified State Model
   const [filters, setFilters] = useState({
     search: '',
-    owner_id: 'ALL',
+    owner_id: isAdmin ? 'ALL' : (userProfile?.id || 'ALL'),
     missing_gst: false,
     show_duplicates: false,
     financial_status: 'ALL',
@@ -44,6 +46,13 @@ export default function CustomerList() {
   useEffect(() => {
     fetchTeamMembers();
   }, []);
+  
+  useEffect(() => {
+    // If user profile loads later, re-initialize the filter if needed
+    if (userProfile && !isAdmin && filters.owner_id === 'ALL') {
+      setFilters(prev => ({...prev, owner_id: userProfile.id}));
+    }
+  }, [userProfile]);
 
   useEffect(() => {
     // Debounce search slightly
@@ -370,11 +379,23 @@ export default function CustomerList() {
           </div>
 
           <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center'}}>
-            <select className="filter-select" value={filters.owner_id} onChange={e => setFilters(p => ({...p, owner_id: e.target.value}))}>
-              <option value="ALL">All Owners</option>
-              <option value="UNASSIGNED">Unassigned Only</option>
-              {teamMembers.map(t => <option key={t.id} value={t.id}>{t.display_name}</option>)}
-            </select>
+          {/* Owner Filter */}
+          <div style={{ flex: '1 1 200px' }}>
+            <div className="text-secondary" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 500 }}>Assigned Owner</div>
+            {isAdmin ? (
+              <select className="filter-select" value={filters.owner_id} onChange={e => setFilters(p => ({...p, owner_id: e.target.value}))}>
+                <option value="ALL">All Owners</option>
+                <option value="UNASSIGNED">Unassigned Only</option>
+                {teamMembers.map(t => (
+                  <option key={t.id} value={t.id}>{t.display_name}</option>
+                ))}
+              </select>
+            ) : (
+              <select className="filter-select" value={filters.owner_id} disabled>
+                <option value={userProfile?.id}>My Customers</option>
+              </select>
+            )}
+          </div>
 
             <select className="filter-select" value={filters.financial_status} onChange={e => setFilters(p => ({...p, financial_status: e.target.value}))}>
               <option value="ALL">All Financials</option>

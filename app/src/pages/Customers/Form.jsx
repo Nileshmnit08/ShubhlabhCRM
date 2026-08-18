@@ -4,11 +4,14 @@ import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
 import { ArrowLeft, Save } from 'lucide-react';
 import { State, City } from 'country-state-city';
+import { AuthContext } from '../../AuthContext';
 
 export default function CustomerForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
+  const { userProfile } = React.useContext(AuthContext);
+  const isAdmin = userProfile?.role === 'Admin';
 
   const [loading, setLoading] = useState(false);
   const [pincode, setPincode] = useState('');
@@ -28,6 +31,13 @@ export default function CustomerForm() {
     assigned_owner_id: ''
   });
   const [teamMembers, setTeamMembers] = useState([]);
+
+  useEffect(() => {
+    // If not editing and not admin, default to self
+    if (!isEditing && userProfile?.id && !isAdmin && formData.assigned_owner_id === '') {
+      setFormData(prev => ({ ...prev, assigned_owner_id: userProfile.id }));
+    }
+  }, [userProfile, isEditing]);
 
   useEffect(() => {
     fetchTeamMembers();
@@ -378,12 +388,18 @@ export default function CustomerForm() {
 
               <div>
                 <label>Assigned To</label>
-                <select name="assigned_owner_id" value={formData.assigned_owner_id || ''} onChange={handleChange}>
+                <select 
+                  name="assigned_owner_id" 
+                  value={formData.assigned_owner_id} 
+                  onChange={handleChange}
+                  disabled={!isAdmin}
+                >
                   <option value="">-- Unassigned --</option>
-                  {teamMembers.map(tm => (
-                    <option key={tm.id} value={tm.id}>{tm.display_name || 'Unnamed User'}</option>
+                  {teamMembers.map(t => (
+                    <option key={t.id} value={t.id}>{t.display_name}</option>
                   ))}
                 </select>
+                {!isAdmin && <small className="text-secondary" style={{display: 'block', marginTop: '0.25rem'}}>Only Admins can reassign ownership.</small>}
               </div>
 
             </div>
