@@ -13,7 +13,8 @@ import RequirementForm from './pages/Requirements/Form';
 
 import DataImport from './pages/Data/Import';
 import ReviewQueue from './pages/Data/Review';
-
+import Auth from './components/Auth';
+import { supabase } from './lib/supabase';
 import ErrorBoundary from './components/ErrorBoundary';
 
 // Placeholders for other routes
@@ -25,6 +26,30 @@ const Placeholder = ({ title }) => (
 );
 
 function App() {
+  const [session, setSession] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  if (loading) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--text-muted)'}}>Loading secure session...</div>;
+
+  if (!session) {
+    return <Auth />;
+  }
+
   return (
     <ErrorBoundary>
       <BrowserRouter>

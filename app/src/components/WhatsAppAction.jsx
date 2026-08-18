@@ -60,9 +60,9 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
   };
 
   const handleSend = () => {
-    // Open WA in new tab
-    const phone = party.whatsapp?.replace(/[^0-9]/g, '');
+    let phone = party.whatsapp?.replace(/[^0-9]/g, '');
     if (phone) {
+      if (phone.length === 10) phone = '91' + phone;
       const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
       const a = document.createElement('a');
       a.href = url;
@@ -72,10 +72,9 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
       a.click();
       document.body.removeChild(a);
     } else {
-      alert("No valid WhatsApp number found. Please update the profile.");
+      alert("No valid WhatsApp number found. Please update the profile with a 10-digit mobile number.");
       return;
     }
-    // Transition to feedback immediately
     setStep('feedback');
   };
 
