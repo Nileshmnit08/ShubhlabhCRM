@@ -5,6 +5,7 @@ ALTER TABLE public.follow_ups
 ADD COLUMN IF NOT EXISTS postpone_count INTEGER DEFAULT 0;
 
 -- 2. Open Requirements View
+DROP VIEW IF EXISTS v_open_requirements CASCADE;
 CREATE OR REPLACE VIEW v_open_requirements AS
 SELECT 
     r.id, 
@@ -34,6 +35,7 @@ LEFT JOIN public.products p ON r.product_type = p.name
 GROUP BY r.product_type, p.category, r.unit;
 
 -- 4. Today's Follow-ups View
+DROP VIEW IF EXISTS v_today_followups;
 CREATE OR REPLACE VIEW v_today_followups AS
 SELECT 
     f.*, 
@@ -45,6 +47,7 @@ JOIN public.crm_parties c ON f.party_id = c.id
 WHERE f.status = 'Pending' AND f.follow_up_date = CURRENT_DATE;
 
 -- 5. Overdue Follow-ups View
+DROP VIEW IF EXISTS v_overdue_followups;
 CREATE OR REPLACE VIEW v_overdue_followups AS
 SELECT 
     f.*, 
