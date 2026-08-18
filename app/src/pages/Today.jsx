@@ -20,6 +20,8 @@ export default function Today() {
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchTodayWork();
@@ -135,6 +137,7 @@ export default function Today() {
 
     } catch (err) {
       console.error(err);
+      setError("Unable to load data. The server might be unreachable or returning an error.");
     } finally {
       setLoading(false);
     }
@@ -290,6 +293,7 @@ export default function Today() {
   );
 
   if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Intelligence & Workload...</div>;
+  if (error) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{error}</div>;
 
   const hasWork = followUps.overdue.length > 0 || followUps.highPriority.length > 0 || followUps.today.length > 0;
 
