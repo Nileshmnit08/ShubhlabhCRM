@@ -12,9 +12,11 @@ export default function CustomerForm() {
   const [loading, setLoading] = useState(false);
   const [pincode, setPincode] = useState('');
   const [fetchingPincode, setFetchingPincode] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
   const [formData, setFormData] = useState({
     display_name: '',
     legal_or_core_name: '',
+    relationship_type: 'Customer',
     city: '',
     state: '',
     mobile: '',
@@ -44,6 +46,7 @@ export default function CustomerForm() {
         setFormData({
           display_name: data.display_name || '',
           legal_or_core_name: data.legal_or_core_name || '',
+          relationship_type: data.relationship_type || 'Customer',
           city: data.city || '',
           state: data.state || '',
           mobile: data.mobile || '',
@@ -102,6 +105,35 @@ export default function CustomerForm() {
       return;
     }
 
+    const phoneRegex = /^(?:\+91|0)?\s?[0-9]{10}$/;
+    if (formData.mobile && !phoneRegex.test(formData.mobile.replace(/[-\s]/g, ''))) {
+      alert('Invalid Mobile format. Ensure it contains a legitimate 10-digit Indian number.');
+      return;
+    }
+    if (formData.whatsapp && !phoneRegex.test(formData.whatsapp.replace(/[-\s]/g, ''))) {
+      alert('Invalid WhatsApp format. Ensure it contains a legitimate 10-digit Indian number.');
+      return;
+    }
+
+    // Check for Duplicates
+    if (!duplicateWarning) {
+      setLoading(true);
+      try {
+        const { data: matches } = await supabase.from('crm_parties')
+          .select('id, display_name')
+          .ilike('display_name', `%${formData.display_name.trim()}%`);
+          
+        const validMatches = matches?.filter(m => m.id !== id) || [];
+        if (validMatches.length > 0) {
+          setLoading(false);
+          setDuplicateWarning(validMatches);
+          return;
+        }
+      } catch (err) {
+        console.error('Error checking duplicates:', err);
+      }
+    }
+
     setLoading(true);
     try {
       if (isEditing) {
@@ -110,19 +142,51 @@ export default function CustomerForm() {
           .update(formData)
           .eq('id', id);
         if (error) throw error;
+        alert('Customer updated successfully!');
+        navigate(`/customers/${id}`);
       } else {
         const { error, data } = await supabase
           .from('crm_parties')
           .insert([formData])
           .select();
         if (error) throw error;
+        alert('Customer created successfully!');
         
         if (data && data.length > 0) {
           navigate(`/customers/${data[0].id}`);
           return;
         }
+        navigate('/customers');
       }
-      navigate('/customers');
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      alert('Error saving customer.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBypassDuplicate = () => {
+    setDuplicateWarning(null); // Clear warning state but allow saving this time since we call handleSubmit
+    // The next submit click will re-trigger duplicate search, but we could bypass it by changing state.
+    // A simpler way: we'll just save directly from here.
+  };
+
+  const proceedWithSave = async () => {
+    setDuplicateWarning(null);
+    setLoading(true);
+    try {
+      if (isEditing) {
+        const { error } = await supabase.from('crm_parties').update(formData).eq('id', id);
+        if (error) throw error;
+        alert('Customer updated successfully!');
+        navigate(`/customers/${id}`);
+      } else {
+        const { error, data } = await supabase.from('crm_parties').insert([formData]).select();
+        if (error) throw error;
+        alert('Customer created successfully!');
+        navigate(`/customers/${data[0].id}`);
+      }
     } catch (error) {
       console.error('Error saving customer:', error);
       alert('Error saving customer.');
@@ -179,6 +243,17 @@ export default function CustomerForm() {
                   onChange={handleChange} 
                   placeholder="Official registered name if different"
                 />
+              </div>
+
+              <div style={{gridColumn: '1 / -1'}}>
+                <label>Relationship Type</label>
+                <select name="relationship_type" value={formData.relationship_type} onChange={handleChange}>
+                  <option value="Customer">Customer</option>
+                  <option value="Supplier">Supplier</option>
+                  <option value="Customer + Supplier">Customer + Supplier</option>
+                  <option value="Other">Other</option>
+                  <option value="Unknown">Unknown</option>
+                </select>
               </div>
 
               <div style={{gridColumn: '1 / -1', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '0.5rem'}}>
@@ -289,12 +364,28 @@ export default function CustomerForm() {
               </div>
 
             </div>
+            
+            {duplicateWarning && duplicateWarning.length > 0 && (
+              <div style={{padding: '1rem', background: 'rgba(239, 172, 68, 0.1)', borderLeft: '4px solid var(--warning)', borderRadius: 'var(--radius-sm)', marginTop: '2rem'}}>
+                <h4 style={{color: 'var(--warning)', marginBottom: '0.5rem'}}>Possible Duplicate Detected!</h4>
+                <p style={{fontSize: '0.9rem', marginBottom: '1rem'}}>The following similar parties already exist:</p>
+                <ul style={{marginBottom: '1rem', paddingLeft: '1.5rem', fontSize: '0.9rem'}}>
+                  {duplicateWarning.map(d => (
+                    <li key={d.id}>{d.display_name}</li>
+                  ))}
+                </ul>
+                <div style={{display: 'flex', gap: '1rem'}}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setDuplicateWarning(null)}>Fix Name</button>
+                  <button type="button" className="btn" style={{background: 'var(--warning)', color: '#000'}} onClick={proceedWithSave}>Proceed Anyway (Save)</button>
+                </div>
+              </div>
+            )}
 
             <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem'}}>
               <Link to={isEditing ? `/customers/${id}` : '/customers'} className="btn btn-secondary">
                 Cancel
               </Link>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
+              <button type="submit" className="btn btn-primary" disabled={loading || !!duplicateWarning}>
                 <Save size={18} />
                 {loading ? 'Saving...' : 'Save Customer'}
               </button>

@@ -6,6 +6,7 @@ import { Search, Plus, User, Building2 } from 'lucide-react';
 export default function CustomerList() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
 
   useEffect(() => {
@@ -14,19 +15,23 @@ export default function CustomerList() {
 
   async function fetchCustomers() {
     setLoading(true);
+    setError(null);
     try {
-      let query = supabase.from('crm_parties').select('*').order('created_at', { ascending: false });
+      let query = supabase.from('crm_parties').select('*').order('created_at', { ascending: false }).limit(100);
       
-      if (search) {
-        query = query.ilike('display_name', `%${search}%`);
+      const trimmedSearch = search.trim();
+      if (trimmedSearch) {
+        // Advanced search across multiple fields
+        query = query.or(`display_name.ilike.%${trimmedSearch}%,legal_or_core_name.ilike.%${trimmedSearch}%,mobile.ilike.%${trimmedSearch}%,whatsapp.ilike.%${trimmedSearch}%,city.ilike.%${trimmedSearch}%,state.ilike.%${trimmedSearch}%`);
       }
       
-      const { data, error } = await query;
+      const { data, error: fetchErr } = await query;
       
-      if (error) throw error;
+      if (fetchErr) throw fetchErr;
       setCustomers(data || []);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
+    } catch (err) {
+      console.error('Error fetching customers:', err);
+      setError('Failed to load customers. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -76,7 +81,12 @@ export default function CustomerList() {
       </div>
 
       <div className="data-table-container">
-        {loading ? (
+        {error ? (
+          <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>
+            <p>{error}</p>
+            <button className="btn btn-secondary" style={{marginTop: '1rem', margin: '0 auto'}} onClick={fetchCustomers}>Try Again</button>
+          </div>
+        ) : loading && customers.length === 0 ? (
           <div style={{padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)'}}>
             Loading customers...
           </div>
@@ -107,10 +117,10 @@ export default function CustomerList() {
                     )}
                   </td>
                   <td>
-                    {[customer.city, customer.state].filter(Boolean).join(', ') || '-'}
+                    {[customer.city, customer.state].filter(Boolean).join(', ') || <span className="text-muted" style={{fontSize: '0.85rem'}}>Not provided</span>}
                   </td>
                   <td>
-                    {customer.mobile || customer.whatsapp || '-'}
+                    {customer.mobile || customer.whatsapp || <span className="text-muted" style={{fontSize: '0.85rem'}}>Not provided</span>}
                   </td>
                   <td>
                     <span className={getStatusBadgeClass(customer.crm_status)}>
