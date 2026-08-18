@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Edit2, MapPin, Phone, MessageCircle, Trash2, ShieldAlert, Calendar, Plus, CheckCircle2, Target, Info, DollarSign } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
 import WhatsAppAction from '../../components/WhatsAppAction';
+import { logActivity } from '../../lib/activityLogger';
 
 export default function CustomerView() {
   const { id } = useParams();
@@ -35,7 +36,16 @@ export default function CustomerView() {
     try {
       const { data: cData, error: cErr } = await supabase.from('v_customer_master').select('*').eq('id', id).single();
       if (cErr) throw cErr;
-      setCustomer(cData);
+      
+      let ownerWhatsapp = null;
+      if (cData.assigned_owner_id) {
+        const { data: oData } = await supabase.from('app_users').select('whatsapp').eq('id', cData.assigned_owner_id).single();
+        if (oData) {
+          ownerWhatsapp = oData.whatsapp;
+        }
+      }
+      
+      setCustomer({ ...cData, owner_whatsapp: ownerWhatsapp });
 
       const { data: fData, error: fErr } = await supabase.from('follow_ups').select('*').eq('party_id', id).order('follow_up_date', { ascending: true });
       if (fErr) throw fErr;
@@ -66,6 +76,35 @@ export default function CustomerView() {
         console.error(err);
       }
     }
+  };
+
+  const handleManualAssignmentWhatsApp = () => {
+    if (!customer.owner_whatsapp) {
+      alert("Assigned owner WhatsApp number not available.");
+      return;
+    }
+    
+    const message = `Hello ${customer.owner_name},
+A customer has been assigned to your name.
+
+Customer: ${customer.display_name}
+Mobile: ${customer.mobile || "Not provided"}
+WhatsApp: ${customer.whatsapp || "Not provided"}
+
+Please contact this customer and update Contact Information in CRM.`;
+
+    const encoded = encodeURIComponent(message);
+    const url = `https://wa.me/${customer.owner_whatsapp.replace(/[^0-9]/g, '')}?text=${encoded}`;
+    
+    logActivity({
+      module: 'Customers',
+      actionType: 'COMMUNICATION',
+      entityType: 'crm_parties',
+      entityId: customer.id,
+      summary: `Manual assignment WhatsApp initiated to owner ${customer.owner_name}`
+    });
+    
+    window.open(url, '_blank');
   };
 
   const handleCreateFollowUp = async (e) => {
@@ -444,8 +483,26 @@ export default function CustomerView() {
               </div>
               <div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Assigned Owner</div>
-                <div style={{ fontSize: '1rem', fontWeight: 500 }}>
-                  <span className="badge badge-neutral" style={{fontSize: '0.85rem', padding: '0.25rem 0.5rem'}}>{customer.owner_name || 'Unassigned'}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span className="badge badge-neutral" style={{fontSize: '0.85rem', padding: '0.25rem 0.5rem', fontWeight: 500}}>{customer.owner_name || 'Unassigned'}</span>
+                  {customer.assigned_owner_id && (
+                    <button 
+                      onClick={handleManualAssignmentWhatsApp}
+                      className="btn" 
+                      style={{ 
+                        padding: '0.25rem 0.75rem', 
+                        fontSize: '0.75rem', 
+                        background: customer.owner_whatsapp ? 'var(--success)' : 'var(--bg-surface-hover)', 
+                        color: customer.owner_whatsapp ? 'white' : 'var(--text-muted)',
+                        cursor: customer.owner_whatsapp ? 'pointer' : 'not-allowed',
+                        display: 'flex', alignItems: 'center', gap: '0.25rem'
+                      }}
+                      title={customer.owner_whatsapp ? "Send WhatsApp to Owner" : "Owner WhatsApp not available"}
+                    >
+                      <MessageCircle size={14} /> 
+                      Send Assignment WhatsApp
+                    </button>
+                  )}
                 </div>
               </div>
               <div>
