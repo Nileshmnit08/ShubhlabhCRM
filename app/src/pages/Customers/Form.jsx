@@ -133,14 +133,29 @@ export default function CustomerForm() {
     if (!duplicateWarning) {
       setLoading(true);
       try {
-        const { data: matches } = await supabase.from('crm_parties')
+        let query = supabase.from('crm_parties')
           .select('id, display_name')
           .ilike('display_name', `%${formData.display_name.trim()}%`);
           
-        const validMatches = matches?.filter(m => m.id !== id) || [];
+        if (isEditing) {
+           query = query.neq('id', id);
+        }
+        
+        const { data: matches } = await query;
+          
+        const validMatches = matches || [];
         if (validMatches.length > 0) {
+          // Deduplicate the UI payload so we only show distinct names
+          const uniqueNamesMap = new Map();
+          validMatches.forEach(m => {
+            const lowerName = m.display_name.trim().toLowerCase();
+            if (!uniqueNamesMap.has(lowerName)) {
+              uniqueNamesMap.set(lowerName, m);
+            }
+          });
+          
           setLoading(false);
-          setDuplicateWarning(validMatches);
+          setDuplicateWarning(Array.from(uniqueNamesMap.values()));
           return;
         }
       } catch (err) {
@@ -384,7 +399,7 @@ export default function CustomerForm() {
                 </ul>
                 <div style={{display: 'flex', gap: '1rem'}}>
                   <button type="button" className="btn btn-secondary" onClick={() => setDuplicateWarning(null)}>Fix Name</button>
-                  <button type="button" className="btn" style={{background: 'var(--warning)', color: '#000'}} onClick={proceedWithSave}>Proceed Anyway (Save)</button>
+                  <button type="button" className="btn" style={{background: 'var(--warning)', color: '#000'}} onClick={proceedWithSave}>Proceed Anyway (Merge into Current)</button>
                 </div>
               </div>
             )}
