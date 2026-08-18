@@ -59,6 +59,14 @@ export const translations = {
     'activity.LOGIN': 'Logged In',
     'activity.LOGOUT': 'Logged Out',
     'activity.IMPORT': 'Imported',
+    // Settings Module
+    'settings.title': 'Settings & Preferences',
+    'settings.profile': 'Profile',
+    'settings.notifications': 'Notifications',
+    'settings.team': 'Team Management',
+    'settings.defaults': 'CRM Defaults',
+    'settings.language': 'Preferred Language',
+    'settings.save': 'Save Changes',
   },
   hi: {
     // Nav & General
@@ -120,5 +128,13 @@ export const translations = {
     'activity.LOGIN': 'लॉग इन किया (Logged In)',
     'activity.LOGOUT': 'लॉग आउट किया (Logged Out)',
     'activity.IMPORT': 'आयात किया (Imported)',
+    // Settings Module
+    'settings.title': 'सेटिंग्स और प्राथमिकताएं (Settings)',
+    'settings.profile': 'प्रोफ़ाइल (Profile)',
+    'settings.notifications': 'सूचनाएं (Notifications)',
+    'settings.team': 'टीम प्रबंधन (Team)',
+    'settings.defaults': 'सीआरएम डिफ़ॉल्ट (CRM Defaults)',
+    'settings.language': 'पसंदीदा भाषा (Preferred Language)',
+    'settings.save': 'परिवर्तन सहेजें (Save)',
   }
 };

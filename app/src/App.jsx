@@ -22,6 +22,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import FollowUpList from './pages/FollowUps/List';
 import FollowUpForm from './pages/FollowUps/Form';
 import ActivityTimeline from './pages/Activity/Timeline';
+import Settings from './pages/Settings';
 
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
@@ -39,8 +40,17 @@ function App() {
   const [language, setLanguage] = React.useState('en');
 
   const t = React.useCallback((key) => {
-    return translations[language][key] || translations['en'][key] || key;
+    return translations[language]?.[key] || translations['en']?.[key] || key;
   }, [language]);
+
+  const handleSetLanguage = async (newLang) => {
+    setLanguage(newLang);
+    if (userProfile?.id) {
+      // Optimistically update
+      setUserProfile(prev => ({ ...prev, preferred_language: newLang }));
+      await supabase.from('app_users').update({ preferred_language: newLang }).eq('id', userProfile.id);
+    }
+  };
 
   React.useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -83,6 +93,9 @@ function App() {
         }
         throw error;
       }
+      if (data?.preferred_language) {
+        setLanguage(data.preferred_language);
+      }
       setUserProfile(data);
     } catch (err) {
       console.error(err);
@@ -114,8 +127,8 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <AuthContext.Provider value={{ session, userProfile }}>
-        <LanguageContext.Provider value={{ language, setLanguage, t }}>
+      <AuthContext.Provider value={{ session, userProfile, setUserProfile }}>
+        <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, t }}>
           <BrowserRouter>
             <Routes>
             <Route path="/" element={<AppShell />}>
@@ -144,7 +157,7 @@ function App() {
               </Route>
               
               <Route path="activity" element={<ActivityTimeline />} />
-              <Route path="settings" element={<Placeholder title="Settings" />} />
+              <Route path="settings" element={<Settings />} />
               
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
