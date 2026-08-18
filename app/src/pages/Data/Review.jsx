@@ -52,7 +52,7 @@ export default function ReviewQueue() {
         // Create new CRM party
         const { data: newParty, error: partyErr } = await supabase.from('crm_parties').insert({
           display_name: item.tally_raw_parties.tally_ledger_name.replace(/\(OLD\)/gi, '').trim(),
-          crm_status: item.tally_raw_parties.tally_status === 'OLD' ? 'Dormant' : 'Active',
+          crm_status: 'Active',
           notes: 'Auto-created from Tally Import'
         }).select().single();
         
@@ -92,7 +92,7 @@ export default function ReviewQueue() {
     try {
       const newParties = queue.map(item => ({
         display_name: item.tally_raw_parties.tally_ledger_name.replace(/\(OLD\)/gi, '').trim(),
-        crm_status: item.tally_raw_parties.tally_status === 'OLD' ? 'Dormant' : 'Active',
+        crm_status: 'Active',
         notes: 'Auto-created from Tally Import (Bulk)'
       }));
 

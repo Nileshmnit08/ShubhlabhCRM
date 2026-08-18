@@ -140,62 +140,69 @@ export default function CustomerView() {
         </div>
         
         <div style={{display: 'flex', gap: '0.75rem'}}>
-          <button className="btn btn-secondary" onClick={() => setShowInteractionForm(true)}>
-            <Plus size={16} /> Log Activity
-          </button>
+          {customer.mobile && (
+            <a href={`tel:${customer.mobile}`} className="btn btn-secondary">
+              <Phone size={16} /> Call
+            </a>
+          )}
+          {customer.whatsapp && (
+            <WhatsAppAction party={customer} onComplete={fetchCustomerContext} btnClass="btn btn-secondary" />
+          )}
           <button className="btn btn-secondary" onClick={() => navigate(`/requirements/new?party_id=${id}`)}>
-            <Plus size={16} /> New Requirement
+            <Plus size={16} /> New Req
           </button>
           <button className="btn btn-primary" onClick={() => setShowFollowUpForm(true)}>
-            <Calendar size={16} /> Schedule
+            <Calendar size={16} /> Follow-up
           </button>
         </div>
       </div>
 
       {/* Intelligence Row */}
-      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem'}}>
+      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem'}}>
         <div className="glass-panel" style={{padding: '1.25rem', borderLeft: '4px solid var(--primary)'}}>
-          <div className="text-muted" style={{fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600}}>Next Action</div>
+          <div className="text-muted" style={{fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600}}>Next Action</div>
           {nextAction ? (
             <div style={{marginTop: '0.5rem'}}>
-              <div style={{fontWeight: 600, fontSize: '1.05rem'}}>{nextAction.reason}</div>
-              <div className="text-secondary" style={{fontSize: '0.9rem', marginTop: '0.25rem'}}>
+              <div style={{fontWeight: 600, fontSize: '0.95rem'}}>{nextAction.reason}</div>
+              <div className="text-secondary" style={{fontSize: '0.85rem', marginTop: '0.25rem'}}>
                 Due: {new Date(nextAction.follow_up_date).toLocaleDateString()}
+              </div>
+              <div className="text-muted" style={{fontSize: '0.8rem', marginTop: '0.25rem'}}>
+                Assigned: {nextAction.assigned_to || 'Unassigned'}
               </div>
             </div>
           ) : (
-            <div className="text-secondary" style={{marginTop: '0.5rem', fontStyle: 'italic'}}>No pending follow-ups.</div>
+            <div className="text-secondary" style={{marginTop: '0.5rem', fontStyle: 'italic', fontSize: '0.85rem'}}>No pending action.</div>
           )}
         </div>
         
         <div className="glass-panel" style={{padding: '1.25rem', borderLeft: '4px solid var(--success)'}}>
-          <div className="text-muted" style={{fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600}}>Last Contact</div>
+          <div className="text-muted" style={{fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600}}>Last Contact</div>
           {lastContact ? (
             <div style={{marginTop: '0.5rem'}}>
-              <div style={{fontWeight: 600, fontSize: '1.05rem'}}>{lastContact.channel}</div>
-              <div className="text-secondary" style={{fontSize: '0.9rem', marginTop: '0.25rem'}}>
-                {new Date(lastContact.created_at).toLocaleDateString()} - {lastContact.outcome || lastContact.note || 'No notes'}
+              <div style={{fontWeight: 600, fontSize: '0.95rem'}}>{new Date(lastContact.created_at).toLocaleDateString()} via {lastContact.channel}</div>
+              <div className="text-secondary" style={{fontSize: '0.85rem', marginTop: '0.25rem'}}>
+                Outcome: {lastContact.outcome || 'None'}
               </div>
             </div>
           ) : (
-            <div className="text-secondary" style={{marginTop: '0.5rem', fontStyle: 'italic'}}>No previous interactions logged.</div>
+            <div className="text-secondary" style={{marginTop: '0.5rem', fontStyle: 'italic', fontSize: '0.85rem'}}>No contact logged.</div>
           )}
         </div>
 
         <div className="glass-panel" style={{padding: '1.25rem', borderLeft: '4px solid var(--warning)'}}>
-          <div className="text-muted" style={{fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600}}>Last Requirement</div>
+          <div className="text-muted" style={{fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600}}>Demand Pipeline</div>
           {lastRequirement ? (
             <div style={{marginTop: '0.5rem'}}>
-              <div style={{fontWeight: 600, fontSize: '1.05rem', display: 'flex', justifyContent: 'space-between'}}>
-                {lastRequirement.product_type}
-                <span className={`badge ${lastRequirement.status === 'Confirmed' ? 'badge-success' : lastRequirement.status === 'Lost' ? 'badge-danger' : 'badge-active'}`} style={{fontSize: '0.7rem'}}>{lastRequirement.status}</span>
+              <div style={{fontWeight: 600, fontSize: '0.95rem'}}>
+                {requirements.filter(r => !['Closed', 'Lost', 'Confirmed'].includes(r.status)).length} Open Reqs
               </div>
-              <div className="text-secondary" style={{fontSize: '0.9rem', marginTop: '0.25rem'}}>
-                {lastRequirement.quantity} {lastRequirement.unit} | {new Date(lastRequirement.created_at).toLocaleDateString()}
+              <div className="text-secondary" style={{fontSize: '0.85rem', marginTop: '0.25rem'}}>
+                Last: {lastRequirement.quantity} {lastRequirement.unit} {lastRequirement.product_type}
               </div>
             </div>
           ) : (
-            <div className="text-secondary" style={{marginTop: '0.5rem', fontStyle: 'italic'}}>No requirements logged.</div>
+            <div className="text-secondary" style={{marginTop: '0.5rem', fontStyle: 'italic', fontSize: '0.85rem'}}>No requirements logged.</div>
           )}
         </div>
       </div>
@@ -275,9 +282,14 @@ export default function CustomerView() {
             </div>
           ) : (
             <>
-              <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem'}}>
+              <div style={{marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                 <ShieldAlert size={16} className="text-warning" />
+                 <span className="text-secondary" style={{fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 600}}>Tally-Derived Financial Snapshot</span>
+                 <span className="text-muted" style={{fontSize: '0.75rem', marginLeft: 'auto'}}>Last Sync: {new Date(Math.max(...tallyTxns.map(t => new Date(t.created_at)))).toLocaleDateString()}</span>
+              </div>
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem'}}>
                 <div className="glass-panel" style={{padding: '1.25rem', borderTop: '3px solid var(--primary)'}}>
-                  <div className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>Last Purchase Date</div>
+                  <div className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>Last Purchase</div>
                   <strong style={{fontSize: '1.1rem'}}>
                     {(() => {
                       const sales = tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale'));
@@ -294,6 +306,17 @@ export default function CustomerView() {
                 <div className="glass-panel" style={{padding: '1.25rem', borderTop: '3px solid var(--warning)'}}>
                   <div className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>Purchase Frequency</div>
                   <strong style={{fontSize: '1.1rem'}}>{tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale')).length} Vouchers</strong>
+                </div>
+                <div className="glass-panel" style={{padding: '1.25rem', borderTop: '3px solid var(--danger)'}}>
+                  <div className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>Imported Outstanding</div>
+                  <strong style={{fontSize: '1.1rem'}}>
+                    {(() => {
+                       const debits = tallyTxns.filter(t => !t.is_credit).reduce((sum, t) => sum + Number(t.amount), 0);
+                       const credits = tallyTxns.filter(t => t.is_credit).reduce((sum, t) => sum + Number(t.amount), 0);
+                       const net = debits - credits;
+                       return `${net > 0 ? '+' : ''}₹${net.toLocaleString()}`;
+                    })()}
+                  </strong>
                 </div>
               </div>
 

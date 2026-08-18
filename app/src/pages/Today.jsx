@@ -29,38 +29,38 @@ export default function Today() {
   async function fetchTodayWork() {
     setLoading(true);
     try {
-      // 1. Fetch all pending follow-ups
-      const { data: fuData, error: fuErr } = await supabase
-        .from('follow_ups')
-        .select(`
-          id, reason, follow_up_date, priority, status, notes,
-          crm_parties ( id, display_name, mobile, whatsapp )
-        `)
+      // 1. Fetch Follow-ups using views and direct query for High Priority
+      const { data: overdueData } = await supabase.from('v_overdue_followups').select('*').order('follow_up_date', { ascending: true });
+      const { data: todayData } = await supabase.from('v_today_followups').select('*').order('follow_up_date', { ascending: true });
+      const { data: highPriorityData } = await supabase.from('follow_ups')
+        .select(`id, reason, follow_up_date, priority, status, notes, crm_parties ( id, display_name, mobile, whatsapp )`)
         .eq('status', 'Pending')
+        .eq('priority', 'High')
         .order('follow_up_date', { ascending: true });
 
-      if (fuErr) throw fuErr;
+      const categorized = { 
+        overdue: overdueData || [], 
+        today: todayData || [], 
+        highPriority: highPriorityData || [] 
+      };
 
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-
-      const categorized = { overdue: [], today: [], highPriority: [] };
-      const partyIds = new Set();
-      
-      if (fuData) {
-        fuData.forEach(fu => {
-          const fuDate = new Date(fu.follow_up_date);
-          fuDate.setHours(0,0,0,0);
-          if (fu.priority === 'High') {
-            categorized.highPriority.push(fu);
-          } else if (fuDate < now) {
-            categorized.overdue.push(fu);
-          } else if (fuDate.getTime() === now.getTime()) {
-            categorized.today.push(fu);
+      // Map view data structure to match expected format (e.g., nesting crm_parties)
+      const mapContext = (list) => {
+        return list.map(item => {
+          if (!item.crm_parties && item.display_name) {
+            item.crm_parties = { id: item.party_id, display_name: item.display_name, mobile: item.mobile, whatsapp: item.whatsapp };
           }
-          if (fu.crm_parties?.id) partyIds.add(fu.crm_parties.id);
+          return item;
         });
-      }
+      };
+      
+      categorized.overdue = mapContext(categorized.overdue);
+      categorized.today = mapContext(categorized.today);
+
+      const partyIds = new Set();
+      [...categorized.overdue, ...categorized.today, ...categorized.highPriority].forEach(fu => {
+        if (fu.crm_parties?.id) partyIds.add(fu.crm_parties.id);
+      });
 
       // Fetch Context for these parties
       const pIdsArray = Array.from(partyIds);
@@ -91,48 +91,43 @@ export default function Today() {
 
       setFollowUps(categorized);
 
-      // 2. Fetch BI Stats
-      const { data: reqData } = await supabase.from('requirements').select('*').not('status', 'in', '("Closed","Lost","Confirmed")');
+      // 2. Fetch BI Stats using Sprint 6 Views
+      const { data: reqDemandData } = await supabase.from('v_requirement_demand').select('*');
+      const { data: openReqsData } = await supabase.from('v_open_requirements').select('*');
+      const { data: attentionData } = await supabase.from('v_customer_attention').select('*');
       
-      let openReqs = 0, pendingQuotes = 0, expectedBiz = 0;
+      let openReqs = openReqsData?.length || 0;
+      let pendingQuotes = 0, expectedBiz = 0;
       let demand = {};
 
-      if (reqData) {
-        reqData.forEach(r => {
-          openReqs++;
+      if (openReqsData) {
+        openReqsData.forEach(r => {
           if (r.status === 'Quotation Required') pendingQuotes++;
           if (['Negotiation', 'Quotation Sent'].includes(r.status) && r.expected_rate && r.quantity) {
             expectedBiz += (r.expected_rate * r.quantity);
           }
-          if (r.product_type) {
-            if (!demand[r.product_type]) demand[r.product_type] = { qty: 0, unit: r.unit };
-            demand[r.product_type].qty += r.quantity;
-          }
+        });
+      }
+
+      if (reqDemandData) {
+        reqDemandData.forEach(d => {
+          if (!demand[d.product_type]) demand[d.product_type] = { qty: 0, unit: d.unit };
+          demand[d.product_type].qty += d.total_quantity;
         });
       }
 
       // 3. Interactions Today
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
       const { data: intData } = await supabase.from('interactions').select('party_id').gte('created_at', now.toISOString());
       const contactedToday = new Set(intData?.map(i => i.party_id)).size;
 
-      // 4. At Risk (No interaction in 30 days OR Dormant)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const { data: recentInteractions } = await supabase.from('interactions').select('party_id').gte('created_at', thirtyDaysAgo.toISOString());
-      const recentPartyIds = new Set(recentInteractions?.map(i => i.party_id) || []);
-      
-      const { data: activeParties } = await supabase.from('crm_parties').select('id, display_name, crm_status').eq('crm_status', 'Active');
-      const noContactParties = activeParties?.filter(p => !recentPartyIds.has(p.id)) || [];
-      
-      const { data: dormantParties } = await supabase.from('crm_parties').select('id, display_name, crm_status').eq('crm_status', 'Dormant');
-      
       setBiStats({
         openRequirements: openReqs,
         pendingQuotations: pendingQuotes,
         expectedBusiness: expectedBiz,
         contactedToday,
-        atRiskCustomers: [...noContactParties, ...(dormantParties || [])].slice(0, 10),
+        atRiskCustomers: attentionData || [],
         demandByProduct: demand
       });
 
@@ -143,17 +138,24 @@ export default function Today() {
     }
   }
 
-  const updateStatus = async (id, newStatus) => {
+  const updateStatus = async (item, newStatus) => {
     try {
-      await supabase.from('follow_ups').update({ 
+      const updates = { 
         status: newStatus,
-        completed_at: newStatus === 'Completed' ? new Date().toISOString() : null
-      }).eq('id', id);
+        completed_at: newStatus === 'Completed' ? new Date().toISOString() : null 
+      };
+      
+      if (newStatus === 'Postponed') {
+        const { data: currentFu } = await supabase.from('follow_ups').select('postpone_count').eq('id', item.id).single();
+        updates.postpone_count = (currentFu?.postpone_count || 0) + 1;
+      }
+      
+      await supabase.from('follow_ups').update(updates).eq('id', item.id);
       
       setFollowUps(prev => ({
-        overdue: prev.overdue.filter(f => f.id !== id),
-        today: prev.today.filter(f => f.id !== id),
-        highPriority: prev.highPriority.filter(f => f.id !== id),
+        overdue: prev.overdue.filter(f => f.id !== item.id),
+        today: prev.today.filter(f => f.id !== item.id),
+        highPriority: prev.highPriority.filter(f => f.id !== item.id),
       }));
     } catch (err) {
       alert('Failed to update status');
@@ -198,10 +200,10 @@ export default function Today() {
           <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchTodayWork} btnClass="btn btn-secondary" />
         )}
         <div style={{marginLeft: 'auto', display: 'flex', gap: '0.5rem'}}>
-          <button className="btn btn-secondary" onClick={() => updateStatus(item.id, 'Postponed')} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>
+          <button className="btn btn-secondary" onClick={() => updateStatus(item, 'Postponed')} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>
             <Clock size={14} /> Postpone
           </button>
-          <button className="btn btn-primary" onClick={() => updateStatus(item.id, 'Completed')} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>
+          <button className="btn btn-primary" onClick={() => updateStatus(item, 'Completed')} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>
             <CheckCircle2 size={14} /> Complete
           </button>
         </div>
@@ -275,16 +277,22 @@ export default function Today() {
           
           <div style={{borderTop: '1px solid var(--border)', paddingTop: '1rem'}}>
             <div style={{display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '0.5rem', fontWeight: 600}}>
-              <AlertTriangle size={14} /> At-Risk / Dormant (No recent contact)
+              <AlertTriangle size={14} /> Needs Attention
             </div>
             {biStats.atRiskCustomers.length === 0 ? (
               <div className="text-secondary" style={{fontSize: '0.85rem'}}>All active customers contacted recently!</div>
             ) : (
-              <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
+              <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '150px', overflowY: 'auto'}}>
                 {biStats.atRiskCustomers.map(p => (
-                  <Link key={p.id} to={`/customers/${p.id}`} style={{display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-primary)', textDecoration: 'none'}}>
-                    <span>{p.display_name}</span>
-                    <ChevronRight size={14} className="text-muted" />
+                  <Link key={p.party_id} to={`/customers/${p.party_id}`} style={{display: 'flex', flexDirection: 'column', padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', textDecoration: 'none', color: 'inherit'}}>
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <span style={{fontWeight: 600, fontSize: '0.9rem'}}>{p.display_name}</span>
+                      <ChevronRight size={14} className="text-muted" />
+                    </div>
+                    <div style={{fontSize: '0.75rem', color: p.attention_reason === 'Dormant Candidate' ? 'var(--text-muted)' : 'var(--warning)', marginTop: '0.25rem', display: 'flex', gap: '0.5rem'}}>
+                       <span>{p.attention_reason}</span>
+                       {p.attention_reason === 'Follow-up Risk' && <span>({p.max_postpones} Postpones)</span>}
+                    </div>
                   </Link>
                 ))}
               </div>

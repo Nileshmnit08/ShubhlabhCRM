@@ -30,11 +30,61 @@ export default function DataImport() {
     }
   };
 
+  const parseMultilineVoucherCsv = (text) => {
+    const results = Papa.parse(text, { skipEmptyLines: true });
+    const data = results.data;
+    
+    const processed = [];
+    for(let i=0; i < data.length; i++) {
+       const row = data[i];
+       // Basic check: row[0] looks like a date (e.g. 1-4-2022 or 01/04/2022)
+       if (row.length >= 3 && row[0] && (row[0].includes('-') || row[0].includes('/'))) {
+           let voucherNo = '';
+           // Check next row for voucher no
+           if (i+1 < data.length && data[i+1][0] && data[i+1][0].includes('(No.')) {
+              voucherNo = data[i+1][0].replace('(No. :', '').replace('(No.', '').replace(')', '').trim();
+           }
+           
+           processed.push({
+              voucher_date: row[0],
+              ledger_name: row[1],
+              voucher_type: row[2],
+              debit_amount: row[3] ? row[3].replace(/-/g, '') : '',
+              credit_amount: row[4] ? row[4].replace(/-/g, '') : '',
+              voucher_no: voucherNo
+           });
+       }
+    }
+    
+    setParsedData(processed);
+    setColumns(['voucher_date', 'ledger_name', 'voucher_type', 'debit_amount', 'credit_amount', 'voucher_no']);
+    
+    setVoucherMapping({
+      voucher_date: 'voucher_date',
+      ledger_name: 'ledger_name',
+      voucher_type: 'voucher_type',
+      voucher_no: 'voucher_no',
+      debit_amount: 'debit_amount',
+      credit_amount: 'credit_amount'
+    });
+    
+    setParsing(false);
+  };
+
   const parseFile = (file) => {
     setParsing(true);
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
       parsePdf(file);
       return;
+    }
+
+    if (importType === 'voucher') {
+       const reader = new FileReader();
+       reader.onload = (e) => {
+         parseMultilineVoucherCsv(e.target.result);
+       };
+       reader.readAsText(file, 'UTF-16LE');
+       return;
     }
 
     Papa.parse(file, {
@@ -54,18 +104,6 @@ export default function DataImport() {
               else if (lower.includes('state') || lower.includes('city') || lower.includes('location')) guessMapping.location = f;
             });
             setPartyMapping(guessMapping);
-          } else {
-            const guessMapping = { ...voucherMapping };
-            results.meta.fields.forEach(f => {
-              const lower = f.toLowerCase();
-              if (lower.includes('date')) guessMapping.voucher_date = f;
-              else if (lower.includes('particulars') || lower.includes('ledger')) guessMapping.ledger_name = f;
-              else if (lower.includes('vch type') || lower.includes('voucher type')) guessMapping.voucher_type = f;
-              else if (lower.includes('vch no') || lower.includes('voucher no')) guessMapping.voucher_no = f;
-              else if (lower.includes('debit')) guessMapping.debit_amount = f;
-              else if (lower.includes('credit')) guessMapping.credit_amount = f;
-            });
-            setVoucherMapping(guessMapping);
           }
         }
         setParsing(false);

@@ -1,0 +1,590 @@
+SMALL-SCALE FEED CRM
+FINAL CONTROLLED DEVELOPMENT & SPRINT PLAN
+Tally + Supabase/PostgreSQL + Flutter/Web-ready Architecture
+PRODUCT OWNER
+↕
+ANTIGRAVITY DEVELOPMENT AGENT
+Version: Final Architecture Baseline
+1. Executive Summary
+This project is a lightweight, domain-specific CRM for a small-scale feed business. It is designed to work alongside Tally rather than replace it. Tally remains the accounting and financial source of truth; the CRM becomes the operational system for customer relationships, daily follow-up, WhatsApp communication, customer feedback, feed-grade requirements and simple action-oriented intelligence.
+The system is intentionally designed to remain small, fast and easy to use. Advanced AI scoring, complex customer-health models, marketing automation and enterprise CRM features are deliberately postponed until sufficient reliable CRM data has accumulated.
+2. Product Principles
+Tally = accounting and financial source of truth.
+CRM = customer relationship, interaction, follow-up and market-demand intelligence.
+WhatsApp = primary communication channel for fast customer contact, initially through controlled deep links.
+Requirements = structured record of what customers actually need.
+Today's Work = primary operating screen that answers what needs attention today.
+Supabase/PostgreSQL = central application database; SQLite is not part of the production architecture.
+Raw Tally data must be preserved before normalization or identity resolution.
+Ambiguous customer identity must be reviewed by a human; uncertain parties must never be silently merged.
+Every sprint is independently testable and requires explicit Product Owner approval before the next sprint begins.
+3. Architecture & Technology Baseline
+3.1 Technology
+Frontend: Flutter with a responsive architecture suitable for desktop/web and future mobile clients.
+Backend/Data Platform: Supabase.
+Database: PostgreSQL through Supabase.
+Authentication: Supabase Auth or an equivalent approved authentication layer, introduced only when required by the current sprint.
+Tally integration: controlled import pipeline with staging and normalization layers.
+WhatsApp: human-controlled WhatsApp deep links initially; official API automation is explicitly out of the initial scope.
+3.2 Revised Architecture Flow
+                         TALLY
+                           │
+                           ▼
+                TALLY EXPORT / SOURCE FILE
+                           │
+                           ▼
+                 ┌─────────────────────┐
+                 │  IMPORT PROCESS     │
+                 └─────────────────────┘
+                           │
+                           ▼
+                  tally_imports
+                           │
+                           ▼
+                 tally_raw_parties
+                           │
+                           ▼
+              NORMALIZATION / VALIDATION
+                           │
+                           ▼
+             PARTY IDENTITY RESOLUTION
+                    │              │
+              Confirmed         Ambiguous
+                    │              │
+                    ▼              ▼
+              CRM PARTY      REVIEW QUEUE
+                    │
+          ┌─────────┼──────────┐
+          ▼         ▼          ▼
+      FOLLOW-UPS WHATSAPP REQUIREMENTS
+          │         │          │
+          └─────────┼──────────┘
+                    ▼
+             CUSTOMER ACTIVITY
+                    │
+                    ▼
+              TODAY'S WORK
+                    │
+                    ▼
+          MANAGEMENT / SIMPLE INSIGHTS
+The architecture deliberately separates raw imported Tally data from the normalized CRM party identity. This protects the system from destructive imports, naming changes and uncertain deduplication.
+4. Minimal Initial Navigation
+TODAY
+CUSTOMERS
+REQUIREMENTS
+FOLLOW-UPS
+ACTIVITY
+SETTINGS
+The primary screen is named 'Today's Work', not 'Dashboard'. The purpose is actionability, not passive reporting.
+5. Complete Data Model Outline
+The following is the logical data model. Physical PostgreSQL implementation, indexes, constraints and RLS policies must be finalized during the relevant sprint without unnecessarily expanding the scope.
+users
+id
+name
+mobile/email
+role
+is_active
+created_at
+updated_at
+parties / crm_parties
+id
+display_name
+legal_or_core_name
+city
+state
+mobile
+whatsapp
+communication_preference
+preferred_channel
+preferred_contact_time
+crm_status
+notes
+created_at
+updated_at
+party_relationships
+id
+party_id
+relationship_type
+is_active
+created_at
+updated_at
+Relationship types: Customer, Supplier, Customer + Supplier, Other, Unknown
+tally_imports
+id
+source_file_name
+source_type
+imported_at
+imported_by
+record_count
+success_count
+error_count
+status
+notes
+tally_raw_parties
+id
+tally_import_id
+tally_source_id
+tally_ledger_name
+tally_group
+tally_status
+raw_location
+raw_payload_or_source_reference
+first_seen
+last_seen
+party_identity_links
+id
+crm_party_id
+tally_raw_party_id
+match_type
+confidence
+resolution_status
+reason
+resolved_by
+resolved_at
+identity_review_queue
+id
+tally_raw_party_id
+candidate_crm_party_id
+match_reason
+confidence
+status
+reviewed_by
+reviewed_at
+review_notes
+customer_contacts
+id
+party_id
+contact_person
+mobile
+whatsapp
+designation
+is_primary
+notes
+interactions / activity
+id
+party_id
+user_id
+channel
+interaction_type
+outcome
+note
+created_at
+next_action
+next_action_date
+follow_ups
+id
+party_id
+reason
+follow_up_date
+priority
+assigned_to
+status
+notes
+created_by
+completed_by
+completed_at
+products
+id
+product_name
+category
+unit
+is_active
+notes
+created_at
+updated_at
+requirements
+id
+party_id
+product_id
+quantity
+unit
+expected_rate
+required_date
+priority
+source_interaction_id
+status
+notes
+created_by
+created_at
+updated_at
+requirement_events / status_history
+id
+requirement_id
+old_status
+new_status
+changed_by
+changed_at
+note
+tally_transactions (future)
+id
+tally_import_id
+tally_voucher_id
+voucher_date
+party_reference
+amount
+transaction_type
+raw_reference
+5.1 Important Identity Rules
+CRM Party Identity is the stable business identity used by the CRM.
+Tally Ledger Name is a source-system display value and may change.
+A CRM party can be linked to one or more Tally ledger identities only after identity resolution.
+A possible duplicate is not a confirmed duplicate.
+Merging must be an explicit, auditable action.
+Original Tally values must remain recoverable from staging/import history.
+5.2 Status Model
+Tally Status is separate from CRM Status.
+Tally Status:
+  Active
+  OLD
+  Unknown
+CRM Status:
+  Active
+  Dormant
+  At Risk
+  Inactive
+  Blocked
+Tally OLD must not automatically mean CRM Dormant. The two statuses describe different systems.
+5.3 Communication Preferences
+Communication Preference:
+  WhatsApp
+  Call
+  WhatsApp + Call
+  No WhatsApp
+  Do Not Contact
+Preferred Contact Time: optional
+6. Tally Transactional Data Rule
+Critical rule: 
+The supplied ledger-list PDF is not sufficient for historical financial metrics such as last purchase, purchase frequency, sales trend, purchase value or outstanding balance.
+Those metrics require an appropriate voucher-level or transaction-level Tally export. Antigravity must not infer transaction history from a ledger-list PDF.
+Ledger List / Party Master
+        → identity + master-data use
+Voucher-Level Export
+        → transaction / financial intelligence
+7. Tally Import & Identity Resolution Rules
+Preserve the original Tally ledger name exactly as imported.
+Do not use party name alone as a permanent primary identity.
+Detect spelling variations, punctuation differences, abbreviations, location suffixes and aliases.
+Flag ledgers containing '(OLD)' for appropriate Tally status handling.
+Support Exact Match, Possible Match, Manual Confirmation and New Party outcomes.
+Never silently merge uncertain parties.
+Keep import history so a problematic import can be investigated or reprocessed.
+Use staging tables before CRM tables.
+8. Sprint Plan — Controlled Development
+SPRINT 0 — Discover & Freeze Scope
+Objective: 
+Understand the supplied Tally source and freeze the initial product/technical scope before production coding.
+Build
+Inspect the supplied Tally PDF/export and identify what information is actually available.
+Identify party/customer/supplier candidates, groups, location patterns, '(OLD)' records and obvious naming variations.
+Document missing information and limitations.
+Propose the logical data model and architecture.
+Confirm Supabase/PostgreSQL and Flutter/Web-ready baseline.
+Prepare TALLY_DATA_AUDIT.md, PROJECT_SCOPE.md, DATA_MODEL.md and ARCHITECTURE.md.
+Scope boundary: 
+Must NOT build production CRM screens, WhatsApp automation, bulk messaging, AI scoring or unapproved features.
+GATE 0 — 
+STOP. User approves the understanding and architecture.
+SPRINT 1 — CRM Foundation
+Objective: 
+Create the smallest working CRM shell.
+Build
+Create application shell and responsive navigation.
+Create central PostgreSQL/Supabase connection.
+Create CRM party/customer model.
+Create Customers list and search.
+Create Customer Profile.
+Create add/edit customer workflow.
+Implement basic validation.
+Use minimal navigation: Today, Customers, Requirements, Follow-ups, Activity, Settings.
+Scope boundary: 
+Do not build Tally import, requirements, follow-up engine, WhatsApp automation or advanced dashboard intelligence.
+GATE 1 — 
+STOP. User tests Create → Search → Open → Edit → Save.
+SPRINT 2 — Tally Import, Staging & Party Identity Resolution
+Objective: 
+Safely bring Tally party data into the CRM without corrupting or silently merging identities.
+Build
+Create tally_imports and tally_raw_parties.
+Implement import pipeline appropriate to the verified source format.
+Preserve original Tally ledger name, source reference, group and Tally status.
+Normalize data without destroying raw values.
+Detect spelling variations, aliases, location variants and '(OLD)' records.
+Create party identity links.
+Create manual identity review/deduplication queue.
+Support Exact Match, Possible Match, Manual Confirmation and New Party.
+Record import summary and errors.
+Allow explicit, auditable resolution of ambiguous parties.
+Scope boundary: 
+Do not calculate transaction history from the ledger-list PDF. Do not auto-merge uncertain parties.
+GATE 2 — 
+STOP. User reviews imported records, duplicate candidates, OLD records and match decisions.
+SPRINT 3 — Today's Work & Daily Follow-up
+Objective: 
+Make the CRM useful for daily customer action.
+Build
+Rename/establish primary operating screen as Today's Work.
+Show today's follow-ups.
+Show overdue follow-ups.
+Show high-priority actions.
+Create follow-up with reason, date, priority, assignee and notes.
+Support Pending, Completed, Postponed and Cancelled.
+Add quick actions: Call, WhatsApp placeholder, Add Note, Complete, Postpone.
+Show Last Contact and Next Action on customer context.
+Scope boundary: 
+Do not add advanced scoring or complex analytics.
+GATE 3 — 
+STOP. User can open Today's Work and immediately know whom to contact and what action is due.
+SPRINT 4 — One-Tap WhatsApp + Interaction Feedback
+Objective: 
+Make customer communication fast while keeping human control.
+Build
+Create WhatsApp deep-link action.
+Use editable pre-filled message templates.
+After the user sends/returns from WhatsApp, immediately present quick feedback options.
+Feedback options: Requirement, Order, Price Issue, Quality Issue, Payment Issue, No Requirement, Call Later, Competitor, Other.
+Record interaction channel, outcome, user, date/time and note.
+If Requirement is selected, open requirement capture automatically.
+If Call Later is selected, prompt for follow-up date automatically.
+Respect Do Not Contact and communication preferences.
+Scope boundary: 
+Do not build uncontrolled bulk messaging, marketing automation or official WhatsApp API integration.
+GATE 4 — 
+STOP. User can contact a customer and record the outcome in seconds.
+SPRINT 5 — Feed-Grade Requirement Management
+Objective: 
+Capture real customer demand in structured form.
+Build
+Create requirement from interaction or customer profile.
+Capture customer, product, quantity, unit, expected rate, required date, priority and notes.
+Link requirement to source interaction.
+Implement statuses: New, Quotation Required, Quotation Sent, Negotiation, Confirmed, Lost, Closed.
+Record status history.
+Allow next follow-up from the requirement.
+Search/filter open requirements.
+Keep product master simple and domain-specific.
+Scope boundary: 
+Do not build complex quotation, order-management or ERP functionality unless separately approved.
+GATE 5 — 
+STOP. Complete Customer → Contact → Requirement → Follow-up workflow using a real example.
+SPRINT 6 — Simple Business Intelligence / Today's Work Enhancement
+Objective: 
+Improve actionability without turning the product into a large BI platform.
+Build
+Show open requirements.
+Show pending quotations.
+Show overdue follow-ups.
+Show customers contacted today.
+Show dormant/at-risk candidates only from transparent business rules.
+Show simple requirement demand by product/category.
+Show expected business only where the underlying data is reliable.
+Improve customer profile with Last Contact, Last Requirement and Next Action.
+Scope boundary: 
+No AI scoring, advanced customer health models or predictive analytics.
+GATE 6 — 
+STOP. User confirms the screen helps decide what to do today.
+SPRINT 7 — Tally Voucher-Level Business Intelligence
+Objective: 
+Introduce historical financial intelligence only after the correct Tally transaction export is available.
+Build
+Define/verify voucher-level Tally export format.
+Create controlled transaction staging.
+Link transaction parties to CRM Party Identity.
+Support appropriate transaction-level metrics such as last purchase, purchase frequency, purchase value or outstanding only when source data supports them.
+Keep financial/Tally information clearly separate from CRM interaction data.
+Provide import auditability and error reporting.
+Scope boundary: 
+Do not fabricate metrics from the ledger-list PDF. Do not make CRM the accounting source of truth.
+GATE 7 — 
+STOP. User validates sample Tally-derived metrics against Tally.
+SPRINT 8 — Production Hardening & UAT
+Objective: 
+Make the CRM dependable for daily business use.
+Build
+Test authentication and permissions.
+Test database integrity and RLS where applicable.
+Test Tally staging/import/reprocessing.
+Test identity resolution and merge safety.
+Test customer search and profile.
+Test Today's Work.
+Test WhatsApp deep links and communication preferences.
+Test feedback and requirement flows.
+Test dashboard/simple intelligence.
+Test backup/recovery.
+Test error handling.
+Test responsive desktop/web/mobile layouts.
+Conduct real-world User Acceptance Testing.
+Scope boundary: 
+No new feature development during hardening unless it is required to fix a release-blocking defect.
+FINAL GATE — 
+STOP. Release to production only after explicit Product Owner approval.
+9. One-Tap WhatsApp & Feedback UX
+CUSTOMER
+   ↓
+[WhatsApp]
+   ↓
+Editable pre-filled message
+   ↓
+User sends message manually
+   ↓
+Immediate quick feedback prompt
+   ↓
+┌───────────────┬─────────────────┐
+│ Requirement   │ Call Later      │
+│ Order         │ No Requirement  │
+│ Price Issue   │ Quality Issue   │
+│ Payment Issue │ Competitor      │
+│ Other         │                 │
+└───────────────┴─────────────────┘
+          ↓
+Automatic next step:
+Requirement → Requirement Form
+Call Later → Follow-up Form
+Other → Interaction Note
+Initial message-template set should remain small (approximately 3–5 useful business templates).
+10. Today's Work — Primary Operating Screen
+The primary operating question is:
+“What should I do today?”
+The screen should prioritize:
+Today's follow-ups.
+Overdue follow-ups.
+High-priority customers.
+Open requirements.
+Pending quotations.
+Call Later actions.
+Customers needing attention.
+Customer context should surface:
+Customer
+Last Contact
+Last Outcome
+Last Requirement
+Next Action
+Next Follow-up
+[WhatsApp] [Call] [Complete]
+11. Scope Discipline & Deferred Features
+The following are deliberately postponed until reliable CRM data accumulates:
+AI customer scoring.
+Advanced customer-health metrics.
+Predictive ordering.
+Complex marketing automation.
+Uncontrolled bulk WhatsApp messaging.
+Large BI/reporting suites.
+Enterprise workflow engines.
+ERP/accounting replacement functionality.
+A future feature may be proposed by Antigravity, but proposal does not equal authorization. It must enter a future sprint and receive Product Owner approval.
+12. Strict Antigravity Control Protocol
+The user is the Product Owner. Antigravity is the development agent.
+Work ONLY on the current sprint.
+Never implement future-sprint functionality because it appears convenient or related.
+Never change the approved architecture, database strategy or major dependencies without explicit approval.
+Do not introduce SQLite as a production database.
+Do not fabricate, infer or invent missing Tally information.
+Never silently merge ambiguous parties.
+Never delete or overwrite raw Tally staging information.
+All destructive or identity-changing operations must be explicit and auditable.
+Every sprint must produce a working, testable increment.
+Every sprint must include regression testing of previously working functionality.
+A sprint is not complete merely because code compiles.
+At sprint completion, generate the Sprint Completion Report.
+At sprint completion, STOP.
+Do not automatically start the next sprint.
+Only explicit Product Owner approval permits the next sprint.
+12.1 Required Sprint State Machine
+PLANNED
+   ↓
+BUILDING
+   ↓
+TESTING
+   ↓
+REVIEW
+   ↓
+WAITING FOR APPROVAL
+   ├── APPROVED → NEXT SPRINT
+   └── REVISE → CURRENT SPRINT
+13. Definition of Done
+The sprint objective is achieved.
+The intended business workflow works end-to-end.
+The application runs without release-blocking errors.
+Manual functional tests have been completed.
+Regression testing has passed.
+Database changes are documented.
+No raw Tally data has been lost or silently overwritten.
+Known limitations are documented.
+The Sprint Completion Report is produced.
+Antigravity is stopped and waiting for approval.
+14. Standard Sprint Completion Report
+SPRINT COMPLETION REPORT
+Sprint:
+Date:
+Objective:
+1. IMPLEMENTED
+- List every feature actually implemented.
+2. NOT IMPLEMENTED
+- List intentionally deferred items.
+3. FILES CREATED / MODIFIED / DELETED
+- ...
+4. DATABASE CHANGES
+- Tables
+- Columns
+- Indexes
+- Policies / RLS
+- Migrations
+5. TALLY DATA IMPACT
+- Imports affected:
+- Raw data preserved:
+- Identity mappings changed:
+6. TESTS PERFORMED
+- ...
+7. TEST RESULTS
+PASS / FAIL
+8. REGRESSION TEST
+PASS / FAIL
+9. BUGS FOUND
+- ...
+10. BUGS FIXED
+- ...
+11. KNOWN LIMITATIONS
+- ...
+12. SECURITY / DATA SAFETY
+- ...
+13. SCREENSHOT / DEMO EVIDENCE
+- ...
+14. NEXT SPRINT PROPOSAL
+- Proposal only; do not implement.
+STATUS:
+⛔ SPRINT COMPLETE — WAITING FOR PRODUCT OWNER APPROVAL
+15. Product Owner Control Commands
+APPROVED — START SPRINT X
+REVISE CURRENT SPRINT
+STOP DEVELOPMENT
+SHOW CURRENT SPRINT STATUS
+RUN REGRESSION TEST
+SHOW FILES CHANGED
+SHOW DATABASE CHANGES
+SHOW TALLY IMPORT / IDENTITY CHANGES
+16. Mandatory Real-World Acceptance Scenarios
+Create a new customer and find it again through search.
+Import a Tally party and preserve its original Tally name.
+Flag two similarly named parties as possible matches without silently merging them.
+Handle a Tally ledger marked '(OLD)' without converting it automatically to CRM Dormant.
+Mark a party as Customer + Supplier.
+Set Do Not Contact and verify WhatsApp action is appropriately restricted.
+Open Today's Work and identify today's follow-up actions.
+Open WhatsApp from a customer and record a response in seconds.
+Choose Requirement and have the requirement form open automatically.
+Choose Call Later and have a follow-up created/scheduled.
+Create a feed-grade requirement such as DDGS 20 MT and track it through follow-up.
+Validate a voucher-level Tally metric against Tally before trusting it.
+17. Final Operating Model
+TALLY
+  = Accounts / Financial Source of Truth
+CRM
+  = Customer Relationship + Follow-up + Requirement Intelligence
+WHATSAPP
+  = Communication Channel
+REQUIREMENTS
+  = Structured Market Demand
+TODAY'S WORK
+  = Daily Action Center
+SUPABASE / POSTGRESQL
+  = Central Application Data Platform
+The final product should remain deliberately lightweight. Its success is measured by daily adoption and better customer follow-through—not by the number of modules or complexity of the technology.
