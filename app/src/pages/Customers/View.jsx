@@ -344,7 +344,7 @@ export default function CustomerView() {
                   <div className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>Last Purchase</div>
                   <strong style={{fontSize: '1.1rem'}}>
                     {(() => {
-                      const sales = tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale'));
+                      const sales = tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale') && Number(t.amount) > 0);
                       return sales.length > 0 ? new Date(sales[0].voucher_date).toLocaleDateString() : 'N/A';
                     })()}
                   </strong>
@@ -352,17 +352,34 @@ export default function CustomerView() {
                 <div className="glass-panel" style={{padding: '1.25rem', borderTop: '3px solid var(--success)'}}>
                   <div className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>Total Sales Value</div>
                   <strong style={{fontSize: '1.1rem'}}>
-                    ₹{tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale')).reduce((sum, t) => sum + Number(t.amount), 0).toLocaleString()}
+                    {(() => {
+                      const salesTxns = tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale') || t.voucher_type.toLowerCase().includes('credit note'));
+                      if (salesTxns.length === 0) return 'N/A';
+                      const totalSales = salesTxns.reduce((sum, t) => {
+                        const amt = Number(t.amount);
+                        // Sales are usually debits (is_credit = false) in a customer ledger, Credit Notes are credits
+                        if (t.voucher_type.toLowerCase().includes('credit note')) return sum - amt;
+                        return sum + amt;
+                      }, 0);
+                      return `₹${totalSales.toLocaleString()}`;
+                    })()}
                   </strong>
                 </div>
                 <div className="glass-panel" style={{padding: '1.25rem', borderTop: '3px solid var(--warning)'}}>
                   <div className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>Purchase Frequency</div>
-                  <strong style={{fontSize: '1.1rem'}}>{tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale')).length} Vouchers</strong>
+                  <strong style={{fontSize: '1.1rem'}}>
+                    {(() => {
+                      const sales = tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale') && Number(t.amount) > 0);
+                      return sales.length > 0 ? `${sales.length} Vouchers` : 'N/A';
+                    })()}
+                  </strong>
                 </div>
                 <div className="glass-panel" style={{padding: '1.25rem', borderTop: '3px solid var(--danger)'}}>
                   <div className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>Imported Outstanding</div>
                   <strong style={{fontSize: '1.1rem'}}>
                     {(() => {
+                       if (tallyTxns.length === 0) return 'N/A';
+                       // Double-entry accounting for customer ledger: Debits increase balance owed to us, Credits decrease it
                        const debits = tallyTxns.filter(t => !t.is_credit).reduce((sum, t) => sum + Number(t.amount), 0);
                        const credits = tallyTxns.filter(t => t.is_credit).reduce((sum, t) => sum + Number(t.amount), 0);
                        const net = debits - credits;

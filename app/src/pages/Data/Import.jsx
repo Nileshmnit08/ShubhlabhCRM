@@ -268,8 +268,12 @@ export default function DataImport() {
     // Find all crm_parties to exact match on name
     const { data: crmParties } = await supabase.from('crm_parties').select('id, display_name, legal_or_core_name');
     
+    let queuedCount = 0;
+    
     if (crmParties) {
       const cleanTxns = [];
+      const unmatchedLedgers = new Set();
+      
       rawTxns.forEach(raw => {
         const rawNorm = normalizeIdentity(raw.particulars);
         const match = crmParties.find(c => normalizeIdentity(c.display_name) === rawNorm || normalizeIdentity(c.legal_or_core_name) === rawNorm);
@@ -285,6 +289,8 @@ export default function DataImport() {
             amount: raw.debit_amount > 0 ? raw.debit_amount : raw.credit_amount,
             is_credit: raw.credit_amount > 0
           });
+        } else {
+          unmatchedLedgers.add(raw.particulars);
         }
       });
 
@@ -293,16 +299,62 @@ export default function DataImport() {
         const { error: cleanErr } = await supabase.from('tally_transactions').upsert(cleanTxns, { onConflict: 'tally_ledger_name, voucher_type, voucher_no, voucher_date', ignoreDuplicates: true });
         if (cleanErr) console.error("Clean error: ", cleanErr);
       }
+      
+      // Handle unmatched ledgers: push to tally_raw_parties & identity_review_queue
+      if (unmatchedLedgers.size > 0) {
+        queuedCount = unmatchedLedgers.size;
+        const unmatchedArr = Array.from(unmatchedLedgers);
+        
+        // Upsert into raw parties
+        const rawPToInsert = unmatchedArr.map(ul => ({
+          tally_import_id: importJob.id,
+          tally_ledger_name: ul,
+          tally_status: 'Active (Voucher)'
+        }));
+        
+        await supabase.from('tally_raw_parties').upsert(rawPToInsert, { onConflict: 'tally_ledger_name', ignoreDuplicates: true });
+        
+        // Fetch them back to get IDs
+        const { data: insertedRaw } = await supabase.from('tally_raw_parties')
+          .select('id, tally_ledger_name')
+          .in('tally_ledger_name', unmatchedArr);
+          
+        if (insertedRaw) {
+          const reviewQueueToInsert = insertedRaw.map(rp => {
+            // Check for partial match to suggest
+            const rawNorm = normalizeIdentity(rp.tally_ledger_name);
+            let bestMatch = null;
+            let highestScore = 0;
+            crmParties.forEach(crmP => {
+              const crmNorm = normalizeIdentity(crmP.display_name);
+              if (rawNorm.includes(crmNorm) || crmNorm.includes(rawNorm)) {
+                if (highestScore < 0.8) { bestMatch = crmP; highestScore = 0.8; }
+              }
+            });
+            
+            return {
+              tally_raw_party_id: rp.id,
+              candidate_crm_party_id: bestMatch ? bestMatch.id : null,
+              match_reason: bestMatch ? 'Partial name match detected' : 'No matching CRM party found',
+              confidence: highestScore
+            };
+          });
+          
+          if (reviewQueueToInsert.length > 0) {
+            await supabase.from('identity_review_queue').upsert(reviewQueueToInsert, { onConflict: 'tally_raw_party_id' });
+          }
+        }
+      }
     }
-    return { successCount: rawTxns.length, errorCount: 0, failedRows: [] };
+    return { successCount: rawTxns.length - queuedCount, errorCount: 0, failedRows: [], queuedCount };
   };
 
   const runImport = async () => {
     if (importType === 'party' && !partyMapping.ledger_name) {
       alert("Please map the Ledger Name column."); return;
     }
-    if (importType === 'voucher' && !voucherMapping.ledger_name) {
-      alert("Please map the Ledger Name column."); return;
+    if (importType === 'voucher' && (!voucherMapping.ledger_name || !voucherMapping.voucher_type || (!voucherMapping.debit_amount && !voucherMapping.credit_amount))) {
+      alert("Please map Ledger Name, Voucher Type, and at least one Amount column (Debit/Credit)."); return;
     }
 
     setImporting(true);
@@ -326,7 +378,7 @@ export default function DataImport() {
       if (importType === 'party' && resultObj.errorCount === 0) {
         navigate('/data/review');
       } else {
-        setImportResult({ success: true, count: resultObj.successCount, errorCount: resultObj.errorCount, failedRows: resultObj.failedRows, type: importType, date: new Date().toLocaleDateString() });
+        setImportResult({ success: true, count: resultObj.successCount, queuedCount: resultObj.queuedCount || 0, errorCount: resultObj.errorCount, failedRows: resultObj.failedRows, type: importType, date: new Date().toLocaleDateString() });
       }
     } catch (err) {
       console.error(err);
@@ -385,6 +437,7 @@ export default function DataImport() {
               <h2>Import Successful!</h2>
               <p className="text-secondary" style={{marginTop: '0.5rem', marginBottom: '2rem'}}>
                 Staged {importResult.count} {importResult.type === 'party' ? 'Parties' : 'Transactions'} on {importResult.date}.
+                {importResult.queuedCount > 0 && <span style={{display: 'block', color: 'var(--warning)', marginTop: '0.5rem'}}>{importResult.queuedCount} unlinked entities sent to Review Queue.</span>}
               </p>
               {importResult.errorCount > 0 && (
                 <div style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', padding: '1rem', borderRadius: 'var(--radius-sm)', marginBottom: '2rem', textAlign: 'left', maxHeight: '200px', overflowY: 'auto'}}>
