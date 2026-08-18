@@ -38,6 +38,7 @@ function App() {
   const [loading, setLoading] = React.useState(true);
   const [authError, setAuthError] = React.useState(null);
   const [language, setLanguage] = React.useState('en');
+  const [crmSettings, setCrmSettings] = React.useState(null);
 
   const t = React.useCallback((key) => {
     return translations[language]?.[key] || translations['en']?.[key] || key;
@@ -57,6 +58,7 @@ function App() {
       setSession(session);
       if (session) {
         fetchUserProfile(session.user.id);
+        fetchCrmSettings();
       } else {
         setLoading(false);
       }
@@ -68,6 +70,7 @@ function App() {
       setSession(session);
       if (session) {
         fetchUserProfile(session.user.id);
+        fetchCrmSettings();
       } else {
         setUserProfile(null);
         setLoading(false);
@@ -96,12 +99,59 @@ function App() {
       if (data?.preferred_language) {
         setLanguage(data.preferred_language);
       }
+      
+      // Apply personalization
+      if (data) {
+        applyPersonalization(data);
+      }
+      
       setUserProfile(data);
     } catch (err) {
       console.error(err);
       setAuthError("Failed to fetch user profile.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCrmSettings = async () => {
+    try {
+      const { data, error } = await supabase.from('crm_settings').select('*').eq('id', 1).single();
+      if (data) {
+        setCrmSettings(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const applyPersonalization = (profile) => {
+    const root = document.documentElement;
+    if (profile.accent_color) {
+      root.style.setProperty('--primary', profile.accent_color);
+    }
+    if (profile.theme_mode === 'dark') {
+      root.classList.add('dark');
+      root.style.setProperty('--bg-base', '#0f172a');
+      root.style.setProperty('--bg-surface', '#1e293b');
+      root.style.setProperty('--text-primary', '#f8fafc');
+      root.style.setProperty('--text-secondary', '#94a3b8');
+      root.style.setProperty('--border', '#334155');
+    } else {
+      root.classList.remove('dark');
+      root.style.removeProperty('--bg-base');
+      root.style.removeProperty('--bg-surface');
+      root.style.removeProperty('--text-primary');
+      root.style.removeProperty('--text-secondary');
+      root.style.removeProperty('--border');
+    }
+    if (profile.wallpaper_url) {
+      document.body.style.backgroundImage = `url(${profile.wallpaper_url})`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center';
+      document.body.style.backgroundAttachment = 'fixed';
+    } else {
+      document.body.style.backgroundImage = 'none';
     }
   };
 
@@ -127,7 +177,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <AuthContext.Provider value={{ session, userProfile, setUserProfile }}>
+      <AuthContext.Provider value={{ session, userProfile, setUserProfile, crmSettings, setCrmSettings }}>
         <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, t }}>
           <BrowserRouter>
             <Routes>

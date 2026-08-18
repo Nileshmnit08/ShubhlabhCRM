@@ -17,7 +17,7 @@ const navItems = [
 ];
 
 export default function AppShell() {
-  const { userProfile } = useContext(AuthContext);
+  const { userProfile, crmSettings } = useContext(AuthContext);
   const { language, setLanguage, t } = useContext(LanguageContext);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
@@ -34,9 +34,15 @@ export default function AppShell() {
     <div className="app-container">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <div className="sidebar-brand">
-            <div style={{width: 24, height: 24, background: 'var(--primary)', borderRadius: '6px'}} />
-            Feed CRM
+          <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {crmSettings?.app_logo_url ? (
+              <img src={crmSettings.app_logo_url} alt="Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
+            ) : (
+              <div style={{width: 24, height: 24, background: 'var(--primary)', borderRadius: '6px'}} />
+            )}
+            <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>
+              {crmSettings?.crm_name || 'Feed CRM'}
+            </span>
           </div>
         </div>
         <nav className="sidebar-nav">
