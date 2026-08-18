@@ -62,4 +62,3 @@ CREATE POLICY "Auth only party_identity_links" ON public.party_identity_links FO
 CREATE POLICY "Auth only identity_review_queue" ON public.identity_review_queue FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Auth only tally_raw_transactions" ON public.tally_raw_transactions FOR ALL USING (auth.role() = 'authenticated');
 CREATE POLICY "Auth only tally_transactions" ON public.tally_transactions FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Auth only requirements_history" ON public.requirements_history FOR ALL USING (auth.role() = 'authenticated');
