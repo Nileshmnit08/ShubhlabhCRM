@@ -1,34 +1,35 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Dark Mode optimized color palette */
-  --bg-base: #0f172a;
-  --bg-surface: #1e293b;
-  --bg-surface-hover: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  /* Warm Light Dashboard Theme */
+  --bg-base: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-hover: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
   
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --primary-glow: rgba(59, 130, 246, 0.5);
+  /* Teal / Deep Green Accent */
+  --primary: #0f766e;
+  --primary-hover: #115e59;
+  --primary-glow: rgba(15, 118, 110, 0.15);
   
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
 
-  --border: #334155;
+  --border: #e2e8f0;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
   --radius-full: 9999px;
   
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --shadow-glow: 0 0 15px var(--primary-glow);
   
-  --glass-bg: rgba(30, 41, 59, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-border: rgba(0, 0, 0, 0.05);
 
   --sidebar-width: 260px;
   --header-height: 70px;
@@ -211,7 +212,7 @@ label {
 .sidebar-brand {
   font-size: 1.125rem;
   font-weight: 700;
-  background: linear-gradient(to right, #fff, #94a3b8);
+  background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: flex;
@@ -393,4 +394,74 @@ label {
 
 .action-card:active {
   transform: translateY(0);
+}
+
+/* Slide Over Drawer */
+.slide-over-backdrop {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+.slide-over-drawer {
+  width: 100%;
+  max-width: 500px;
+  background: var(--bg-surface);
+  height: 100%;
+  box-shadow: -4px 0 24px rgba(0,0,0,0.1);
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  display: flex;
+  flex-direction: column;
+}
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.drawer-header {
+  padding: 1.5rem; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.drawer-body {
+  padding: 1.5rem; overflow-y: auto; flex: 1;
+}
+
+/* Mobile Stacked Cards Table */
+@media (max-width: 768px) {
+  .mobile-cards-table {
+    display: block;
+    background: transparent;
+    border: none;
+  }
+  .mobile-cards-table thead { display: none; }
+  .mobile-cards-table tbody { display: block; }
+  .mobile-cards-table tbody tr {
+    display: flex; flex-direction: column;
+    padding: 1rem;
+    background: var(--bg-surface);
+    margin-bottom: 1rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+  }
+  .mobile-cards-table tbody td {
+    border-bottom: 1px solid var(--border);
+    padding: 0.75rem 0;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    white-space: normal;
+  }
+  .mobile-cards-table tbody td:last-child {
+    border-bottom: none;
+  }
+  .mobile-cards-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600; font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    min-width: 120px;
+  }
+  .mobile-cards-table tbody td > div {
+    flex: 1; text-align: right; display: flex; flex-direction: column; align-items: flex-end;
+  }
 }

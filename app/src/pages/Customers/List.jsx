@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Building2, AlertTriangle, ArrowUpDown, Users, X, Filter, MapPin, Phone } from 'lucide-react';
+import { Search, Plus, Building2, AlertTriangle, ArrowUpDown, Users, X, Filter, MapPin, Phone, CheckCircle2 } from 'lucide-react';
 import { LanguageContext } from '../../LanguageContext';
 import { AuthContext } from '../../AuthContext';
 import { logActivity } from '../../lib/activityLogger';
@@ -468,7 +468,7 @@ export default function CustomerList() {
             <button className="btn btn-secondary" style={{marginTop:'1rem'}} onClick={clearAllFilters}>Clear Filters</button>
           </div>
         ) : (
-          <table className="data-table" style={{minWidth: '1000px'}}>
+          <table className="data-table mobile-cards-table" style={{minWidth: '1000px'}}>
             <thead style={{position: 'sticky', top: '70px', zIndex: 10, background: 'var(--bg-surface)'}}>
               <tr>
                 <th style={{width: '40px', textAlign: 'center'}}>
@@ -493,10 +493,10 @@ export default function CustomerList() {
               {customers.map((c) => (
                 <React.Fragment key={c.id}>
                   <tr style={{background: selectedRows.has(c.id) ? 'rgba(255,255,255,0.05)' : (c.isDuplicateChild ? 'var(--bg-surface-hover)' : 'transparent'), transition: 'background 0.2s'}}>
-                    <td style={{textAlign: 'center'}}>
+                    <td data-label="Select" style={{textAlign: 'center'}}>
                       <input type="checkbox" checked={selectedRows.has(c.id)} onChange={() => toggleRowSelection(c.id)} />
                     </td>
-                    <td>
+                    <td data-label="Customer">
                       <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem'}}>
                         <Link to={`/customers/${c.id}`} style={{fontWeight: 600, color: 'var(--primary)', textDecoration: 'none'}}>{c.display_name}</Link>
                         {c.isDuplicatePrimary && (
@@ -522,7 +522,7 @@ export default function CustomerList() {
                       </div>
                     </td>
 
-                    <td>
+                    <td data-label="Financials">
                       <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                           <span className="text-secondary" style={{fontSize: '0.85rem'}}>Outstanding:</span>
@@ -536,7 +536,7 @@ export default function CustomerList() {
                       </div>
                     </td>
 
-                    <td style={{fontSize: '0.85rem'}}>
+                    <td data-label="Activity" style={{fontSize: '0.85rem'}}>
                       <div style={{marginBottom: '0.25rem'}}>
                         <span className="text-secondary">Last Order:</span><br/>
                         {c.last_order_date ? new Date(c.last_order_date).toLocaleDateString() : <span className="text-muted">Never</span>}
@@ -547,53 +547,31 @@ export default function CustomerList() {
                       </div>
                     </td>
 
-                    <td>
-                      <div className={`badge ${!c.owner_name ? 'badge-danger' : 'badge-neutral'}`} style={{maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
-                        {c.owner_name || 'Unassigned'}
+                    <td data-label="Assigned Owner">
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'flex-start'}}>
+                        <div className={`badge ${!c.owner_name ? 'badge-danger' : 'badge-neutral'}`} style={{maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                          {c.owner_name || 'Unassigned'}
+                        </div>
+                        {c.owner_name && c.assignment_notification_status && (
+                          <span style={{fontSize: '0.65rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem', color: c.assignment_notification_status === 'SENT' ? 'var(--success)' : (c.assignment_notification_status === 'FAILED' ? 'var(--danger)' : 'var(--warning)')}}>
+                            {c.assignment_notification_status === 'SENT' && <CheckCircle2 size={10}/>}
+                            {c.assignment_notification_status}
+                          </span>
+                        )}
                       </div>
                     </td>
 
-                    <td>
+                    <td data-label="Action">
                       <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
                         <Link to={`/customers/${c.id}`} className="btn btn-primary" style={{padding: '0.25rem 0.5rem', fontSize: '0.8rem', textAlign: 'center'}}>View</Link>
-                        <button className="btn btn-secondary" style={{padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'var(--bg-surface-hover)'}} onClick={() => setExpandedRow(expandedRow === c.id ? null : c.id)}>
+                        <button className="btn btn-secondary" style={{padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'var(--bg-surface-hover)'}} onClick={() => setExpandedRow(c.id)}>
                           Quick View
                         </button>
                       </div>
                     </td>
                   </tr>
 
-                  {/* QUICK VIEW ROW */}
-                  {expandedRow === c.id && (
-                    <tr>
-                      <td colSpan="6" style={{padding: 0, border: 'none'}}>
-                        <div className="slide-up" style={{padding: '1.5rem', background: 'var(--bg-surface-hover)', borderBottom: '1px solid var(--border)', borderTop: '1px solid var(--border)'}}>
-                          <div style={{display: 'flex', gap: '2rem'}}>
-                            <div style={{flex: 1}}>
-                              <h4 style={{marginBottom: '1rem'}}>Ledger Summary</h4>
-                              <table style={{width: '100%', fontSize: '0.85rem'}}>
-                                <tbody>
-                                  <tr><td className="text-secondary" style={{padding: '0.25rem 0'}}>Total Billed</td><td style={{textAlign: 'right'}}>{formatCurrency(c.total_billed)}</td></tr>
-                                  <tr><td className="text-secondary" style={{padding: '0.25rem 0'}}>Total Received</td><td style={{textAlign: 'right'}}>{formatCurrency(c.total_received)}</td></tr>
-                                  <tr style={{fontWeight: 600, borderTop: '1px solid var(--border)'}}><td style={{padding: '0.5rem 0'}}>Current Balance</td><td style={{textAlign: 'right', color: c.outstanding_balance > 0 ? 'var(--danger)' : 'inherit'}}>{formatCurrency(c.outstanding_balance)}</td></tr>
-                                </tbody>
-                              </table>
-                            </div>
-                            <div style={{flex: 1}}>
-                              <h4 style={{marginBottom: '1rem'}}>Contact Info</h4>
-                              <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>Legal Name:</strong> {c.legal_or_core_name || 'N/A'}</p>
-                              <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>Mobile:</strong> {c.mobile || 'N/A'}</p>
-                              <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>City:</strong> {c.city || 'N/A'} {c.state ? `, ${c.state}` : ''}</p>
-                              <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>WhatsApp:</strong> {c.whatsapp || 'N/A'}</p>
-                            </div>
-                            <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                               <Link to={`/customers/${c.id}`} className="btn btn-primary">Open Full Profile</Link>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
+
                 </React.Fragment>
               ))}
             </tbody>
@@ -637,6 +615,49 @@ export default function CustomerList() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+        </div>
+      )}
+
+      {/* QUICK VIEW DRAWER */}
+      {expandedRow && (
+        <div className="slide-over-backdrop" onClick={() => setExpandedRow(null)}>
+          <div className="slide-over-drawer" onClick={e => e.stopPropagation()}>
+            {(() => {
+              const c = customers.find(x => x.id === expandedRow);
+              if (!c) return null;
+              return (
+                <>
+                  <div className="drawer-header">
+                    <h3 style={{margin: 0}}>{c.display_name}</h3>
+                    <button onClick={() => setExpandedRow(null)} className="btn-icon"><X size={20}/></button>
+                  </div>
+                  <div className="drawer-body">
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
+                      <div className="glass-panel" style={{padding: '1.5rem', background: 'var(--bg-surface-hover)', border: '1px solid var(--border)'}}>
+                        <h4 style={{marginBottom: '1rem'}}>Ledger Summary</h4>
+                        <table style={{width: '100%', fontSize: '0.85rem'}}>
+                          <tbody>
+                            <tr><td className="text-secondary" style={{padding: '0.25rem 0'}}>Total Billed</td><td style={{textAlign: 'right'}}>{formatCurrency(c.total_billed)}</td></tr>
+                            <tr><td className="text-secondary" style={{padding: '0.25rem 0'}}>Total Received</td><td style={{textAlign: 'right'}}>{formatCurrency(c.total_received)}</td></tr>
+                            <tr style={{fontWeight: 600, borderTop: '1px solid var(--border)'}}><td style={{padding: '0.5rem 0'}}>Current Balance</td><td style={{textAlign: 'right', color: c.outstanding_balance > 0 ? 'var(--danger)' : 'inherit'}}>{formatCurrency(c.outstanding_balance)}</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="glass-panel" style={{padding: '1.5rem', background: 'var(--bg-surface-hover)', border: '1px solid var(--border)'}}>
+                        <h4 style={{marginBottom: '1rem'}}>Contact Info</h4>
+                        <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>Legal Name:</strong> {c.legal_or_core_name || 'N/A'}</p>
+                        <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>Mobile:</strong> {c.mobile || 'N/A'}</p>
+                        <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>City:</strong> {c.city || 'N/A'} {c.state ? `, ${c.state}` : ''}</p>
+                        <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>WhatsApp:</strong> {c.whatsapp || 'N/A'}</p>
+                      </div>
+                      <Link to={`/customers/${c.id}`} className="btn btn-primary" style={{justifyContent: 'center', marginTop: 'auto'}}>Open Full Profile</Link>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
