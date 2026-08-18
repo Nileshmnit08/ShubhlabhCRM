@@ -261,10 +261,9 @@ export default function CustomerList() {
           <table className="data-table" style={{minWidth: '1000px'}}>
             <thead>
               <tr>
-                <th style={{width: '25%'}}>{t('customers.col.customer') || 'Customer & GST'}</th>
-                <th style={{width: '20%'}}>{t('customers.col.contact') || 'Contact & City'}</th>
-                <th style={{width: '20%'}}>{t('customers.col.finance') || 'Financials'}</th>
-                <th style={{width: '15%'}}>{t('customers.col.activity') || 'Activity'}</th>
+                <th style={{width: '35%'}}>{t('customers.col.customer') || 'Customer Info'}</th>
+                <th style={{width: '25%'}}>{t('customers.col.finance') || 'Financials'}</th>
+                <th style={{width: '20%'}}>{t('customers.col.activity') || 'Activity'}</th>
                 <th style={{width: '10%'}}>{t('customers.col.owner') || 'Owner'}</th>
                 <th style={{width: '10%'}}>Action</th>
               </tr>
@@ -313,31 +312,6 @@ export default function CustomerList() {
                             background: c.profile_completeness === 100 ? 'var(--success)' : (c.profile_completeness > 50 ? 'var(--warning)' : 'var(--danger)')
                           }} />
                         </div>
-                      </div>
-                    </td>
-                    
-                    <td>
-                      <div style={{marginBottom: '0.25rem'}}>
-                        {c.mobile ? (
-                          <div style={{display: 'flex', alignItems: 'center', gap: '0.35rem'}}>
-                            <Phone size={14} className="text-secondary" /> {c.mobile}
-                          </div>
-                        ) : (
-                          <div className="text-danger" style={{fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
-                            <AlertTriangle size={12} /> {t('customers.missing.contact') || 'Missing Contact'}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        {c.city ? (
-                          <div style={{display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-secondary)'}}>
-                            <MapPin size={14} /> {c.city}{c.state ? `, ${c.state}` : ''}
-                          </div>
-                        ) : (
-                          <div className="text-danger" style={{fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
-                            <AlertTriangle size={12} /> {t('customers.missing.city') || 'Missing City'}
-                          </div>
-                        )}
                       </div>
                     </td>
 
@@ -395,7 +369,7 @@ export default function CustomerList() {
                   {/* QUICK VIEW ROW */}
                   {expandedRow === c.id && (
                     <tr>
-                      <td colSpan="6" style={{padding: 0, border: 'none'}}>
+                      <td colSpan="5" style={{padding: 0, border: 'none'}}>
                         <div style={{padding: '1.5rem', background: 'var(--bg-surface-hover)', borderBottom: '1px solid var(--border)', borderTop: '1px solid var(--border)'}}>
                           <div style={{display: 'flex', gap: '2rem'}}>
                             <div style={{flex: 1}}>
@@ -425,13 +399,13 @@ export default function CustomerList() {
                                 <strong>Legal Name:</strong> {c.legal_or_core_name || 'N/A'}
                               </p>
                               <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>
+                                <strong>Mobile:</strong> {c.mobile || 'N/A'}
+                              </p>
+                              <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>
+                                <strong>City:</strong> {c.city || 'N/A'} {c.state ? `, ${c.state}` : ''}
+                              </p>
+                              <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>
                                 <strong>WhatsApp:</strong> {c.whatsapp || 'N/A'}
-                              </p>
-                              <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>
-                                <strong>Communication:</strong> {c.communication_preference}
-                              </p>
-                              <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}>
-                                <strong>Notes:</strong> {c.notes || 'None'}
                               </p>
                             </div>
                             <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>

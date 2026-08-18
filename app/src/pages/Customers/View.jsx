@@ -33,7 +33,7 @@ export default function CustomerView() {
   async function fetchCustomerContext() {
     setLoading(true);
     try {
-      const { data: cData, error: cErr } = await supabase.from('crm_parties').select('*').eq('id', id).single();
+      const { data: cData, error: cErr } = await supabase.from('v_customer_master').select('*').eq('id', id).single();
       if (cErr) throw cErr;
       setCustomer(cData);
 
@@ -443,6 +443,12 @@ export default function CustomerView() {
                 <div style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.mobile || <span className="text-muted italic">Not provided</span>}</div>
               </div>
               <div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Assigned Owner</div>
+                <div style={{ fontSize: '1rem', fontWeight: 500 }}>
+                  <span className="badge badge-neutral" style={{fontSize: '0.85rem', padding: '0.25rem 0.5rem'}}>{customer.owner_name || 'Unassigned'}</span>
+                </div>
+              </div>
+              <div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>WhatsApp Number</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <span style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.whatsapp || <span className="text-muted italic">Not provided</span>}</span>
@@ -519,6 +525,15 @@ export default function CustomerView() {
                         return sum + amt;
                       }, 0);
                       return `₹${totalSales.toLocaleString()}`;
+                    })()}
+                  </div>
+                </div>
+                <div className="cv-panel" style={{ padding: '1.5rem' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Last Debit Amount</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+                    {(() => {
+                      const debits = tallyTxns.filter(t => !t.is_credit && Number(t.amount) > 0);
+                      return debits.length > 0 ? `₹${Number(debits[0].amount).toLocaleString()}` : 'N/A';
                     })()}
                   </div>
                 </div>

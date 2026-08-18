@@ -24,14 +24,26 @@ export default function CustomerForm() {
     whatsapp: '',
     communication_preference: 'WhatsApp',
     crm_status: 'Active',
-    notes: ''
+    notes: '',
+    assigned_owner_id: ''
   });
+  const [teamMembers, setTeamMembers] = useState([]);
 
   useEffect(() => {
+    fetchTeamMembers();
     if (isEditing) {
       fetchCustomer();
     }
   }, [id]);
+
+  async function fetchTeamMembers() {
+    try {
+      const { data } = await supabase.from('app_users').select('id, display_name').eq('is_active', true);
+      if (data) setTeamMembers(data);
+    } catch (err) {
+      console.error('Error fetching team members:', err);
+    }
+  }
 
   async function fetchCustomer() {
     setLoading(true);
@@ -54,7 +66,8 @@ export default function CustomerForm() {
           whatsapp: data.whatsapp || '',
           communication_preference: data.communication_preference || 'WhatsApp',
           crm_status: data.crm_status || 'Active',
-          notes: data.notes || ''
+          notes: data.notes || '',
+          assigned_owner_id: data.assigned_owner_id || ''
         });
       }
     } catch (error) {
@@ -346,6 +359,16 @@ export default function CustomerForm() {
                   rows="4" 
                   placeholder="Internal notes about this party..."
                 />
+              </div>
+
+              <div>
+                <label>Assigned To</label>
+                <select name="assigned_owner_id" value={formData.assigned_owner_id || ''} onChange={handleChange}>
+                  <option value="">-- Unassigned --</option>
+                  {teamMembers.map(tm => (
+                    <option key={tm.id} value={tm.id}>{tm.display_name || 'Unnamed User'}</option>
+                  ))}
+                </select>
               </div>
 
             </div>

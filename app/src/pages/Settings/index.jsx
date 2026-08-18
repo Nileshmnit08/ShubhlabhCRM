@@ -3,7 +3,7 @@ import { AuthContext } from '../../AuthContext';
 import { LanguageContext } from '../../LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
-import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle } from 'lucide-react';
+import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X } from 'lucide-react';
 
 export default function Settings() {
   const { userProfile, setUserProfile, crmSettings, setCrmSettings } = useContext(AuthContext);
@@ -22,6 +22,8 @@ export default function Settings() {
   const [notificationsData, setNotificationsData] = useState({});
   const [defaultsData, setDefaultsData] = useState({});
   const [team, setTeam] = useState([]);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUserData, setNewUserData] = useState({ email: '', password: '', display_name: '', role: 'Operator', whatsapp: '', contact_details: '', is_active: true });
 
   // Store initial state to detect changes
   const [initialProfile, setInitialProfile] = useState({});
@@ -235,6 +237,45 @@ export default function Settings() {
     if (!error) {
       fetchTeam();
       logActivity({ module: 'Settings', actionType: 'UPDATED', summary: `Toggled user active status` });
+    }
+  };
+
+  const handleAddUser = async (e) => {
+    e.preventDefault();
+    if (!newUserData.email || !newUserData.password || !newUserData.display_name) {
+      alert("Please fill required fields (Email, Password, Display Name)");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_create_user', {
+        new_email: newUserData.email,
+        new_password: newUserData.password,
+        new_display_name: newUserData.display_name,
+        new_role: newUserData.role,
+        new_whatsapp: newUserData.whatsapp,
+        new_contact_details: newUserData.contact_details,
+        new_is_active: newUserData.is_active
+      });
+      
+      if (error) throw error;
+      
+      await logActivity({
+        module: 'Settings',
+        actionType: 'CREATED',
+        summary: `Created new team member: ${newUserData.display_name}`
+      });
+      
+      alert('Team member created successfully!');
+      setShowAddUserModal(false);
+      setNewUserData({ email: '', password: '', display_name: '', role: 'Operator', whatsapp: '', contact_details: '', is_active: true });
+      fetchTeam();
+    } catch (err) {
+      console.error(err);
+      alert('Error creating user: ' + (err.message || 'Unknown error. Make sure you applied the Sprint 15 SQL migration.'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -486,15 +527,21 @@ export default function Settings() {
           {/* TEAM TAB */}
           {activeTab === 'team' && userProfile?.role === 'Admin' && (
             <div className="glass-panel" style={{padding: '0', overflow: 'hidden'}}>
-              <div style={{padding: '2rem', borderBottom: '1px solid var(--border)'}}>
-                <h2 style={{margin: 0}}>{t('settings.tabs.team') || 'Team Management'}</h2>
-                <p className="text-secondary" style={{marginTop: '0.5rem', fontSize: '0.95rem'}}>Manage access and roles across the CRM.</p>
+              <div style={{padding: '2rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <div>
+                  <h2 style={{margin: 0}}>{t('settings.tabs.team') || 'Team Management'}</h2>
+                  <p className="text-secondary" style={{marginTop: '0.5rem', fontSize: '0.95rem'}}>Manage access and roles across the CRM.</p>
+                </div>
+                <button className="btn btn-primary" onClick={() => setShowAddUserModal(true)}>
+                  <UserPlus size={18} /> Add Team Member
+                </button>
               </div>
               <div style={{overflowX: 'auto'}}>
                 <table style={{width: '100%', borderCollapse: 'collapse'}}>
                   <thead>
                     <tr style={{borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)'}}>
                       <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>User</th>
+                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Contact</th>
                       <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Role</th>
                       <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Status</th>
                     </tr>
@@ -507,9 +554,13 @@ export default function Settings() {
                           <div className="text-secondary" style={{fontSize: '0.9rem'}}>{member.email}</div>
                         </td>
                         <td style={{padding: '1.25rem 2rem'}}>
+                          <div style={{fontSize: '0.9rem'}}>{member.whatsapp || member.mobile || '-'}</div>
+                          <div className="text-secondary" style={{fontSize: '0.85rem'}}>{member.contact_details || ''}</div>
+                        </td>
+                        <td style={{padding: '1.25rem 2rem'}}>
                           <select 
                             value={member.role} 
-                            onChange={(e) => toggleUserRole(member.id, member.role)}
+                            onChange={(e) => toggleUserRole(member.id, e.target.value)}
                             disabled={member.id === userProfile.id}
                             style={{padding: '0.5rem'}}
                           >
@@ -531,6 +582,57 @@ export default function Settings() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* ADD USER MODAL */}
+          {showAddUserModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+              background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', padding: '1rem'
+            }}>
+              <div className="glass-panel" style={{width: '100%', maxWidth: '500px', padding: '2rem', position: 'relative'}}>
+                <button 
+                  onClick={() => setShowAddUserModal(false)}
+                  style={{position: 'absolute', right: '1.5rem', top: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}
+                >
+                  <X size={24} />
+                </button>
+                <h2 style={{marginBottom: '1.5rem'}}>Add Team Member</h2>
+                
+                <form onSubmit={handleAddUser} style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
+                  <div>
+                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Full Name *</label>
+                    <input type="text" value={newUserData.display_name} onChange={e => setNewUserData({...newUserData, display_name: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} />
+                  </div>
+                  <div>
+                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Email *</label>
+                    <input type="email" value={newUserData.email} onChange={e => setNewUserData({...newUserData, email: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} />
+                  </div>
+                  <div>
+                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Temporary Password *</label>
+                    <input type="password" value={newUserData.password} onChange={e => setNewUserData({...newUserData, password: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} minLength={6} />
+                  </div>
+                  <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+                    <div>
+                      <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Role</label>
+                      <select value={newUserData.role} onChange={e => setNewUserData({...newUserData, role: e.target.value})} style={{width: '100%', padding: '0.75rem'}}>
+                        <option value="Operator">Operator</option>
+                        <option value="Admin">Admin</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>WhatsApp Number</label>
+                      <input type="text" value={newUserData.whatsapp} onChange={e => setNewUserData({...newUserData, whatsapp: e.target.value})} placeholder="+91..." style={{width: '100%', padding: '0.75rem'}} />
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem'}}>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowAddUserModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Creating...' : 'Create User'}</button>
+                  </div>
+                </form>
               </div>
             </div>
           )}
