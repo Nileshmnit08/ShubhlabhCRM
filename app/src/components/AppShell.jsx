@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database } from 'lucide-react';
-import { AuthContext } from '../App';
+import { AuthContext } from '../AuthContext';
 
 const navItems = [
   { path: '/', label: 'Today', icon: LayoutDashboard },

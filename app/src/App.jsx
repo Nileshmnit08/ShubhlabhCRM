@@ -1,9 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
-
-export const AuthContext = React.createContext(null);
-
+import { AuthContext } from './AuthContext';
 import Today from './pages/Today';
 import CustomerList from './pages/Customers/List';
 import CustomerForm from './pages/Customers/Form';

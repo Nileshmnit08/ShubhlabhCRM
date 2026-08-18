@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Edit2, MapPin, Phone, MessageCircle, Trash2, ShieldAlert, Calendar, Plus, CheckCircle2 } from 'lucide-react';
-import { AuthContext } from '../../App';
+import { AuthContext } from '../../AuthContext';
 import WhatsAppAction from '../../components/WhatsAppAction';
 
 export default function CustomerView() {
