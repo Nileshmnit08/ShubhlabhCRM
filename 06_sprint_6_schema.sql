@@ -21,6 +21,7 @@ JOIN public.crm_parties c ON r.party_id = c.id
 WHERE r.status NOT IN ('Closed', 'Lost', 'Confirmed');
 
 -- 3. Requirement Demand View
+DROP VIEW IF EXISTS v_requirement_demand;
 CREATE OR REPLACE VIEW v_requirement_demand AS
 SELECT 
     r.product_type, 
@@ -55,6 +56,7 @@ JOIN public.crm_parties c ON f.party_id = c.id
 WHERE f.status = 'Pending' AND f.follow_up_date < CURRENT_DATE;
 
 -- 6. Customer Attention View
+DROP VIEW IF EXISTS v_customer_attention;
 CREATE OR REPLACE VIEW v_customer_attention AS
 WITH latest_interactions AS (
     SELECT party_id, MAX(created_at) as last_contact_date
