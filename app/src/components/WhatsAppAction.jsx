@@ -52,12 +52,14 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
   };
 
   const handleOpen = () => {
-    if (party.communication_preference === 'Do Not Contact') {
-      if (!window.confirm("This customer has a 'Do Not Contact' preference. Are you sure you want to message them?")) return;
-    }
     resetState();
     setIsOpen(true);
   };
+
+  // If customer explicitly requested Do Not Contact, hide the action entirely
+  if (party?.communication_preference === 'Do Not Contact') {
+    return null;
+  }
 
   const handleSend = () => {
     let phone = party.whatsapp?.replace(/[^0-9]/g, '');

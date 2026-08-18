@@ -74,9 +74,28 @@ export default function CustomerView() {
 
   const handleCreateFollowUp = async (e) => {
     e.preventDefault();
+    if (!newFollowUp.reason.trim()) {
+      alert("Follow-up reason is required.");
+      return;
+    }
+    
+    // Prevent past dates
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const selectedDate = new Date(newFollowUp.follow_up_date);
+    if (selectedDate < today) {
+      alert("Cannot schedule a follow-up in the past.");
+      return;
+    }
+
     try {
+      const { data: session } = await supabase.auth.getSession();
+      
       const { data, error } = await supabase.from('follow_ups').insert({
         party_id: id,
+        original_follow_up_date: newFollowUp.follow_up_date,
+        created_by: session?.session?.user?.id || null,
+        assigned_to: session?.session?.user?.id || null,
         ...newFollowUp
       }).select();
       if (error) throw error;
@@ -104,12 +123,45 @@ export default function CustomerView() {
     }
   };
 
-  const updateFollowUpStatus = async (fId, status) => {
+  const updateFollowUpStatus = async (f, status) => {
     try {
-      await supabase.from('follow_ups').update({ 
-        status, completed_at: status === 'Completed' ? new Date().toISOString() : null 
-      }).eq('id', fId);
-      setFollowUps(followUps.map(f => f.id === fId ? { ...f, status } : f));
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session?.session?.user?.id;
+
+      if (status === 'Completed' && f.assigned_to && f.assigned_to !== userId) {
+        if (!window.confirm("This is assigned to someone else. Complete anyway?")) return;
+      }
+
+      const updates = { status };
+      if (status === 'Completed') {
+        updates.completed_at = new Date().toISOString();
+        updates.completed_by = userId || null;
+      } else if (status === 'Postponed') {
+        const newDate = window.prompt("Enter new follow-up date (YYYY-MM-DD):", f.follow_up_date);
+        if (!newDate) return;
+        
+        if (new Date(newDate) < new Date(new Date().setHours(0,0,0,0))) {
+          alert("Cannot postpone to a past date.");
+          return;
+        }
+
+        const note = window.prompt("Provide a reason for postponing:");
+        if (!note) { alert("Postponement reason is required."); return; }
+        
+        updates.follow_up_date = newDate;
+        updates.postpone_note = note;
+        updates.original_follow_up_date = f.original_follow_up_date || f.follow_up_date;
+        updates.status = 'Pending';
+      }
+
+      await supabase.from('follow_ups').update(updates).eq('id', f.id);
+      
+      if (status === 'Completed') {
+        setFollowUps(followUps.map(item => item.id === f.id ? { ...item, status } : item));
+      } else {
+        // Refresh context to sort correctly
+        fetchCustomerContext();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -376,8 +428,8 @@ export default function CustomerView() {
                   </div>
                   {f.status === 'Pending' && (
                     <div style={{display: 'flex', gap: '0.5rem'}}>
-                      <button className="btn btn-secondary" onClick={() => updateFollowUpStatus(f.id, 'Postponed')}>Postpone</button>
-                      <button className="btn btn-primary" onClick={() => updateFollowUpStatus(f.id, 'Completed')}><CheckCircle2 size={16}/> Complete</button>
+                      <button className="btn btn-secondary" onClick={() => updateFollowUpStatus(f, 'Postponed')}>Postpone</button>
+                      <button className="btn btn-primary" onClick={() => updateFollowUpStatus(f, 'Completed')}><CheckCircle2 size={16}/> Complete</button>
                     </div>
                   )}
                 </div>

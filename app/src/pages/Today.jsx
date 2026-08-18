@@ -20,7 +20,7 @@ export default function Today() {
     demandByProduct: {}
   });
 
-  const [loading, setLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     fetchTodayWork();
@@ -29,33 +29,38 @@ export default function Today() {
   async function fetchTodayWork() {
     setLoading(true);
     try {
-      // 1. Fetch Follow-ups using views and direct query for High Priority
-      const { data: overdueData } = await supabase.from('v_overdue_followups').select('*').order('follow_up_date', { ascending: true });
-      const { data: todayData } = await supabase.from('v_today_followups').select('*').order('follow_up_date', { ascending: true });
-      const { data: highPriorityData } = await supabase.from('follow_ups')
-        .select(`id, reason, follow_up_date, priority, status, notes, crm_parties ( id, display_name, mobile, whatsapp )`)
+      const today = new Date();
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+      // Fetch Follow-ups directly using JS timezone date
+      const { data: overdueData } = await supabase.from('follow_ups')
+        .select(`*, crm_parties ( id, display_name, mobile, whatsapp, communication_preference )`)
+        .eq('status', 'Pending')
+        .lt('follow_up_date', todayStr);
+
+      const { data: todayData } = await supabase.from('follow_ups')
+        .select(`*, crm_parties ( id, display_name, mobile, whatsapp, communication_preference )`)
+        .eq('status', 'Pending')
+        .eq('follow_up_date', todayStr);
+
+      const { data: futureHighPriority } = await supabase.from('follow_ups')
+        .select(`*, crm_parties ( id, display_name, mobile, whatsapp, communication_preference )`)
         .eq('status', 'Pending')
         .eq('priority', 'High')
-        .order('follow_up_date', { ascending: true });
+        .gt('follow_up_date', todayStr);
+
+      // Sort Overdue by age (asc) then priority
+      const pWeight = { 'High': 3, 'Normal': 2, 'Low': 1 };
+      const sortFn = (a, b) => {
+        if (a.follow_up_date !== b.follow_up_date) return a.follow_up_date.localeCompare(b.follow_up_date);
+        return pWeight[b.priority || 'Normal'] - pWeight[a.priority || 'Normal'];
+      };
 
       const categorized = { 
-        overdue: overdueData || [], 
-        today: todayData || [], 
-        highPriority: highPriorityData || [] 
+        overdue: (overdueData || []).sort(sortFn), 
+        today: (todayData || []).sort(sortFn), 
+        highPriority: (futureHighPriority || []).sort(sortFn) 
       };
-
-      // Map view data structure to match expected format (e.g., nesting crm_parties)
-      const mapContext = (list) => {
-        return list.map(item => {
-          if (!item.crm_parties && item.display_name) {
-            item.crm_parties = { id: item.party_id, display_name: item.display_name, mobile: item.mobile, whatsapp: item.whatsapp };
-          }
-          return item;
-        });
-      };
-      
-      categorized.overdue = mapContext(categorized.overdue);
-      categorized.today = mapContext(categorized.today);
 
       const partyIds = new Set();
       [...categorized.overdue, ...categorized.today, ...categorized.highPriority].forEach(fu => {
@@ -139,26 +144,94 @@ export default function Today() {
   }
 
   const updateStatus = async (item, newStatus) => {
+    if (isProcessing) return;
+    
+    // Auth Check
+    const { data: session } = await supabase.auth.getSession();
+    const userId = session?.session?.user?.id;
+    if (newStatus === 'Completed') {
+      if (item.assigned_to && item.assigned_to !== userId) {
+        if (!window.confirm("This follow-up is assigned to another user. Are you sure you want to complete it?")) return;
+      }
+    }
+
+    setIsProcessing(true);
     try {
       const updates = { 
-        status: newStatus,
-        completed_at: newStatus === 'Completed' ? new Date().toISOString() : null 
+        status: newStatus
       };
       
+      if (newStatus === 'Completed') {
+        updates.completed_at = new Date().toISOString();
+        updates.completed_by = userId || null;
+      }
+      
       if (newStatus === 'Postponed') {
+        const newDate = window.prompt("Enter new follow-up date (YYYY-MM-DD):", item.follow_up_date);
+        if (!newDate) {
+          setIsProcessing(false);
+          return;
+        }
+        if (new Date(newDate) < new Date(new Date().setHours(0,0,0,0))) {
+          alert("Cannot postpone to a past date.");
+          setIsProcessing(false);
+          return;
+        }
+        
+        const note = window.prompt("Provide a reason for postponing:");
+        if (!note) {
+          alert("Postponement reason is required.");
+          setIsProcessing(false);
+          return;
+        }
+
+        updates.follow_up_date = newDate;
+        updates.postpone_note = note;
+        updates.original_follow_up_date = item.original_follow_up_date || item.follow_up_date;
+        updates.status = 'Pending'; // Remains pending, just moves date
+        
         const { data: currentFu } = await supabase.from('follow_ups').select('postpone_count').eq('id', item.id).single();
         updates.postpone_count = (currentFu?.postpone_count || 0) + 1;
       }
       
       await supabase.from('follow_ups').update(updates).eq('id', item.id);
       
-      setFollowUps(prev => ({
-        overdue: prev.overdue.filter(f => f.id !== item.id),
-        today: prev.today.filter(f => f.id !== item.id),
-        highPriority: prev.highPriority.filter(f => f.id !== item.id),
-      }));
+      if (newStatus === 'Completed') {
+        setFollowUps(prev => ({
+          overdue: prev.overdue.filter(f => f.id !== item.id),
+          today: prev.today.filter(f => f.id !== item.id),
+          highPriority: prev.highPriority.filter(f => f.id !== item.id),
+        }));
+      } else {
+        // Re-fetch to sort properly
+        fetchTodayWork();
+      }
     } catch (err) {
       alert('Failed to update status');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const addNote = async (item) => {
+    if (isProcessing) return;
+    const note = window.prompt("Add a quick note:");
+    if (!note) return;
+    
+    setIsProcessing(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      await supabase.from('interactions').insert({
+        party_id: item.party_id,
+        user_id: session?.session?.user?.id || null,
+        channel: 'Note',
+        note: `Quick Note (Today's Work): ${note}`
+      });
+      alert('Note added successfully.');
+    } catch (err) {
+      alert('Failed to add note');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -170,13 +243,18 @@ export default function Today() {
         </Link>
         <div className="text-secondary" style={{fontSize: '0.9rem', marginTop: '0.25rem'}}>{item.reason}</div>
         <div style={{display: 'flex', gap: '1rem', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)'}}>
-          <span style={{display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
+          <span style={{display: 'flex', alignItems: 'center', gap: '0.25rem', color: isOverdue ? 'var(--danger)' : 'inherit'}}>
             <Calendar size={14} /> Due: {new Date(item.follow_up_date).toLocaleDateString()}
           </span>
           {item.priority === 'High' && (
-            <span style={{display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--warning)'}}><AlertCircle size={14} /> High Priority</span>
+            <span style={{display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--warning)', fontWeight: 600}}>
+              <AlertCircle size={14} /> HIGH PRIORITY
+            </span>
           )}
         </div>
+        {item.assigned_to && (
+          <div className="text-muted" style={{fontSize: '0.8rem', marginTop: '0.25rem'}}>Assigned User ID: {item.assigned_to}</div>
+        )}
         {item.context && (
           <div style={{marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
             <div style={{display: 'flex', justifyContent: 'space-between'}}>
@@ -191,19 +269,22 @@ export default function Today() {
         )}
       </div>
       <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', borderTop: '1px solid var(--border)', paddingTop: '1rem'}}>
-        {item.crm_parties?.mobile && (
+        {item.crm_parties?.mobile && item.crm_parties?.communication_preference !== 'Do Not Contact' && (
           <a href={`tel:${item.crm_parties.mobile}`} className="btn btn-secondary" style={{padding: '0.4rem 0.75rem', fontSize: '0.85rem'}}>
             <Phone size={14} className="text-primary" /> Call
           </a>
         )}
-        {item.crm_parties?.whatsapp && (
+        {item.crm_parties?.whatsapp && item.crm_parties?.communication_preference !== 'Do Not Contact' && (
           <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchTodayWork} btnClass="btn btn-secondary" />
         )}
+        <button className="btn btn-secondary" onClick={() => addNote(item)} disabled={isProcessing} style={{padding: '0.4rem 0.75rem', fontSize: '0.85rem'}}>
+          Add Note
+        </button>
         <div style={{marginLeft: 'auto', display: 'flex', gap: '0.5rem'}}>
-          <button className="btn btn-secondary" onClick={() => updateStatus(item, 'Postponed')} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>
+          <button className="btn btn-secondary" onClick={() => updateStatus(item, 'Postponed')} disabled={isProcessing} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>
             <Clock size={14} /> Postpone
           </button>
-          <button className="btn btn-primary" onClick={() => updateStatus(item, 'Completed')} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>
+          <button className="btn btn-primary" onClick={() => updateStatus(item, 'Completed')} disabled={isProcessing} style={{padding: '0.4rem 0.75rem', fontSize: '0.8rem'}}>
             <CheckCircle2 size={14} /> Complete
           </button>
         </div>
