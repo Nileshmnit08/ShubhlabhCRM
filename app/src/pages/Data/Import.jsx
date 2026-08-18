@@ -4,6 +4,7 @@ import * as pdfjsLib from 'pdfjs-dist/build/pdf';
 import { supabase } from '../../lib/supabase';
 import { UploadCloud, FileSpreadsheet, Loader2, AlertTriangle, CheckCircle2, Users, FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { normalizeIdentity } from '../../utils/normalizer';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
@@ -25,6 +26,12 @@ export default function DataImport() {
   const handleFileChange = (e) => {
     const selected = e.target.files[0];
     if (selected) {
+      const ext = selected.name.split('.').pop().toLowerCase();
+      if (ext !== 'csv' && ext !== 'pdf') {
+        alert("Unsupported file format. Please upload a .csv or .pdf file.");
+        e.target.value = null;
+        return;
+      }
       setFile(selected);
       parseFile(selected);
     }
@@ -158,10 +165,20 @@ export default function DataImport() {
     }).filter(p => p.tally_ledger_name);
 
     const chunkSize = 500;
+    let successCount = 0;
+    let failedRows = [];
+
     for (let i = 0; i < rawParties.length; i += chunkSize) {
       const chunk = rawParties.slice(i, i + chunkSize);
-      const { error: rawError } = await supabase.from('tally_raw_parties').insert(chunk);
-      if (rawError) throw rawError;
+      const { error: rawError } = await supabase.from('tally_raw_parties')
+        .upsert(chunk, { onConflict: 'tally_ledger_name', ignoreDuplicates: true }); // IDEMPOTENCY FIX
+        
+      if (rawError) {
+        // If a chunk fails, record these rows as failed
+        failedRows.push(...chunk.map(r => ({ name: r.tally_ledger_name, error: rawError.message })));
+      } else {
+        successCount += chunk.length;
+      }
     }
 
     // Run identity resolution
@@ -174,19 +191,14 @@ export default function DataImport() {
       const linksToInsert = [];
       const reviewQueueToInsert = [];
 
-      const normalize = (str) => {
-        if (!str) return '';
-        return str.toUpperCase().replace(/\(OLD\)/g, '').replace(/[^A-Z0-9]/g, '').trim();
-      };
-
       insertedRawParties.forEach(rawP => {
-        const rawNorm = normalize(rawP.tally_ledger_name);
+        const rawNorm = normalizeIdentity(rawP.tally_ledger_name);
         let bestMatch = null;
         let highestScore = 0;
 
         crmParties.forEach(crmP => {
-          const crmNorm = normalize(crmP.display_name);
-          const legalNorm = normalize(crmP.legal_or_core_name);
+          const crmNorm = normalizeIdentity(crmP.display_name);
+          const legalNorm = normalizeIdentity(crmP.legal_or_core_name);
           
           if (rawNorm === crmNorm || rawNorm === legalNorm) {
             bestMatch = crmP; highestScore = 1.0;
@@ -214,12 +226,12 @@ export default function DataImport() {
       if (reviewQueueToInsert.length > 0) {
         for (let i = 0; i < reviewQueueToInsert.length; i += chunkSize) {
           const chunk = reviewQueueToInsert.slice(i, i + chunkSize);
-          const { error: revErr } = await supabase.from('identity_review_queue').insert(chunk);
-          if (revErr) throw revErr;
+          const { error: revErr } = await supabase.from('identity_review_queue').upsert(chunk, { onConflict: 'tally_raw_party_id' }); // Safety
+          if (revErr) console.error("Identity queue upsert error: ", revErr);
         }
       }
     }
-    return rawParties.length;
+    return { successCount, errorCount: failedRows.length, failedRows };
   };
 
   const runVoucherImport = async (importJob) => {
@@ -257,15 +269,10 @@ export default function DataImport() {
     const { data: crmParties } = await supabase.from('crm_parties').select('id, display_name, legal_or_core_name');
     
     if (crmParties) {
-      const normalize = (str) => {
-        if (!str) return '';
-        return str.toUpperCase().replace(/\(OLD\)/g, '').replace(/[^A-Z0-9]/g, '').trim();
-      };
-      
       const cleanTxns = [];
       rawTxns.forEach(raw => {
-        const rawNorm = normalize(raw.particulars);
-        const match = crmParties.find(c => normalize(c.display_name) === rawNorm || normalize(c.legal_or_core_name) === rawNorm);
+        const rawNorm = normalizeIdentity(raw.particulars);
+        const match = crmParties.find(c => normalizeIdentity(c.display_name) === rawNorm || normalizeIdentity(c.legal_or_core_name) === rawNorm);
         
         if (match) {
           cleanTxns.push({
@@ -287,7 +294,7 @@ export default function DataImport() {
         if (cleanErr) console.error("Clean error: ", cleanErr);
       }
     }
-    return rawTxns.length;
+    return { successCount: rawTxns.length, errorCount: 0, failedRows: [] };
   };
 
   const runImport = async () => {
@@ -307,20 +314,19 @@ export default function DataImport() {
 
       if (importError) throw importError;
 
-      let count = 0;
+      let resultObj;
       if (importType === 'party') {
-        count = await runPartyImport(importJob);
+        resultObj = await runPartyImport(importJob);
       } else {
-        count = await runVoucherImport(importJob);
+        resultObj = await runVoucherImport(importJob);
       }
 
-      await supabase.from('tally_imports').update({ status: 'Completed', success_count: count }).eq('id', importJob.id);
+      await supabase.from('tally_imports').update({ status: 'Completed', success_count: resultObj.successCount, error_count: resultObj.errorCount }).eq('id', importJob.id);
       
-      if (importType === 'party') {
-        // Automatically redirect to review queue for parties
+      if (importType === 'party' && resultObj.errorCount === 0) {
         navigate('/data/review');
       } else {
-        setImportResult({ success: true, count, type: importType });
+        setImportResult({ success: true, count: resultObj.successCount, errorCount: resultObj.errorCount, failedRows: resultObj.failedRows, type: importType, date: new Date().toLocaleDateString() });
       }
     } catch (err) {
       console.error(err);
@@ -378,8 +384,18 @@ export default function DataImport() {
               <CheckCircle2 size={48} style={{color: 'var(--success)', margin: '0 auto 1rem'}} />
               <h2>Import Successful!</h2>
               <p className="text-secondary" style={{marginTop: '0.5rem', marginBottom: '2rem'}}>
-                Staged {importResult.count} {importResult.type === 'party' ? 'Parties' : 'Transactions'}.
+                Staged {importResult.count} {importResult.type === 'party' ? 'Parties' : 'Transactions'} on {importResult.date}.
               </p>
+              {importResult.errorCount > 0 && (
+                <div style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', padding: '1rem', borderRadius: 'var(--radius-sm)', marginBottom: '2rem', textAlign: 'left', maxHeight: '200px', overflowY: 'auto'}}>
+                  <h4 style={{color: 'var(--danger)', marginBottom: '0.5rem'}}>{importResult.errorCount} Rows Failed</h4>
+                  <ul style={{fontSize: '0.85rem'}}>
+                    {importResult.failedRows.map((f, i) => (
+                      <li key={i}><strong>{f.name}</strong>: {f.error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div style={{display: 'flex', gap: '1rem', justifyContent: 'center'}}>
                 <button className="btn btn-secondary" onClick={() => { setFile(null); setImportResult(null); }}>Import Another</button>
                 {importResult.type === 'party' && <Link to="/data/review" className="btn btn-primary">Proceed to Review Queue</Link>}

@@ -38,16 +38,22 @@ export default function ReviewQueue() {
 
   const handleAction = async (item, action) => {
     try {
+      let notes = '';
+      if (action === 'Confirm' || action === 'Reject') {
+        notes = window.prompt(`Please provide a reason for ${action.toLowerCase()}ing this match:`) || '';
+      }
+
       if (action === 'Confirm') {
         // Create link
-        await supabase.from('party_identity_links').insert({
+        await supabase.from('party_identity_links').upsert({
           crm_party_id: item.candidate_crm_party_id,
           tally_raw_party_id: item.tally_raw_party_id,
           match_type: 'Manual',
           confidence: 1.0,
           resolution_status: 'Resolved',
-          reason: 'Manually confirmed in review queue'
-        });
+          reason: 'Manually confirmed in review queue',
+          notes: notes
+        }, { onConflict: 'tally_raw_party_id' });
       } else if (action === 'New') {
         // Create new CRM party
         const { data: newParty, error: partyErr } = await supabase.from('crm_parties').insert({
@@ -59,19 +65,23 @@ export default function ReviewQueue() {
         if (partyErr) throw partyErr;
 
         // Create link
-        await supabase.from('party_identity_links').insert({
+        await supabase.from('party_identity_links').upsert({
           crm_party_id: newParty.id,
           tally_raw_party_id: item.tally_raw_party_id,
           match_type: 'Manual',
           confidence: 1.0,
           resolution_status: 'Resolved',
-          reason: 'New party explicitly created'
-        });
+          reason: 'New party explicitly created',
+          notes: 'Auto-created from queue'
+        }, { onConflict: 'tally_raw_party_id' });
       }
       
       // Update queue status
       await supabase.from('identity_review_queue')
-        .update({ status: action === 'Reject' ? 'Rejected' : 'Approved' })
+        .update({ 
+          status: action === 'Reject' ? 'Rejected' : 'Approved',
+          review_notes: notes || null
+        })
         .eq('id', item.id);
         
       // Remove from local state
