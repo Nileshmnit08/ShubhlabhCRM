@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { logActivity } from '../../lib/activityLogger';
 import { ArrowLeft, Save } from 'lucide-react';
 import { State, City } from 'country-state-city';
 
@@ -134,42 +135,7 @@ export default function CustomerForm() {
       }
     }
 
-    setLoading(true);
-    try {
-      if (isEditing) {
-        const { error } = await supabase
-          .from('crm_parties')
-          .update(formData)
-          .eq('id', id);
-        if (error) throw error;
-        alert('Customer updated successfully!');
-        navigate(`/customers/${id}`);
-      } else {
-        const { error, data } = await supabase
-          .from('crm_parties')
-          .insert([formData])
-          .select();
-        if (error) throw error;
-        alert('Customer created successfully!');
-        
-        if (data && data.length > 0) {
-          navigate(`/customers/${data[0].id}`);
-          return;
-        }
-        navigate('/customers');
-      }
-    } catch (error) {
-      console.error('Error saving customer:', error);
-      alert('Error saving customer.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBypassDuplicate = () => {
-    setDuplicateWarning(null); // Clear warning state but allow saving this time since we call handleSubmit
-    // The next submit click will re-trigger duplicate search, but we could bypass it by changing state.
-    // A simpler way: we'll just save directly from here.
+    await proceedWithSave();
   };
 
   const proceedWithSave = async () => {
@@ -179,11 +145,30 @@ export default function CustomerForm() {
       if (isEditing) {
         const { error } = await supabase.from('crm_parties').update(formData).eq('id', id);
         if (error) throw error;
+        
+        logActivity({
+          module: 'Customers',
+          actionType: 'UPDATED',
+          entityType: 'crm_parties',
+          entityId: id,
+          summary: `Updated customer profile: ${formData.display_name}`,
+          metadata: { updated_fields: Object.keys(formData) }
+        });
+        
         alert('Customer updated successfully!');
         navigate(`/customers/${id}`);
       } else {
         const { error, data } = await supabase.from('crm_parties').insert([formData]).select();
         if (error) throw error;
+        
+        logActivity({
+          module: 'Customers',
+          actionType: 'CREATED',
+          entityType: 'crm_parties',
+          entityId: data[0].id,
+          summary: `Created new customer: ${formData.display_name}`
+        });
+
         alert('Customer created successfully!');
         navigate(`/customers/${data[0].id}`);
       }

@@ -46,6 +46,19 @@ export const translations = {
     'msg.createSuccess': 'Follow-up created successfully.',
     'msg.updateSuccess': 'Follow-up updated successfully.',
     'msg.error': 'An error occurred. Please try again.',
+    // Activity Module
+    'activity.title': 'Activity Timeline',
+    'activity.Auth': 'Authentication',
+    'activity.Customers': 'Customers',
+    'activity.FollowUps': 'Follow-ups',
+    'activity.DataSync': 'Data Sync',
+    'activity.CREATED': 'Created',
+    'activity.UPDATED': 'Updated',
+    'activity.COMPLETED': 'Completed',
+    'activity.REOPENED': 'Reopened',
+    'activity.LOGIN': 'Logged In',
+    'activity.LOGOUT': 'Logged Out',
+    'activity.IMPORT': 'Imported',
   },
   hi: {
     // Nav & General
@@ -94,5 +107,18 @@ export const translations = {
     'msg.createSuccess': 'फॉलो-अप सफलतापूर्वक बनाया गया।',
     'msg.updateSuccess': 'फॉलो-अप सफलतापूर्वक अपडेट किया गया।',
     'msg.error': 'एक त्रुटि हुई। कृपया पुनः प्रयास करें।',
+    // Activity Module
+    'activity.title': 'गतिविधि टाइमलाइन (Activity Timeline)',
+    'activity.Auth': 'प्रमाणीकरण (Auth)',
+    'activity.Customers': 'ग्राहक (Customers)',
+    'activity.FollowUps': 'फॉलो-अप',
+    'activity.DataSync': 'डेटा सिंक',
+    'activity.CREATED': 'बनाया (Created)',
+    'activity.UPDATED': 'अपडेट किया (Updated)',
+    'activity.COMPLETED': 'पूरा किया (Completed)',
+    'activity.REOPENED': 'फिर से खोला (Reopened)',
+    'activity.LOGIN': 'लॉग इन किया (Logged In)',
+    'activity.LOGOUT': 'लॉग आउट किया (Logged Out)',
+    'activity.IMPORT': 'आयात किया (Imported)',
   }
 };

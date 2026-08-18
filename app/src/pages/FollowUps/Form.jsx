@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { supabase } from '../../lib/supabase';
+import { logActivity } from '../../lib/activityLogger';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Save, X } from 'lucide-react';
 import { LanguageContext } from '../../LanguageContext';
@@ -84,13 +85,31 @@ export default function FollowUpForm() {
       if (id) {
         const { error } = await supabase.from('follow_ups').update(payload).eq('id', id);
         if (error) throw error;
+        
+        logActivity({
+          module: 'FollowUps',
+          actionType: 'UPDATED',
+          entityType: 'follow_ups',
+          entityId: id,
+          summary: `Updated follow-up: ${payload.reason}`
+        });
+
         alert(t('msg.updateSuccess'));
       } else {
         const { data: session } = await supabase.auth.getSession();
         payload.created_by = session?.session?.user?.id || null;
         
-        const { error } = await supabase.from('follow_ups').insert(payload);
+        const { data, error } = await supabase.from('follow_ups').insert(payload).select();
         if (error) throw error;
+
+        logActivity({
+          module: 'FollowUps',
+          actionType: 'CREATED',
+          entityType: 'follow_ups',
+          entityId: data[0].id,
+          summary: `Created follow-up: ${payload.reason}`
+        });
+
         alert(t('msg.createSuccess'));
       }
       navigate('/follow-ups');

@@ -21,6 +21,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 import FollowUpList from './pages/FollowUps/List';
 import FollowUpForm from './pages/FollowUps/Form';
+import ActivityTimeline from './pages/Activity/Timeline';
 
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
@@ -142,7 +143,7 @@ function App() {
                 <Route path=":id/edit" element={<FollowUpForm />} />
               </Route>
               
-              <Route path="activity" element={<Placeholder title="Activity Log" />} />
+              <Route path="activity" element={<ActivityTimeline />} />
               <Route path="settings" element={<Placeholder title="Settings" />} />
               
               <Route path="*" element={<Navigate to="/" replace />} />

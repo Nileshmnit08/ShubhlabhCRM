@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import Papa from 'papaparse';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+import { AuthContext } from '../../AuthContext';
 import { supabase } from '../../lib/supabase';
+import { logActivity } from '../../lib/activityLogger';
 import { UploadCloud, FileSpreadsheet, Loader2, AlertTriangle, CheckCircle2, Users, FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { normalizeIdentity } from '../../utils/normalizer';
@@ -9,6 +11,7 @@ import { normalizeIdentity } from '../../utils/normalizer';
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 export default function DataImport() {
+  const { user } = useContext(AuthContext);
   const [importType, setImportType] = useState('party'); // 'party' | 'voucher'
   const [file, setFile] = useState(null);
   const [parsing, setParsing] = useState(false);
@@ -231,6 +234,14 @@ export default function DataImport() {
         }
       }
     }
+    
+    logActivity({
+      userId: user?.id,
+      module: 'DataSync',
+      actionType: 'IMPORT',
+      summary: `Imported ${successCount} Tally ledger parties.`
+    });
+
     return { successCount, errorCount: failedRows.length, failedRows };
   };
 

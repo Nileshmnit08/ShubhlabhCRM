@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
 import { Plus, Search, Calendar, Clock, AlertCircle, CheckCircle2, MoreVertical, X } from 'lucide-react';
 import { LanguageContext } from '../../LanguageContext';
+import { logActivity } from '../../lib/activityLogger';
 
 export default function FollowUpList() {
   const [followUps, setFollowUps] = useState([]);
@@ -63,6 +64,14 @@ export default function FollowUpList() {
       const { error } = await supabase.from('follow_ups').update(updates).eq('id', id);
       if (error) throw error;
       
+      logActivity({
+        module: 'FollowUps',
+        actionType: status === 'Completed' ? 'COMPLETED' : 'REOPENED',
+        entityType: 'follow_ups',
+        entityId: id,
+        summary: `Marked follow-up as ${status}`
+      });
+
       fetchFollowUps(); // refresh list
     } catch (err) {
       console.error(err);

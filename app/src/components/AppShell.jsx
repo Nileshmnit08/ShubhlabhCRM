@@ -1,8 +1,10 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
+import { supabase } from '../lib/supabase';
+import { logActivity } from '../lib/activityLogger';
 
 const navItems = [
   { path: '/', label: 'Today', icon: LayoutDashboard },
@@ -18,6 +20,15 @@ export default function AppShell() {
   const { userProfile } = useContext(AuthContext);
   const { language, setLanguage, t } = useContext(LanguageContext);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
+  const handleLogout = async () => {
+    await logActivity({
+      module: 'Auth',
+      actionType: 'LOGOUT',
+      summary: `User logged out.`
+    });
+    await supabase.auth.signOut();
+  };
 
   return (
     <div className="app-container">
@@ -70,9 +81,17 @@ export default function AppShell() {
                width: 36, height: 36, borderRadius: '50%', 
                background: 'var(--bg-surface-hover)', display: 'flex', 
                alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
-             }}>
+             }} title={userProfile?.role}>
                {userProfile?.role === 'Admin' ? 'AD' : 'OP'}
              </div>
+             <button 
+               className="btn-icon" 
+               onClick={handleLogout}
+               title="Log Out"
+               style={{color: 'var(--danger)'}}
+             >
+               <LogOut size={18} />
+             </button>
           </div>
         </header>
 

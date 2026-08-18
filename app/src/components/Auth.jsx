@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { logActivity } from '../lib/activityLogger';
 import { Lock, Mail, Loader2 } from 'lucide-react';
 
 export default function Auth({ onLogin }) {
@@ -13,11 +14,19 @@ export default function Auth({ onLogin }) {
     setLoading(true);
     setError(null);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
+      
+      // Log Activity (Fire and forget)
+      logActivity({
+        module: 'Auth',
+        actionType: 'LOGIN',
+        summary: `User ${email} logged in.`,
+      });
+      
       if (onLogin) onLogin();
     } catch (err) {
       setError(err.message);
