@@ -1,7 +1,8 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
+import { LanguageContext } from '../LanguageContext';
 
 const navItems = [
   { path: '/', label: 'Today', icon: LayoutDashboard },
@@ -15,6 +16,7 @@ const navItems = [
 
 export default function AppShell() {
   const { userProfile } = useContext(AuthContext);
+  const { language, setLanguage, t } = useContext(LanguageContext);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   return (
@@ -55,7 +57,15 @@ export default function AppShell() {
             <Menu />
           </button>
           
-          <div style={{marginLeft: 'auto', display: 'flex', gap: '1rem'}}>
+          <div style={{marginLeft: 'auto', display: 'flex', gap: '1rem', alignItems: 'center'}}>
+             <button 
+               className="btn-icon" 
+               style={{display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', fontWeight: 600}} 
+               onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+               title="Toggle Language (English/Hindi)"
+             >
+               <Globe size={18} /> {language.toUpperCase()}
+             </button>
              <div style={{
                width: 36, height: 36, borderRadius: '50%', 
                background: 'var(--bg-surface-hover)', display: 'flex', 

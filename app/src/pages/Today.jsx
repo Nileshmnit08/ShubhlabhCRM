@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Calendar, AlertCircle, Clock, CheckCircle2, Phone, ChevronRight, BarChart3, TrendingUp, AlertTriangle, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Link } from 'react-router-dom';
 export default function Today() {
   const [followUps, setFollowUps] = useState({
     overdue: [],

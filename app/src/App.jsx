@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import { AuthContext } from './AuthContext';
+import { LanguageContext } from './LanguageContext';
+import { translations } from './lib/i18n';
 import Today from './pages/Today';
 import CustomerList from './pages/Customers/List';
 import CustomerForm from './pages/Customers/Form';
@@ -17,6 +19,9 @@ import Auth from './components/Auth';
 import { supabase } from './lib/supabase';
 import ErrorBoundary from './components/ErrorBoundary';
 
+import FollowUpList from './pages/FollowUps/List';
+import FollowUpForm from './pages/FollowUps/Form';
+
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
   <div className="animate-fade-in" style={{padding: '3rem', textAlign: 'center'}}>
@@ -30,6 +35,11 @@ function App() {
   const [userProfile, setUserProfile] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [authError, setAuthError] = React.useState(null);
+  const [language, setLanguage] = React.useState('en');
+
+  const t = React.useCallback((key) => {
+    return translations[language][key] || translations['en'][key] || key;
+  }, [language]);
 
   React.useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -104,36 +114,42 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthContext.Provider value={{ session, userProfile }}>
-        <BrowserRouter>
-          <Routes>
-          <Route path="/" element={<AppShell />}>
-            <Route index element={<Today />} />
-            
-            <Route path="customers">
-              <Route index element={<CustomerList />} />
-              <Route path="new" element={<CustomerForm />} />
-              <Route path=":id" element={<CustomerView />} />
-              <Route path=":id/edit" element={<CustomerForm />} />
+        <LanguageContext.Provider value={{ language, setLanguage, t }}>
+          <BrowserRouter>
+            <Routes>
+            <Route path="/" element={<AppShell />}>
+              <Route index element={<Today />} />
+              
+              <Route path="customers">
+                <Route index element={<CustomerList />} />
+                <Route path="new" element={<CustomerForm />} />
+                <Route path=":id" element={<CustomerView />} />
+                <Route path=":id/edit" element={<CustomerForm />} />
+              </Route>
+              <Route path="data">
+                <Route index element={<Navigate to="import" replace />} />
+                <Route path="import" element={<DataImport />} />
+                <Route path="review" element={<ReviewQueue />} />
+              </Route>
+              <Route path="requirements">
+                <Route index element={<RequirementList />} />
+                <Route path="new" element={<RequirementForm />} />
+                <Route path=":id" element={<RequirementView />} />
+              </Route>
+              <Route path="follow-ups">
+                <Route index element={<FollowUpList />} />
+                <Route path="new" element={<FollowUpForm />} />
+                <Route path=":id/edit" element={<FollowUpForm />} />
+              </Route>
+              
+              <Route path="activity" element={<Placeholder title="Activity Log" />} />
+              <Route path="settings" element={<Placeholder title="Settings" />} />
+              
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
-            <Route path="data">
-              <Route index element={<Navigate to="import" replace />} />
-              <Route path="import" element={<DataImport />} />
-              <Route path="review" element={<ReviewQueue />} />
-            </Route>
-            <Route path="requirements">
-              <Route index element={<RequirementList />} />
-              <Route path="new" element={<RequirementForm />} />
-              <Route path=":id" element={<RequirementView />} />
-            </Route>
-            
-            <Route path="follow-ups" element={<Placeholder title="Follow-ups Engine" />} />
-            <Route path="activity" element={<Placeholder title="Activity Log" />} />
-            <Route path="settings" element={<Placeholder title="Settings" />} />
-            
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-          </Routes>
-        </BrowserRouter>
+            </Routes>
+          </BrowserRouter>
+        </LanguageContext.Provider>
       </AuthContext.Provider>
     </ErrorBoundary>
   );
