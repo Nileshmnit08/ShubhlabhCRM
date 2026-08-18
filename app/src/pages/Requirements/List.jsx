@@ -57,6 +57,7 @@ export default function RequirementList() {
     if (status === 'Quotation Sent') return 'badge badge-active';
     if (status === 'Confirmed') return 'badge badge-success';
     if (status === 'Lost') return 'badge badge-danger';
+    if (status === 'Closed') return 'badge badge-danger';
     return 'badge'; // Default
   };
 
@@ -97,6 +98,7 @@ export default function RequirementList() {
           <option value="Negotiation">Negotiation</option>
           <option value="Confirmed">Confirmed (Won)</option>
           <option value="Lost">Lost</option>
+          <option value="Closed">Closed</option>
           <option value="All">All Lifetime</option>
         </select>
       </div>

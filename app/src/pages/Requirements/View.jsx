@@ -69,6 +69,8 @@ export default function RequirementView() {
     setStatusUpdating(true);
     
     try {
+      const { data: session } = await supabase.auth.getSession();
+      
       // 1. Update Requirement
       await supabase.from('requirements').update({ status: newStatus }).eq('id', id);
       
@@ -77,7 +79,8 @@ export default function RequirementView() {
         requirement_id: id,
         old_status: req.status,
         new_status: newStatus,
-        note: statusNote
+        note: statusNote,
+        changed_by: session?.session?.user?.id || null
       }).select().single();
       
       setReq({ ...req, status: newStatus });

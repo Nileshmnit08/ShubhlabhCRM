@@ -20,6 +20,7 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
   
   // Compose State
   const [message, setMessage] = useState(TEMPLATES[0].text);
+  const [products, setProducts] = useState([]);
   
   // Feedback State
   const [selectedOutcome, setSelectedOutcome] = useState('');
@@ -51,9 +52,16 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
     setFuDate('');
   };
 
-  const handleOpen = () => {
+  const handleOpen = async () => {
     resetState();
     setIsOpen(true);
+    try {
+      const { data } = await supabase.from('products').select('*').eq('active', true);
+      if (data && data.length > 0) {
+        setProducts(data);
+        setReqProduct(data[0].name);
+      }
+    } catch (err) {}
   };
 
   let rawPhone = party?.whatsapp || party?.mobile || '';
@@ -86,9 +94,19 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
       return;
     }
     
-    if (selectedOutcome === 'Requirement' && (!reqProduct || !reqQty || !reqRate || !reqDate)) {
-      alert("Please fill in all requirement fields (Product, Quantity, Rate, Expected Date).");
-      return;
+    if (selectedOutcome === 'Requirement') {
+      if (!reqProduct || !reqQty || !reqRate || !reqDate) {
+        alert("Please fill in all requirement fields (Product, Quantity, Rate, Expected Date).");
+        return;
+      }
+      if (parseFloat(reqQty) <= 0) {
+        alert("Quantity must be greater than zero.");
+        return;
+      }
+      if (parseFloat(reqRate) < 0) {
+        alert("Target rate cannot be negative.");
+        return;
+      }
     }
 
     if (selectedOutcome === 'Call Later' && !fuDate) {
@@ -228,9 +246,15 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
                   <div style={{padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: 'var(--radius-md)', borderLeft: '3px solid var(--success)'}}>
                     <h4 style={{marginBottom: '1rem', color: 'var(--success)'}}>Capture Requirement</h4>
                     <div style={{display: 'grid', gap: '1rem'}}>
-                      <div><label>Feed/Product Type</label><input type="text" value={reqProduct} onChange={e=>setReqProduct(e.target.value)} placeholder="e.g. Broiler Finisher" /></div>
+                      <div>
+                        <label>Feed/Product Type</label>
+                        <select value={reqProduct} onChange={e=>setReqProduct(e.target.value)} style={{width: '100%', padding: '0.65rem', borderRadius: '4px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}>
+                          {products.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                          <option value="Other">Other (Custom)</option>
+                        </select>
+                      </div>
                       <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                        <div><label>Quantity</label><input type="number" value={reqQty} onChange={e=>setReqQty(e.target.value)} /></div>
+                        <div><label>Quantity</label><input type="number" min="0.01" step="any" required value={reqQty} onChange={e=>setReqQty(e.target.value)} /></div>
                         <div>
                           <label>Unit</label>
                           <select value={reqUnit} onChange={e=>setReqUnit(e.target.value)} style={{width: '100%', padding: '0.65rem', borderRadius: '4px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}>
@@ -242,8 +266,8 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
                         </div>
                       </div>
                       <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                        <div><label>Expected Rate (₹)</label><input type="number" value={reqRate} onChange={e=>setReqRate(e.target.value)} placeholder="e.g. 2400" /></div>
-                        <div><label>Required Date</label><input type="date" value={reqDate} onChange={e=>setReqDate(e.target.value)} /></div>
+                        <div><label>Expected Rate (₹)</label><input type="number" step="0.01" min="0" required value={reqRate} onChange={e=>setReqRate(e.target.value)} placeholder="e.g. 2400" /></div>
+                        <div><label>Required Date</label><input type="date" required value={reqDate} onChange={e=>setReqDate(e.target.value)} /></div>
                       </div>
                       <div>
                         <label>Priority</label>

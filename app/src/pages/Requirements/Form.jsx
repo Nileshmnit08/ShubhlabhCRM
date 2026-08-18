@@ -38,6 +38,12 @@ export default function RequirementForm() {
         supabase.from('products').select('*').eq('active', true)
       ]);
       
+      if (!partyRes.data) {
+        alert("Party not found or inaccessible.");
+        navigate(-1);
+        return;
+      }
+      
       setParty(partyRes.data);
       setProducts(prodRes.data || []);
       if (prodRes.data?.length > 0) {
@@ -45,6 +51,8 @@ export default function RequirementForm() {
       }
     } catch (err) {
       console.error(err);
+      alert("Failed to load data.");
+      navigate(-1);
     } finally {
       setLoading(false);
     }
@@ -52,16 +60,33 @@ export default function RequirementForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (parseFloat(formData.quantity) <= 0) {
+      alert("Quantity must be greater than zero.");
+      return;
+    }
+    
+    if (formData.expected_rate && parseFloat(formData.expected_rate) < 0) {
+      alert("Expected rate cannot be negative.");
+      return;
+    }
+    
+    if (!formData.expected_date) {
+      alert("Required date is mandatory.");
+      return;
+    }
+
     try {
       const { data, error } = await supabase.from('requirements').insert({
         party_id: partyId,
         product_type: formData.product_type,
-        quantity: parseInt(formData.quantity) || 0,
+        quantity: parseFloat(formData.quantity) || 0,
         unit: formData.unit,
         expected_rate: formData.expected_rate ? parseFloat(formData.expected_rate) : null,
         expected_date: formData.expected_date || null,
         priority: formData.priority,
-        notes: formData.notes
+        notes: formData.notes,
+        status: 'New'
       }).select();
       
       if (error) throw error;
@@ -99,7 +124,7 @@ export default function RequirementForm() {
           <div>
             <label style={{display: 'block', marginBottom: '0.5rem'}}>Quantity</label>
             <input 
-              type="number" required min="1"
+              type="number" required min="0.01" step="any"
               value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})}
               style={{width: '100%', padding: '0.75rem', borderRadius: '6px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
             />
@@ -122,7 +147,7 @@ export default function RequirementForm() {
           <div>
             <label style={{display: 'block', marginBottom: '0.5rem'}}>Target Rate (₹) <span className="text-muted text-sm">(Optional)</span></label>
             <input 
-              type="number" step="0.01"
+              type="number" step="0.01" min="0"
               value={formData.expected_rate} onChange={e => setFormData({...formData, expected_rate: e.target.value})}
               style={{width: '100%', padding: '0.75rem', borderRadius: '6px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
             />
@@ -130,7 +155,7 @@ export default function RequirementForm() {
           <div>
             <label style={{display: 'block', marginBottom: '0.5rem'}}>Expected Date</label>
             <input 
-              type="date" 
+              type="date" required
               value={formData.expected_date} onChange={e => setFormData({...formData, expected_date: e.target.value})}
               style={{width: '100%', padding: '0.75rem', borderRadius: '6px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
             />
