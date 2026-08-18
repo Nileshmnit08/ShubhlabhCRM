@@ -29,7 +29,11 @@ export default function Auth({ onLogin }) {
       
       if (onLogin) onLogin();
     } catch (err) {
-      setError(err.message);
+      if (err.message && err.message.includes('Database error querying schema')) {
+        setError("Account setup is incomplete. Please ask your administrator to verify your user record in the system.");
+      } else {
+        setError(err.message);
+      }
     } finally {
       setLoading(false);
     }
