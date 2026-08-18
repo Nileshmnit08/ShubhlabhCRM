@@ -56,36 +56,54 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
     setIsOpen(true);
   };
 
-  // If customer explicitly requested Do Not Contact, hide the action entirely
-  if (party?.communication_preference === 'Do Not Contact') {
+  let rawPhone = party?.whatsapp || party?.mobile || '';
+  let phoneStr = rawPhone.replace(/[^0-9]/g, '');
+  if (phoneStr.length > 10 && phoneStr.startsWith('91')) {
+    phoneStr = phoneStr.substring(2);
+  }
+  const isValidNumber = phoneStr.length === 10;
+
+  // If customer explicitly requested Do Not Contact or No WhatsApp, hide the action entirely
+  if (party?.communication_preference === 'Do Not Contact' || party?.communication_preference === 'No WhatsApp') {
     return null;
   }
 
   const handleSend = () => {
-    let phone = party.whatsapp?.replace(/[^0-9]/g, '');
-    if (phone) {
-      if (phone.length === 10) phone = '91' + phone;
-      const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
-      const a = document.createElement('a');
-      a.href = url;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } else {
-      alert("No valid WhatsApp number found. Please update the profile with a 10-digit mobile number.");
-      return;
+    let finalPhone = '91' + phoneStr;
+    const url = `https://api.whatsapp.com/send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
+    
+    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      alert("Popup blocked! Please allow popups for this site to open WhatsApp, or manually open WhatsApp Web.");
     }
+    
     setStep('feedback');
   };
 
   const saveFeedback = async () => {
+    if (selectedOutcome === 'Other' && !note.trim()) {
+      alert("Please provide a note when 'Other' is selected.");
+      return;
+    }
+    
+    if (selectedOutcome === 'Requirement' && (!reqProduct || !reqQty || !reqRate || !reqDate)) {
+      alert("Please fill in all requirement fields (Product, Quantity, Rate, Expected Date).");
+      return;
+    }
+
+    if (selectedOutcome === 'Call Later' && !fuDate) {
+      alert("Please specify a follow-up date for 'Call Later'.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      const { data: session } = await supabase.auth.getSession();
+
       // 1. Log Interaction
       const { data: intRow, error: intErr } = await supabase.from('interactions').insert({
         party_id: party.id,
+        user_id: session?.session?.user?.id || null,
         channel: 'WhatsApp',
         outcome: selectedOutcome,
         note: note
@@ -135,8 +153,8 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
 
   return (
     <>
-      <button className={btnClass} onClick={handleOpen} title="WhatsApp Action" style={{display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', fontSize: '0.85rem'}}>
-        <MessageCircle size={16} style={{color: '#25D366'}} /> WhatsApp
+      <button className={btnClass} onClick={handleOpen} disabled={!isValidNumber} title={isValidNumber ? "WhatsApp Action" : "Invalid WhatsApp Number"} style={{display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', fontSize: '0.85rem', opacity: isValidNumber ? 1 : 0.5}}>
+        <MessageCircle size={16} style={{color: isValidNumber ? '#25D366' : 'inherit'}} /> WhatsApp
       </button>
 
       {isOpen && (
@@ -181,7 +199,7 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
                 />
                 
                 <button className="btn btn-primary" onClick={handleSend} style={{width: '100%', justifyContent: 'center', padding: '0.75rem', marginTop: '0.5rem'}}>
-                  <Send size={18} /> Send & Record Feedback
+                  <Send size={18} /> Open WhatsApp & Record Feedback
                 </button>
               </div>
             ) : (
