@@ -10,6 +10,37 @@ export const translations = {
     'btn.complete': 'Complete',
     'btn.reopen': 'Reopen',
     'btn.edit': 'Edit',
+    'customers.title': 'Customers',
+    'customers.subtitle': 'Manage your CRM parties, relationships, and contacts.',
+    'customers.search': 'Search by name, phone, or GST...',
+    'customers.add': 'Add Customer',
+    'customers.empty': 'No customers found',
+    'customers.emptySub': 'Get started by creating your first CRM party.',
+    
+    // Customer Master V2
+    'customers.col.customer': 'Customer & GST',
+    'customers.col.contact': 'Contact & City',
+    'customers.col.finance': 'Financials',
+    'customers.col.activity': 'Activity',
+    'customers.col.owner': 'Assigned Owner',
+    
+    'customers.finance.outstanding': 'Outstanding',
+    'customers.finance.limit': 'Limit',
+    'customers.finance.billed': 'Billed',
+    'customers.finance.received': 'Received',
+    
+    'customers.risk.good': 'Good',
+    'customers.risk.due': 'Due',
+    'customers.risk.highRisk': 'High Risk',
+    
+    'customers.badge.duplicate': 'Possible Duplicate',
+    'customers.action.quickView': 'Quick View',
+    'customers.action.merge': 'Merge Duplicate',
+    
+    'customers.profile.completeness': 'Profile Completeness',
+    'customers.missing.contact': 'Missing Contact',
+    'customers.missing.city': 'Missing City',
+    'customers.missing.gst': 'Missing GST',
     'btn.postpone': 'Postpone',
     'btn.newFollowUp': 'New Follow-up',
     
@@ -122,6 +153,37 @@ export const translations = {
     'btn.complete': 'पूरा करें',
     'btn.reopen': 'फिर से खोलें',
     'btn.edit': 'संपादित करें',
+    'customers.title': 'ग्राहक (Customers)',
+    'customers.subtitle': 'अपने सीआरएम पार्टियों, संबंधों और संपर्कों को प्रबंधित करें।',
+    'customers.search': 'नाम, फोन या जीएसटी से खोजें...',
+    'customers.add': 'ग्राहक जोड़ें (Add)',
+    'customers.empty': 'कोई ग्राहक नहीं मिला',
+    'customers.emptySub': 'अपना पहला सीआरएम पार्टी बनाकर शुरुआत करें।',
+    
+    // Customer Master V2
+    'customers.col.customer': 'ग्राहक और जीएसटी',
+    'customers.col.contact': 'संपर्क और शहर',
+    'customers.col.finance': 'वित्तीय',
+    'customers.col.activity': 'गतिविधि',
+    'customers.col.owner': 'मालिक',
+    
+    'customers.finance.outstanding': 'बकाया',
+    'customers.finance.limit': 'क्रेडिट सीमा',
+    'customers.finance.billed': 'बिल किया गया',
+    'customers.finance.received': 'प्राप्त हुआ',
+    
+    'customers.risk.good': 'अच्छा (Good)',
+    'customers.risk.due': 'बाकी (Due)',
+    'customers.risk.highRisk': 'उच्च जोखिम (High Risk)',
+    
+    'customers.badge.duplicate': 'संभावित डुप्लिकेट',
+    'customers.action.quickView': 'त्वरित देखें',
+    'customers.action.merge': 'डुप्लिकेट मर्ज करें',
+    
+    'customers.profile.completeness': 'प्रोफ़ाइल पूर्णता',
+    'customers.missing.contact': 'संपर्क गायब',
+    'customers.missing.city': 'शहर गायब',
+    'customers.missing.gst': 'जीएसटी गायब',
     'btn.postpone': 'टालें',
     'btn.newFollowUp': 'नया फॉलो-अप',
     
