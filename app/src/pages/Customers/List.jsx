@@ -364,54 +364,78 @@ export default function CustomerList() {
       </div>
 
       {/* 2. Unified Filter Toolbar */}
-      <div className="glass-panel" style={{margin: '1.5rem 0', padding: '1rem 1.5rem'}}>
-        <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center'}}>
+      <div className="glass-panel" style={{margin: '1.5rem 0', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem', backgroundColor: 'var(--bg-surface)'}}>
+        
+        {/* Top Row: Search & Toggles */}
+        <div style={{display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end', justifyContent: 'space-between'}}>
           
-          <div style={{position: 'relative', flex: '1 1 300px', minWidth: '250px'}}>
-            <Search size={18} style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)'}} />
-            <input 
-              type="text" 
-              placeholder="Search customers..."
-              value={filters.search}
-              onChange={(e) => setFilters(p => ({...p, search: e.target.value}))}
-              style={{paddingLeft: '2.75rem', width: '100%', paddingRight: '1rem'}}
-            />
+          <div style={{position: 'relative', flex: '1 1 350px'}}>
+            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Search Customers</label>
+            <div style={{position: 'relative'}}>
+              <Search size={16} style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)'}} />
+              <input 
+                type="text" 
+                placeholder="Search by name, GST, mobile, city..."
+                value={filters.search}
+                onChange={(e) => setFilters(p => ({...p, search: e.target.value}))}
+                style={{paddingLeft: '2.5rem', width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)'}}
+              />
+            </div>
           </div>
 
-          <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center'}}>
-          {/* Owner Filter */}
-          <div style={{ flex: '1 1 200px' }}>
-            <div className="text-secondary" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 500 }}>Assigned Owner</div>
+          <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap'}}>
+            <label className={`btn ${filters.missing_gst ? 'btn-primary' : 'btn-secondary'}`} style={{height: '38px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0 1rem', fontSize: '0.85rem', background: filters.missing_gst ? 'var(--primary)' : 'var(--bg-base)', border: filters.missing_gst ? '1px solid var(--primary)' : '1px solid var(--border)', color: filters.missing_gst ? 'white' : 'var(--text-primary)'}}>
+              <input type="checkbox" checked={filters.missing_gst} onChange={e => setFilters(p => ({...p, missing_gst: e.target.checked}))} style={{display: 'none'}} />
+              {filters.missing_gst ? <CheckCircle2 size={14} /> : null} Missing GST
+            </label>
+            <label className={`btn ${filters.show_duplicates ? 'btn-primary' : 'btn-secondary'}`} style={{height: '38px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0 1rem', fontSize: '0.85rem', background: filters.show_duplicates ? 'var(--primary)' : 'var(--bg-base)', border: filters.show_duplicates ? '1px solid var(--primary)' : '1px solid var(--border)', color: filters.show_duplicates ? 'white' : 'var(--text-primary)'}}>
+              <input type="checkbox" checked={filters.show_duplicates} onChange={e => setFilters(p => ({...p, show_duplicates: e.target.checked}))} style={{display: 'none'}} />
+              {filters.show_duplicates ? <CheckCircle2 size={14} /> : null} Possible Duplicates
+            </label>
+          </div>
+        </div>
+
+        {/* Bottom Row: Select Filters */}
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem'}}>
+          
+          <div>
+            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Assigned Owner</label>
             {isAdmin ? (
-              <select className="filter-select" value={filters.owner_id} onChange={e => setFilters(p => ({...p, owner_id: e.target.value}))}>
+              <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.owner_id} onChange={e => setFilters(p => ({...p, owner_id: e.target.value}))}>
                 <option value="ALL">All Owners</option>
                 <option value="UNASSIGNED">Unassigned Only</option>
-                {teamMembers.map(t => (
-                  <option key={t.id} value={t.id}>{t.display_name}</option>
-                ))}
+                {teamMembers.map(t => <option key={t.id} value={t.id}>{t.display_name}</option>)}
               </select>
             ) : (
-              <select className="filter-select" value={filters.owner_id} disabled>
+              <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-surface-hover)', color: 'var(--text-muted)', padding: '0 0.75rem', fontSize: '0.85rem'}} value={filters.owner_id} disabled>
                 <option value={userProfile?.id}>My Customers</option>
               </select>
             )}
           </div>
 
-            <select className="filter-select" value={filters.financial_status} onChange={e => setFilters(p => ({...p, financial_status: e.target.value}))}>
+          <div>
+            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Financial Status</label>
+            <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.financial_status} onChange={e => setFilters(p => ({...p, financial_status: e.target.value}))}>
               <option value="ALL">All Financials</option>
               <option value="OUTSTANDING">Has Outstanding</option>
               <option value="NO_CREDIT_LIMIT">No Credit Limit</option>
             </select>
+          </div>
 
-            <select className="filter-select" value={filters.activity_status} onChange={e => setFilters(p => ({...p, activity_status: e.target.value}))}>
+          <div>
+            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Activity Level</label>
+            <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.activity_status} onChange={e => setFilters(p => ({...p, activity_status: e.target.value}))}>
               <option value="ALL">All Activity</option>
               <option value="STALE_30_DAYS">Stale (&gt;30 Days)</option>
               <option value="NEVER_ORDERED">Never Ordered</option>
               <option value="NEVER_PAID">Never Paid</option>
             </select>
+          </div>
 
-            <select className="filter-select" value={filters.profile_completeness} onChange={e => setFilters(p => ({...p, profile_completeness: e.target.value}))}>
-              <option value="ALL">Profile: All</option>
+          <div>
+            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Profile Completeness</label>
+            <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.profile_completeness} onChange={e => setFilters(p => ({...p, profile_completeness: e.target.value}))}>
+              <option value="ALL">All Profiles</option>
               <option value="0-25">0-25% Complete</option>
               <option value="26-50">26-50% Complete</option>
               <option value="51-75">51-75% Complete</option>
@@ -419,41 +443,29 @@ export default function CustomerList() {
             </select>
           </div>
         </div>
-        
-        {/* Quick Toggles */}
-        <div style={{display: 'flex', gap: '1rem', marginTop: '1rem', alignItems: 'center', flexWrap: 'wrap'}}>
-           <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem'}}>
-              <input type="checkbox" checked={filters.missing_gst} onChange={e => setFilters(p => ({...p, missing_gst: e.target.checked}))} />
-              Missing GST
-           </label>
-           <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem'}}>
-              <input type="checkbox" checked={filters.show_duplicates} onChange={e => setFilters(p => ({...p, show_duplicates: e.target.checked}))} />
-              Possible Duplicates
-           </label>
-        </div>
-      </div>
 
-      {/* 3. Active Chips Row */}
-      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem'}}>
-        <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
-          {activeFilters.length > 0 ? (
-            <>
-              <span className="text-secondary" style={{fontSize: '0.85rem', display: 'flex', alignItems: 'center', marginRight: '0.5rem'}}><Filter size={14} style={{marginRight: '0.25rem'}}/> Active Filters:</span>
+        {/* Active Filters Row (Only visible if filters active) */}
+        {(activeFilters.length > 0 || filters.search) && (
+          <div style={{marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem'}}>
+            <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center'}}>
+              <Filter size={14} className="text-secondary" style={{marginRight: '0.25rem'}}/>
               {activeFilters.map(af => (
-                <span key={af.key} className="badge badge-active" style={{display: 'flex', alignItems: 'center', gap: '0.25rem'}}>
+                <span key={af.key} style={{display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', fontWeight: 500, padding: '0.25rem 0.6rem', borderRadius: '4px', background: 'var(--primary-light)', color: 'var(--primary)', border: '1px solid rgba(15, 118, 110, 0.2)'}}>
                   {af.label}
-                  <button onClick={() => removeFilter(af.key)} style={{background:'none',border:'none',color:'inherit',cursor:'pointer',display:'flex',alignItems:'center'}}><X size={12}/></button>
+                  <button onClick={() => removeFilter(af.key)} style={{background:'none', border:'none', color:'inherit', cursor:'pointer', display:'flex', alignItems:'center', padding: 0}}><X size={12}/></button>
                 </span>
               ))}
-              <button onClick={clearAllFilters} className="btn-link" style={{fontSize: '0.85rem'}}>Clear All</button>
-            </>
-          ) : (
-            <span className="text-secondary" style={{fontSize: '0.85rem'}}>No active filters.</span>
-          )}
-        </div>
-        <div className="text-secondary" style={{fontSize: '0.9rem', fontWeight: 500}}>
-          Showing {customers.length} {customers.length !== totalCount ? `of ~${totalCount}` : ''} customers
-        </div>
+              {activeFilters.length > 0 && (
+                <button onClick={clearAllFilters} style={{background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', padding: '0.25rem 0.5rem', textDecoration: 'underline'}}>
+                  Clear all
+                </button>
+              )}
+            </div>
+            <div className="text-secondary" style={{fontSize: '0.85rem', fontWeight: 500}}>
+              Showing {customers.length} {customers.length !== totalCount ? `of ~${totalCount}` : ''} customers
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 4. Bulk Action Bar */}
