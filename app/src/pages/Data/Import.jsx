@@ -76,23 +76,28 @@ export default function DataImport() {
       parsePdf(file);
       return;
     }
-    if (importType === 'voucher') {
-       const reader = new FileReader();
-       reader.onload = (e) => parseMultilineVoucherCsv(e.target.result);
-       reader.readAsText(file, 'UTF-16LE');
-       return;
-    }
 
+    // Try standard PapaParse first to see if it's a clean CSV with headers
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        setParsedData(results.data);
-        if (results.meta.fields) {
-          setColumns(results.meta.fields);
+        const fields = results.meta.fields || [];
+        const hasStandardHeaders = fields.some(f => 
+          f.toLowerCase().includes('ledger') || 
+          f.toLowerCase().includes('date') || 
+          f.toLowerCase().includes('amount') || 
+          f.toLowerCase().includes('voucher')
+        );
+
+        if (hasStandardHeaders || importType === 'party') {
+          // Standard CSV with headers (works for both Party and clean Vouchers like converted_vouchers_latest.csv)
+          setParsedData(results.data);
+          setColumns(fields);
+          
           if (importType === 'party') {
             const guessMapping = { ...partyMapping };
-            results.meta.fields.forEach(f => {
+            fields.forEach(f => {
               const lower = f.toLowerCase();
               if (lower.includes('ledger') || lower.includes('party') || lower.includes('name')) guessMapping.ledger_name = f;
               else if (lower.includes('group') || lower.includes('parent')) guessMapping.group = f;
@@ -102,9 +107,30 @@ export default function DataImport() {
               else if (lower.includes('gst') || lower.includes('tin')) guessMapping.gstin = f;
             });
             setPartyMapping(guessMapping);
+          } else {
+            const guessMapping = { ...voucherMapping };
+            fields.forEach(f => {
+              const lower = f.toLowerCase();
+              if (lower.includes('date')) guessMapping.voucher_date = f;
+              else if (lower.includes('ledger') || lower.includes('party') || lower.includes('particulars')) guessMapping.ledger_name = f;
+              else if (lower.includes('type')) guessMapping.voucher_type = f;
+              else if (lower.includes('no') || lower.includes('number')) guessMapping.voucher_no = f;
+              else if (lower.includes('debit')) guessMapping.debit_amount = f;
+              else if (lower.includes('credit')) guessMapping.credit_amount = f;
+            });
+            setVoucherMapping(guessMapping);
           }
+          setParsing(false);
+        } else if (importType === 'voucher') {
+          // Fallback to legacy parser for weird multiline Tally exports
+          const reader = new FileReader();
+          reader.onload = (e) => parseMultilineVoucherCsv(e.target.result);
+          reader.readAsText(file, 'UTF-16LE'); // Legacy tally export uses UTF-16LE
+        } else {
+           setParsedData(results.data);
+           setColumns(fields);
+           setParsing(false);
         }
-        setParsing(false);
       },
       error: (error) => {
         console.error("Parse Error:", error);
@@ -366,6 +392,158 @@ export default function DataImport() {
     }
   };
 
+  const runVoucherImport = async () => {
+    if (!voucherMapping.ledger_name || !voucherMapping.voucher_type || (!voucherMapping.debit_amount && !voucherMapping.credit_amount)) {
+      alert("Please map Ledger Name, Voucher Type, and at least one Amount column (Debit/Credit)."); return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+
+    try {
+      const { data: importJob, error: importError } = await supabase
+        .from('tally_imports')
+        .insert([{ source_file_name: file.name, source_type: 'CSV', record_count: parsedData.length, status: 'Processing' }])
+        .select().single();
+
+      if (importError) throw importError;
+
+      // 1. Prepare raw transactions
+      const rawTxns = parsedData.map(row => {
+        const ledgerName = row[voucherMapping.ledger_name];
+        const dAmt = parseFloat(row[voucherMapping.debit_amount]) || 0;
+        const cAmt = parseFloat(row[voucherMapping.credit_amount]) || 0;
+        let dateVal = row[voucherMapping.voucher_date];
+        
+        if (dateVal) {
+          try { dateVal = new Date(dateVal).toISOString().split('T')[0]; } 
+          catch (e) { dateVal = null; }
+        }
+
+        return {
+          import_id: importJob.id,
+          voucher_date: dateVal || null,
+          particulars: ledgerName || 'Unknown',
+          voucher_type: voucherMapping.voucher_type ? row[voucherMapping.voucher_type] : null,
+          voucher_no: voucherMapping.voucher_no ? row[voucherMapping.voucher_no] : null,
+          debit_amount: dAmt,
+          credit_amount: cAmt,
+          raw_data: row
+        };
+      }).filter(t => t.particulars && t.particulars !== 'Unknown' && (t.debit_amount > 0 || t.credit_amount > 0));
+
+      // 2. Insert raw transactions
+      const { error: rawErr } = await supabase.from('tally_raw_transactions').insert(rawTxns);
+      if (rawErr) throw rawErr;
+
+      // 3. Process to clean tally_transactions
+      const { data: crmParties } = await supabase.from('crm_parties').select('id, display_name, legal_or_core_name');
+      
+      let queuedCount = 0;
+      let successCount = 0;
+      
+      if (crmParties) {
+        const cleanTxns = [];
+        const unmatchedLedgers = new Set();
+        
+        rawTxns.forEach(raw => {
+          const rawNorm = normalizeIdentity(raw.particulars);
+          const match = crmParties.find(c => normalizeIdentity(c.display_name) === rawNorm || normalizeIdentity(c.legal_or_core_name) === rawNorm);
+          
+          if (match) {
+            cleanTxns.push({
+              crm_party_id: match.id,
+              import_id: importJob.id,
+              voucher_date: raw.voucher_date || new Date().toISOString().split('T')[0],
+              tally_ledger_name: raw.particulars,
+              voucher_type: raw.voucher_type || 'Unknown',
+              voucher_no: raw.voucher_no || 'NA',
+              amount: raw.debit_amount > 0 ? raw.debit_amount : raw.credit_amount,
+              is_credit: raw.credit_amount > 0
+            });
+          } else {
+            unmatchedLedgers.add(raw.particulars);
+          }
+        });
+
+        if (cleanTxns.length > 0) {
+          const { error: cleanErr } = await supabase.from('tally_transactions').upsert(cleanTxns, { onConflict: 'tally_ledger_name, voucher_type, voucher_no, voucher_date', ignoreDuplicates: true });
+          if (cleanErr) console.error("Clean error: ", cleanErr);
+          else successCount = cleanTxns.length;
+        }
+        
+        if (unmatchedLedgers.size > 0) {
+          queuedCount = unmatchedLedgers.size;
+          const unmatchedArr = Array.from(unmatchedLedgers);
+          
+          const rawPToInsert = unmatchedArr.map(ul => ({
+            tally_import_id: importJob.id,
+            tally_ledger_name: ul,
+            tally_status: 'Active (Voucher)'
+          }));
+          
+          await supabase.from('tally_raw_parties').upsert(rawPToInsert, { onConflict: 'tally_ledger_name', ignoreDuplicates: true });
+          
+          const { data: insertedRaw } = await supabase.from('tally_raw_parties')
+            .select('id, tally_ledger_name')
+            .in('tally_ledger_name', unmatchedArr);
+            
+          if (insertedRaw) {
+            const reviewQueueToInsert = insertedRaw.map(rp => {
+              const rawNorm = normalizeIdentity(rp.tally_ledger_name);
+              let bestMatch = null;
+              let highestScore = 0;
+              crmParties.forEach(crmP => {
+                const crmNorm = normalizeIdentity(crmP.display_name);
+                if (rawNorm.includes(crmNorm) || crmNorm.includes(rawNorm)) {
+                  if (highestScore < 0.8) { bestMatch = crmP; highestScore = 0.8; }
+                }
+              });
+              
+              return {
+                tally_raw_party_id: rp.id,
+                candidate_crm_party_id: bestMatch ? bestMatch.id : null,
+                match_reason: bestMatch ? 'Partial name match detected' : 'No matching CRM party found',
+                confidence: highestScore
+              };
+            });
+            
+            if (reviewQueueToInsert.length > 0) {
+              await supabase.from('identity_review_queue').upsert(reviewQueueToInsert, { onConflict: 'tally_raw_party_id' });
+            }
+          }
+        }
+      }
+      
+      await supabase.from('tally_imports').update({ status: 'Completed', success_count: successCount, error_count: 0 }).eq('id', importJob.id);
+      
+      logActivity({
+        userId: user?.id,
+        module: 'DataSync',
+        actionType: 'IMPORT',
+        summary: `Imported ${successCount} Tally vouchers.`
+      });
+
+      setImportResult({ 
+        success: true, 
+        insertedCount: successCount, 
+        updatedCount: 0,
+        unchangedCount: 0,
+        mergedInFileCount: 0,
+        queuedCount, 
+        errorCount: 0, 
+        type: 'voucher', 
+        date: new Date().toLocaleDateString() 
+      });
+
+    } catch (err) {
+      console.error(err);
+      setImportResult({ success: false, error: err.message });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in">
       <div className="page-header" style={{marginBottom: '2rem'}}>
@@ -418,18 +596,22 @@ export default function DataImport() {
                   <div style={{fontSize: '2rem', fontWeight: 700, color: 'var(--success)'}}>{importResult.insertedCount}</div>
                   <div className="text-secondary" style={{fontSize: '0.85rem'}}>Inserted</div>
                 </div>
-                <div style={{padding: '1rem', background: 'var(--bg-surface-hover)', borderRadius: '8px', minWidth: '120px'}}>
-                  <div style={{fontSize: '2rem', fontWeight: 700, color: 'var(--primary)'}}>{importResult.updatedCount}</div>
-                  <div className="text-secondary" style={{fontSize: '0.85rem'}}>Updated</div>
-                </div>
-                <div style={{padding: '1rem', background: 'var(--bg-surface-hover)', borderRadius: '8px', minWidth: '120px'}}>
-                  <div style={{fontSize: '2rem', fontWeight: 700, color: 'var(--text-secondary)'}}>{importResult.unchangedCount}</div>
-                  <div className="text-secondary" style={{fontSize: '0.85rem'}}>Unchanged (No-op)</div>
-                </div>
+                {importType === 'party' && (
+                  <div style={{padding: '1rem', background: 'var(--bg-surface-hover)', borderRadius: '8px', minWidth: '120px'}}>
+                    <div style={{fontSize: '2rem', fontWeight: 700, color: 'var(--primary)'}}>{importResult.updatedCount}</div>
+                    <div className="text-secondary" style={{fontSize: '0.85rem'}}>Updated</div>
+                  </div>
+                )}
+                {importType === 'party' && (
+                  <div style={{padding: '1rem', background: 'var(--bg-surface-hover)', borderRadius: '8px', minWidth: '120px'}}>
+                    <div style={{fontSize: '2rem', fontWeight: 700, color: 'var(--text-secondary)'}}>{importResult.unchangedCount}</div>
+                    <div className="text-secondary" style={{fontSize: '0.85rem'}}>Unchanged (No-op)</div>
+                  </div>
+                )}
               </div>
               <p className="text-secondary" style={{marginTop: '0.5rem', marginBottom: '2rem'}}>
-                File merged {importResult.mergedInFileCount} sparse duplicates natively. 
-                {importResult.queuedCount > 0 && <span style={{display: 'block', color: 'var(--warning)', marginTop: '0.5rem'}}>{importResult.queuedCount} ambiguous conflicts sent to Review Queue.</span>}
+                {importType === 'party' && `File merged ${importResult.mergedInFileCount} sparse duplicates natively.`} 
+                {importResult.queuedCount > 0 && <span style={{display: 'block', color: 'var(--warning)', marginTop: '0.5rem'}}>{importResult.queuedCount} unmapped items sent to Review Queue.</span>}
               </p>
               
               <div style={{display: 'flex', gap: '1rem', justifyContent: 'center'}}>
@@ -538,8 +720,8 @@ export default function DataImport() {
           </div>
 
           <div style={{marginTop: '2rem', display: 'flex', justifyContent: 'flex-end'}}>
-            <button className="btn btn-primary" onClick={importType === 'party' ? runPartyImport : () => alert('Voucher import unchanged in this sprint.')} disabled={importing || parsing || (importType==='party' ? !partyMapping.ledger_name : !voucherMapping.ledger_name)}>
-              {importing ? <><Loader2 size={18} className="animate-spin" /> Processing...</> : (importMode === 'preview_only' ? 'Preview Dry Run' : 'Execute Import')}
+            <button className="btn btn-primary" onClick={importType === 'party' ? runPartyImport : runVoucherImport} disabled={importing || parsing || (importType==='party' ? !partyMapping.ledger_name : !voucherMapping.ledger_name)}>
+              {importing ? <><Loader2 size={18} className="animate-spin" /> Processing...</> : (importType === 'party' && importMode === 'preview_only' ? 'Preview Dry Run' : 'Execute Import')}
             </button>
           </div>
         </div>
