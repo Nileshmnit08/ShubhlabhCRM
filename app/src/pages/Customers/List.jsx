@@ -617,7 +617,6 @@ export default function CustomerList() {
             </div>
           </div>
         </div>
-        </div>
       )}
 
       {/* QUICK VIEW DRAWER */}
