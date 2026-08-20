@@ -7,12 +7,14 @@ import {
   BarChart3, AlertTriangle, Users, Plus, FileText, 
   CheckCircle2, Activity, UserPlus, FileEdit, ClipboardList, Target
 } from 'lucide-react';
+import WhatsAppAction from '../components/WhatsAppAction';
 
 export default function Today() {
   const { userProfile } = useContext(AuthContext);
   
   const [data, setData] = useState({
     followUps: { overdue: [], today: [], highPriority: [] },
+    paymentTasks: { overdue: [], today: [] },
     kpis: { overdue: 0, today: 0, pendingQuotes: 0, newCustomersToday: 0, dormant: 0 },
     risks: { noContact: [], pendingQuote: [], stalledReq: [], dormant: [] },
     recentActivity: [],
@@ -44,19 +46,44 @@ export default function Today() {
 
       // 1. Follow-ups
       let fuQuery = supabase.from('follow_ups')
-        .select(`*, crm_parties ( id, display_name, mobile, whatsapp, assigned_owner_id )`)
+        .select(`*, crm_parties ( id, display_name, mobile, whatsapp, assigned_owner_id, crm_status, communication_preference )`)
         .eq('status', 'Pending');
       
       const { data: allPendingFu } = await fuQuery;
       
       // Filter valid follow-ups (RLS ensures we only get accessible parties, but we defensively check)
-      let validFu = (allPendingFu || []).filter(f => f.crm_parties !== null);
+      let allAccessibleFu = (allPendingFu || []).filter(f => f.crm_parties !== null);
       
       // If operator, they only see followups where they are the owner OR they are assigned the followup
       if (!isAdmin) {
-         validFu = validFu.filter(f => f.assigned_to === ownerId || f.crm_parties.assigned_owner_id === ownerId);
+         allAccessibleFu = allAccessibleFu.filter(f => f.assigned_to === ownerId || f.crm_parties.assigned_owner_id === ownerId);
       }
       
+      let validFu = [];
+      let paymentFu = [];
+      
+      allAccessibleFu.forEach(f => {
+        if (f.follow_up_type === 'Payment') {
+          paymentFu.push(f);
+        } else {
+          validFu.push(f);
+        }
+      });
+      
+      // Fetch financials for payment followups
+      const partyIds = [...new Set(paymentFu.map(f => f.party_id))];
+      let financialsMap = {};
+      if (partyIds.length > 0) {
+        const { data: finData } = await supabase.from('v_customer_financials').select('party_id, outstanding_balance').in('party_id', partyIds);
+        if (finData) {
+          finData.forEach(fin => financialsMap[fin.party_id] = fin.outstanding_balance);
+        }
+      }
+      paymentFu = paymentFu.map(f => ({ ...f, outstanding_balance: financialsMap[f.party_id] || 0 }));
+      
+      const overduePayment = paymentFu.filter(f => f.follow_up_date < todayStr);
+      const todayPayment = paymentFu.filter(f => f.follow_up_date === todayStr);
+
       const overdueFu = validFu.filter(f => f.follow_up_date < todayStr);
       const todayFu = validFu.filter(f => f.follow_up_date === todayStr);
       const highPriFu = validFu.filter(f => f.follow_up_date > todayStr && f.priority === 'High');
@@ -70,6 +97,8 @@ export default function Today() {
       overdueFu.sort(sortFn);
       todayFu.sort(sortFn);
       highPriFu.sort(sortFn);
+      overduePayment.sort(sortFn);
+      todayPayment.sort(sortFn);
 
       // 2. Open Requirements
       const { data: openReqsData } = await supabase.from('v_open_requirements').select('*');
@@ -124,6 +153,10 @@ export default function Today() {
           today: todayFu,
           highPriority: highPriFu
         },
+        paymentTasks: {
+          overdue: overduePayment,
+          today: todayPayment
+        },
         kpis: {
           overdue: overdueFu.length,
           today: todayFu.length,
@@ -171,16 +204,59 @@ export default function Today() {
         </div>
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           {item.reason}
+          <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>• Type: {item.follow_up_type || 'General'}</span>
         </div>
       </div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
         {item.crm_parties?.mobile && (
            <a href={`tel:${item.crm_parties.mobile}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--bg-surface)' }}>
              <Phone size={14} /> Call
            </a>
         )}
-        <Link to={`/customers/${item.crm_parties?.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-          Update
+        <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+          Open Profile
+        </Link>
+        <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+          Open Task
+        </Link>
+      </div>
+    </div>
+  );
+
+  const PaymentTaskRow = ({ item, isOverdue }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-base)', borderRadius: '4px', marginBottom: '0.5rem' }}>
+      <div style={{ flex: '1 1 0', minWidth: 0, paddingRight: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {item.crm_parties?.display_name || 'Unknown Party'}
+          </strong>
+          {isOverdue ? (
+            <span style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: 'none', padding: '0.1rem 0.4rem', fontSize: '0.7rem', borderRadius: '12px', fontWeight: 600 }}>Overdue</span>
+          ) : (
+            <span style={{ background: 'var(--warning-light)', color: 'var(--warning)', border: 'none', padding: '0.1rem 0.4rem', fontSize: '0.7rem', borderRadius: '12px', fontWeight: 600 }}>Due Today</span>
+          )}
+        </div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          {item.reason} 
+          <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>• Due: {new Date(item.follow_up_date).toLocaleDateString()}</span>
+        </div>
+      </div>
+      
+      <div style={{ padding: '0 1.5rem', textAlign: 'right', minWidth: '120px' }}>
+         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Outstanding</div>
+         <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--danger)' }}>
+            ₹{item.outstanding_balance ? Number(item.outstanding_balance).toLocaleString('en-IN') : '0'}
+         </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
+        <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+          Open Profile
+        </Link>
+        <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+          Open Task
         </Link>
       </div>
     </div>
@@ -205,7 +281,9 @@ export default function Today() {
   if (error) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{error}</div>;
 
   const priorityTasks = [...data.followUps.overdue, ...data.followUps.today].slice(0, 7);
-  const totalActionable = data.followUps.overdue.length + data.followUps.today.length;
+  const paymentTasksList = [...data.paymentTasks.overdue, ...data.paymentTasks.today].slice(0, 7);
+  const totalActionable = data.followUps.overdue.length + data.followUps.today.length + data.paymentTasks.overdue.length + data.paymentTasks.today.length;
+  const totalOverdue = data.kpis.overdue + data.paymentTasks.overdue.length;
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
@@ -216,7 +294,7 @@ export default function Today() {
           <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Today's Work</h1>
           <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
             {totalActionable > 0 
-              ? `${totalActionable} tasks need action, ${data.kpis.overdue} are overdue.` 
+              ? `${totalActionable} tasks need action, ${totalOverdue} are overdue.` 
               : `You are all caught up for today.`}
           </p>
         </div>
@@ -243,26 +321,55 @@ export default function Today() {
       {/* 3. Main Work Area & 4. Right Panel */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem', marginBottom: '2rem', alignItems: 'start' }}>
         
-        {/* Left Column: Priority Queue */}
-        <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-              <Target size={18} className="text-primary" /> Priority Queue
-            </h2>
-            <Link to="/follow-ups" className="text-primary" style={{ fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>View All ({totalActionable})</Link>
+        {/* Left Column: Priority Queue & Payment Queue */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* Payment Queue */}
+          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <AlertCircle size={18} className="text-danger" /> Payment Queue
+              </h2>
+              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                <span className="text-danger"><strong>{data.paymentTasks.overdue.length}</strong> Overdue</span>
+                <span className="text-warning"><strong>{data.paymentTasks.today.length}</strong> Due Today</span>
+              </div>
+            </div>
+            
+            {paymentTasksList.length === 0 ? (
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
+                <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>No payments due</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {paymentTasksList.map(fu => <PaymentTaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
+              </div>
+            )}
+          </div>
+
+          {/* Priority Queue (General & Sales) */}
+          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <Target size={18} className="text-primary" /> Priority Queue
+              </h2>
+              <Link to="/follow-ups" className="text-primary" style={{ fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>View All</Link>
+            </div>
+            
+            {priorityTasks.length === 0 ? (
+              <div style={{ padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
+                <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>Inbox Zero</div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No immediate actions pending in your queue.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {priorityTasks.map(fu => <TaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
+              </div>
+            )}
           </div>
           
-          {priorityTasks.length === 0 ? (
-            <div style={{ padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
-              <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-              <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>Inbox Zero</div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No immediate actions pending in your queue.</div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {priorityTasks.map(fu => <TaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
-            </div>
-          )}
         </div>
 
         {/* Right Column */}
@@ -293,7 +400,7 @@ export default function Today() {
               <RiskGroup title="No contact in 7+ days" count={data.risks.noContact.length} icon={Phone} link="/customers" />
               <RiskGroup title="Quotation pending" count={data.risks.pendingQuote.length} icon={FileText} link="/requirements" />
               <RiskGroup title="Requirement stalled" count={data.risks.stalledReq.length} icon={AlertTriangle} link="/requirements" />
-              <RiskGroup title="Dormant customers" count={data.risks.dormant.length} icon={Clock} link="/customers" />
+              <RiskGroup title="Dormant customers" count={data.risks.dormant.length} icon={Clock} link="/reactivation-queue" />
             </div>
           </div>
 
@@ -324,9 +431,9 @@ export default function Today() {
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       Logged a {act.interaction_type || 'interaction'} ({act.outcome || 'No outcome'})
                     </div>
-                    {act.notes && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem', fontStyle: 'italic', background: 'var(--bg-base)', padding: '0.4rem', borderRadius: '4px' }}>
-                        "{act.notes}"
+                    {act.note && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem', fontStyle: 'italic', background: 'var(--bg-base)', padding: '0.4rem', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
+                        "{act.note}"
                       </div>
                     )}
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>

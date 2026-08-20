@@ -5,8 +5,9 @@ import { ArrowLeft, Edit2, MapPin, Phone, MessageCircle, Trash2, ShieldAlert, Ca
 import { AuthContext } from '../../AuthContext';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { logActivity } from '../../lib/activityLogger';
+import ConvertLeadModal from '../../components/ConvertLeadModal';
 
-export default function CustomerView() {
+export default function CustomerView({ isLeadMode = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
   
@@ -22,6 +23,7 @@ export default function CustomerView() {
   
   // Forms
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
   const [newFollowUp, setNewFollowUp] = useState({ reason: '', follow_up_date: '', priority: 'Normal', notes: '' });
 
   const [showInteractionForm, setShowInteractionForm] = useState(false);
@@ -123,6 +125,7 @@ Please contact this customer and update Contact Information in CRM.`;
         original_follow_up_date: newFollowUp.follow_up_date,
         created_by: session?.session?.user?.id || null,
         assigned_to: session?.session?.user?.id || null,
+        follow_up_type: isLeadMode ? 'Lead' : 'General',
         ...newFollowUp
       }).select();
       if (error) throw error;
@@ -149,6 +152,12 @@ Please contact this customer and update Contact Information in CRM.`;
 
   const updateFollowUpStatus = async (f, status) => {
     try {
+      if (status === 'Completed' && (f.follow_up_type === 'Payment' || f.follow_up_type === 'Lead')) {
+        alert(`${f.follow_up_type} tasks require a structured outcome. You will be redirected to the task form.`);
+        navigate(`/follow-ups/${f.id}/edit`);
+        return;
+      }
+
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
       if (status === 'Completed' && f.assigned_to && f.assigned_to !== userId) {
@@ -268,7 +277,7 @@ Please contact this customer and update Contact Information in CRM.`;
       {/* Header Area */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem' }}>
-          <Link to="/customers" className="cv-btn-subtle" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', borderRadius: '50%', marginTop: '0.25rem' }}>
+          <Link to={isLeadMode ? "/leads" : "/customers"} className="cv-btn-subtle" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px', height: '40px', borderRadius: '50%', marginTop: '0.25rem' }}>
             <ArrowLeft size={20} />
           </Link>
           <div>
@@ -280,6 +289,17 @@ Please contact this customer and update Contact Information in CRM.`;
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isActive ? 'var(--success)' : 'var(--warning)', boxShadow: `0 0 8px ${isActive ? 'var(--success)' : 'var(--warning)'}` }}></span>
                 <span style={{ fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase' }}>{customer.crm_status}</span>
               </div>
+              {customer.health_status && customer.crm_status !== 'Lead' && (
+                <>
+                  <span style={{ opacity: 0.3 }}>|</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }} title={customer.health_reason}>
+                    <span className={`badge ${customer.health_status === 'Healthy' ? 'badge-success' : customer.health_status === 'At Risk' ? 'badge-danger' : 'badge-neutral'}`} style={{padding: '0.1rem 0.4rem', fontSize: '0.75rem'}}>
+                      Health: {customer.health_status}
+                    </span>
+                    <span style={{ fontSize: '0.8rem', fontStyle: 'italic', opacity: 0.8 }}>({customer.health_reason})</span>
+                  </div>
+                </>
+              )}
               {customer.city && (
                 <>
                   <span style={{ opacity: 0.3 }}>|</span>
@@ -299,19 +319,29 @@ Please contact this customer and update Contact Information in CRM.`;
               <Phone size={16} /> <span style={{ display: 'none', '@media(min-width: 640px)': { display: 'inline' }}}>Call</span>
             </a>
           )}
-          {customer.whatsapp && (
+          {!isLeadMode && customer.whatsapp && (
             <WhatsAppAction party={customer} onComplete={fetchCustomerContext} btnClass="btn cv-btn-subtle" />
+          )}
+          {!isLeadMode && (
+            <>
+              <button className="btn btn-primary" onClick={() => navigate(`/requirements/new?party_id=${id}`)}>
+                <Plus size={16} /> New Requirement
+              </button>
+            </>
+          )}
+          {isLeadMode && customer.crm_status === 'Lead' && (
+             <button className="btn btn-primary" onClick={() => setShowConvertModal(true)}>
+               Convert to Customer
+             </button>
           )}
           <button className="btn cv-btn-subtle" onClick={() => setShowFollowUpForm(true)}>
             <Calendar size={16} /> Follow-up
-          </button>
-          <button className="btn btn-primary" onClick={() => navigate(`/requirements/new?party_id=${id}`)}>
-            <Plus size={16} /> New Requirement
           </button>
         </div>
       </div>
 
       {/* KPI Cards */}
+      {!isLeadMode && (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '2.5rem' }}>
         
         {/* Next Action */}
@@ -385,6 +415,21 @@ Please contact this customer and update Contact Information in CRM.`;
           )}
         </div>
       </div>
+      )}
+
+      {showConvertModal && (
+         <ConvertLeadModal 
+           lead={customer} 
+           onClose={() => setShowConvertModal(false)}
+           onComplete={() => {
+             setShowConvertModal(false);
+             fetchCustomerContext();
+             // Optionally navigate to the updated active customer route if needed,
+             // but since it's the same ID, fetching again works perfectly.
+             navigate(`/customers/${customer.id}`);
+           }}
+         />
+      )}
 
       {/* Forms (Rendered Inline as premium panels when active) */}
       {showFollowUpForm && (
@@ -446,18 +491,22 @@ Please contact this customer and update Contact Information in CRM.`;
       {/* Segmented Tab Navigation */}
       <div className="cv-tabs">
         <button className={`cv-tab ${activeTab==='details'?'active':''}`} onClick={() => setActiveTab('details')}>Profile Overview</button>
-        {userProfile?.role === 'Admin' && (
+        {!isLeadMode && userProfile?.role === 'Admin' && (
           <button className={`cv-tab ${activeTab==='financials'?'active':''}`} onClick={() => setActiveTab('financials')}>Financial Intel</button>
         )}
-        <button className={`cv-tab ${activeTab==='requirements'?'active':''}`} onClick={() => setActiveTab('requirements')}>
-          Requirements <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{requirements.length}</span>
-        </button>
+        {!isLeadMode && (
+          <button className={`cv-tab ${activeTab==='requirements'?'active':''}`} onClick={() => setActiveTab('requirements')}>
+            Requirements <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{requirements.length}</span>
+          </button>
+        )}
         <button className={`cv-tab ${activeTab==='followups'?'active':''}`} onClick={() => setActiveTab('followups')}>
           Follow-ups <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{followUps.length}</span>
         </button>
-        <button className={`cv-tab ${activeTab==='activity'?'active':''}`} onClick={() => setActiveTab('activity')}>
-          Activity <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{interactions.length}</span>
-        </button>
+        {!isLeadMode && (
+          <button className={`cv-tab ${activeTab==='activity'?'active':''}`} onClick={() => setActiveTab('activity')}>
+            Activity <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{interactions.length}</span>
+          </button>
+        )}
       </div>
 
       {/* Tab Content Areas */}
@@ -471,7 +520,7 @@ Please contact this customer and update Contact Information in CRM.`;
               <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Info size={18} className="text-muted" /> Contact Information
               </h3>
-              <Link to={`/customers/${customer.id}/edit`} className="btn cv-btn-subtle" style={{ padding: '0.375rem 0.75rem', fontSize: '0.85rem' }}>
+              <Link to={isLeadMode ? `/leads/${customer.id}/edit` : `/customers/${customer.id}/edit`} className="btn cv-btn-subtle" style={{ padding: '0.375rem 0.75rem', fontSize: '0.85rem' }}>
                 <Edit2 size={14} /> Edit
               </Link>
             </div>
@@ -509,13 +558,20 @@ Please contact this customer and update Contact Information in CRM.`;
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>WhatsApp Number</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <span style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.whatsapp || <span className="text-muted italic">Not provided</span>}</span>
-                  {customer.whatsapp && <WhatsAppAction party={customer} onComplete={fetchCustomerContext} btnClass="badge badge-active" />}
+                  {!isLeadMode && customer.whatsapp && <WhatsAppAction party={customer} onComplete={fetchCustomerContext} btnClass="badge badge-active" />}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Preferred Method</div>
                 <div style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.communication_preference}</div>
               </div>
+              
+              {isLeadMode && (
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Lead Source</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.lead_source || <span className="text-muted italic">Unknown</span>}</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -532,7 +588,7 @@ Please contact this customer and update Contact Information in CRM.`;
           
           <div style={{ gridColumn: '1 / -1', marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={handleDelete} className="cv-delete-btn" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }}>
-              <Trash2 size={16} /> Delete Customer Record
+              <Trash2 size={16} /> {isLeadMode ? 'Delete Lead' : 'Delete Customer Record'}
             </button>
           </div>
         </div>
@@ -745,7 +801,7 @@ Please contact this customer and update Contact Information in CRM.`;
                         <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(i.created_at).toLocaleString()}</div>
                       </div>
                       {i.outcome && <div style={{ fontWeight: 500, marginBottom: i.note ? '0.75rem' : 0 }}>{i.outcome}</div>}
-                      {i.note && <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.5 }}>{i.note}</div>}
+                      {i.note && <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{i.note}</div>}
                     </div>
                   </div>
                 ))}

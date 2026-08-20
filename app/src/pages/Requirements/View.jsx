@@ -38,7 +38,8 @@ export default function RequirementView() {
         .select(`
           *,
           crm_parties ( id, display_name, mobile, whatsapp, city ),
-          interactions ( id, channel, note, created_at )
+          interactions ( id, channel, note, created_at ),
+          app_users:assigned_to ( email )
         `)
         .eq('id', id)
         .single();
@@ -102,8 +103,11 @@ export default function RequirementView() {
         party_id: req.party_id,
         reason: fuReason || `Follow up on ${req.product_type} requirement`,
         follow_up_date: fuDate,
+        due_at: fuDate,
+        follow_up_type: 'General',
         priority: 'Normal',
-        notes: `Linked to Requirement: ${req.quantity} ${req.unit}`
+        notes: `Linked to Requirement: ${req.quantity} ${req.unit}`,
+        status: 'Pending'
       });
       setShowFollowUp(false);
       setFuReason('');
@@ -163,6 +167,17 @@ export default function RequirementView() {
               <div>
                 <label className="text-muted" style={{fontSize: '0.85rem'}}>Expected Date</label>
                 <div>{req.expected_date ? new Date(req.expected_date).toLocaleDateString() : 'ASAP'}</div>
+              </div>
+            </div>
+
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
+              <div>
+                <label className="text-muted" style={{fontSize: '0.85rem'}}>Priority</label>
+                <div>{req.priority || 'Normal'}</div>
+              </div>
+              <div>
+                <label className="text-muted" style={{fontSize: '0.85rem'}}>Owner</label>
+                <div>{req.app_users?.email ? req.app_users.email.split('@')[0] : 'Unassigned'}</div>
               </div>
             </div>
 

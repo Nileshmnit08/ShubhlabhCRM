@@ -1,18 +1,24 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../lib/activityLogger';
+import { AlertTriangle } from 'lucide-react';
 
 const navItems = [
   { path: '/', label: 'Today', icon: LayoutDashboard },
+  { path: '/leads', label: 'Leads', icon: Target },
   { path: '/customers', label: 'Customers', icon: Users },
+  { path: '/dormant', label: 'Dormant', icon: AlertTriangle },
+  { path: '/reactivation', label: 'Reactivation', icon: RefreshCw },
   { path: '/data', label: 'Data & Sync', icon: Database },
+  { path: '/data/quality', label: 'Data Quality', icon: ShieldAlert },
   { path: '/requirements', label: 'Requirements', icon: ClipboardList },
   { path: '/follow-ups', label: 'Follow-ups', icon: Clock },
   { path: '/activity', label: 'Activity', icon: Activity },
+  { path: '/control-room', label: 'Control Room', icon: BarChart },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -47,7 +53,7 @@ export default function AppShell() {
         </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => {
-            if (item.path === '/data' && userProfile?.role !== 'Admin') return null;
+            if (['/data', '/data/quality', '/control-room'].includes(item.path) && userProfile?.role !== 'Admin') return null;
             const Icon = item.icon;
             return (
               <NavLink

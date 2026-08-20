@@ -21,13 +21,17 @@ export default function RequirementList() {
       let query = supabase
         .from('requirements')
         .select(`
-          id, product_type, quantity, unit, expected_date, expected_rate, status, priority,
-          crm_parties ( id, display_name, city )
+          id, product_type, quantity, unit, expected_date, expected_rate, status, priority, assigned_to,
+          crm_parties ( id, display_name, city ),
+          app_users:assigned_to ( email )
         `)
         .order('created_at', { ascending: false });
 
       if (statusFilter === 'All Open') {
         query = query.not('status', 'in', '("Closed","Lost","Confirmed")');
+      } else if (statusFilter === 'Overdue') {
+        const today = new Date().toISOString().split('T')[0];
+        query = query.not('status', 'in', '("Closed","Lost","Confirmed")').lt('expected_date', today);
       } else if (statusFilter !== 'All') {
         query = query.eq('status', statusFilter);
       }
@@ -92,6 +96,7 @@ export default function RequirementList() {
           style={{padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', color: 'var(--text-primary)', minWidth: '180px'}}
         >
           <option value="All Open">Active Pipeline</option>
+          <option value="Overdue">Overdue</option>
           <option value="New">New</option>
           <option value="Quotation Required">Quotation Required</option>
           <option value="Quotation Sent">Quotation Sent</option>
@@ -113,8 +118,11 @@ export default function RequirementList() {
         </div>
       ) : (
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem'}}>
-          {filteredRequirements.map(req => (
-            <Link key={req.id} to={`/requirements/${req.id}`} className="glass-panel" style={{display: 'block', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s, border-color 0.2s'}}>
+          {filteredRequirements.map(req => {
+            const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && !['Closed', 'Lost', 'Confirmed'].includes(req.status);
+            
+            return (
+            <Link key={req.id} to={`/requirements/${req.id}`} className="glass-panel" style={{display: 'block', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s, border-color 0.2s', border: isOverdue ? '1px solid var(--danger)' : ''}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem'}}>
                 <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{req.crm_parties?.display_name}</div>
                 <span className={getStatusBadge(req.status)}>{req.status}</span>
@@ -130,22 +138,29 @@ export default function RequirementList() {
                   </div>
                 )}
                 {req.expected_date && (
-                  <div className="text-secondary" style={{fontSize: '0.85rem'}}>
-                    Required By: {new Date(req.expected_date).toLocaleDateString()}
+                  <div className={isOverdue ? "text-danger" : "text-secondary"} style={{fontSize: '0.85rem', fontWeight: isOverdue ? 600 : 400}}>
+                    {isOverdue && '⚠️ '}Required By: {new Date(req.expected_date).toLocaleDateString()}
                   </div>
                 )}
               </div>
               
               <div style={{marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem'}}>
-                <span style={{color: req.priority === 'High' ? 'var(--warning)' : 'var(--text-muted)'}}>
-                  Priority: {req.priority}
-                </span>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
+                  <span style={{color: req.priority === 'High' ? 'var(--warning)' : 'var(--text-muted)'}}>
+                    Priority: {req.priority}
+                  </span>
+                  {req.app_users?.email && (
+                    <span style={{color: 'var(--text-muted)'}}>
+                      Owner: {req.app_users.email.split('@')[0]}
+                    </span>
+                  )}
+                </div>
                 <span style={{display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)'}}>
                   View Details <ChevronRight size={14} />
                 </span>
               </div>
             </Link>
-          ))}
+          )})}
         </div>
       )}
     </div>

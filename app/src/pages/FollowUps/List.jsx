@@ -21,7 +21,7 @@ export default function FollowUpList() {
     setLoading(true);
     try {
       let query = supabase.from('follow_ups')
-        .select(`*, crm_parties ( id, display_name, mobile )`)
+        .select(`*, crm_parties ( id, display_name, mobile, crm_status )`)
         .order('due_at', { ascending: true, nullsFirst: false });
 
       const today = new Date();
@@ -53,8 +53,14 @@ export default function FollowUpList() {
     }
   };
 
-  const updateStatus = async (id, status) => {
+  const updateStatus = async (id, status, follow_up_type) => {
     try {
+      if (status === 'Completed' && (follow_up_type === 'Payment' || follow_up_type === 'Lead')) {
+        alert(`${follow_up_type} tasks require a structured outcome. You will be redirected to the task form.`);
+        window.location.href = `/follow-ups/${id}/edit`;
+        return;
+      }
+
       const updates = { status };
       if (status === 'Completed') {
         updates.completed_at = new Date().toISOString();
@@ -145,7 +151,7 @@ export default function FollowUpList() {
             <div key={item.id} className="glass-panel" style={{padding: '1.25rem', display: 'flex', justifyContent: 'space-between', gap: '1rem', borderLeft: item.priority === 'High' ? '4px solid var(--warning)' : '4px solid transparent'}}>
               <div style={{flex: 1}}>
                 <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem'}}>
-                  <Link to={`/customers/${item.party_id}`} style={{fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)'}}>
+                  <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.party_id}` : `/customers/${item.party_id}`} style={{fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)'}}>
                     {item.crm_parties?.display_name || 'Unknown'}
                   </Link>
                   <span className="badge" style={{background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)'}}>{t(`priority.${item.priority}`)}</span>
@@ -178,11 +184,11 @@ export default function FollowUpList() {
                   {t('btn.edit')}
                 </Link>
                 {item.status !== 'Completed' ? (
-                  <button className="btn btn-primary" style={{padding: '0.5rem'}} onClick={() => updateStatus(item.id, 'Completed')}>
+                  <button className="btn btn-primary" style={{padding: '0.5rem'}} onClick={() => updateStatus(item.id, 'Completed', item.follow_up_type)}>
                     {t('btn.complete')}
                   </button>
                 ) : (
-                  <button className="btn btn-secondary" style={{padding: '0.5rem'}} onClick={() => updateStatus(item.id, 'Pending')}>
+                  <button className="btn btn-secondary" style={{padding: '0.5rem'}} onClick={() => updateStatus(item.id, 'Pending', item.follow_up_type)}>
                     {t('btn.reopen')}
                   </button>
                 )}

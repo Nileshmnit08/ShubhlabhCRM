@@ -10,8 +10,8 @@ const TEMPLATES = [
 ];
 
 const OUTCOMES = [
-  'Requirement', 'Order', 'Price Issue', 'Quality Issue', 
-  'Payment Issue', 'No Requirement', 'Call Later', 'Competitor', 'Other'
+  'Contacted', 'Message Sent / Initiated', 'Response Received', 'Interested', 'No Response',
+  'Requirement', 'Order', 'Call Later', 'Competitor', 'Other'
 ];
 
 export default function WhatsAppAction({ party, followUpId, onComplete, btnClass = "btn btn-secondary" }) {
@@ -139,15 +139,33 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
           expected_rate: reqRate ? parseFloat(reqRate) : null,
           priority: reqPriority || 'Normal',
           expected_date: reqDate || null,
-          source_interaction_id: intRow?.id
+          source_interaction_id: intRow?.id,
+          assigned_to: session?.session?.user?.id || null
         });
       } else if (selectedOutcome === 'Call Later' && fuDate) {
-        await supabase.from('follow_ups').insert({
-          party_id: party.id,
-          reason: `Follow-up from WhatsApp: ${note || 'Call Later'}`,
-          follow_up_date: fuDate,
-          priority: 'Normal'
-        });
+        const { data: existingPending } = await supabase.from('follow_ups')
+          .select('id')
+          .eq('party_id', party.id)
+          .eq('status', 'Pending')
+          .eq('follow_up_type', 'General');
+          
+        if (existingPending && existingPending.length > 0) {
+           await supabase.from('follow_ups').update({
+             reason: `Follow-up from WhatsApp: ${note || 'Call Later'}`,
+             follow_up_date: fuDate,
+             due_at: fuDate,
+             priority: 'Normal'
+           }).eq('id', existingPending[0].id);
+        } else {
+           await supabase.from('follow_ups').insert({
+             party_id: party.id,
+             reason: `Follow-up from WhatsApp: ${note || 'Call Later'}`,
+             follow_up_date: fuDate,
+             due_at: fuDate,
+             priority: 'Normal',
+             follow_up_type: 'General'
+           });
+        }
       }
 
       // 3. Mark originating follow-up as completed if passed

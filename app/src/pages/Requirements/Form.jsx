@@ -77,6 +77,8 @@ export default function RequirementForm() {
     }
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      
       const { data, error } = await supabase.from('requirements').insert({
         party_id: partyId,
         product_type: formData.product_type,
@@ -86,7 +88,8 @@ export default function RequirementForm() {
         expected_date: formData.expected_date || null,
         priority: formData.priority,
         notes: formData.notes,
-        status: 'New'
+        status: 'New',
+        assigned_to: sessionData?.session?.user?.id || null
       }).select();
       
       if (error) throw error;

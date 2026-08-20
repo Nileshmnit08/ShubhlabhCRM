@@ -6,7 +6,7 @@ import { LanguageContext } from '../../LanguageContext';
 import { AuthContext } from '../../AuthContext';
 import { logActivity } from '../../lib/activityLogger';
 
-export default function CustomerList() {
+export default function CustomerList({ isLeadMode = false }) {
   const { t } = useContext(LanguageContext);
   const { userProfile } = useContext(AuthContext);
 
@@ -77,6 +77,12 @@ export default function CustomerList() {
     try {
       // Base Query
       let query = supabase.from('v_customer_master').select('*', { count: 'exact' });
+      
+      if (isLeadMode) {
+        query = query.eq('crm_status', 'Lead');
+      } else {
+        query = query.neq('crm_status', 'Lead');
+      }
       
       // 1. Search Filter
       const trimmedSearch = filters.search.trim();
@@ -354,12 +360,12 @@ export default function CustomerList() {
       {/* 1. Header */}
       <div className="page-header" style={{flexWrap: 'wrap', gap: '1rem', position: 'sticky', top: 0, zIndex: 50, background: 'var(--bg-base)', padding: '1rem 0', borderBottom: '1px solid var(--border)'}}>
         <div>
-          <h1 style={{margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem'}}><Users size={28}/> Customers</h1>
+          <h1 style={{margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem'}}><Users size={28}/> {isLeadMode ? 'Leads' : 'Customers'}</h1>
           <p className="text-secondary" style={{marginTop: '0.25rem'}}>Manage and filter your CRM parties securely.</p>
         </div>
         <div style={{display: 'flex', gap: '0.75rem', alignItems: 'center'}}>
           <button className="btn btn-secondary" onClick={fetchCustomers}>Refresh</button>
-          <Link to="/customers/new" className="btn btn-primary"><Plus size={18} /> Add Customer</Link>
+          <Link to={isLeadMode ? "/leads/new" : "/customers/new"} className="btn btn-primary"><Plus size={18} /> Add {isLeadMode ? 'Lead' : 'Customer'}</Link>
         </div>
       </div>
 
@@ -413,24 +419,28 @@ export default function CustomerList() {
             )}
           </div>
 
-          <div>
-            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Financial Status</label>
-            <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.financial_status} onChange={e => setFilters(p => ({...p, financial_status: e.target.value}))}>
-              <option value="ALL">All Financials</option>
-              <option value="OUTSTANDING">Has Outstanding</option>
-              <option value="NO_CREDIT_LIMIT">No Credit Limit</option>
-            </select>
-          </div>
+          {!isLeadMode && (
+            <>
+              <div>
+                <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Financial Status</label>
+                <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.financial_status} onChange={e => setFilters(p => ({...p, financial_status: e.target.value}))}>
+                  <option value="ALL">All Financials</option>
+                  <option value="OUTSTANDING">Has Outstanding</option>
+                  <option value="NO_CREDIT_LIMIT">No Credit Limit</option>
+                </select>
+              </div>
 
-          <div>
-            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Activity Level</label>
-            <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.activity_status} onChange={e => setFilters(p => ({...p, activity_status: e.target.value}))}>
-              <option value="ALL">All Activity</option>
-              <option value="STALE_30_DAYS">Stale (&gt;30 Days)</option>
-              <option value="NEVER_ORDERED">Never Ordered</option>
-              <option value="NEVER_PAID">Never Paid</option>
-            </select>
-          </div>
+              <div>
+                <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Activity Level</label>
+                <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.activity_status} onChange={e => setFilters(p => ({...p, activity_status: e.target.value}))}>
+                  <option value="ALL">All Activity</option>
+                  <option value="STALE_30_DAYS">Stale (&gt;30 Days)</option>
+                  <option value="NEVER_ORDERED">Never Ordered</option>
+                  <option value="NEVER_PAID">Never Paid</option>
+                </select>
+              </div>
+            </>
+          )}
 
           <div>
             <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Profile Completeness</label>
@@ -510,12 +520,25 @@ export default function CustomerList() {
                 <th style={{width: '25%', cursor: 'pointer'}} onClick={() => handleSort('display_name')}>
                   Customer {getSortIcon('display_name')}
                 </th>
-                <th style={{width: '25%', cursor: 'pointer'}} onClick={() => handleSort('outstanding_balance')}>
-                  Financials {getSortIcon('outstanding_balance')}
-                </th>
-                <th style={{width: '20%', cursor: 'pointer'}} onClick={() => handleSort('last_order_date')}>
-                  Activity {getSortIcon('last_order_date')}
-                </th>
+                {isLeadMode ? (
+                  <>
+                    <th style={{width: '25%', cursor: 'pointer'}} onClick={() => handleSort('lead_source')}>
+                      Source {getSortIcon('lead_source')}
+                    </th>
+                    <th style={{width: '20%', cursor: 'pointer'}} onClick={() => handleSort('created_at')}>
+                      Created {getSortIcon('created_at')}
+                    </th>
+                  </>
+                ) : (
+                  <>
+                    <th style={{width: '25%', cursor: 'pointer'}} onClick={() => handleSort('outstanding_balance')}>
+                      Financials {getSortIcon('outstanding_balance')}
+                    </th>
+                    <th style={{width: '20%', cursor: 'pointer'}} onClick={() => handleSort('last_order_date')}>
+                      Activity {getSortIcon('last_order_date')}
+                    </th>
+                  </>
+                )}
                 <th style={{width: '15%', cursor: 'pointer'}} onClick={() => handleSort('owner_name')}>
                   Assigned Owner {getSortIcon('owner_name')}
                 </th>
@@ -531,7 +554,12 @@ export default function CustomerList() {
                     </td>
                     <td data-label="Customer">
                       <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem'}}>
-                        <Link to={`/customers/${c.id}`} style={{fontWeight: 600, color: 'var(--primary)', textDecoration: 'none'}}>{c.display_name}</Link>
+                        <Link to={isLeadMode ? `/leads/${c.id}` : `/customers/${c.id}`} style={{fontWeight: 600, color: 'var(--primary)', textDecoration: 'none'}}>{c.display_name}</Link>
+                        {c.health_status && c.crm_status !== 'Lead' && (
+                          <span className={`badge ${c.health_status === 'Healthy' ? 'badge-success' : c.health_status === 'At Risk' ? 'badge-danger' : 'badge-neutral'}`} style={{fontSize: '0.7rem', padding: '0.1rem 0.4rem'}} title={c.health_reason}>
+                            {c.health_status}
+                          </span>
+                        )}
                         {c.isDuplicatePrimary && (
                           <span className="badge badge-warning" style={{fontSize: '0.7rem', padding: '0.1rem 0.4rem', cursor: 'pointer'}} onClick={() => openReviewModal(c)}>Possible Duplicate</span>
                         )}
@@ -555,30 +583,43 @@ export default function CustomerList() {
                       </div>
                     </td>
 
-                    <td data-label="Financials">
-                      <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                          <span className="text-secondary" style={{fontSize: '0.85rem'}}>Outstanding:</span>
-                          <span style={{fontWeight: 600, color: c.outstanding_balance > 0 ? 'var(--danger)' : 'inherit'}}>{formatCurrency(c.outstanding_balance)}</span>
-                        </div>
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                          <span className="text-secondary" style={{fontSize: '0.85rem'}}>Limit:</span>
-                          <span style={{fontSize: '0.9rem'}}>{c.credit_limit ? formatCurrency(c.credit_limit) : 'N/A'}</span>
-                        </div>
-                        <div style={{marginTop: '0.25rem'}}>{getRiskBadge(c)}</div>
-                      </div>
-                    </td>
+                    {isLeadMode ? (
+                      <>
+                        <td data-label="Source">
+                          {c.lead_source || <span className="text-muted">Unknown</span>}
+                        </td>
+                        <td data-label="Created">
+                          {new Date(c.created_at).toLocaleDateString()}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td data-label="Financials">
+                          <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                              <span className="text-secondary" style={{fontSize: '0.85rem'}}>Outstanding:</span>
+                              <span style={{fontWeight: 600, color: c.outstanding_balance > 0 ? 'var(--danger)' : 'inherit'}}>{formatCurrency(c.outstanding_balance)}</span>
+                            </div>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                              <span className="text-secondary" style={{fontSize: '0.85rem'}}>Limit:</span>
+                              <span style={{fontSize: '0.9rem'}}>{c.credit_limit ? formatCurrency(c.credit_limit) : 'N/A'}</span>
+                            </div>
+                            <div style={{marginTop: '0.25rem'}}>{getRiskBadge(c)}</div>
+                          </div>
+                        </td>
 
-                    <td data-label="Activity" style={{fontSize: '0.85rem'}}>
-                      <div style={{marginBottom: '0.25rem'}}>
-                        <span className="text-secondary">Last Order:</span><br/>
-                        {c.last_order_date ? new Date(c.last_order_date).toLocaleDateString() : <span className="text-muted">Never</span>}
-                      </div>
-                      <div>
-                        <span className="text-secondary">Last Payment:</span><br/>
-                        {c.last_payment_date ? new Date(c.last_payment_date).toLocaleDateString() : <span className="text-muted">Never</span>}
-                      </div>
-                    </td>
+                        <td data-label="Activity" style={{fontSize: '0.85rem'}}>
+                          <div style={{marginBottom: '0.25rem'}}>
+                            <span className="text-secondary">Last Order:</span><br/>
+                            {c.last_order_date ? new Date(c.last_order_date).toLocaleDateString() : <span className="text-muted">Never</span>}
+                          </div>
+                          <div>
+                            <span className="text-secondary">Last Payment:</span><br/>
+                            {c.last_payment_date ? new Date(c.last_payment_date).toLocaleDateString() : <span className="text-muted">Never</span>}
+                          </div>
+                        </td>
+                      </>
+                    )}
 
                     <td data-label="Assigned Owner">
                       <div style={{display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'flex-start'}}>
@@ -596,7 +637,7 @@ export default function CustomerList() {
 
                     <td data-label="Action">
                       <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                        <Link to={`/customers/${c.id}`} className="btn btn-primary" style={{padding: '0.25rem 0.5rem', fontSize: '0.8rem', textAlign: 'center'}}>View</Link>
+                        <Link to={isLeadMode ? `/leads/${c.id}` : `/customers/${c.id}`} className="btn btn-primary" style={{padding: '0.25rem 0.5rem', fontSize: '0.8rem', textAlign: 'center'}}>View</Link>
                         <button className="btn btn-secondary" style={{padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'var(--bg-surface-hover)'}} onClick={() => setExpandedRow(c.id)}>
                           Quick View
                         </button>
@@ -684,7 +725,7 @@ export default function CustomerList() {
                         <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>City:</strong> {c.city || 'N/A'} {c.state ? `, ${c.state}` : ''}</p>
                         <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '0.25rem'}}><strong>WhatsApp:</strong> {c.whatsapp || 'N/A'}</p>
                       </div>
-                      <Link to={`/customers/${c.id}`} className="btn btn-primary" style={{justifyContent: 'center', marginTop: 'auto'}}>Open Full Profile</Link>
+                      <Link to={isLeadMode ? `/leads/${c.id}` : `/customers/${c.id}`} className="btn btn-primary" style={{justifyContent: 'center', marginTop: 'auto'}}>Open Full Profile</Link>
                     </div>
                   </div>
                 </>

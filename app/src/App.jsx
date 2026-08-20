@@ -8,6 +8,8 @@ import Today from './pages/Today';
 import CustomerList from './pages/Customers/List';
 import CustomerForm from './pages/Customers/Form';
 import CustomerView from './pages/Customers/View';
+import DormantList from './pages/Customers/DormantList';
+import ReactivationQueue from './pages/Customers/ReactivationQueue';
 
 import RequirementList from './pages/Requirements/List';
 import RequirementView from './pages/Requirements/View';
@@ -15,6 +17,7 @@ import RequirementForm from './pages/Requirements/Form';
 
 import DataImport from './pages/Data/Import';
 import ReviewQueue from './pages/Data/Review';
+import DataQuality from './pages/Data/DataQuality';
 import Auth from './components/Auth';
 import { supabase } from './lib/supabase';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -22,6 +25,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import FollowUpList from './pages/FollowUps/List';
 import FollowUpForm from './pages/FollowUps/Form';
 import ActivityTimeline from './pages/Activity/Timeline';
+import ControlRoom from './pages/ControlRoom';
 import Settings from './pages/Settings';
 
 // Placeholders for other routes
@@ -190,10 +194,22 @@ function App() {
                 <Route path=":id" element={<CustomerView />} />
                 <Route path=":id/edit" element={<CustomerForm />} />
               </Route>
+              
+              <Route path="leads">
+                <Route index element={<CustomerList isLeadMode />} />
+                <Route path="new" element={<CustomerForm isLeadMode />} />
+                <Route path=":id" element={<CustomerView isLeadMode />} />
+                <Route path=":id/edit" element={<CustomerForm isLeadMode />} />
+              </Route>
+              
+              <Route path="dormant" element={<DormantList />} />
+              <Route path="reactivation" element={<ReactivationQueue />} />
+              
               <Route path="data">
                 <Route index element={<Navigate to="import" replace />} />
                 <Route path="import" element={<DataImport />} />
                 <Route path="review" element={<ReviewQueue />} />
+                <Route path="quality" element={<DataQuality />} />
               </Route>
               <Route path="requirements">
                 <Route index element={<RequirementList />} />
@@ -207,6 +223,7 @@ function App() {
               </Route>
               
               <Route path="activity" element={<ActivityTimeline />} />
+              <Route path="control-room" element={<ControlRoom />} />
               <Route path="settings" element={<Settings />} />
               
               <Route path="*" element={<Navigate to="/" replace />} />

@@ -5,6 +5,8 @@ import { LanguageContext } from '../../LanguageContext';
 import { Clock, Users, Calendar, Activity, CheckCircle, UploadCloud, LogIn, LogOut, ChevronDown, ChevronRight, UserPlus, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import MetricsDashboard from './MetricsDashboard';
+
 export default function ActivityTimeline() {
   const { userProfile } = useContext(AuthContext);
   const { t } = useContext(LanguageContext);
@@ -79,10 +81,12 @@ export default function ActivityTimeline() {
     <div className="animate-fade-in" style={{maxWidth: '1000px', margin: '0 auto'}}>
       <div className="page-header" style={{alignItems: 'flex-start', marginBottom: '2rem'}}>
         <div>
-          <h1 style={{margin: 0}}>{t('activity.title') || 'Activity Timeline'}</h1>
-          <p className="text-secondary" style={{marginTop: '0.25rem'}}>Track system events, data syncs, and user actions.</p>
+          <h1 style={{margin: 0}}>{t('activity.title') || 'Activity & Intelligence'}</h1>
+          <p className="text-secondary" style={{marginTop: '0.25rem'}}>Track system events, operational metrics, and data syncs.</p>
         </div>
       </div>
+
+      <MetricsDashboard />
 
       {/* Filters */}
       <div className="glass-panel" style={{padding: '1.25rem', marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>

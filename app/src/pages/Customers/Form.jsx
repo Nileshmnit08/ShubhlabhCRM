@@ -6,7 +6,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { State, City } from 'country-state-city';
 import { AuthContext } from '../../AuthContext';
 
-export default function CustomerForm() {
+export default function CustomerForm({ isLeadMode = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
@@ -26,7 +26,8 @@ export default function CustomerForm() {
     mobile: '',
     whatsapp: '',
     communication_preference: 'WhatsApp',
-    crm_status: 'Active',
+    crm_status: isLeadMode ? 'Lead' : 'Active',
+    lead_source: '',
     notes: '',
     assigned_owner_id: ''
   });
@@ -75,7 +76,8 @@ export default function CustomerForm() {
           mobile: data.mobile || '',
           whatsapp: data.whatsapp || '',
           communication_preference: data.communication_preference || 'WhatsApp',
-          crm_status: data.crm_status || 'Active',
+          crm_status: data.crm_status || (isLeadMode ? 'Lead' : 'Active'),
+          lead_source: data.lead_source || '',
           notes: data.notes || '',
           assigned_owner_id: data.assigned_owner_id || ''
         });
@@ -193,8 +195,8 @@ export default function CustomerForm() {
           metadata: { updated_fields: Object.keys(formData) }
         });
         
-        alert('Customer updated successfully!');
-        navigate(`/customers/${id}`);
+        alert(isLeadMode ? 'Lead updated successfully!' : 'Customer updated successfully!');
+        navigate(isLeadMode ? `/leads/${id}` : `/customers/${id}`);
       } else {
         const { error, data } = await supabase.from('crm_parties').insert([formData]).select();
         if (error) throw error;
@@ -207,8 +209,8 @@ export default function CustomerForm() {
           summary: `Created new customer: ${formData.display_name}`
         });
 
-        alert('Customer created successfully!');
-        navigate(`/customers/${data[0].id}`);
+        alert(isLeadMode ? 'Lead created successfully!' : 'Customer created successfully!');
+        navigate(isLeadMode ? `/leads/${data[0].id}` : `/customers/${data[0].id}`);
       }
     } catch (error) {
       console.error('Error saving customer:', error);
@@ -226,13 +228,13 @@ export default function CustomerForm() {
     <div className="animate-fade-in">
       <div className="page-header">
         <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-          <Link to={isEditing ? `/customers/${id}` : '/customers'} className="btn-icon">
+          <Link to={isEditing ? (isLeadMode ? `/leads/${id}` : `/customers/${id}`) : (isLeadMode ? '/leads' : '/customers')} className="btn-icon">
             <ArrowLeft size={24} />
           </Link>
           <div>
-            <h1>{isEditing ? 'Edit Customer' : 'New Customer'}</h1>
+            <h1>{isEditing ? (isLeadMode ? 'Edit Lead' : 'Edit Customer') : (isLeadMode ? 'New Lead' : 'New Customer')}</h1>
             <p className="text-secondary" style={{marginTop: '0.25rem'}}>
-              {isEditing ? 'Update party details and preferences.' : 'Create a new CRM party profile.'}
+              {isEditing ? `Update ${isLeadMode ? 'lead' : 'party'} details and preferences.` : `Create a new CRM ${isLeadMode ? 'lead' : 'party'} profile.`}
             </p>
           </div>
         </div>
@@ -364,16 +366,31 @@ export default function CustomerForm() {
                 </select>
               </div>
 
-              <div>
-                <label>CRM Status</label>
-                <select name="crm_status" value={formData.crm_status} onChange={handleChange}>
-                  <option value="Active">Active</option>
-                  <option value="Dormant">Dormant</option>
-                  <option value="At Risk">At Risk</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Blocked">Blocked</option>
-                </select>
-              </div>
+              {!isLeadMode && (
+                <div>
+                  <label>CRM Status</label>
+                  <select name="crm_status" value={formData.crm_status} onChange={handleChange}>
+                    <option value="Active">Active</option>
+                    <option value="Dormant">Dormant</option>
+                    <option value="At Risk">At Risk</option>
+                    <option value="Inactive">Inactive</option>
+                    <option value="Blocked">Blocked</option>
+                  </select>
+                </div>
+              )}
+
+              {isLeadMode && (
+                <div>
+                  <label>Lead Source</label>
+                  <input 
+                    type="text" 
+                    name="lead_source" 
+                    value={formData.lead_source} 
+                    onChange={handleChange} 
+                    placeholder="e.g. Website, Facebook, Referral"
+                  />
+                </div>
+              )}
 
               <div style={{gridColumn: '1 / -1'}}>
                 <label>Notes</label>
@@ -421,12 +438,12 @@ export default function CustomerForm() {
             )}
 
             <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem'}}>
-              <Link to={isEditing ? `/customers/${id}` : '/customers'} className="btn btn-secondary">
+              <Link to={isEditing ? (isLeadMode ? `/leads/${id}` : `/customers/${id}`) : (isLeadMode ? '/leads' : '/customers')} className="btn btn-secondary">
                 Cancel
               </Link>
               <button type="submit" className="btn btn-primary" disabled={loading || !!duplicateWarning}>
                 <Save size={18} />
-                {loading ? 'Saving...' : 'Save Customer'}
+                {loading ? 'Saving...' : `Save ${isLeadMode ? 'Lead' : 'Customer'}`}
               </button>
             </div>
           </form>
