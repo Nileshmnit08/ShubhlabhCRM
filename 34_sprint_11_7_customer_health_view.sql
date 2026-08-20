@@ -1,7 +1,7 @@
 -- MICRO-SPRINT 11.7 CUSTOMER HEALTH
 -- Create a view to dynamically evaluate customer health based on engagement rules.
 
-CREATE OR REPLACE VIEW public.v_customer_health AS
+CREATE OR REPLACE VIEW public.v_customer_health WITH (security_invoker = true) AS
 WITH party_metrics AS (
     SELECT 
         p.id AS party_id,

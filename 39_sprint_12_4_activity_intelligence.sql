@@ -1,7 +1,7 @@
 -- MICRO-SPRINT 12.4: CUSTOMER ACTIVITY INTELLIGENCE
 -- Use actual activity data to identify active, inactive or neglected relationships without changing CRM Status.
 
-CREATE OR REPLACE VIEW public.v_activity_intelligence AS
+CREATE OR REPLACE VIEW public.v_activity_intelligence WITH (security_invoker = true) AS
 WITH activity_stats AS (
     SELECT 
         party_id,
@@ -23,12 +23,12 @@ SELECT
     c.crm_status,
     c.assigned_owner_id,
     
-    a.last_interaction_date,
-    CURRENT_DATE - (a.last_interaction_date AT TIME ZONE 'UTC')::DATE AS days_since_last_interaction,
+    act.last_interaction_date,
+    CURRENT_DATE - (act.last_interaction_date AT TIME ZONE 'UTC')::DATE AS days_since_last_interaction,
     CASE 
-        WHEN a.last_interaction_date IS NULL THEN 'No Contact History'
-        WHEN (CURRENT_DATE - (a.last_interaction_date AT TIME ZONE 'UTC')::DATE) <= 30 THEN 'Active (0-30 days)'
-        WHEN (CURRENT_DATE - (a.last_interaction_date AT TIME ZONE 'UTC')::DATE) <= 90 THEN 'Slipping (31-90 days)'
+        WHEN act.last_interaction_date IS NULL THEN 'No Contact History'
+        WHEN (CURRENT_DATE - (act.last_interaction_date AT TIME ZONE 'UTC')::DATE) <= 30 THEN 'Active (0-30 days)'
+        WHEN (CURRENT_DATE - (act.last_interaction_date AT TIME ZONE 'UTC')::DATE) <= 90 THEN 'Slipping (31-90 days)'
         ELSE 'Neglected (>90 days)'
     END AS interaction_window_category,
     
@@ -47,8 +47,8 @@ SELECT
     -- Construct evidence string
     CONCAT_WS(' | ', 
         CASE 
-            WHEN a.last_interaction_date IS NULL THEN 'Never contacted'
-            ELSE 'Last contact ' || (CURRENT_DATE - (a.last_interaction_date AT TIME ZONE 'UTC')::DATE) || ' days ago'
+            WHEN act.last_interaction_date IS NULL THEN 'Never contacted'
+            ELSE 'Last contact ' || (CURRENT_DATE - (act.last_interaction_date AT TIME ZONE 'UTC')::DATE) || ' days ago'
         END,
         CASE 
             WHEN f.last_order_date IS NULL THEN 'Never purchased'
@@ -61,7 +61,7 @@ SELECT
     ) AS evidence_summary
 
 FROM public.crm_parties c
-LEFT JOIN activity_stats a ON c.id = a.party_id
+LEFT JOIN activity_stats act ON c.id = act.party_id
 LEFT JOIN public.v_customer_financials f ON c.id = f.party_id
 LEFT JOIN follow_up_stats fu ON c.id = fu.party_id;
 

@@ -1,7 +1,7 @@
 -- MICRO-SPRINT 12.3: SALES PIPELINE INTELLIGENCE
 -- Create transparent visibility from lead/customer interaction through requirement, follow-up and outcome using existing data.
 
-CREATE OR REPLACE VIEW public.v_pipeline_intelligence AS
+CREATE OR REPLACE VIEW public.v_pipeline_intelligence WITH (security_invoker = true) AS
 WITH party_interactions AS (
     SELECT 
         party_id,

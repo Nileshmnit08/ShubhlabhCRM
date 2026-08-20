@@ -2,7 +2,7 @@
 -- Turn structured feed-grade requirements into reliable demand visibility by product/category.
 
 -- 1. Detailed Demand View (For Customer Drill-down and explicit evidence)
-CREATE OR REPLACE VIEW public.v_requirement_demand_details AS
+CREATE OR REPLACE VIEW public.v_requirement_demand_details WITH (security_invoker = true) AS
 SELECT 
     r.id AS requirement_id,
     r.party_id,
@@ -24,7 +24,7 @@ LEFT JOIN public.crm_parties c ON r.party_id = c.id
 WHERE r.status = 'Open';
 
 -- 2. Aggregated Demand Summary View (For Category consistency and grouped counts)
-CREATE OR REPLACE VIEW public.v_requirement_demand_summary AS
+CREATE OR REPLACE VIEW public.v_requirement_demand_summary WITH (security_invoker = true) AS
 SELECT 
     standardized_product_type,
     COUNT(requirement_id) AS total_open_requirements,

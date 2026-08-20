@@ -1,7 +1,7 @@
 -- MICRO-SPRINT 11.9: DATA QUALITY CONTROL
 -- Create a view to centralize data quality issues for management reporting.
 
-CREATE OR REPLACE VIEW public.v_data_quality_issues AS
+CREATE OR REPLACE VIEW public.v_data_quality_issues WITH (security_invoker = true) AS
 
 -- 1. Missing Mobile Numbers (High Priority for Active/Dormant Customers)
 SELECT 

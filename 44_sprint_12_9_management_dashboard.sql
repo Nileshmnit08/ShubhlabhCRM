@@ -1,7 +1,7 @@
 -- MICRO-SPRINT 12.9: MANAGEMENT INTELLIGENCE DASHBOARD
 -- Combine approved Phase 12 intelligence into a compact management control room.
 
-CREATE OR REPLACE VIEW public.v_management_dashboard AS
+CREATE OR REPLACE VIEW public.v_management_dashboard WITH (security_invoker = true) AS
 SELECT 
     -- 1. Data Health Indicators
     (SELECT total_customers FROM public.v_audit_customer_health) AS total_customers,

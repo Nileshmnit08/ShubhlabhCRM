@@ -1,7 +1,7 @@
 -- MICRO-SPRINT 12.2 CUSTOMER 360
 -- Create a comprehensive 360-degree view of the customer.
 
-CREATE OR REPLACE VIEW public.v_customer_360 AS
+CREATE OR REPLACE VIEW public.v_customer_360 WITH (security_invoker = true) AS
 WITH tally_info AS (
     SELECT 
         l.crm_party_id,
@@ -72,8 +72,8 @@ SELECT
     COALESCE(t.tally_ledger_names, '') AS tally_ledger_names,
     COALESCE(t.tally_statuses, '') AS tally_statuses,
     
-    a.last_interaction_date,
-    COALESCE(a.total_interactions, 0) AS total_interactions,
+    act.last_interaction_date,
+    COALESCE(act.total_interactions, 0) AS total_interactions,
     
     COALESCE(f.open_follow_ups, 0) AS open_follow_ups,
     COALESCE(f.overdue_follow_ups, 0) AS overdue_follow_ups,
@@ -94,7 +94,7 @@ SELECT
 
 FROM public.crm_parties c
 LEFT JOIN tally_info t ON c.id = t.crm_party_id
-LEFT JOIN activity_info a ON c.id = a.party_id
+LEFT JOIN activity_info act ON c.id = act.party_id
 LEFT JOIN follow_up_info f ON c.id = f.party_id
 LEFT JOIN requirement_info r ON c.id = r.party_id
 LEFT JOIN public.v_customer_financials fin ON c.id = fin.party_id

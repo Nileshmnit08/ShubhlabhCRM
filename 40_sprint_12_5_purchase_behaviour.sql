@@ -1,7 +1,7 @@
 -- MICRO-SPRINT 12.5: PURCHASE BEHAVIOUR
 -- Use validated voucher-level Tally data for simple recency/frequency/purchase-pattern intelligence.
 
-CREATE OR REPLACE VIEW public.v_purchase_behaviour AS
+CREATE OR REPLACE VIEW public.v_purchase_behaviour WITH (security_invoker = true) AS
 WITH purchase_stats AS (
     SELECT 
         crm_party_id,

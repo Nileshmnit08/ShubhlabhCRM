@@ -1,7 +1,7 @@
 -- MICRO-SPRINT 12.7: REACTIVATION INTELLIGENCE
 -- Measure effectiveness of the existing dormant/reactivation workflow.
 
-CREATE OR REPLACE VIEW public.v_reactivation_intelligence AS
+CREATE OR REPLACE VIEW public.v_reactivation_intelligence WITH (security_invoker = true) AS
 WITH reactivation_tasks AS (
     SELECT 
         party_id,
