@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -10,6 +10,7 @@ import { AlertTriangle } from 'lucide-react';
 const navItems = [
   { path: '/', label: 'Today', icon: LayoutDashboard },
   { path: '/leads', label: 'Leads', icon: Target },
+  { path: '/opportunities', label: 'Opportunities', icon: Rocket },
   { path: '/customers', label: 'Customers', icon: Users },
   { path: '/dormant', label: 'Dormant', icon: AlertTriangle },
   { path: '/reactivation', label: 'Reactivation', icon: RefreshCw },

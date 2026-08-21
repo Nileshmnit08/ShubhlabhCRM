@@ -10,6 +10,7 @@ import CustomerForm from './pages/Customers/Form';
 import CustomerView from './pages/Customers/View';
 import DormantList from './pages/Customers/DormantList';
 import ReactivationQueue from './pages/Customers/ReactivationQueue';
+import Opportunities from './pages/Opportunities';
 
 import RequirementList from './pages/Requirements/List';
 import RequirementView from './pages/Requirements/View';
@@ -201,6 +202,8 @@ function App() {
                 <Route path=":id" element={<CustomerView isLeadMode />} />
                 <Route path=":id/edit" element={<CustomerForm isLeadMode />} />
               </Route>
+              
+              <Route path="opportunities" element={<Opportunities />} />
               
               <Route path="dormant" element={<DormantList />} />
               <Route path="reactivation" element={<ReactivationQueue />} />

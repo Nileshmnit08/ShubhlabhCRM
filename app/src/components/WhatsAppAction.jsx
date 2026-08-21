@@ -2,13 +2,6 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { MessageCircle, Send, X, Calendar, Edit3 } from 'lucide-react';
 
-const TEMPLATES = [
-  { label: 'General Check-in', text: 'Hello, just checking in to see how everything is going with your recent feed supply.' },
-  { label: 'Payment Reminder', text: 'Hello, this is a gentle reminder regarding the outstanding payment. Please let us know when it can be cleared.' },
-  { label: 'Requirement Check', text: 'Hello, do you have any upcoming feed requirements for this week?' },
-  { label: 'Custom', text: '' }
-];
-
 const OUTCOMES = [
   'Contacted', 'Message Sent / Initiated', 'Response Received', 'Interested', 'No Response',
   'Requirement', 'Order', 'Call Later', 'Competitor', 'Other'
@@ -18,8 +11,12 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState('compose'); // compose -> feedback
   
+  const [dbTemplates, setDbTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  
   // Compose State
-  const [message, setMessage] = useState(TEMPLATES[0].text);
+  const [message, setMessage] = useState('');
   const [products, setProducts] = useState([]);
   
   // Feedback State
@@ -40,7 +37,9 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
 
   const resetState = () => {
     setStep('compose');
-    setMessage(TEMPLATES[0].text);
+    setMessage('');
+    setSelectedTemplate(null);
+    setCurrentUser(null);
     setSelectedOutcome('');
     setNote('');
     setReqProduct('');
@@ -52,10 +51,37 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
     setFuDate('');
   };
 
+  const selectTemplate = (t, user) => {
+    setSelectedTemplate(t);
+    let parsedText = t.body || '';
+    
+    // Safely substitute known CRM variables
+    parsedText = parsedText.replace(/\{\{customer_name\}\}/g, party?.display_name || '');
+    parsedText = parsedText.replace(/\{\{city\}\}/g, party?.city || '');
+    parsedText = parsedText.replace(/\{\{state\}\}/g, party?.state || '');
+    
+    // Attempt to get display name from metadata, fallback to email, or generic
+    const spName = user?.user_metadata?.display_name || user?.email?.split('@')[0] || 'Salesperson';
+    parsedText = parsedText.replace(/\{\{salesperson_name\}\}/g, spName);
+    
+    setMessage(parsedText);
+  };
+
   const handleOpen = async () => {
     resetState();
     setIsOpen(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUser(session?.user);
+
+      const { data: tData } = await supabase.from('whatsapp_templates').select('*').eq('is_active', true).order('name');
+      if (tData) {
+        setDbTemplates(tData);
+        if (tData.length > 0) {
+          selectTemplate(tData[0], session?.user);
+        }
+      }
+
       const { data } = await supabase.from('products').select('*').eq('active', true);
       if (data && data.length > 0) {
         setProducts(data);
@@ -77,6 +103,11 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
   }
 
   const handleSend = () => {
+    if (message.match(/\{\{.*?\}\}/)) {
+      alert("Please fill in all unresolved placeholders (e.g. {{...}}) before sending.");
+      return;
+    }
+
     let finalPhone = '91' + phoneStr;
     const url = `https://api.whatsapp.com/send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
     
@@ -119,12 +150,16 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
       const { data: session } = await supabase.auth.getSession();
 
       // 1. Log Interaction
+      const purposeVal = selectedTemplate?.purpose || 'Custom';
       const { data: intRow, error: intErr } = await supabase.from('interactions').insert({
         party_id: party.id,
         user_id: session?.session?.user?.id || null,
         channel: 'WhatsApp',
+        direction: 'Outbound',
+        purpose: purposeVal,
         outcome: selectedOutcome,
-        note: note
+        note: note,
+        related_follow_up_id: followUpId || null
       }).select().single();
       
       if (intErr) throw intErr;
@@ -214,14 +249,14 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
             {step === 'compose' ? (
               <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                 <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
-                  {TEMPLATES.map(t => (
+                  {dbTemplates.map(t => (
                     <button 
-                      key={t.label} 
-                      className={`badge ${message === t.text ? 'badge-active' : ''}`}
-                      style={{cursor: 'pointer', border: '1px solid var(--border)', background: message === t.text ? 'var(--primary)' : 'transparent', color: message === t.text ? '#fff' : 'var(--text-primary)'}}
-                      onClick={() => setMessage(t.text)}
+                      key={t.id} 
+                      className={`badge ${selectedTemplate?.id === t.id ? 'badge-active' : ''}`}
+                      style={{cursor: 'pointer', border: '1px solid var(--border)', background: selectedTemplate?.id === t.id ? 'var(--primary)' : 'transparent', color: selectedTemplate?.id === t.id ? '#fff' : 'var(--text-primary)'}}
+                      onClick={() => selectTemplate(t, currentUser)}
                     >
-                      {t.label}
+                      {t.name}
                     </button>
                   ))}
                 </div>

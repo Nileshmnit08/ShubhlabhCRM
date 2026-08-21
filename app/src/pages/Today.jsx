@@ -8,6 +8,7 @@ import {
   CheckCircle2, Activity, UserPlus, FileEdit, ClipboardList, Target
 } from 'lucide-react';
 import WhatsAppAction from '../components/WhatsAppAction';
+import CallAction from '../components/CallAction';
 
 export default function Today() {
   const { userProfile } = useContext(AuthContext);
@@ -19,7 +20,8 @@ export default function Today() {
     risks: { noContact: [], pendingQuote: [], stalledReq: [], dormant: [] },
     recentActivity: [],
     pipeline: { openReqs: 0 },
-    unassigned: 0
+    unassigned: 0,
+    opportunities: []
   });
 
   const [loading, setLoading] = useState(true);
@@ -132,13 +134,46 @@ export default function Today() {
          });
       }
 
-      // 5. Recent Activity (using interactions for timeline, since it has concrete notes)
+      // 5. Recent Activity (using interactions for timeline)
       let activityQuery = supabase.from('interactions')
         .select(`*, crm_parties(display_name)`)
         .order('created_at', { ascending: false })
         .limit(6);
-      
       const { data: activityData } = await activityQuery;
+      
+      const engagedPartyIds = new Set();
+      if (activityData) {
+         activityData.forEach(act => {
+            if (new Date(act.created_at) >= now) {
+                engagedPartyIds.add(act.party_id);
+            }
+         });
+      }
+
+      // 5b. Fetch Opportunities
+      let oppQuery = supabase.from('v_customer_opportunities').select('*').order('priority_sort', { ascending: true });
+      if (!isAdmin) {
+        oppQuery = oppQuery.eq('assigned_owner_id', ownerId);
+      }
+      const { data: oppData } = await oppQuery;
+      
+      const oppPartyIds = [...new Set((oppData || []).map(o => o.party_id))];
+      let oppPartiesMap = {};
+      if (oppPartyIds.length > 0) {
+         const { data: pData } = await supabase.from('crm_parties').select('id, display_name, mobile, whatsapp, crm_status, communication_preference').in('id', oppPartyIds);
+         if (pData) pData.forEach(p => oppPartiesMap[p.id] = p);
+      }
+      
+      const finalOpps = (oppData || [])
+         .filter(o => !engagedPartyIds.has(o.party_id))
+         .map(o => ({
+             ...o,
+             id: `opp-${o.party_id}-${o.opportunity_type}`,
+             crm_parties: oppPartiesMap[o.party_id] || { id: o.party_id, display_name: o.display_name },
+             reason: o.opportunity_type,
+             evidence: o.evidence,
+             recommended_action: o.recommended_action
+         }));
 
       // 6. Lower Section Data (Unassigned)
       let unassignedCount = 0;
@@ -169,7 +204,8 @@ export default function Today() {
         pipeline: {
           openReqs: openReqsData?.length || 0
         },
-        unassigned: unassignedCount
+        unassigned: unassignedCount,
+        opportunities: finalOpps
       });
 
     } catch(err) {
@@ -210,9 +246,7 @@ export default function Today() {
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
         {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
         {item.crm_parties?.mobile && (
-           <a href={`tel:${item.crm_parties.mobile}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--bg-surface)' }}>
-             <Phone size={14} /> Call
-           </a>
+           <CallAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={true} />
         )}
         <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
           Open Profile
@@ -251,12 +285,40 @@ export default function Today() {
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        {item.crm_parties && <CallAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />}
         {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
         <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
           Open Profile
         </Link>
         <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
           Open Task
+        </Link>
+      </div>
+    </div>
+  );
+
+  const OpportunityRow = ({ item }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-base)', borderRadius: '4px', marginBottom: '0.5rem', borderLeft: '3px solid var(--primary)' }}>
+      <div style={{ flex: '1 1 0', minWidth: 0, paddingRight: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {item.crm_parties?.display_name || 'Unknown Party'}
+          </strong>
+          <span style={{ background: 'var(--primary-light)', color: 'var(--primary)', border: 'none', padding: '0.1rem 0.4rem', fontSize: '0.7rem', borderRadius: '12px', fontWeight: 600 }}>Opportunity</span>
+        </div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <strong style={{color: 'var(--text-primary)'}}>{item.reason}</strong>
+          <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>• {item.evidence}</span>
+        </div>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+          Action: {item.recommended_action}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        {item.crm_parties?.mobile && <CallAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />}
+        {item.crm_parties?.whatsapp && <WhatsAppAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
+        <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+          Action
         </Link>
       </div>
     </div>
@@ -291,10 +353,10 @@ export default function Today() {
       {/* 1. Top Header Area */}
       <div className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Today's Work</h1>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Communication Queue</h1>
           <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
-            {totalActionable > 0 
-              ? `${totalActionable} tasks need action, ${totalOverdue} are overdue.` 
+            {totalActionable > 0 || data.opportunities.length > 0
+              ? `${totalActionable} tasks and ${data.opportunities.length} opportunities waiting for engagement.` 
               : `You are all caught up for today.`}
           </p>
         </div>
@@ -352,7 +414,7 @@ export default function Today() {
           <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                <Target size={18} className="text-primary" /> Priority Queue
+                <Target size={18} className="text-primary" /> Follow-ups Queue
               </h2>
               <Link to="/follow-ups" className="text-primary" style={{ fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>View All</Link>
             </div>
@@ -366,6 +428,27 @@ export default function Today() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {priorityTasks.map(fu => <TaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
+              </div>
+            )}
+          </div>
+          
+          {/* Opportunities Queue */}
+          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <Activity size={18} className="text-primary" /> Opportunity Queue
+              </h2>
+              <Link to="/opportunities" className="text-primary" style={{ fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>View All</Link>
+            </div>
+            
+            {data.opportunities.length === 0 ? (
+              <div style={{ padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
+                <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>No Unengaged Opportunities</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {data.opportunities.map(opp => <OpportunityRow key={opp.id} item={opp} />)}
               </div>
             )}
           </div>

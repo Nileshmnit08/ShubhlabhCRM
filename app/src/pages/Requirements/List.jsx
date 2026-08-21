@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
 import { ClipboardList, Search, Filter, ChevronRight, CheckCircle2 } from 'lucide-react';
+import CallAction from '../../components/CallAction';
+import WhatsAppAction from '../../components/WhatsAppAction';
 
 export default function RequirementList() {
   const [requirements, setRequirements] = useState([]);
@@ -22,7 +24,7 @@ export default function RequirementList() {
         .from('requirements')
         .select(`
           id, product_type, quantity, unit, expected_date, expected_rate, status, priority, assigned_to,
-          crm_parties ( id, display_name, city ),
+          crm_parties ( id, display_name, city, mobile, whatsapp ),
           app_users:assigned_to ( email )
         `)
         .order('created_at', { ascending: false });
@@ -155,9 +157,17 @@ export default function RequirementList() {
                     </span>
                   )}
                 </div>
-                <span style={{display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)'}}>
-                  View Details <ChevronRight size={14} />
-                </span>
+                <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                  <div onClick={e => e.preventDefault()}>
+                     {req.crm_parties && <CallAction party={req.crm_parties} onComplete={fetchRequirements} showLabel={false} />}
+                  </div>
+                  <div onClick={e => e.preventDefault()}>
+                     {req.crm_parties && <WhatsAppAction party={req.crm_parties} onComplete={fetchRequirements} />}
+                  </div>
+                  <span style={{display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', marginLeft: '0.5rem'}}>
+                    View <ChevronRight size={14} />
+                  </span>
+                </div>
               </div>
             </Link>
           )})}

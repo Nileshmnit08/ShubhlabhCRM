@@ -13,6 +13,7 @@ export default function ControlRoom() {
   const [staffData, setStaffData] = useState([]);
   const [pipelineData, setPipelineData] = useState({ open: 0, quotation: 0, stalled: 0, closed: 0 });
   const [reactivationCount, setReactivationCount] = useState(0);
+  const [engagementStats, setEngagementStats] = useState({ channels: {}, attempted: 0, responded: 0, completedTasks: 0, overdueTasks: 0 });
 
   useEffect(() => {
     if (userProfile?.role === 'Admin') {
@@ -63,14 +64,15 @@ export default function ControlRoom() {
       const todayIso = new Date().toISOString().split('T')[0];
 
       const { data: users } = await supabase.from('app_users').select('id, display_name, role, is_active').order('display_name');
-      const { data: interactions } = await supabase.from('interactions').select('created_by').gte('created_at', startIso);
-      const { data: tasks } = await supabase.from('follow_ups').select('assigned_to, status, due_at').eq('status', 'Pending');
+      const { data: interactions } = await supabase.from('interactions').select('created_by, channel, outcome').gte('created_at', startIso);
+      const { data: tasks } = await supabase.from('follow_ups').select('assigned_to, status, follow_up_date').gte('created_at', startIso);
+      const { data: allPendingTasks } = await supabase.from('follow_ups').select('assigned_to, status, follow_up_date').eq('status', 'Pending');
 
       if (users) {
         const staffMetrics = users.map(u => {
           const uInteractions = interactions?.filter(i => i.created_by === u.id).length || 0;
-          const uTasks = tasks?.filter(t => t.assigned_to === u.id) || [];
-          const overdue = uTasks.filter(t => t.due_at && t.due_at < todayIso).length;
+          const uTasks = allPendingTasks?.filter(t => t.assigned_to === u.id) || [];
+          const overdue = uTasks.filter(t => t.follow_up_date && t.follow_up_date < todayIso).length;
           const totalPending = uTasks.length;
           return {
             id: u.id,
@@ -84,6 +86,30 @@ export default function ControlRoom() {
         });
         setStaffData(staffMetrics);
       }
+      
+      // 5. Engagement Analytics (Last 7 Days)
+      const eStats = { channels: {}, attempted: 0, responded: 0, completedTasks: 0, overdueTasks: 0 };
+      if (interactions) {
+        interactions.forEach(i => {
+          const ch = i.channel || 'Unknown';
+          eStats.channels[ch] = (eStats.channels[ch] || 0) + 1;
+          eStats.attempted++;
+          if (i.outcome && i.outcome.trim() !== '') {
+            eStats.responded++;
+          }
+        });
+      }
+      if (tasks) {
+        tasks.forEach(t => {
+          if (t.status === 'Completed') eStats.completedTasks++;
+        });
+      }
+      if (allPendingTasks) {
+        allPendingTasks.forEach(t => {
+          if (t.follow_up_date && t.follow_up_date < todayIso) eStats.overdueTasks++;
+        });
+      }
+      setEngagementStats(eStats);
 
     } catch (err) {
       console.error(err);
@@ -179,6 +205,49 @@ export default function ControlRoom() {
           </div>
         </div>
 
+      </div>
+      
+      {/* Engagement Analytics */}
+      <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)', marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', marginTop: 0 }}>
+          <Activity size={18} className="text-secondary" /> Engagement & Communication (Last 7 Days)
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          
+          <Link to="/activity" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '4px', textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Total Attempts</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)' }}>{engagementStats.attempted}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Interactions Logged</div>
+          </Link>
+          
+          <Link to="/activity" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '4px', textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Response Rate</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--success)' }}>
+              {engagementStats.attempted > 0 ? Math.round((engagementStats.responded / engagementStats.attempted) * 100) : 0}%
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>{engagementStats.responded} Outcomes Captured</div>
+          </Link>
+          
+          <div style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Volume by Channel</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: 'auto' }}>
+              {Object.entries(engagementStats.channels).map(([ch, count]) => (
+                <div key={ch} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>{ch}</span>
+                  <strong style={{ color: 'var(--text-primary)' }}>{count}</strong>
+                </div>
+              ))}
+              {Object.keys(engagementStats.channels).length === 0 && <span className="text-muted italic" style={{fontSize: '0.85rem'}}>No channel data</span>}
+            </div>
+          </div>
+
+          <Link to="/follow-ups" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '4px', textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Task Completion</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--primary)' }}>{engagementStats.completedTasks}</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--danger)', marginTop: '0.5rem', fontWeight: 500 }}>{engagementStats.overdueTasks} Overdue Currently</div>
+          </Link>
+
+        </div>
       </div>
 
       {/* Staff Operational View */}

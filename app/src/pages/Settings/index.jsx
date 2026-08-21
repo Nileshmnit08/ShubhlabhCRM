@@ -3,7 +3,7 @@ import { AuthContext } from '../../AuthContext';
 import { LanguageContext } from '../../LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
-import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X } from 'lucide-react';
+import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X, MessageCircle } from 'lucide-react';
 
 export default function Settings() {
   const { userProfile, setUserProfile, crmSettings, setCrmSettings } = useContext(AuthContext);
@@ -24,6 +24,10 @@ export default function Settings() {
   const [team, setTeam] = useState([]);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUserData, setNewUserData] = useState({ email: '', password: '', display_name: '', role: 'Operator', whatsapp: '', contact_details: '', is_active: true });
+
+  const [whatsappTemplates, setWhatsappTemplates] = useState([]);
+  const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
+  const [newTemplateData, setNewTemplateData] = useState({ name: '', purpose: '', body: '', is_active: true });
 
   // Store initial state to detect changes
   const [initialProfile, setInitialProfile] = useState({});
@@ -91,6 +95,9 @@ export default function Settings() {
     if (activeTab === 'team' && userProfile?.role === 'Admin') {
       fetchTeam();
     }
+    if (activeTab === 'templates' && userProfile?.role === 'Admin') {
+      fetchTemplates();
+    }
   }, [activeTab, userProfile]);
 
   // Check for unsaved changes whenever state changes
@@ -142,6 +149,11 @@ export default function Settings() {
   const fetchTeam = async () => {
     const { data } = await supabase.from('app_users').select('*').order('created_at');
     if (data) setTeam(data);
+  };
+
+  const fetchTemplates = async () => {
+    const { data } = await supabase.from('whatsapp_templates').select('*').order('name');
+    if (data) setWhatsappTemplates(data);
   };
 
   const handleSave = async (e) => {
@@ -279,6 +291,41 @@ export default function Settings() {
     }
   };
 
+  const handleAddTemplate = async (e) => {
+    e.preventDefault();
+    if (!newTemplateData.name || !newTemplateData.purpose || !newTemplateData.body) {
+      alert("Please fill required fields (Name, Purpose, Body)");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.from('whatsapp_templates').insert([{
+        name: newTemplateData.name,
+        purpose: newTemplateData.purpose,
+        body: newTemplateData.body,
+        is_active: newTemplateData.is_active,
+        created_by: userProfile.id
+      }]);
+      if (error) throw error;
+      alert('Template added successfully!');
+      setShowAddTemplateModal(false);
+      setNewTemplateData({ name: '', purpose: '', body: '', is_active: true });
+      fetchTemplates();
+    } catch (err) {
+      console.error(err);
+      alert('Error creating template.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleTemplateStatus = async (id, isActive) => {
+    const { error } = await supabase.from('whatsapp_templates').update({ is_active: !isActive }).eq('id', id);
+    if (!error) {
+      fetchTemplates();
+    }
+  };
+
   const tabs = [
     { id: 'profile', label: t('settings.tabs.profile') || 'Profile', icon: User },
     { id: 'security', label: t('settings.tabs.security') || 'Security', icon: Shield },
@@ -289,6 +336,7 @@ export default function Settings() {
   if (userProfile?.role === 'Admin') {
     tabs.splice(2, 0, { id: 'brand', label: t('settings.tabs.brand') || 'Brand & Identity', icon: SettingsIcon });
     tabs.push({ id: 'team', label: t('settings.tabs.team') || 'Team Management', icon: Users });
+    tabs.push({ id: 'templates', label: 'WhatsApp Templates', icon: MessageCircle });
     tabs.push({ id: 'defaults', label: t('settings.tabs.defaults') || 'CRM Defaults', icon: SettingsIcon });
   }
 
@@ -631,6 +679,100 @@ export default function Settings() {
                   <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem'}}>
                     <button type="button" className="btn btn-secondary" onClick={() => setShowAddUserModal(false)}>Cancel</button>
                     <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Creating...' : 'Create User'}</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* TEMPLATES TAB */}
+          {activeTab === 'templates' && userProfile?.role === 'Admin' && (
+            <div className="glass-panel" style={{padding: '0', overflow: 'hidden'}}>
+              <div style={{padding: '2rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <div>
+                  <h2 style={{margin: 0}}>WhatsApp Templates</h2>
+                  <p className="text-secondary" style={{marginTop: '0.5rem', fontSize: '0.95rem'}}>Manage reusable message templates with variable substitution.</p>
+                </div>
+                <button className="btn btn-primary" onClick={() => setShowAddTemplateModal(true)}>
+                  <MessageCircle size={18} /> Add Template
+                </button>
+              </div>
+              <div style={{overflowX: 'auto'}}>
+                <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                  <thead>
+                    <tr style={{borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)'}}>
+                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Template Name</th>
+                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Purpose</th>
+                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {whatsappTemplates.map(t => (
+                      <tr key={t.id} style={{borderBottom: '1px solid var(--border)'}}>
+                        <td style={{padding: '1.25rem 2rem'}}>
+                          <div style={{fontWeight: 600}}>{t.name}</div>
+                          <div className="text-secondary" style={{fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px'}}>{t.body}</div>
+                        </td>
+                        <td style={{padding: '1.25rem 2rem'}}>
+                          <div style={{fontSize: '0.9rem'}}>{t.purpose}</div>
+                        </td>
+                        <td style={{padding: '1.25rem 2rem'}}>
+                          <button 
+                            className={`badge ${t.is_active ? 'badge-success' : 'badge-danger'}`} 
+                            style={{border: 'none', cursor: 'pointer'}}
+                            onClick={() => toggleTemplateStatus(t.id, t.is_active)}
+                          >
+                            {t.is_active ? 'Active' : 'Inactive'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ADD TEMPLATE MODAL */}
+          {showAddTemplateModal && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+              background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', padding: '1rem'
+            }}>
+              <div className="glass-panel" style={{width: '100%', maxWidth: '500px', padding: '2rem', position: 'relative'}}>
+                <button 
+                  onClick={() => setShowAddTemplateModal(false)}
+                  style={{position: 'absolute', right: '1.5rem', top: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}
+                >
+                  <X size={24} />
+                </button>
+                <h2 style={{marginBottom: '1.5rem'}}>Add WhatsApp Template</h2>
+                
+                <form onSubmit={handleAddTemplate} style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
+                  <div>
+                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Template Name *</label>
+                    <input type="text" value={newTemplateData.name} onChange={e => setNewTemplateData({...newTemplateData, name: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} placeholder="e.g. Payment Reminder" />
+                  </div>
+                  <div>
+                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Purpose *</label>
+                    <select value={newTemplateData.purpose} onChange={e => setNewTemplateData({...newTemplateData, purpose: e.target.value})} style={{width: '100%', padding: '0.75rem'}}>
+                      <option value="">-- Select Purpose --</option>
+                      <option value="General Check-in">General Check-in</option>
+                      <option value="Payment Reminder">Payment Reminder</option>
+                      <option value="Requirement Check">Requirement Check</option>
+                      <option value="Follow-up">Follow-up</option>
+                      <option value="Custom">Custom</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Message Body *</label>
+                    <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>Available variables: {'{{customer_name}}, {{city}}, {{state}}, {{salesperson_name}}'}</p>
+                    <textarea value={newTemplateData.body} onChange={e => setNewTemplateData({...newTemplateData, body: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} rows={4} placeholder="Hello {{customer_name}}, this is a reminder..." />
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem'}}>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowAddTemplateModal(false)}>Cancel</button>
+                    <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Saving...' : 'Save Template'}</button>
                   </div>
                 </form>
               </div>

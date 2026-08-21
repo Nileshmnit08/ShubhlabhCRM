@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Edit2, MapPin, Phone, MessageCircle, Trash2, ShieldAlert, Calendar, Plus, CheckCircle2, Target, Info, DollarSign } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
 import WhatsAppAction from '../../components/WhatsAppAction';
+import CallAction from '../../components/CallAction';
 import { logActivity } from '../../lib/activityLogger';
 import ConvertLeadModal from '../../components/ConvertLeadModal';
 
@@ -20,11 +21,12 @@ export default function CustomerView({ isLeadMode = false }) {
   const [interactions, setInteractions] = useState([]);
   const [requirements, setRequirements] = useState([]);
   const [tallyTxns, setTallyTxns] = useState([]);
+  const [sequences, setSequences] = useState([]);
   
   // Forms
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [newFollowUp, setNewFollowUp] = useState({ reason: '', follow_up_date: '', priority: 'Normal', notes: '' });
+  const [newFollowUp, setNewFollowUp] = useState({ reason: '', follow_up_date: '', priority: 'Normal', notes: '', sequence_id: '' });
 
   const [showInteractionForm, setShowInteractionForm] = useState(false);
   const [newInteraction, setNewInteraction] = useState({ channel: 'Call', outcome: '', note: '' });
@@ -62,6 +64,9 @@ export default function CustomerView({ isLeadMode = false }) {
 
       const { data: tData } = await supabase.from('tally_transactions').select('*').eq('crm_party_id', id).order('voucher_date', { ascending: false });
       setTallyTxns(tData || []);
+
+      const { data: seqData } = await supabase.from('crm_sequences').select('*').eq('is_active', true);
+      setSequences(seqData || []);
     } catch (error) {
       console.error('Error fetching customer context:', error);
     } finally {
@@ -120,18 +125,40 @@ Please contact this customer and update Contact Information in CRM.`;
 
     try {
       const { data: session } = await supabase.auth.getSession();
-      const { data, error } = await supabase.from('follow_ups').insert({
+      
+      let payload = {
         party_id: id,
         original_follow_up_date: newFollowUp.follow_up_date,
         created_by: session?.session?.user?.id || null,
         assigned_to: session?.session?.user?.id || null,
         follow_up_type: isLeadMode ? 'Lead' : 'General',
-        ...newFollowUp
-      }).select();
+        reason: newFollowUp.reason,
+        follow_up_date: newFollowUp.follow_up_date,
+        priority: newFollowUp.priority,
+        notes: newFollowUp.notes
+      };
+
+      if (newFollowUp.sequence_id) {
+         payload.sequence_id = newFollowUp.sequence_id;
+         payload.sequence_step_number = 1;
+         
+         const { data: existingPending } = await supabase.from('follow_ups')
+            .select('id')
+            .eq('party_id', id)
+            .eq('status', 'Pending')
+            .eq('sequence_id', newFollowUp.sequence_id);
+            
+         if (existingPending && existingPending.length > 0) {
+            alert("Customer is already enrolled in this sequence.");
+            return;
+         }
+      }
+
+      const { data, error } = await supabase.from('follow_ups').insert(payload).select();
       if (error) throw error;
       setFollowUps([...followUps, data[0]].sort((a,b) => new Date(a.follow_up_date) - new Date(b.follow_up_date)));
       setShowFollowUpForm(false);
-      setNewFollowUp({ reason: '', follow_up_date: '', priority: 'Normal', notes: '' });
+      setNewFollowUp({ reason: '', follow_up_date: '', priority: 'Normal', notes: '', sequence_id: '' });
     } catch (err) {
       alert("Failed to schedule follow-up");
     }
@@ -152,8 +179,8 @@ Please contact this customer and update Contact Information in CRM.`;
 
   const updateFollowUpStatus = async (f, status) => {
     try {
-      if (status === 'Completed' && (f.follow_up_type === 'Payment' || f.follow_up_type === 'Lead')) {
-        alert(`${f.follow_up_type} tasks require a structured outcome. You will be redirected to the task form.`);
+      if (status === 'Completed' && (f.follow_up_type === 'Payment' || f.follow_up_type === 'Lead' || f.sequence_id)) {
+        alert(`This task requires a structured outcome or is part of a sequence. You will be redirected to the task form.`);
         navigate(`/follow-ups/${f.id}/edit`);
         return;
       }
@@ -315,9 +342,7 @@ Please contact this customer and update Contact Information in CRM.`;
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           {customer.mobile && (
-            <a href={`tel:${customer.mobile}`} className="btn cv-btn-subtle">
-              <Phone size={16} /> <span style={{ display: 'none', '@media(min-width: 640px)': { display: 'inline' }}}>Call</span>
-            </a>
+            <CallAction party={customer} onComplete={fetchCustomerContext} btnClass="btn cv-btn-subtle" showLabel={true} />
           )}
           {!isLeadMode && customer.whatsapp && (
             <WhatsAppAction party={customer} onComplete={fetchCustomerContext} btnClass="btn cv-btn-subtle" />
@@ -450,6 +475,16 @@ Please contact this customer and update Contact Information in CRM.`;
                 <option>Normal</option>
                 <option>High</option>
                 <option>Low</option>
+              </select>
+            </div>
+            <div>
+              <label>Enroll in Sequence (Optional)</label>
+              <select value={newFollowUp.sequence_id} onChange={e => {
+                 const seqId = e.target.value;
+                 setNewFollowUp({...newFollowUp, sequence_id: seqId, reason: seqId ? 'Sequence Step 1' : ''});
+              }}>
+                <option value="">-- No Sequence --</option>
+                {sequences.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
@@ -752,7 +787,10 @@ Please contact this customer and update Contact Information in CRM.`;
               {followUps.map(f => (
                 <div key={f.id} className="cv-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: f.status !== 'Pending' ? 0.6 : 1, borderLeft: f.status === 'Pending' ? '4px solid var(--primary)' : '1px solid var(--border)' }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '1.1rem', textDecoration: f.status !== 'Pending' ? 'line-through' : 'none', marginBottom: '0.375rem' }}>{f.reason}</div>
+                    <div style={{ fontWeight: 600, fontSize: '1.1rem', textDecoration: f.status !== 'Pending' ? 'line-through' : 'none', marginBottom: '0.375rem' }}>
+                      {f.sequence_id && <span style={{marginRight: '0.5rem', color: 'var(--primary)'}}>[Seq]</span>}
+                      {f.reason}
+                    </div>
                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                       <span>Due: <strong style={{ color: 'var(--text-primary)' }}>{new Date(f.follow_up_date).toLocaleDateString()}</strong></span>
                       <span style={{ opacity: 0.5 }}>|</span>

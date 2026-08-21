@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Clock, Save, History, Edit2, Calendar, Plus } from 'lucide-react';
+import CallAction from '../../components/CallAction';
+import WhatsAppAction from '../../components/WhatsAppAction';
 
 const STATUS_OPTIONS = [
   'New', 'Quotation Required', 'Quotation Sent', 'Negotiation', 'Confirmed', 'Lost', 'Closed'
@@ -136,10 +138,17 @@ export default function RequirementView() {
             </div>
           </div>
         </div>
-        
-        <button className="btn btn-primary" onClick={() => setShowFollowUp(!showFollowUp)}>
-          <Calendar size={16} /> Schedule Follow-up
-        </button>
+        <div style={{display: 'flex', gap: '0.75rem', flexWrap: 'wrap'}}>
+          {req.crm_parties && (
+             <CallAction party={req.crm_parties} onComplete={fetchData} btnClass="btn cv-btn-subtle" showLabel={true} />
+          )}
+          {req.crm_parties && (
+             <WhatsAppAction party={req.crm_parties} onComplete={fetchData} btnClass="btn cv-btn-subtle" />
+          )}
+          <button className="btn btn-primary" onClick={() => setShowFollowUp(!showFollowUp)}>
+            <Calendar size={16} /> Schedule Follow-up
+          </button>
+        </div>
       </div>
 
       <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '2rem'}}>

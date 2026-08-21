@@ -58,7 +58,9 @@ export default function FollowUpForm() {
     reminder_at: '',
     status: 'Pending',
     follow_up_type: 'General',
-    outcome_category: ''
+    outcome_category: '',
+    sequence_id: '',
+    sequence_step_number: ''
   });
 
   useEffect(() => {
@@ -92,7 +94,9 @@ export default function FollowUpForm() {
           reminder_at: formatForInput(fData.reminder_at),
           status: fData.status || 'Pending',
           follow_up_type: fData.follow_up_type || 'General',
-          outcome_category: fData.outcome_category || ''
+          outcome_category: fData.outcome_category || '',
+          sequence_id: fData.sequence_id || '',
+          sequence_step_number: fData.sequence_step_number || ''
         });
       } else {
         // Auto-assign to current user if new
@@ -171,8 +175,54 @@ export default function FollowUpForm() {
         alert(t('msg.createSuccess'));
       }
       
-      // NEXT ACTION AUTOMATION
-      if (id && formData.status === 'Completed' && config) {
+      // SEQUENCE AUTOMATION
+      let didSequenceAutomation = false;
+      if (id && (formData.status === 'Completed' || formData.status === 'Skipped') && formData.sequence_id) {
+         const { data: nextStep } = await supabase.from('crm_sequence_steps')
+           .select('*')
+           .eq('sequence_id', formData.sequence_id)
+           .eq('step_number', Number(formData.sequence_step_number) + 1)
+           .single();
+           
+         if (nextStep) {
+            didSequenceAutomation = true;
+            const nextDate = new Date();
+            nextDate.setDate(nextDate.getDate() + nextStep.delay_days);
+            const nextDateISO = nextDate.toISOString();
+            
+            const nextTaskPayload = {
+               party_id: formData.party_id,
+               reason: `[Seq ${nextStep.step_number}] ${nextStep.reason_template} (${nextStep.action_type})`,
+               follow_up_date: nextDateISO,
+               due_at: nextDateISO,
+               priority: 'Normal',
+               follow_up_type: 'General',
+               status: 'Pending',
+               assigned_to: formData.assigned_to,
+               created_by: session?.session?.user?.id || null,
+               sequence_id: formData.sequence_id,
+               sequence_step_number: nextStep.step_number
+            };
+            
+            // Duplicate Prevention
+            const { data: existingPending } = await supabase.from('follow_ups')
+              .select('id')
+              .eq('party_id', formData.party_id)
+              .eq('status', 'Pending')
+              .eq('sequence_id', formData.sequence_id);
+              
+            if (!existingPending || existingPending.length === 0) {
+               await supabase.from('follow_ups').insert(nextTaskPayload);
+               logActivity({
+                 module: 'FollowUps', actionType: 'CREATED', entityType: 'follow_ups', entityId: id,
+                 summary: `Sequence advanced: Scheduled step ${nextStep.step_number}`
+               });
+            }
+         }
+      }
+      
+      // NEXT ACTION AUTOMATION (Legacy, only if not handled by Sequence)
+      if (id && formData.status === 'Completed' && config && !didSequenceAutomation) {
         let nextDateISO = null;
         if (config.days === 'manual') {
           nextDateISO = new Date(manualNextDate).toISOString();
@@ -369,6 +419,7 @@ export default function FollowUpForm() {
                 <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                   <option value="Pending">{t('status.Pending')}</option>
                   <option value="Completed">{t('status.Completed')}</option>
+                  <option value="Skipped">Skipped (Next Step)</option>
                   <option value="Postponed">{t('status.Postponed')}</option>
                   <option value="Cancelled">{t('status.Cancelled')}</option>
                 </select>
