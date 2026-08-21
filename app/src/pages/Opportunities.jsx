@@ -5,7 +5,7 @@ import { Target, Search, ChevronRight, CheckCircle2, MessageCircle, Phone, Arrow
 import { AuthContext } from '../AuthContext';
 import CallAction from '../components/CallAction';
 import WhatsAppAction from '../components/WhatsAppAction';
-
+import ScheduleAction from '../components/ScheduleAction';
 export default function Opportunities() {
   const { userProfile } = useContext(AuthContext);
   const [opportunities, setOpportunities] = useState([]);
@@ -163,6 +163,7 @@ export default function Opportunities() {
                      <>
                         <CallAction party={opp.party} onComplete={fetchOpportunities} showLabel={false} />
                         <WhatsAppAction party={opp.party} onComplete={fetchOpportunities} />
+                        <ScheduleAction party={opp.party} opportunityType={opp.opportunity_type} evidence={opp.evidence} onComplete={fetchOpportunities} showLabel={false} />
                      </>
                   )}
                 </div>

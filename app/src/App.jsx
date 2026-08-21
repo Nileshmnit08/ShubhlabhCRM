@@ -29,6 +29,12 @@ import PaymentWorkspace from './pages/FollowUps/PaymentWorkspace';
 import ActivityTimeline from './pages/Activity/Timeline';
 import ControlRoom from './pages/ControlRoom';
 import AccountControl from './pages/AccountControl';
+import CoverageIntelligence from './pages/CoverageIntelligence';
+import DealerControlTower from './pages/DealerControlTower';
+import DemandSignals from './pages/DemandSignals';
+import ProductDemand from './pages/ProductDemand';
+import TerritoryDemand from './pages/TerritoryDemand';
+import DemandControlTower from './pages/DemandControlTower';
 import Performance from './pages/Performance';
 import Settings from './pages/Settings';
 
@@ -233,6 +239,12 @@ function App() {
               <Route path="performance" element={<Performance />} />
               <Route path="control-room" element={<ControlRoom />} />
               <Route path="account-control" element={<AccountControl />} />
+              <Route path="dealer-control" element={<DealerControlTower />} />
+              <Route path="demand-signals" element={<DemandSignals />} />
+              <Route path="product-demand" element={<ProductDemand />} />
+              <Route path="territory-demand" element={<TerritoryDemand />} />
+              <Route path="demand-control-tower" element={<DemandControlTower />} />
+              <Route path="coverage" element={<CoverageIntelligence />} />
               <Route path="settings" element={<Settings />} />
               
               <Route path="*" element={<Navigate to="/" replace />} />

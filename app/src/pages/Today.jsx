@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import WhatsAppAction from '../components/WhatsAppAction';
 import CallAction from '../components/CallAction';
+import ScheduleAction from '../components/ScheduleAction';
 
 export default function Today() {
   const { userProfile } = useContext(AuthContext);
@@ -411,6 +412,7 @@ export default function Today() {
           <>
             {item.crm_parties?.mobile && <CallAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />}
             {item.crm_parties?.whatsapp && <WhatsAppAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
+            <ScheduleAction party={item.crm_parties} opportunityType={item.reason} evidence={item.evidence} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />
             <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
               Action
             </Link>

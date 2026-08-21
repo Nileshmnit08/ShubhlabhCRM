@@ -20,6 +20,7 @@ export default function CustomerView({ isLeadMode = false }) {
   const [followUps, setFollowUps] = useState([]);
   const [timelineEvents, setTimelineEvents] = useState([]);
   const [requirements, setRequirements] = useState([]);
+  const [linkedSignals, setLinkedSignals] = useState([]);
   const [tallyTxns, setTallyTxns] = useState([]);
   const [sequences, setSequences] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -31,6 +32,11 @@ export default function CustomerView({ isLeadMode = false }) {
   // Forms
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  
+  const [showLinkSignalModal, setShowLinkSignalModal] = useState(false);
+  const [activeReqIdForLink, setActiveReqIdForLink] = useState(null);
+  const [availableSignals, setAvailableSignals] = useState([]);
+
   const [newFollowUp, setNewFollowUp] = useState({ reason: '', follow_up_date: '', priority: 'Normal', notes: '', sequence_id: '', follow_up_type: isLeadMode ? 'Lead' : 'General' });
 
   const [showInteractionForm, setShowInteractionForm] = useState(false);
@@ -100,6 +106,13 @@ export default function CustomerView({ isLeadMode = false }) {
       
       const { data: reqData } = await supabase.from('requirements').select('*').eq('party_id', id).order('created_at', { ascending: false });
       setRequirements(reqData || []);
+
+      if (reqData && reqData.length > 0) {
+         const { data: rsData } = await supabase.from('v_requirement_linked_signals')
+            .select('*')
+            .in('requirement_id', reqData.map(r => r.id));
+         setLinkedSignals(rsData || []);
+      }
 
       const { data: tallyData } = await supabase.from('tally_transactions').select('*').eq('crm_party_id', id).order('voucher_date', { ascending: false });
       setTallyTxns(tallyData || []);
@@ -403,6 +416,44 @@ Please contact this customer and update Contact Information in CRM.`;
     }
   };
 
+  const openLinkSignalModal = async (reqId) => {
+     setActiveReqIdForLink(reqId);
+     const { data } = await supabase.from('v_demand_signals').select('*').eq('party_id', id).order('signal_date', { ascending: false });
+     setAvailableSignals(data || []);
+     setShowLinkSignalModal(true);
+  };
+
+  const handleLinkSignal = async (sourceId, signalType) => {
+     try {
+       const { error } = await supabase.from('requirement_signals').insert({
+         requirement_id: activeReqIdForLink,
+         signal_source_id: sourceId,
+         signal_type: signalType,
+         created_by: userProfile?.id
+       });
+       if (error) {
+         if (error.code === '23505') alert('This signal is already linked to this requirement.');
+         else throw error;
+       } else {
+         fetchCustomerContext();
+         setShowLinkSignalModal(false);
+       }
+     } catch(err) {
+       console.error(err);
+       alert("Failed to link signal");
+     }
+  };
+
+  const handleUnlinkSignal = async (linkId) => {
+     if (!window.confirm("Unlink this signal?")) return;
+     try {
+       await supabase.from('requirement_signals').delete().eq('id', linkId);
+       fetchCustomerContext();
+     } catch (err) {
+       console.error(err);
+     }
+  };
+
   if (loading) return (
     <div className="flex items-center justify-center h-64 text-secondary">
       <style>{`
@@ -697,6 +748,40 @@ Please contact this customer and update Contact Information in CRM.`;
              navigate(`/customers/${customer.id}`);
            }}
          />
+      )}
+
+      {showLinkSignalModal && (
+         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="modal-content cv-panel" style={{ width: '600px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+               <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Link Demand Signal</h3>
+                  <button onClick={() => setShowLinkSignalModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>X</button>
+               </div>
+               <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {availableSignals.length === 0 ? (
+                     <div className="text-muted italic">No demand signals found for this customer.</div>
+                  ) : (
+                     availableSignals.map(sig => {
+                        const isLinked = linkedSignals.some(ls => ls.signal_source_id === sig.source_id && ls.requirement_id === activeReqIdForLink);
+                        return (
+                           <div key={sig.source_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-surface)' }}>
+                              <div>
+                                 <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{sig.signal_type}</div>
+                                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>{sig.description}</div>
+                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{new Date(sig.signal_date).toLocaleDateString()}</div>
+                              </div>
+                              {isLinked ? (
+                                 <span className="badge badge-success">Linked</span>
+                              ) : (
+                                 <button className="btn btn-secondary" onClick={() => handleLinkSignal(sig.source_id, sig.signal_type)}>Link</button>
+                              )}
+                           </div>
+                        );
+                     })
+                  )}
+               </div>
+            </div>
+         </div>
       )}
 
       {/* Forms (Rendered Inline as premium panels when active) */}
@@ -1546,24 +1631,47 @@ Please contact this customer and update Contact Information in CRM.`;
               </div>
             ) : (
               <div style={{ display: 'grid', gap: '1rem' }}>
-                {requirements.map(req => (
-                  <Link key={req.id} to={`/requirements/${req.id}`} className="cv-panel" style={{ padding: '1.25rem', textDecoration: 'none', color: 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s ease' }} onMouseOver={e => {e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}} onMouseOut={e => {e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'var(--bg-surface)'}}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.375rem' }}>
-                        <span style={{ fontWeight: 600, fontSize: '1.05rem' }}>{req.product_type}</span>
-                        <span className={`badge ${req.status === 'Confirmed' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`} style={{ fontSize: '0.7rem' }}>{req.status}</span>
+                {requirements.map(req => {
+                  const reqSignals = linkedSignals.filter(ls => ls.requirement_id === req.id);
+                  return (
+                  <div key={req.id} className="cv-panel" style={{ padding: '1.25rem', background: 'var(--bg-surface)', transition: 'all 0.2s ease', borderColor: 'var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.375rem' }}>
+                          <span style={{ fontWeight: 600, fontSize: '1.05rem' }}>{req.product_type}</span>
+                          <span className={`badge ${req.status === 'Confirmed' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`} style={{ fontSize: '0.7rem' }}>{req.status}</span>
+                        </div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                          Volume: <strong style={{ color: 'var(--text-primary)' }}>{req.quantity} {req.unit || 'units'}</strong> 
+                          {req.expected_rate && <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>|</span>}
+                          {req.expected_rate && <span>Target Rate: <strong style={{ color: 'var(--text-primary)' }}>₹{req.expected_rate}</strong></span>}
+                        </div>
                       </div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                        Volume: <strong style={{ color: 'var(--text-primary)' }}>{req.quantity} {req.unit || 'units'}</strong> 
-                        {req.expected_rate && <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>|</span>}
-                        {req.expected_rate && <span>Target Rate: <strong style={{ color: 'var(--text-primary)' }}>₹{req.expected_rate}</strong></span>}
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={() => openLinkSignalModal(req.id)} className="btn cv-btn-subtle" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}>+ Link Signal</button>
+                        <Link to={`/requirements/${req.id}`} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', textDecoration: 'none' }}>View &rarr;</Link>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <ArrowLeft size={18} className="text-muted" style={{ transform: 'rotate(135deg)', opacity: 0.5 }} />
-                    </div>
-                  </Link>
-                ))}
+                    {reqSignals.length > 0 && (
+                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed var(--border)' }}>
+                        <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>Linked Demand Signals</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                           {reqSignals.map(rs => (
+                             <div key={rs.link_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)' }}>
+                               <div>
+                                  <span className="badge badge-neutral" style={{ fontSize: '0.7rem', marginRight: '0.5rem' }}>{rs.signal_type}</span>
+                                  <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)' }}>{rs.description}</span>
+                               </div>
+                               <button onClick={() => handleUnlinkSignal(rs.link_id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0.25rem' }} title="Unlink Signal">
+                                 <Trash2 size={12} />
+                               </button>
+                             </div>
+                           ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )})}
               </div>
             )}
           </div>

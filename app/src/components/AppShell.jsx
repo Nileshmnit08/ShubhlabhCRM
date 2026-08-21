@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -9,8 +9,12 @@ import { AlertTriangle } from 'lucide-react';
 
 const navItems = [
   { path: '/', label: 'Today', icon: LayoutDashboard },
+  { path: '/demand-control-tower', label: 'Demand Control Tower', icon: Target },
   { path: '/leads', label: 'Leads', icon: Target },
   { path: '/opportunities', label: 'Opportunities', icon: Rocket },
+  { path: '/demand-signals', label: 'Demand Signals', icon: Activity },
+  { path: '/product-demand', label: 'Product Demand', icon: Layers },
+  { path: '/territory-demand', label: 'Territory Demand', icon: Map },
   { path: '/customers', label: 'Customers', icon: Users },
   { path: '/dormant', label: 'Dormant', icon: AlertTriangle },
   { path: '/reactivation', label: 'Reactivation', icon: RefreshCw },
@@ -23,6 +27,8 @@ const navItems = [
   { path: '/performance', label: 'My Performance', icon: TrendingUp },
   { path: '/control-room', label: 'Control Room', icon: BarChart },
   { path: '/account-control', label: 'Account Control', icon: ShieldAlert },
+  { path: '/dealer-control', label: 'Dealer Control', icon: Map },
+  { path: '/coverage', label: 'Coverage Gaps', icon: Map },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -57,7 +63,7 @@ export default function AppShell() {
         </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => {
-            if (['/data', '/data/quality', '/control-room', '/account-control'].includes(item.path) && userProfile?.role !== 'Admin') return null;
+            if (['/data', '/data/quality', '/control-room', '/account-control', '/dealer-control'].includes(item.path) && userProfile?.role !== 'Admin') return null;
             const Icon = item.icon;
             return (
               <NavLink
