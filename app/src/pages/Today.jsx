@@ -512,7 +512,6 @@ export default function Today() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {priorityTasks.map(fu => <TaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
-                </div>
               </div>
             )}
 

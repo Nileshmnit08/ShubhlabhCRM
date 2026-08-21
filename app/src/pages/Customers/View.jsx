@@ -81,8 +81,8 @@ export default function CustomerView({ isLeadMode = false }) {
       const { data: reqData } = await supabase.from('requirements').select('*').eq('party_id', id).order('created_at', { ascending: false });
       setRequirements(reqData || []);
 
-      const { data: tData } = await supabase.from('tally_transactions').select('*').eq('crm_party_id', id).order('voucher_date', { ascending: false });
-      setTallyTxns(tData || []);
+      const { data: tallyData } = await supabase.from('tally_transactions').select('*').eq('crm_party_id', id).order('voucher_date', { ascending: false });
+      setTallyTxns(tallyData || []);
 
       const { data: ctData } = await supabase.from('crm_contacts').select('*').eq('party_id', id).order('created_at', { ascending: true });
       setContacts(ctData || []);
