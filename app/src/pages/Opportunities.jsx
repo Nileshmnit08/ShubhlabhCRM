@@ -123,10 +123,10 @@ export default function Opportunities() {
       ) : (
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem'}}>
           {filteredOpps.map((opp, idx) => (
-            <div key={`${opp.party_id}-${opp.opportunity_type}-${idx}`} className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div key={`${opp.party_id || 'unknown'}-${opp.opportunity_type}-${idx}`} className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
               <div style={{ padding: '1.5rem', flex: 1 }}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem'}}>
-                  <Link to={`/customers/${opp.party_id}`} style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <Link to={`/customers/${opp.party_id || opp.party?.id}`} style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                     {opp.display_name}
                     <ArrowUpRight size={14} className="text-muted" />
                   </Link>
@@ -148,8 +148,8 @@ export default function Opportunities() {
                   </div>
                   <div>
                     <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Owner</span>
-                    <div style={{ fontSize: '0.9rem', marginTop: '0.25rem', color: opp.party.assigned_owner_id ? 'var(--text-primary)' : 'var(--danger)' }}>
-                      {opp.party.owner?.display_name || 'Unassigned - Must assign to act'}
+                    <div style={{ fontSize: '0.9rem', marginTop: '0.25rem', color: opp.party?.assigned_owner_id ? 'var(--text-primary)' : 'var(--danger)' }}>
+                      {opp.party?.owner?.display_name || 'Unassigned - Must assign to act'}
                     </div>
                   </div>
                 </div>
@@ -160,8 +160,8 @@ export default function Opportunities() {
                   Take action to clear this opportunity.
                 </span>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {!opp.party.assigned_owner_id ? (
-                     <Link to={`/customers/${opp.party.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Assign Owner</Link>
+                  {!opp.party?.assigned_owner_id ? (
+                     <Link to={`/customers/${opp.party?.id || opp.party_id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Assign Owner</Link>
                   ) : (
                      <>
                         <CallAction party={opp.party} onComplete={fetchOpportunities} showLabel={false} />

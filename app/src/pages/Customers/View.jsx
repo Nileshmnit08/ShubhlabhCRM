@@ -1201,10 +1201,10 @@ Please contact this customer and update Contact Information in CRM.`;
                      <FileText size={16} className="text-primary" /> Latest Account Review
                    </h3>
                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                     Conducted on: {new Date(accountReviews[0].review_date).toLocaleDateString()}
+                     Conducted on: {accountReviews?.[0]?.review_date ? new Date(accountReviews[0].review_date).toLocaleDateString() : 'N/A'}
                    </div>
                  </div>
-                 {accountReviews[0].next_review_date && (
+                 {accountReviews?.[0]?.next_review_date && (
                    <div style={{ textAlign: 'right' }}>
                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Next Review Scheduled</div>
                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{new Date(accountReviews[0].next_review_date).toLocaleDateString()}</div>
@@ -1214,12 +1214,12 @@ Please contact this customer and update Contact Information in CRM.`;
               <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                 <div>
                   <strong style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Situation</strong>
-                  <p style={{ marginTop: '0.25rem', fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 }}>{accountReviews[0].notes}</p>
+                  <p style={{ marginTop: '0.25rem', fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 }}>{accountReviews?.[0]?.notes}</p>
                 </div>
-                {accountReviews[0].next_actions && (
+                {accountReviews?.[0]?.next_actions && (
                   <div>
                     <strong style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Priorities / Next Actions</strong>
-                    <p style={{ marginTop: '0.25rem', fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 }}>{accountReviews[0].next_actions}</p>
+                    <p style={{ marginTop: '0.25rem', fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 }}>{accountReviews?.[0]?.next_actions}</p>
                   </div>
                 )}
               </div>
@@ -1377,7 +1377,7 @@ Please contact this customer and update Contact Information in CRM.`;
                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Last Invoice Date</div>
                     <div style={{ fontSize: '1rem', fontWeight: 500 }}>
                       {(() => {
-                        const sales = tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale') && Number(t.amount) > 0);
+                        const sales = tallyTxns.filter(t => t.voucher_type?.toLowerCase()?.includes('sale') && Number(t.amount) > 0);
                         return sales.length > 0 ? new Date(sales[0].voucher_date).toLocaleDateString() : 'N/A';
                       })()}
                     </div>
@@ -1499,7 +1499,7 @@ Please contact this customer and update Contact Information in CRM.`;
                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Tally Intelligence</h3>
                  </div>
                  <div className="text-muted" style={{ fontSize: '0.85rem' }}>
-                   Data as of: {new Date(Math.max(...tallyTxns.map(t => new Date(t.created_at)))).toLocaleDateString()}
+                   Data as of: {tallyTxns.length > 0 ? new Date(Math.max(...tallyTxns.map(t => new Date(t.created_at || t.voucher_date).getTime()))).toLocaleDateString() : 'N/A'}
                  </div>
               </div>
               
@@ -1508,7 +1508,7 @@ Please contact this customer and update Contact Information in CRM.`;
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Last Invoice Date</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
                     {(() => {
-                      const sales = tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale') && Number(t.amount) > 0);
+                      const sales = tallyTxns.filter(t => t.voucher_type?.toLowerCase()?.includes('sale') && Number(t.amount) > 0);
                       return sales.length > 0 ? new Date(sales[0].voucher_date).toLocaleDateString() : 'N/A';
                     })()}
                   </div>
@@ -1517,11 +1517,11 @@ Please contact this customer and update Contact Information in CRM.`;
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Total Sales (Imported)</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
                     {(() => {
-                      const salesTxns = tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale') || t.voucher_type.toLowerCase().includes('credit note'));
+                      const salesTxns = tallyTxns.filter(t => t.voucher_type?.toLowerCase()?.includes('sale') || t.voucher_type?.toLowerCase()?.includes('credit note'));
                       if (salesTxns.length === 0) return 'N/A';
                       const totalSales = salesTxns.reduce((sum, t) => {
                         const amt = Number(t.amount);
-                        if (t.voucher_type.toLowerCase().includes('credit note')) return sum - amt;
+                        if (t.voucher_type?.toLowerCase()?.includes('credit note')) return sum - amt;
                         return sum + amt;
                       }, 0);
                       return `₹${totalSales.toLocaleString()}`;
@@ -1603,11 +1603,11 @@ Please contact this customer and update Contact Information in CRM.`;
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Primary Product Categories / Interests</div>
                 {customer.product_interests ? (
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {customer.product_interests.split(',').map((interest, idx) => (
+                    {typeof customer.product_interests === 'string' ? customer.product_interests.split(',').map((interest, idx) => (
                       <span key={idx} className="badge badge-active" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}>
                         {interest.trim()}
                       </span>
-                    ))}
+                    )) : null}
                   </div>
                 ) : (
                   <div className="text-muted italic" style={{ fontSize: '0.9rem' }}>No specific product interests recorded. Update in edit profile.</div>
