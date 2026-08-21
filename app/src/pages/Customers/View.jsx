@@ -8,6 +8,7 @@ import WhatsAppAction from '../../components/WhatsAppAction';
 import CallAction from '../../components/CallAction';
 import { logActivity } from '../../lib/activityLogger';
 import ConvertLeadModal from '../../components/ConvertLeadModal';
+import SectionErrorBoundary from '../../components/SectionErrorBoundary';
 
 export default function CustomerView({ isLeadMode = false }) {
   const { id } = useParams();
@@ -15,6 +16,7 @@ export default function CustomerView({ isLeadMode = false }) {
   
   const [customer, setCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [activeTab, setActiveTab] = useState('details'); 
   const { userProfile } = React.useContext(AuthContext);
   
@@ -69,76 +71,97 @@ export default function CustomerView({ isLeadMode = false }) {
   async function fetchCustomerContext() {
     setLoading(true);
     try {
+      // Primary Fetch: MUST SUCCEED
       const { data: cData, error: cErr } = await supabase.from('v_customer_master').select('*').eq('id', id).single();
       if (cErr) throw cErr;
       
       let ownerWhatsapp = null;
       if (cData.assigned_owner_id) {
-        const { data: oData } = await supabase.from('app_users').select('whatsapp').eq('id', cData.assigned_owner_id).single();
-        if (oData) {
-          ownerWhatsapp = oData.whatsapp;
-        }
+        try {
+          const { data: oData } = await supabase.from('app_users').select('whatsapp').eq('id', cData.assigned_owner_id).single();
+          if (oData) ownerWhatsapp = oData.whatsapp;
+        } catch (e) { console.error('Failed to fetch owner whatsapp:', e); }
       }
       
       setCustomer({ ...cData, owner_whatsapp: ownerWhatsapp });
 
+      // Secondary Fetches: ISOLATED
       if (cData.relationship_type === 'Dealer') {
-        const { data: dData } = await supabase.from('crm_dealer_profiles').select('*').eq('party_id', id).single();
-        if (dData) setDealerProfile(dData);
+        try {
+          const { data: dData } = await supabase.from('crm_dealer_profiles').select('*').eq('party_id', id).single();
+          if (dData) setDealerProfile(dData);
+        } catch (e) { console.error('Failed to fetch dealer profile:', e); }
 
-        // Fetch schemes
-        const { data: schData } = await supabase.from('dealer_schemes').select('*').eq('status', 'Active');
-        setActiveSchemes(schData || []);
+        try {
+          const { data: schData } = await supabase.from('dealer_schemes').select('*').eq('status', 'Active');
+          setActiveSchemes(schData || []);
+        } catch (e) { console.error('Failed to fetch dealer schemes:', e); }
 
-        const { data: partData } = await supabase.from('dealer_scheme_participations').select('*, dealer_schemes(*)').eq('party_id', id);
-        setParticipations(partData || []);
+        try {
+          const { data: partData } = await supabase.from('dealer_scheme_participations').select('*, dealer_schemes(*)').eq('party_id', id);
+          setParticipations(partData || []);
+        } catch (e) { console.error('Failed to fetch participations:', e); }
 
-        // Default to execution tab for dealers
         setActiveTab(prev => prev === 'details' ? 'execution' : prev);
       }
       
-      const { data: fData, error: fErr } = await supabase.from('follow_ups').select('*').eq('party_id', id).order('follow_up_date', { ascending: true });
-      if (fErr) throw fErr;
-      setFollowUps(fData || []);
+      try {
+        const { data: fData } = await supabase.from('follow_ups').select('*').eq('party_id', id).order('follow_up_date', { ascending: true });
+        setFollowUps(fData || []);
+      } catch (e) { console.error('Failed to fetch follow-ups:', e); }
 
-      const { data: tData, error: tErr } = await supabase.from('v_customer_timeline').select('*').eq('party_id', id).order('event_date', { ascending: false });
-      if (tErr) throw tErr;
-      setTimelineEvents(tData || []);
+      try {
+        const { data: tData } = await supabase.from('v_customer_timeline').select('*').eq('party_id', id).order('event_date', { ascending: false });
+        setTimelineEvents(tData || []);
+      } catch (e) { console.error('Failed to fetch timeline:', e); }
       
-      const { data: reqData } = await supabase.from('requirements').select('*').eq('party_id', id).order('created_at', { ascending: false });
-      setRequirements(reqData || []);
+      try {
+        const { data: reqData } = await supabase.from('requirements').select('*').eq('party_id', id).order('created_at', { ascending: false });
+        setRequirements(reqData || []);
 
-      if (reqData && reqData.length > 0) {
-         const { data: rsData } = await supabase.from('v_requirement_linked_signals')
-            .select('*')
-            .in('requirement_id', reqData.map(r => r.id));
-         setLinkedSignals(rsData || []);
-      }
+        if (reqData && reqData.length > 0) {
+           const { data: rsData } = await supabase.from('v_requirement_linked_signals')
+              .select('*')
+              .in('requirement_id', reqData.map(r => r.id));
+           setLinkedSignals(rsData || []);
+        }
+      } catch (e) { console.error('Failed to fetch requirements:', e); }
 
-      const { data: tallyData } = await supabase.from('tally_transactions').select('*').eq('crm_party_id', id).order('voucher_date', { ascending: false });
-      setTallyTxns(tallyData || []);
+      try {
+        const { data: tallyData } = await supabase.from('tally_transactions').select('*').eq('crm_party_id', id).order('voucher_date', { ascending: false });
+        setTallyTxns(tallyData || []);
+      } catch (e) { console.error('Failed to fetch tally:', e); }
 
-      const { data: ctData } = await supabase.from('crm_contacts').select('*').eq('party_id', id).order('created_at', { ascending: true });
-      setContacts(ctData || []);
+      try {
+        const { data: ctData } = await supabase.from('crm_contacts').select('*').eq('party_id', id).order('created_at', { ascending: true });
+        setContacts(ctData || []);
+      } catch (e) { console.error('Failed to fetch contacts:', e); }
 
-      const { data: oppsData } = await supabase.from('v_customer_opportunities')
-        .select('*')
-        .eq('party_id', id)
-        .in('opportunity_type', ['Reactivation', 'Purchase Gap', 'Onboarding Gap']);
-      
-      if (oppsData) {
-        setReactivationOpp(oppsData.find(o => o.opportunity_type === 'Reactivation') || null);
-        setRetentionOpp(oppsData.find(o => o.opportunity_type === 'Purchase Gap' || o.opportunity_type === 'Onboarding Gap') || null);
-      }
+      try {
+        const { data: oppsData } = await supabase.from('v_customer_opportunities')
+          .select('*')
+          .eq('party_id', id)
+          .in('opportunity_type', ['Reactivation', 'Purchase Gap', 'Onboarding Gap']);
+        
+        if (oppsData) {
+          setReactivationOpp(oppsData.find(o => o.opportunity_type === 'Reactivation') || null);
+          setRetentionOpp(oppsData.find(o => o.opportunity_type === 'Purchase Gap' || o.opportunity_type === 'Onboarding Gap') || null);
+        }
+      } catch (e) { console.error('Failed to fetch opps:', e); }
 
-      const { data: issueData } = await supabase.from('crm_issues').select('*').eq('party_id', id).order('created_at', { ascending: false });
-      setIssues(issueData || []);
+      try {
+        const { data: issueData } = await supabase.from('crm_issues').select('*').eq('party_id', id).order('created_at', { ascending: false });
+        setIssues(issueData || []);
+      } catch (e) { console.error('Failed to fetch issues:', e); }
 
-      const { data: revData } = await supabase.from('crm_account_reviews').select('*').eq('party_id', id).order('review_date', { ascending: false });
-      setAccountReviews(revData || []);
+      try {
+        const { data: revData } = await supabase.from('crm_account_reviews').select('*').eq('party_id', id).order('review_date', { ascending: false });
+        setAccountReviews(revData || []);
+      } catch (e) { console.error('Failed to fetch reviews:', e); }
 
     } catch (error) {
-      console.error('Error fetching customer context:', error);
+      console.error('Error fetching customer context (primary fetch failed):', error);
+      setFetchError(error);
     } finally {
       setLoading(false);
     }
@@ -464,7 +487,30 @@ Please contact this customer and update Contact Information in CRM.`;
       <div className="loading-pulse">Loading profile...</div>
     </div>
   );
-  if (!customer) return <div className="p-8 text-center text-muted">Customer not found.</div>;
+
+  if (!customer) {
+    if (fetchError?.code === 'PGRST116') {
+      return (
+        <div className="cv-panel" style={{ padding: '3rem', margin: '2rem auto', maxWidth: '600px', textAlign: 'center' }}>
+          <AlertTriangle size={48} className="text-warning" style={{ margin: '0 auto 1rem' }} />
+          <h2 style={{ marginBottom: '1rem' }}>Customer Not Found</h2>
+          <p className="text-secondary" style={{ marginBottom: '2rem' }}>The requested customer record does not exist or has been deleted.</p>
+          <button className="btn btn-primary" onClick={() => navigate('/customers')}>Return to Customers</button>
+        </div>
+      );
+    }
+    return (
+      <div className="cv-panel" style={{ padding: '3rem', margin: '2rem auto', maxWidth: '600px', textAlign: 'center', border: '1px solid var(--danger)' }}>
+        <ShieldAlert size={48} className="text-danger" style={{ margin: '0 auto 1rem' }} />
+        <h2 style={{ marginBottom: '1rem' }}>Server Error</h2>
+        <p className="text-secondary" style={{ marginBottom: '2rem' }}>We encountered a critical error while loading this customer record.</p>
+        <div style={{ backgroundColor: 'rgba(255,0,0,0.05)', padding: '1rem', borderRadius: '4px', color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '2rem', textAlign: 'left', overflowX: 'auto' }}>
+          {fetchError?.message || 'Unknown network or server error'}
+        </div>
+        <button className="btn btn-secondary" onClick={() => window.location.reload()}>Retry Request</button>
+      </div>
+    );
+  }
 
   const nextAction = followUps.find(f => f.status === 'Pending');
   const lastContact = timelineEvents.find(e => e.event_type === 'Interaction');
