@@ -80,7 +80,7 @@ SELECT
     'CRITICAL',
     'Tally Transaction',
     t.id::text,
-    'Tally Tx ' || t.id || ' (Voucher ' || t.voucher_number || ') points to missing crm_party_id ' || t.crm_party_id,
+    'Tally Tx ' || t.id || ' (Voucher ' || t.voucher_no || ') points to missing crm_party_id ' || t.crm_party_id,
     'Fix Tally Sync mapping.'
 FROM public.tally_transactions t 
 LEFT JOIN public.crm_parties p ON t.crm_party_id = p.id 

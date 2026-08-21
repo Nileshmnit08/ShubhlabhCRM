@@ -25,8 +25,10 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 import FollowUpList from './pages/FollowUps/List';
 import FollowUpForm from './pages/FollowUps/Form';
+import PaymentWorkspace from './pages/FollowUps/PaymentWorkspace';
 import ActivityTimeline from './pages/Activity/Timeline';
 import ControlRoom from './pages/ControlRoom';
+import AccountControl from './pages/AccountControl';
 import Performance from './pages/Performance';
 import Settings from './pages/Settings';
 
@@ -225,10 +227,12 @@ function App() {
                 <Route path="new" element={<FollowUpForm />} />
                 <Route path=":id/edit" element={<FollowUpForm />} />
               </Route>
+              <Route path="payments" element={<PaymentWorkspace />} />
               
               <Route path="activity" element={<ActivityTimeline />} />
               <Route path="performance" element={<Performance />} />
               <Route path="control-room" element={<ControlRoom />} />
+              <Route path="account-control" element={<AccountControl />} />
               <Route path="settings" element={<Settings />} />
               
               <Route path="*" element={<Navigate to="/" replace />} />

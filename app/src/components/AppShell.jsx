@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -18,9 +18,11 @@ const navItems = [
   { path: '/data/quality', label: 'Data Quality', icon: ShieldAlert },
   { path: '/requirements', label: 'Requirements', icon: ClipboardList },
   { path: '/follow-ups', label: 'Follow-ups', icon: Clock },
+  { path: '/payments', label: 'Payments', icon: DollarSign },
   { path: '/activity', label: 'Activity', icon: Activity },
   { path: '/performance', label: 'My Performance', icon: TrendingUp },
   { path: '/control-room', label: 'Control Room', icon: BarChart },
+  { path: '/account-control', label: 'Account Control', icon: ShieldAlert },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -55,7 +57,7 @@ export default function AppShell() {
         </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => {
-            if (['/data', '/data/quality', '/control-room'].includes(item.path) && userProfile?.role !== 'Admin') return null;
+            if (['/data', '/data/quality', '/control-room', '/account-control'].includes(item.path) && userProfile?.role !== 'Admin') return null;
             const Icon = item.icon;
             return (
               <NavLink

@@ -21,7 +21,9 @@ export default function Today() {
     recentActivity: [],
     pipeline: { openReqs: 0 },
     unassigned: 0,
-    opportunities: []
+    opportunities: [],
+    openIssues: [],
+    dueReviews: []
   });
 
   const [loading, setLoading] = useState(true);
@@ -206,6 +208,28 @@ export default function Today() {
          unassignedCount = unCount || 0;
       }
 
+      // 7. Fetch Open Issues
+      let issuesQuery = supabase.from('crm_issues')
+         .select(`*, crm_parties(display_name, mobile, whatsapp)`)
+         .not('status', 'in', '("Resolved","Closed")')
+         .order('created_at', { ascending: false });
+      
+      if (!isAdmin) {
+         issuesQuery = issuesQuery.eq('assigned_owner_id', ownerId);
+      }
+      const { data: issuesData } = await issuesQuery;
+
+      // 8. Fetch Due Account Reviews
+      let reviewsQuery = supabase.from('crm_parties')
+         .select(`id, display_name, crm_status, next_review_date`)
+         .lte('next_review_date', isoToday)
+         .order('next_review_date', { ascending: true });
+
+      if (!isAdmin) {
+         reviewsQuery = reviewsQuery.eq('assigned_owner_id', ownerId);
+      }
+      const { data: reviewsData } = await reviewsQuery;
+
       setData({
         followUps: {
           overdue: overdueFu,
@@ -229,7 +253,9 @@ export default function Today() {
           openReqs: openReqsData?.length || 0
         },
         unassigned: unassignedCount,
-        opportunities: finalOpps
+        opportunities: finalOpps,
+        openIssues: issuesData || [],
+        dueReviews: reviewsData || []
       });
 
     } catch(err) {
@@ -486,8 +512,70 @@ export default function Today() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {priorityTasks.map(fu => <TaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
+                </div>
               </div>
             )}
+
+            {/* Unresolved Issues */}
+            {data.openIssues.length > 0 && (
+              <div className="cv-panel animate-fade-in" style={{ borderTop: '4px solid var(--danger)' }}>
+                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,0,0,0.02)' }}>
+                  <AlertTriangle size={18} className="text-danger" />
+                  <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--danger)' }}>Unresolved Service Issues ({data.openIssues.length})</h3>
+                </div>
+                <div style={{ padding: '0' }}>
+                  {data.openIssues.map((issue, idx) => (
+                    <div key={issue.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1.25rem 1.5rem', borderBottom: idx === data.openIssues.length - 1 ? 'none' : '1px solid var(--border)', transition: 'background-color 0.2s' }} className="hover-bg-surface">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                           <Link to={`/customers/${issue.party_id}`} style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                             {issue.crm_parties?.display_name} <ChevronRight size={14} className="text-muted" />
+                           </Link>
+                           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                             {issue.category} &bull; Priority: <span className={issue.priority === 'Critical' || issue.priority === 'High' ? 'text-danger' : 'text-primary'}>{issue.priority}</span>
+                           </div>
+                        </div>
+                        <span className={`badge badge-neutral`}>{issue.status}</span>
+                      </div>
+                      <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', marginTop: '0.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                         "{issue.description}"
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                         {issue.crm_parties?.whatsapp && (
+                           <WhatsAppAction party={{ whatsapp: issue.crm_parties.whatsapp, display_name: issue.crm_parties.display_name }} onComplete={fetchDashboardData} btnClass="badge badge-active" />
+                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Account Reviews Due */}
+            {data.dueReviews.length > 0 && (
+              <div className="cv-panel animate-fade-in" style={{ borderTop: '4px solid var(--primary)' }}>
+                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(0,102,255,0.02)' }}>
+                  <Calendar size={18} className="text-primary" />
+                  <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--text-primary)' }}>Account Reviews Due ({data.dueReviews.length})</h3>
+                </div>
+                <div style={{ padding: '0' }}>
+                  {data.dueReviews.map((review, idx) => (
+                    <div key={review.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', borderBottom: idx === data.dueReviews.length - 1 ? 'none' : '1px solid var(--border)', transition: 'background-color 0.2s' }} className="hover-bg-surface">
+                      <div>
+                         <Link to={`/customers/${review.id}`} style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                           {review.display_name} <ChevronRight size={14} className="text-muted" />
+                         </Link>
+                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                           Scheduled for: <span className="text-danger">{new Date(review.next_review_date).toLocaleDateString()}</span>
+                         </div>
+                      </div>
+                      <span className="badge badge-neutral">{review.crm_status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
           </div>
           
           {/* Opportunities Queue */}

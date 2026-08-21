@@ -18,12 +18,15 @@ export default function CustomerView({ isLeadMode = false }) {
   const { userProfile } = React.useContext(AuthContext);
   
   const [followUps, setFollowUps] = useState([]);
-  const [interactions, setInteractions] = useState([]);
+  const [timelineEvents, setTimelineEvents] = useState([]);
   const [requirements, setRequirements] = useState([]);
   const [tallyTxns, setTallyTxns] = useState([]);
   const [sequences, setSequences] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [reactivationOpp, setReactivationOpp] = useState(null);
   const [retentionOpp, setRetentionOpp] = useState(null);
+  const [issues, setIssues] = useState([]);
+  const [accountReviews, setAccountReviews] = useState([]);
   
   // Forms
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
@@ -32,6 +35,20 @@ export default function CustomerView({ isLeadMode = false }) {
 
   const [showInteractionForm, setShowInteractionForm] = useState(false);
   const [newInteraction, setNewInteraction] = useState({ channel: 'Call', outcome: '', note: '' });
+
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [editingContact, setEditingContact] = useState(null);
+  const [newContact, setNewContact] = useState({ name: '', role: 'Purchase Contact', mobile: '', whatsapp: '', email: '', preferred_channel: 'Call', do_not_contact: false });
+
+  const [showCommercialForm, setShowCommercialForm] = useState(false);
+  const [newCommercial, setNewCommercial] = useState({ customer_type: '', product_interests: '', business_context: '' });
+
+  const [showIssueForm, setShowIssueForm] = useState(false);
+  const [editingIssue, setEditingIssue] = useState(null);
+  const [newIssue, setNewIssue] = useState({ category: 'General Service', priority: 'Normal', description: '', status: 'Open' });
+
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [newReview, setNewReview] = useState({ notes: '', next_actions: '', next_review_date: '' });
 
   useEffect(() => {
     fetchCustomerContext();
@@ -57,15 +74,18 @@ export default function CustomerView({ isLeadMode = false }) {
       if (fErr) throw fErr;
       setFollowUps(fData || []);
 
-      const { data: iData, error: iErr } = await supabase.from('interactions').select('*').eq('party_id', id).order('created_at', { ascending: false });
-      if (iErr) throw iErr;
-      setInteractions(iData || []);
+      const { data: tData, error: tErr } = await supabase.from('v_customer_timeline').select('*').eq('party_id', id).order('event_date', { ascending: false });
+      if (tErr) throw tErr;
+      setTimelineEvents(tData || []);
       
       const { data: reqData } = await supabase.from('requirements').select('*').eq('party_id', id).order('created_at', { ascending: false });
       setRequirements(reqData || []);
 
       const { data: tData } = await supabase.from('tally_transactions').select('*').eq('crm_party_id', id).order('voucher_date', { ascending: false });
       setTallyTxns(tData || []);
+
+      const { data: ctData } = await supabase.from('crm_contacts').select('*').eq('party_id', id).order('created_at', { ascending: true });
+      setContacts(ctData || []);
 
       const { data: oppsData } = await supabase.from('v_customer_opportunities')
         .select('*')
@@ -76,6 +96,13 @@ export default function CustomerView({ isLeadMode = false }) {
         setReactivationOpp(oppsData.find(o => o.opportunity_type === 'Reactivation') || null);
         setRetentionOpp(oppsData.find(o => o.opportunity_type === 'Purchase Gap' || o.opportunity_type === 'Onboarding Gap') || null);
       }
+
+      const { data: issueData } = await supabase.from('crm_issues').select('*').eq('party_id', id).order('created_at', { ascending: false });
+      setIssues(issueData || []);
+
+      const { data: revData } = await supabase.from('crm_account_reviews').select('*').eq('party_id', id).order('review_date', { ascending: false });
+      setAccountReviews(revData || []);
+
     } catch (error) {
       console.error('Error fetching customer context:', error);
     } finally {
@@ -178,11 +205,119 @@ Please contact this customer and update Contact Information in CRM.`;
     try {
       const { data, error } = await supabase.from('interactions').insert({ party_id: id, ...newInteraction }).select();
       if (error) throw error;
-      setInteractions([data[0], ...interactions]);
+      fetchCustomerContext();
       setShowInteractionForm(false);
       setNewInteraction({ channel: 'Call', outcome: '', note: '' });
     } catch (err) {
       alert("Failed to log interaction");
+    }
+  };
+
+  const handleSaveContact = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingContact) {
+        const { error } = await supabase.from('crm_contacts').update(newContact).eq('id', editingContact.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('crm_contacts').insert({ party_id: id, ...newContact });
+        if (error) throw error;
+      }
+      setShowContactForm(false);
+      setEditingContact(null);
+      setNewContact({ name: '', role: 'Purchase Contact', mobile: '', whatsapp: '', email: '', preferred_channel: 'Call', do_not_contact: false });
+      fetchCustomerContext();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save contact.");
+    }
+  };
+
+  const handleEditContact = (c) => {
+     setEditingContact(c);
+     setNewContact({ name: c.name, role: c.role, mobile: c.mobile, whatsapp: c.whatsapp, email: c.email || '', preferred_channel: c.preferred_channel || 'Call', do_not_contact: c.do_not_contact || false });
+     setShowContactForm(true);
+  };
+
+  const handleEditCommercial = () => {
+    setNewCommercial({
+      customer_type: customer.customer_type || '',
+      product_interests: customer.product_interests || '',
+      business_context: customer.business_context || ''
+    });
+    setShowCommercialForm(true);
+  };
+
+  const handleSaveCommercial = async (e) => {
+    e.preventDefault();
+    try {
+      const { error } = await supabase.from('crm_parties').update(newCommercial).eq('id', id);
+      if (error) throw error;
+      setShowCommercialForm(false);
+      fetchCustomerContext();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save commercial profile.");
+    }
+  };
+
+  const handleEditIssue = (issue) => {
+     setEditingIssue(issue);
+     setNewIssue({ category: issue.category, priority: issue.priority, description: issue.description, status: issue.status, resolution_notes: issue.resolution_notes || '' });
+     setShowIssueForm(true);
+  };
+
+  const handleSaveIssue = async (e) => {
+     e.preventDefault();
+     try {
+        let payload = {
+           category: newIssue.category,
+           priority: newIssue.priority,
+           description: newIssue.description,
+           status: newIssue.status,
+           resolution_notes: newIssue.resolution_notes
+        };
+
+        if (editingIssue) {
+           const { error } = await supabase.from('crm_issues').update(payload).eq('id', editingIssue.id);
+           if (error) throw error;
+        } else {
+           payload.party_id = id;
+           payload.assigned_owner_id = customer.assigned_owner_id || userProfile?.id;
+           payload.created_by = userProfile?.id;
+           const { error } = await supabase.from('crm_issues').insert(payload);
+           if (error) throw error;
+        }
+        setShowIssueForm(false);
+        setEditingIssue(null);
+        setNewIssue({ category: 'General Service', priority: 'Normal', description: '', status: 'Open' });
+        fetchCustomerContext();
+     } catch (err) {
+        console.error(err);
+        alert("Failed to save issue.");
+     }
+  };
+
+  const handleSaveReview = async (e) => {
+    e.preventDefault();
+    if (!newReview.notes) { alert('Notes are required.'); return; }
+    try {
+      const payload = {
+        party_id: id,
+        reviewed_by_id: userProfile?.id,
+        notes: newReview.notes,
+        next_actions: newReview.next_actions,
+        next_review_date: newReview.next_review_date || null
+      };
+      const { error } = await supabase.from('crm_account_reviews').insert(payload);
+      if (error) throw error;
+      
+      setShowReviewForm(false);
+      setNewReview({ notes: '', next_actions: '', next_review_date: '' });
+      fetchCustomerContext();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save account review.");
     }
   };
 
@@ -237,7 +372,7 @@ Please contact this customer and update Contact Information in CRM.`;
   if (!customer) return <div className="p-8 text-center text-muted">Customer not found.</div>;
 
   const nextAction = followUps.find(f => f.status === 'Pending');
-  const lastContact = interactions[0];
+  const lastContact = timelineEvents.find(e => e.event_type === 'Interaction');
   const openReqsCount = requirements.filter(r => !['Closed', 'Lost', 'Confirmed'].includes(r.status)).length;
   const isActive = customer.crm_status === 'Active';
 
@@ -568,9 +703,176 @@ Please contact this customer and update Contact Information in CRM.`;
         </div>
       )}
 
+      {showContactForm && (
+        <div className="cv-panel animate-fade-in" style={{ padding: '2rem', marginBottom: '2rem', borderLeft: '4px solid var(--primary)' }}>
+          <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>{editingContact ? 'Edit Contact' : 'Add New Contact'}</h3>
+          <form onSubmit={handleSaveContact} style={{ display: 'grid', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div>
+                <label>Name</label>
+                <input required type="text" value={newContact.name} onChange={e => setNewContact({...newContact, name: e.target.value})} />
+              </div>
+              <div>
+                <label>Role</label>
+                <select value={newContact.role} onChange={e => setNewContact({...newContact, role: e.target.value})}>
+                  <option>Owner</option>
+                  <option>Purchase Contact</option>
+                  <option>Accounts Contact</option>
+                  <option>Decision Maker</option>
+                  <option>Other</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+              <div>
+                <label>Mobile</label>
+                <input type="text" value={newContact.mobile} onChange={e => setNewContact({...newContact, mobile: e.target.value})} />
+              </div>
+              <div>
+                <label>WhatsApp</label>
+                <input type="text" value={newContact.whatsapp} onChange={e => setNewContact({...newContact, whatsapp: e.target.value})} />
+              </div>
+              <div>
+                <label>Email</label>
+                <input type="email" value={newContact.email} onChange={e => setNewContact({...newContact, email: e.target.value})} />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div>
+                <label>Preferred Channel</label>
+                <select value={newContact.preferred_channel} onChange={e => setNewContact({...newContact, preferred_channel: e.target.value})}>
+                  <option>Call</option>
+                  <option>WhatsApp</option>
+                  <option>Email</option>
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', marginTop: '1.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', margin: 0 }}>
+                  <input type="checkbox" checked={newContact.do_not_contact} onChange={e => setNewContact({...newContact, do_not_contact: e.target.checked})} />
+                  <span style={{ fontWeight: 600, color: 'var(--danger)' }}>Do Not Contact (DNC)</span>
+                </label>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '1rem' }}>
+              <button type="button" className="btn cv-btn-subtle" onClick={() => { setShowContactForm(false); setEditingContact(null); }}>Cancel</button>
+              <button type="submit" className="btn btn-primary">Save Contact</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showCommercialForm && (
+        <div className="cv-panel animate-fade-in" style={{ padding: '2rem', marginBottom: '2rem', borderLeft: '4px solid var(--warning)' }}>
+          <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Edit Commercial Profile</h3>
+          <form onSubmit={handleSaveCommercial} style={{ display: 'grid', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              <div>
+                <label>Customer Type</label>
+                <select value={newCommercial.customer_type} onChange={e => setNewCommercial({...newCommercial, customer_type: e.target.value})}>
+                  <option value="">Select Type...</option>
+                  <option value="Distributor">Distributor</option>
+                  <option value="Retailer">Retailer</option>
+                  <option value="Direct Consumer">Direct Consumer</option>
+                  <option value="Manufacturer">Manufacturer</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label>Product Interests</label>
+                <input type="text" value={newCommercial.product_interests} onChange={e => setNewCommercial({...newCommercial, product_interests: e.target.value})} placeholder="e.g. Premium Feed, Bulk Seeds" />
+              </div>
+            </div>
+            <div>
+              <label>Business Context / Scale</label>
+              <textarea rows="3" value={newCommercial.business_context} onChange={e => setNewCommercial({...newCommercial, business_context: e.target.value})} placeholder="Describe scale of operations, market presence, capacity..."></textarea>
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn cv-btn-subtle" onClick={() => setShowCommercialForm(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary">Save Profile</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showIssueForm && (
+        <div className="cv-panel animate-fade-in" style={{ padding: '2rem', marginBottom: '2rem', borderLeft: '4px solid var(--danger)' }}>
+          <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>{editingIssue ? 'Edit Service Issue' : 'Log Service Issue'}</h3>
+          <form onSubmit={handleSaveIssue} style={{ display: 'grid', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+              <div>
+                <label>Category</label>
+                <select value={newIssue.category} onChange={e => setNewIssue({...newIssue, category: e.target.value})}>
+                  <option>General Service</option>
+                  <option>Delivery</option>
+                  <option>Product Quality</option>
+                  <option>Billing</option>
+                </select>
+              </div>
+              <div>
+                <label>Priority</label>
+                <select value={newIssue.priority} onChange={e => setNewIssue({...newIssue, priority: e.target.value})}>
+                  <option>Low</option>
+                  <option>Normal</option>
+                  <option>High</option>
+                  <option>Critical</option>
+                </select>
+              </div>
+              <div>
+                <label>Status</label>
+                <select value={newIssue.status} onChange={e => setNewIssue({...newIssue, status: e.target.value})}>
+                  <option>Open</option>
+                  <option>In Progress</option>
+                  <option>Waiting</option>
+                  <option>Resolved</option>
+                  <option>Closed</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label>Description</label>
+              <textarea required rows="3" value={newIssue.description} onChange={e => setNewIssue({...newIssue, description: e.target.value})} placeholder="Describe the customer's issue..."></textarea>
+            </div>
+            {editingIssue && (
+               <div>
+                 <label>Resolution Notes</label>
+                 <textarea rows="3" value={newIssue.resolution_notes} onChange={e => setNewIssue({...newIssue, resolution_notes: e.target.value})} placeholder="How was this resolved?"></textarea>
+               </div>
+            )}
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn cv-btn-subtle" onClick={() => { setShowIssueForm(false); setEditingIssue(null); }}>Cancel</button>
+              <button type="submit" className="btn btn-primary">Save Issue</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showReviewForm && (
+        <div className="cv-panel animate-fade-in" style={{ padding: '2rem', marginBottom: '2rem', borderLeft: '4px solid var(--primary)' }}>
+          <h3 style={{ marginBottom: '1.5rem', fontSize: '1.25rem' }}>Account Review & Planning</h3>
+          <form onSubmit={handleSaveReview} style={{ display: 'grid', gap: '1.5rem' }}>
+            <div>
+              <label>Current Situation / Notes</label>
+              <textarea required rows="3" value={newReview.notes} onChange={e => setNewReview({...newReview, notes: e.target.value})} placeholder="Summarize the current state of the account..."></textarea>
+            </div>
+            <div>
+              <label>Next Actions / Priorities</label>
+              <textarea rows="3" value={newReview.next_actions} onChange={e => setNewReview({...newReview, next_actions: e.target.value})} placeholder="What needs to happen next?"></textarea>
+            </div>
+            <div>
+              <label>Schedule Next Review</label>
+              <input type="date" value={newReview.next_review_date} onChange={e => setNewReview({...newReview, next_review_date: e.target.value})} style={{ maxWidth: '200px' }} />
+            </div>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn cv-btn-subtle" onClick={() => setShowReviewForm(false)}>Cancel</button>
+              <button type="submit" className="btn btn-primary">Save Review</button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Segmented Tab Navigation */}
       <div className="cv-tabs">
-        <button className={`cv-tab ${activeTab==='details'?'active':''}`} onClick={() => setActiveTab('details')}>Profile Overview</button>
+        <button className={`cv-tab ${activeTab==='details'?'active':''}`} onClick={() => setActiveTab('details')}>Account 360</button>
         {!isLeadMode && userProfile?.role === 'Admin' && (
           <button className={`cv-tab ${activeTab==='financials'?'active':''}`} onClick={() => setActiveTab('financials')}>Financial Intel</button>
         )}
@@ -583,90 +885,319 @@ Please contact this customer and update Contact Information in CRM.`;
           Follow-ups <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{followUps.length}</span>
         </button>
         {!isLeadMode && (
+          <button className={`cv-tab ${activeTab==='issues'?'active':''}`} onClick={() => setActiveTab('issues')}>
+            Service Issues <span style={{ marginLeft: '0.25rem', opacity: 0.6, color: issues.some(i => i.status !== 'Resolved' && i.status !== 'Closed') ? 'var(--danger)' : 'inherit' }}>{issues.length}</span>
+          </button>
+        )}
+        {!isLeadMode && (
           <button className={`cv-tab ${activeTab==='activity'?'active':''}`} onClick={() => setActiveTab('activity')}>
-            Activity <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{interactions.length}</span>
+            Timeline <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{timelineEvents.length}</span>
           </button>
         )}
       </div>
 
       {/* Tab Content Areas */}
       
-      {/* 1. PROFILE DETAILS */}
+      {/* 1. ACCOUNT 360 */}
       {activeTab === 'details' && (
         <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
           
+          {/* Relationship Health */}
+          <div className="cv-panel" style={{ gridColumn: '1 / -1', borderLeft: customer.health_status === 'Healthy' ? '4px solid var(--success)' : customer.health_status === 'At Risk' ? '4px solid var(--danger)' : '4px solid var(--text-muted)' }}>
+             <div style={{ padding: '1.5rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Activity size={18} className={customer.health_status === 'Healthy' ? 'text-success' : customer.health_status === 'At Risk' ? 'text-danger' : 'text-muted'} />
+                    Relationship Health: <span className={customer.health_status === 'Healthy' ? 'text-success' : customer.health_status === 'At Risk' ? 'text-danger' : 'text-muted'}>{customer.health_status || 'Unknown'}</span>
+                  </h3>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>{customer.health_reason}</div>
+                  <div style={{ marginTop: '1rem' }}>
+                    <button onClick={() => setShowReviewForm(true)} className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>Conduct Account Review</button>
+                  </div>
+                </div>
+                {customer.risk_factors && customer.risk_factors.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: '1 1 300px' }}>
+                    <strong style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Explicit Risk Factors</strong>
+                    {customer.risk_factors.map((rf, i) => (
+                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-primary)', padding: '0.5rem 0.75rem', backgroundColor: 'rgba(255,0,0,0.05)', borderRadius: 'var(--radius-sm)' }}>
+                         <AlertTriangle size={14} className="text-danger" /> {rf}
+                       </div>
+                    ))}
+                  </div>
+                )}
+             </div>
+          </div>
+          
+          {accountReviews.length > 0 && (
+            <div className="cv-panel" style={{ gridColumn: '1 / -1', padding: '1.5rem 2rem', backgroundColor: 'rgba(0,102,255,0.02)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                 <div>
+                   <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+                     <FileText size={16} className="text-primary" /> Latest Account Review
+                   </h3>
+                   <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                     Conducted on: {new Date(accountReviews[0].review_date).toLocaleDateString()}
+                   </div>
+                 </div>
+                 {accountReviews[0].next_review_date && (
+                   <div style={{ textAlign: 'right' }}>
+                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Next Review Scheduled</div>
+                     <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{new Date(accountReviews[0].next_review_date).toLocaleDateString()}</div>
+                   </div>
+                 )}
+              </div>
+              <div style={{ marginTop: '1rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                <div>
+                  <strong style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Situation</strong>
+                  <p style={{ marginTop: '0.25rem', fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 }}>{accountReviews[0].notes}</p>
+                </div>
+                {accountReviews[0].next_actions && (
+                  <div>
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Priorities / Next Actions</strong>
+                    <p style={{ marginTop: '0.25rem', fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', margin: 0 }}>{accountReviews[0].next_actions}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
           <div className="cv-panel" style={{ padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Info size={18} className="text-muted" /> Contact Information
+              <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <Info size={18} className="text-muted" /> Contacts & Relationships
               </h3>
-              <Link to={isLeadMode ? `/leads/${customer.id}/edit` : `/customers/${customer.id}/edit`} className="btn cv-btn-subtle" style={{ padding: '0.375rem 0.75rem', fontSize: '0.85rem' }}>
-                <Edit2 size={14} /> Edit
-              </Link>
+              <button onClick={() => { setEditingContact(null); setNewContact({ name: '', role: 'Purchase Contact', mobile: '', whatsapp: '', email: '', preferred_channel: 'Call', do_not_contact: false }); setShowContactForm(true); }} className="btn cv-btn-subtle" style={{ padding: '0.375rem 0.75rem', fontSize: '0.85rem' }}>
+                <Plus size={14} /> Add Contact
+              </button>
             </div>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Mobile Number</div>
-                <div style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.mobile || <span className="text-muted italic">Not provided</span>}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Assigned Owner</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span className="badge badge-neutral" style={{fontSize: '0.85rem', padding: '0.25rem 0.5rem', fontWeight: 500}}>{customer.owner_name || 'Unassigned'}</span>
-                  {customer.assigned_owner_id && (
-                    <button 
-                      onClick={handleManualAssignmentWhatsApp}
-                      className="btn" 
-                      style={{ 
-                        padding: '0.25rem 0.75rem', 
-                        fontSize: '0.75rem', 
-                        background: customer.owner_whatsapp ? 'var(--success)' : 'var(--bg-surface-hover)', 
-                        color: customer.owner_whatsapp ? 'white' : 'var(--text-muted)',
-                        cursor: customer.owner_whatsapp ? 'pointer' : 'not-allowed',
-                        display: 'flex', alignItems: 'center', gap: '0.25rem'
-                      }}
-                      title={customer.owner_whatsapp ? "Send WhatsApp to Owner" : "Owner WhatsApp not available"}
-                    >
-                      <MessageCircle size={14} /> 
-                      Send Assignment WhatsApp
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>WhatsApp Number</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <span style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.whatsapp || <span className="text-muted italic">Not provided</span>}</span>
-                  {!isLeadMode && customer.whatsapp && <WhatsAppAction party={customer} onComplete={fetchCustomerContext} btnClass="badge badge-active" />}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Preferred Method</div>
-                <div style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.communication_preference}</div>
-              </div>
-              
-              {isLeadMode && (
-                <div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Lead Source</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.lead_source || <span className="text-muted italic">Unknown</span>}</div>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {contacts.length === 0 ? (
+                <div className="text-muted italic" style={{ fontSize: '0.9rem' }}>No contacts saved yet.</div>
+              ) : (
+                contacts.map(c => (
+                  <div key={c.id} style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {c.name}
+                          {c.do_not_contact && <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>DNC</span>}
+                          {!c.is_active && <span className="badge badge-dormant" style={{ fontSize: '0.65rem' }}>Inactive</span>}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{c.role}</div>
+                      </div>
+                      <button onClick={() => handleEditContact(c)} className="cv-btn-subtle" style={{ border: 'none', background: 'none', padding: '0.25rem' }}>
+                        <Edit2 size={14} className="text-muted" />
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.9rem' }}>
+                      {c.mobile && <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span className="text-muted">Mobile:</span> 
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                           <span>{c.mobile}</span>
+                           {!c.do_not_contact && c.is_active && <CallAction party={{mobile: c.mobile}} onComplete={fetchCustomerContext} btnClass="badge badge-neutral" />}
+                        </div>
+                      </div>}
+                      {c.whatsapp && <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span className="text-muted">WhatsApp:</span> 
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span>{c.whatsapp}</span>
+                          {!c.do_not_contact && c.is_active && <WhatsAppAction party={{whatsapp: c.whatsapp, display_name: c.name}} onComplete={fetchCustomerContext} btnClass="badge badge-active" />}
+                        </div>
+                      </div>}
+                      {c.email && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-muted">Email:</span> <span>{c.email}</span></div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="text-muted">Prefers:</span> <span>{c.preferred_channel}</span></div>
+                    </div>
+                  </div>
+                ))
               )}
+            </div>
+
+            {/* Owner Section */}
+            <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px dashed var(--border)' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Assigned CRM Owner</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span className="badge badge-neutral" style={{fontSize: '0.85rem', padding: '0.25rem 0.5rem', fontWeight: 500}}>{customer.owner_name || 'Unassigned'}</span>
+                {customer.assigned_owner_id && (
+                  <button 
+                    onClick={handleManualAssignmentWhatsApp}
+                    className="btn" 
+                    style={{ 
+                      padding: '0.25rem 0.75rem', 
+                      fontSize: '0.75rem', 
+                      background: customer.owner_whatsapp ? 'var(--success)' : 'var(--bg-surface-hover)', 
+                      color: customer.owner_whatsapp ? 'white' : 'var(--text-muted)',
+                      cursor: customer.owner_whatsapp ? 'pointer' : 'not-allowed',
+                      display: 'flex', alignItems: 'center', gap: '0.25rem'
+                    }}
+                    title={customer.owner_whatsapp ? "Send WhatsApp to Owner" : "Owner WhatsApp not available"}
+                  >
+                    <MessageCircle size={14} /> Send WhatsApp
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {isLeadMode && (
+              <div style={{ marginTop: '1rem' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Lead Source</div>
+                <div style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.lead_source || <span className="text-muted italic">Unknown</span>}</div>
+              </div>
+            )}
+          </div>
+
+          {!isLeadMode && (
+            <div className="cv-panel" style={{ padding: '2rem', borderTop: '4px solid var(--warning)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <Target size={18} className="text-warning" /> Commercial Profile
+                </h3>
+                <button onClick={handleEditCommercial} className="btn cv-btn-subtle" style={{ padding: '0.375rem 0.75rem', fontSize: '0.85rem' }}>
+                  <Edit2 size={14} /> Edit
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                 <div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Customer Type</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.customer_type || <span className="text-muted italic">Not specified</span>}</div>
+                 </div>
+                 <div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Product Interests</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 500 }}>{customer.product_interests || <span className="text-muted italic">Not specified</span>}</div>
+                 </div>
+                 <div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Business Context</div>
+                    {customer.business_context ? (
+                      <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.5, color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{customer.business_context}</p>
+                    ) : (
+                      <div className="text-muted italic" style={{ fontSize: '0.95rem' }}>Not specified</div>
+                    )}
+                 </div>
+              </div>
+            </div>
+          )}
+
+          {!isLeadMode && userProfile?.role === 'Admin' && tallyTxns.length > 0 && (
+            <div className="cv-panel" style={{ padding: '2rem', borderTop: '4px solid var(--success)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <DollarSign size={18} className="text-success" /> Tally Relationship
+                </h3>
+                <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>Synced</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                 <div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Ledger Balance (Net)</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
+                      {(() => {
+                         const debits = tallyTxns.filter(t => !t.is_credit).reduce((sum, t) => sum + Number(t.amount), 0);
+                         const credits = tallyTxns.filter(t => t.is_credit).reduce((sum, t) => sum + Number(t.amount), 0);
+                         const net = debits - credits;
+                         return `${net > 0 ? 'Dr. ₹' : net < 0 ? 'Cr. ₹' : '₹'}${Math.abs(net).toLocaleString()}`;
+                      })()}
+                    </div>
+                 </div>
+                 <div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Last Invoice Date</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 500 }}>
+                      {(() => {
+                        const sales = tallyTxns.filter(t => t.voucher_type.toLowerCase().includes('sale') && Number(t.amount) > 0);
+                        return sales.length > 0 ? new Date(sales[0].voucher_date).toLocaleDateString() : 'N/A';
+                      })()}
+                    </div>
+                 </div>
+                 <button onClick={() => setActiveTab('financials')} className="btn cv-btn-subtle" style={{ marginTop: 'auto' }}>View Full Ledger &rarr;</button>
+              </div>
+            </div>
+          )}
+
+          {!isLeadMode && (
+            <div className="cv-panel" style={{ padding: '2rem', borderTop: '4px solid var(--warning)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <Target size={18} className="text-warning" /> Active Pipeline
+                </h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {requirements.filter(r => !['Closed', 'Lost', 'Confirmed'].includes(r.status)).slice(0,3).map(req => (
+                  <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{req.product_type}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{req.quantity} {req.unit}</div>
+                    </div>
+                    <span className="badge badge-active" style={{ fontSize: '0.7rem', height: 'fit-content' }}>{req.status}</span>
+                  </div>
+                ))}
+                {requirements.filter(r => !['Closed', 'Lost', 'Confirmed'].includes(r.status)).length === 0 && (
+                   <span className="text-muted italic" style={{ fontSize: '0.9rem' }}>No active requirements.</span>
+                )}
+                <button onClick={() => setActiveTab('requirements')} className="btn cv-btn-subtle" style={{ marginTop: '0.5rem' }}>View All ({requirements.length}) &rarr;</button>
+              </div>
+            </div>
+          )}
+
+          <div className="cv-panel" style={{ padding: '2rem', borderTop: '4px solid var(--primary)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <Calendar size={18} className="text-primary" /> Pending Tasks
+              </h3>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {followUps.filter(f => f.status === 'Pending').slice(0,3).map(f => (
+                <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{f.reason}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--danger)' }}>Due: {new Date(f.follow_up_date).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              ))}
+              {followUps.filter(f => f.status === 'Pending').length === 0 && (
+                 <span className="text-muted italic" style={{ fontSize: '0.9rem' }}>No pending tasks.</span>
+              )}
+              <button onClick={() => setActiveTab('followups')} className="btn cv-btn-subtle" style={{ marginTop: '0.5rem' }}>Manage Tasks ({followUps.length}) &rarr;</button>
             </div>
           </div>
 
-          <div className="cv-panel" style={{ padding: '2rem' }}>
+          {!isLeadMode && (
+            <div className="cv-panel" style={{ padding: '2rem', borderTop: '4px solid var(--success)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <MessageCircle size={18} className="text-success" /> Recent Timeline
+                </h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {timelineEvents.slice(0,3).map((i, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                    <div>
+                      <div style={{ fontWeight: 500, fontSize: '0.95rem' }}>
+                        {i.is_tally && <DollarSign size={12} className="text-success" style={{ marginRight: '0.25rem' }} />}
+                        {i.title} <span style={{ color: 'var(--text-secondary)', fontWeight: 400, marginLeft: '0.25rem' }}>- {new Date(i.event_date).toLocaleDateString()}</span>
+                      </div>
+                      {i.description && <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{i.description}</div>}
+                    </div>
+                    <span className={`badge ${i.is_tally ? 'badge-success' : 'badge-neutral'}`} style={{ fontSize: '0.65rem', height: 'fit-content' }}>{i.event_type}</span>
+                  </div>
+                ))}
+                {timelineEvents.length === 0 && (
+                   <span className="text-muted italic" style={{ fontSize: '0.9rem' }}>No recent events.</span>
+                )}
+                <button onClick={() => setActiveTab('activity')} className="btn cv-btn-subtle" style={{ marginTop: '0.5rem' }}>View Timeline ({timelineEvents.length}) &rarr;</button>
+              </div>
+            </div>
+          )}
+
+          <div className="cv-panel" style={{ padding: '2rem', gridColumn: '1 / -1' }}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <ShieldAlert size={18} className="text-muted" /> Internal Notes
             </h3>
             {customer.notes ? (
-              <p style={{ color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{customer.notes}</p>
+              <p style={{ color: 'var(--text-primary)', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>{customer.notes}</p>
             ) : (
               <div className="text-muted italic" style={{ fontSize: '0.95rem' }}>No internal notes saved for this customer.</div>
             )}
           </div>
           
-          <div style={{ gridColumn: '1 / -1', marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ gridColumn: '1 / -1', marginTop: '1rem', paddingTop: '2rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
             <button onClick={handleDelete} className="cv-delete-btn" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'none', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }}>
               <Trash2 size={16} /> {isLeadMode ? 'Delete Lead' : 'Delete Customer Record'}
             </button>
@@ -861,30 +1392,82 @@ Please contact this customer and update Contact Information in CRM.`;
         </div>
       )}
 
-      {/* 5. ACTIVITY */}
+      {/* 4b. ISSUES */}
+      {activeTab === 'issues' && (
+        <div className="animate-fade-in">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>
+             <button onClick={() => setShowIssueForm(true)} className="btn btn-primary">Log New Issue</button>
+          </div>
+          {issues.length === 0 ? (
+            <div className="cv-empty">
+              <ShieldAlert size={48} className="empty-state-icon text-success" style={{ opacity: 0.5 }} />
+              <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No Service Issues</h3>
+              <p className="text-secondary" style={{ maxWidth: '400px', margin: '0 auto 1.5rem' }}>This customer has a clean record. No active complaints or service gaps.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {issues.map(issue => (
+                <div key={issue.id} className="cv-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderLeft: (issue.status === 'Resolved' || issue.status === 'Closed') ? '4px solid var(--success)' : '4px solid var(--danger)' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {issue.category} 
+                      <span className={`badge ${issue.priority === 'Critical' ? 'badge-danger' : 'badge-neutral'}`}>{issue.priority}</span>
+                      <span className={`badge ${['Resolved', 'Closed'].includes(issue.status) ? 'badge-success' : 'badge-active'}`}>{issue.status}</span>
+                    </div>
+                    <div style={{ color: 'var(--text-primary)', fontSize: '0.95rem', marginBottom: '0.5rem', whiteSpace: 'pre-wrap' }}>
+                      {issue.description}
+                    </div>
+                    {issue.resolution_notes && (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.5rem', padding: '0.75rem', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 'var(--radius-sm)' }}>
+                        <strong>Resolution:</strong> {issue.resolution_notes}
+                      </div>
+                    )}
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
+                      Logged: {new Date(issue.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div>
+                    <button className="btn cv-btn-subtle" onClick={() => handleEditIssue(issue)} style={{ padding: '0.5rem', fontSize: '0.85rem' }}>
+                      <Edit2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 5. TIMELINE */}
       {activeTab === 'activity' && (
         <div className="animate-fade-in">
-          {interactions.length === 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>
+            <button onClick={() => setShowInteractionForm(true)} className="btn btn-primary">Log Interaction</button>
+          </div>
+          {timelineEvents.length === 0 ? (
             <div className="cv-empty">
               <MessageCircle size={48} className="empty-state-icon" style={{ opacity: 0.5 }} />
-              <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No Activity History</h3>
-              <p className="text-secondary" style={{ maxWidth: '400px', margin: '0 auto 1.5rem' }}>Keep track of every conversation, meeting, and email to maintain context.</p>
-              <button onClick={() => setShowInteractionForm(true)} className="btn btn-primary">Log First Interaction</button>
+              <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No Timeline History</h3>
+              <p className="text-secondary" style={{ maxWidth: '400px', margin: '0 auto 1.5rem' }}>Keep track of every conversation, meeting, transaction, and email to maintain context.</p>
             </div>
           ) : (
             <div className="cv-panel" style={{ padding: '2rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-                {interactions.map((i, idx) => (
-                  <div key={i.id} style={{ display: 'flex', gap: '1.5rem', position: 'relative', paddingBottom: idx === interactions.length-1 ? 0 : '2rem' }}>
-                    {idx !== interactions.length-1 && <div style={{ position: 'absolute', left: '6px', top: '24px', bottom: 0, width: '2px', backgroundColor: 'var(--border)' }}></div>}
-                    <div style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: 'var(--bg-surface)', border: '2px solid var(--primary)', marginTop: '4px', zIndex: 1, flexShrink: 0 }}></div>
-                    <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.02)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+                {timelineEvents.map((i, idx) => (
+                  <div key={`${i.source_id}-${i.event_type}`} style={{ display: 'flex', gap: '1.5rem', position: 'relative', paddingBottom: idx === timelineEvents.length-1 ? 0 : '2rem' }}>
+                    {idx !== timelineEvents.length-1 && <div style={{ position: 'absolute', left: '6px', top: '24px', bottom: 0, width: '2px', backgroundColor: 'var(--border)' }}></div>}
+                    <div style={{ width: '14px', height: '14px', borderRadius: '50%', backgroundColor: 'var(--bg-surface)', border: `2px solid ${i.is_tally ? 'var(--success)' : 'var(--primary)'}`, marginTop: '4px', zIndex: 1, flexShrink: 0 }}></div>
+                    <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.02)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: `1px solid ${i.is_tally ? 'rgba(0, 255, 0, 0.1)' : 'var(--border)'}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                        <div style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{i.channel}</div>
-                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(i.created_at).toLocaleString()}</div>
+                        <div style={{ fontWeight: 600, fontSize: '1.05rem', color: i.is_tally ? 'var(--success)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {i.is_tally && <DollarSign size={14} />} {i.title}
+                        </div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{new Date(i.event_date).toLocaleString()}</div>
                       </div>
-                      {i.outcome && <div style={{ fontWeight: 500, marginBottom: i.note ? '0.75rem' : 0 }}>{i.outcome}</div>}
-                      {i.note && <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{i.note}</div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                         {i.description && <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{i.description}</div>}
+                         <span className={`badge ${i.is_tally ? 'badge-success' : 'badge-neutral'}`} style={{ fontSize: '0.7rem' }}>{i.event_type}</span>
+                      </div>
                     </div>
                   </div>
                 ))}
