@@ -1,11 +1,12 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map, Zap } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../lib/activityLogger';
 import { AlertTriangle } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 const navItems = [
   { path: '/', label: 'Today', icon: LayoutDashboard },
@@ -29,6 +30,7 @@ const navItems = [
   { path: '/account-control', label: 'Account Control', icon: ShieldAlert },
   { path: '/dealer-control', label: 'Dealer Control', icon: Map },
   { path: '/coverage', label: 'Coverage Gaps', icon: Map },
+  { path: '/automation-control', label: 'Automation Control', icon: Zap },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -63,7 +65,7 @@ export default function AppShell() {
         </div>
         <nav className="sidebar-nav">
           {navItems.map((item) => {
-            if (['/data', '/data/quality', '/control-room', '/account-control', '/dealer-control'].includes(item.path) && userProfile?.role !== 'Admin') return null;
+            if (['/data', '/data/quality', '/control-room', '/account-control', '/dealer-control', '/automation-control'].includes(item.path) && userProfile?.role !== 'Admin') return null;
             const Icon = item.icon;
             return (
               <NavLink
@@ -91,6 +93,7 @@ export default function AppShell() {
           </button>
           
           <div style={{marginLeft: 'auto', display: 'flex', gap: '1rem', alignItems: 'center'}}>
+             <NotificationBell />
              <button 
                className="btn-icon" 
                style={{display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', fontWeight: 600}} 

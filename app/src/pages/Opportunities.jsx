@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { supabase } from '../lib/supabase';
 import { Link } from 'react-router-dom';
 import { Target, Search, ChevronRight, CheckCircle2, MessageCircle, Phone, ArrowUpRight } from 'lucide-react';
+import AlertsPanel from '../components/AlertsPanel';
 import { AuthContext } from '../AuthContext';
 import CallAction from '../components/CallAction';
 import WhatsAppAction from '../components/WhatsAppAction';
@@ -95,6 +96,8 @@ export default function Opportunities() {
           </p>
         </div>
       </div>
+
+      <AlertsPanel />
 
       <div style={{display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap'}}>
         <div style={{flex: 1, minWidth: '250px', position: 'relative'}}>

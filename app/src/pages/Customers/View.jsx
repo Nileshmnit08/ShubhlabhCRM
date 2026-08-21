@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Edit2, MapPin, Phone, MessageCircle, Trash2, ShieldAlert, Calendar, Plus, CheckCircle2, Target, Info, DollarSign, Activity } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
+import AlertsPanel from '../../components/AlertsPanel';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import CallAction from '../../components/CallAction';
 import { logActivity } from '../../lib/activityLogger';
@@ -622,6 +623,8 @@ Please contact this customer and update Contact Information in CRM.`;
           </button>
         </div>
       </div>
+      
+      <AlertsPanel entityId={id} />
 
       {/* Reactivation Banner */}
       {reactivationOpp && (

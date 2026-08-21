@@ -10,6 +10,8 @@ import {
 import WhatsAppAction from '../components/WhatsAppAction';
 import CallAction from '../components/CallAction';
 import ScheduleAction from '../components/ScheduleAction';
+import AlertsPanel from '../components/AlertsPanel';
+import CommunicationDraftsPanel from '../components/CommunicationDraftsPanel';
 
 export default function Today() {
   const { userProfile } = useContext(AuthContext);
@@ -469,6 +471,9 @@ export default function Today() {
           </div>
         </div>
       </div>
+
+      <AlertsPanel />
+      <CommunicationDraftsPanel />
 
       {/* 2. KPI Summary Row */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>

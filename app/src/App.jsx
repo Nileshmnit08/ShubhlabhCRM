@@ -15,6 +15,7 @@ import Opportunities from './pages/Opportunities';
 import RequirementList from './pages/Requirements/List';
 import RequirementView from './pages/Requirements/View';
 import RequirementForm from './pages/Requirements/Form';
+import AutomationControl from './pages/AutomationControl';
 
 import DataImport from './pages/Data/Import';
 import ReviewQueue from './pages/Data/Review';
@@ -245,6 +246,7 @@ function App() {
               <Route path="territory-demand" element={<TerritoryDemand />} />
               <Route path="demand-control-tower" element={<DemandControlTower />} />
               <Route path="coverage" element={<CoverageIntelligence />} />
+              <Route path="automation-control" element={<AutomationControl />} />
               <Route path="settings" element={<Settings />} />
               
               <Route path="*" element={<Navigate to="/" replace />} />
