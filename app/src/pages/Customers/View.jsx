@@ -22,11 +22,13 @@ export default function CustomerView({ isLeadMode = false }) {
   const [requirements, setRequirements] = useState([]);
   const [tallyTxns, setTallyTxns] = useState([]);
   const [sequences, setSequences] = useState([]);
+  const [reactivationOpp, setReactivationOpp] = useState(null);
+  const [retentionOpp, setRetentionOpp] = useState(null);
   
   // Forms
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
-  const [newFollowUp, setNewFollowUp] = useState({ reason: '', follow_up_date: '', priority: 'Normal', notes: '', sequence_id: '' });
+  const [newFollowUp, setNewFollowUp] = useState({ reason: '', follow_up_date: '', priority: 'Normal', notes: '', sequence_id: '', follow_up_type: isLeadMode ? 'Lead' : 'General' });
 
   const [showInteractionForm, setShowInteractionForm] = useState(false);
   const [newInteraction, setNewInteraction] = useState({ channel: 'Call', outcome: '', note: '' });
@@ -65,8 +67,15 @@ export default function CustomerView({ isLeadMode = false }) {
       const { data: tData } = await supabase.from('tally_transactions').select('*').eq('crm_party_id', id).order('voucher_date', { ascending: false });
       setTallyTxns(tData || []);
 
-      const { data: seqData } = await supabase.from('crm_sequences').select('*').eq('is_active', true);
-      setSequences(seqData || []);
+      const { data: oppsData } = await supabase.from('v_customer_opportunities')
+        .select('*')
+        .eq('party_id', id)
+        .in('opportunity_type', ['Reactivation', 'Purchase Gap', 'Onboarding Gap']);
+      
+      if (oppsData) {
+        setReactivationOpp(oppsData.find(o => o.opportunity_type === 'Reactivation') || null);
+        setRetentionOpp(oppsData.find(o => o.opportunity_type === 'Purchase Gap' || o.opportunity_type === 'Onboarding Gap') || null);
+      }
     } catch (error) {
       console.error('Error fetching customer context:', error);
     } finally {
@@ -131,7 +140,7 @@ Please contact this customer and update Contact Information in CRM.`;
         original_follow_up_date: newFollowUp.follow_up_date,
         created_by: session?.session?.user?.id || null,
         assigned_to: session?.session?.user?.id || null,
-        follow_up_type: isLeadMode ? 'Lead' : 'General',
+        follow_up_type: newFollowUp.follow_up_type || (isLeadMode ? 'Lead' : 'General'),
         reason: newFollowUp.reason,
         follow_up_date: newFollowUp.follow_up_date,
         priority: newFollowUp.priority,
@@ -158,7 +167,7 @@ Please contact this customer and update Contact Information in CRM.`;
       if (error) throw error;
       setFollowUps([...followUps, data[0]].sort((a,b) => new Date(a.follow_up_date) - new Date(b.follow_up_date)));
       setShowFollowUpForm(false);
-      setNewFollowUp({ reason: '', follow_up_date: '', priority: 'Normal', notes: '', sequence_id: '' });
+      setNewFollowUp({ reason: '', follow_up_date: '', priority: 'Normal', notes: '', sequence_id: '', follow_up_type: isLeadMode ? 'Lead' : 'General' });
     } catch (err) {
       alert("Failed to schedule follow-up");
     }
@@ -359,11 +368,47 @@ Please contact this customer and update Contact Information in CRM.`;
                Convert to Customer
              </button>
           )}
-          <button className="btn cv-btn-subtle" onClick={() => setShowFollowUpForm(true)}>
+          <button className="btn cv-btn-subtle" onClick={() => { setNewFollowUp({...newFollowUp, follow_up_type: isLeadMode ? 'Lead' : 'General', reason: ''}); setShowFollowUpForm(true); }}>
             <Calendar size={16} /> Follow-up
           </button>
         </div>
       </div>
+
+      {/* Reactivation Banner */}
+      {reactivationOpp && (
+        <div className="cv-panel animate-fade-in" style={{ padding: '1.5rem', marginBottom: '2rem', border: '1px solid var(--primary)', backgroundColor: 'var(--primary-light)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: 'var(--primary)' }}>Reactivation Opportunity</h3>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{reactivationOpp.evidence}</p>
+            </div>
+            <button className="btn btn-primary" onClick={() => {
+              setNewFollowUp({...newFollowUp, follow_up_type: 'Reactivation', reason: 'Reactivation Outreach'});
+              setShowFollowUpForm(true);
+            }}>
+              Start Reactivation Workflow
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Retention Banner */}
+      {retentionOpp && (
+        <div className="cv-panel animate-fade-in" style={{ padding: '1.5rem', marginBottom: '2rem', border: '1px solid var(--warning)', backgroundColor: 'var(--warning-light)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.5rem 0', color: 'var(--warning)' }}>Retention & Repeat-Buy: {retentionOpp.opportunity_type}</h3>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{retentionOpp.evidence}</p>
+            </div>
+            <button className="btn btn-secondary" style={{ backgroundColor: 'white', color: 'var(--warning)', borderColor: 'var(--warning)' }} onClick={() => {
+              setNewFollowUp({...newFollowUp, follow_up_type: 'Retention', reason: 'Repeat-Buy / Restock Check'});
+              setShowFollowUpForm(true);
+            }}>
+              Start Retention Workflow
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       {!isLeadMode && (

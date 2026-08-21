@@ -27,6 +27,7 @@ import FollowUpList from './pages/FollowUps/List';
 import FollowUpForm from './pages/FollowUps/Form';
 import ActivityTimeline from './pages/Activity/Timeline';
 import ControlRoom from './pages/ControlRoom';
+import Performance from './pages/Performance';
 import Settings from './pages/Settings';
 
 // Placeholders for other routes
@@ -226,6 +227,7 @@ function App() {
               </Route>
               
               <Route path="activity" element={<ActivityTimeline />} />
+              <Route path="performance" element={<Performance />} />
               <Route path="control-room" element={<ControlRoom />} />
               <Route path="settings" element={<Settings />} />
               

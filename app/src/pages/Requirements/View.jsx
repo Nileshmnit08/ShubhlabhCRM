@@ -6,8 +6,28 @@ import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 
 const STATUS_OPTIONS = [
-  'New', 'Quotation Required', 'Quotation Sent', 'Negotiation', 'Confirmed', 'Lost', 'Closed'
+  'Identified', 'Engaged', 'Qualified', 'Commercial Intent', 'Won', 'Lost', 'On Hold'
 ];
+
+const VALID_TRANSITIONS = {
+  'Identified': ['Engaged', 'Lost', 'On Hold'],
+  'Engaged': ['Qualified', 'Lost', 'On Hold'],
+  'Qualified': ['Commercial Intent', 'Lost', 'On Hold'],
+  'Commercial Intent': ['Won', 'Lost', 'On Hold'],
+  'On Hold': ['Engaged', 'Qualified', 'Lost'],
+  'Won': [],
+  'Lost': ['Identified', 'Engaged']
+};
+
+const NEXT_ACTION_DESC = {
+  'Identified': 'Next Step: Contact customer and discuss requirement.',
+  'Engaged': 'Next Step: Verify requirement feasibility and qualify lead.',
+  'Qualified': 'Next Step: Negotiate pricing, quantity, and terms.',
+  'Commercial Intent': 'Next Step: Close the deal and convert to Won.',
+  'On Hold': 'Waiting for unblock.',
+  'Won': 'Deal successfully closed (financial tracking happens in Tally).',
+  'Lost': 'Deal went to competitor or was abandoned.'
+};
 
 export default function RequirementView() {
   const { id } = useParams();
@@ -60,6 +80,17 @@ export default function RequirementView() {
       if (hErr) throw hErr;
       setHistory(hData || []);
 
+      // 3. Fetch recent Tally evidence
+      const { data: tData } = await supabase
+        .from('tally_transactions')
+        .select('*')
+        .in('voucher_type', ['Sales', 'Receipt', 'Sales Order'])
+        .eq('crm_party_id', rData.party_id)
+        .order('date', { ascending: false })
+        .limit(3);
+      
+      setReq(prev => ({ ...prev, tally_transactions: tData || [] }));
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -69,6 +100,20 @@ export default function RequirementView() {
 
   const handleUpdateStatus = async () => {
     if (newStatus === req.status) return;
+
+    // Validate Transition logic
+    const allowed = VALID_TRANSITIONS[req.status] || STATUS_OPTIONS; // Fallback if legacy status
+    if (!allowed.includes(newStatus) && req.status !== 'New' && !req.status.includes('Quotation')) {
+       const proceed = window.confirm(`Warning: Moving from ${req.status} directly to ${newStatus} skips standard pipeline steps. Are you sure you want to force this transition?`);
+       if (!proceed) return;
+    }
+
+    // Require evidence for major transitions
+    if (['Won', 'Lost', 'On Hold', 'Commercial Intent'].includes(newStatus) && !statusNote.trim()) {
+      alert(`Evidence/Note is strictly required to transition to ${newStatus}. Please provide details.`);
+      return;
+    }
+
     setStatusUpdating(true);
     
     try {
@@ -106,8 +151,8 @@ export default function RequirementView() {
         reason: fuReason || `Follow up on ${req.product_type} requirement`,
         follow_up_date: fuDate,
         due_at: fuDate,
-        follow_up_type: 'General',
-        priority: 'Normal',
+        follow_up_type: req.status === 'Commercial Intent' || req.intent_type?.includes('Order') || req.intent_type?.includes('Quotation') ? 'Commercial' : 'General',
+        priority: req.status === 'Commercial Intent' ? 'High' : 'Normal',
         notes: `Linked to Requirement: ${req.quantity} ${req.unit}`,
         status: 'Pending'
       });
@@ -132,7 +177,7 @@ export default function RequirementView() {
             <h1 style={{margin: 0}}>{req.crm_parties?.display_name}</h1>
             <div className="text-secondary" style={{marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
               Requirement #{req.id.substring(0,8)} 
-              <span className={`badge ${req.status === 'Confirmed' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`}>
+              <span className={`badge ${req.status === 'Won' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`}>
                 {req.status}
               </span>
             </div>
@@ -155,7 +200,12 @@ export default function RequirementView() {
         
         {/* Requirement Details */}
         <div className="glass-panel" style={{padding: '1.5rem'}}>
-          <h3 style={{marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem'}}>Demand Details</h3>
+          <h3 style={{marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', display: 'flex', justifyContent: 'space-between'}}>
+            Demand Details
+            <span style={{fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 'normal', background: 'var(--warning-light)', padding: '0.2rem 0.5rem', borderRadius: '12px'}}>
+              *User Estimate (Not a Tally Order)*
+            </span>
+          </h3>
           <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
               <div>
@@ -163,14 +213,14 @@ export default function RequirementView() {
                 <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{req.product_type}</div>
               </div>
               <div>
-                <label className="text-muted" style={{fontSize: '0.85rem'}}>Quantity</label>
+                <label className="text-muted" style={{fontSize: '0.85rem'}}>Estimated Quantity</label>
                 <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{req.quantity} {req.unit}</div>
               </div>
             </div>
             
             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
               <div>
-                <label className="text-muted" style={{fontSize: '0.85rem'}}>Target Rate</label>
+                <label className="text-muted" style={{fontSize: '0.85rem'}}>Target Rate (Estimate)</label>
                 <div>{req.expected_rate ? `₹${req.expected_rate}` : 'Not specified'}</div>
               </div>
               <div>
@@ -181,8 +231,8 @@ export default function RequirementView() {
 
             <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
               <div>
-                <label className="text-muted" style={{fontSize: '0.85rem'}}>Priority</label>
-                <div>{req.priority || 'Normal'}</div>
+                <label className="text-muted" style={{fontSize: '0.85rem'}}>Commercial Intent</label>
+                <div>{req.intent_type || 'Product Interest'}</div>
               </div>
               <div>
                 <label className="text-muted" style={{fontSize: '0.85rem'}}>Owner</label>
@@ -201,7 +251,10 @@ export default function RequirementView() {
 
         {/* Update Status Panel */}
         <div className="glass-panel" style={{padding: '1.5rem', background: 'rgba(37, 99, 235, 0.05)', border: '1px solid rgba(37, 99, 235, 0.2)'}}>
-          <h3 style={{marginBottom: '1.25rem', color: 'var(--primary)'}}>Update Pipeline Status</h3>
+          <h3 style={{marginBottom: '0.5rem', color: 'var(--primary)'}}>Update Pipeline Status</h3>
+          <p className="text-secondary" style={{fontSize: '0.85rem', marginBottom: '1.25rem'}}>
+            {NEXT_ACTION_DESC[req.status] || 'Move the requirement through the pipeline.'}
+          </p>
           <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
             <div>
               <label style={{display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem'}}>Current Phase</label>
@@ -216,12 +269,14 @@ export default function RequirementView() {
             
             {newStatus !== req.status && (
               <div className="animate-fade-in">
-                <label style={{display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem'}}>Transition Note (Optional)</label>
+                <label style={{display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem'}}>
+                  Transition Note {['Won', 'Lost', 'On Hold', 'Commercial Intent'].includes(newStatus) ? <span className="text-danger">* (Required)</span> : '(Optional)'}
+                </label>
                 <textarea 
                   rows={2} 
                   value={statusNote}
                   onChange={e => setStatusNote(e.target.value)}
-                  placeholder="e.g. Sent quotation for ₹2400/bag"
+                  placeholder="e.g. Discussed pricing, moving to commercial intent"
                   style={{width: '100%', padding: '0.75rem', borderRadius: '6px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
                 />
                 <button 
@@ -257,6 +312,31 @@ export default function RequirementView() {
             <button type="button" className="btn btn-secondary" onClick={() => setShowFollowUp(false)}>Cancel</button>
           </form>
         </div>
+      )}
+
+      {/* Tally Confirmation Block */}
+      {req.tally_transactions && req.tally_transactions.length > 0 && (
+        <>
+          <h3 style={{marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--success)'}}>
+            <CheckCircle2 size={18} /> Tally Confirmed Transactions (Recent)
+          </h3>
+          <div className="glass-panel" style={{padding: '1.5rem', marginBottom: '2rem', border: '1px solid var(--success)'}}>
+             <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+               {req.tally_transactions.map(tx => (
+                 <div key={tx.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                    <div>
+                      <strong style={{color: 'var(--text-primary)'}}>{tx.voucher_type}</strong> 
+                      <span className="text-secondary" style={{marginLeft: '0.5rem'}}>#{tx.voucher_number}</span>
+                    </div>
+                    <div style={{display: 'flex', gap: '1rem'}}>
+                      <span className="text-secondary">{tx.date}</span>
+                      <strong style={{color: 'var(--success)'}}>₹{Number(tx.amount).toLocaleString('en-IN')}</strong>
+                    </div>
+                 </div>
+               ))}
+             </div>
+          </div>
+        </>
       )}
 
       {/* History Feed */}

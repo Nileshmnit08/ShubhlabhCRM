@@ -24,6 +24,24 @@ export default function FollowUpForm() {
          case 'Contacted': return { days: 'manual', reason: `${followUpType} Follow-up`, type: followUpType, priority: 'Normal' };
          default: return null;
        }
+    } else if (followUpType === 'Commercial') {
+       switch (outcome) {
+         case 'Quotation Sent': return { days: 2, reason: 'Follow-up on Quotation', type: 'Commercial', priority: 'High' };
+         case 'Order Intention Confirmed': return { days: 'manual', reason: 'Awaiting Tally Sync / Payment', type: 'Commercial', priority: 'High' };
+         case 'Delayed': return { days: 'manual', reason: 'Commercial Follow-up (Delayed)', type: 'Commercial', priority: 'Normal' };
+         case 'No response': return { days: 1, reason: 'Commercial Follow-up (No Response)', type: 'Commercial', priority: 'Normal' };
+         case 'Lost': return { days: 0, reason: null, type: 'Commercial', priority: 'Normal' }; // Terminal
+         default: return null;
+       }
+    } else if (followUpType === 'Retention') {
+       switch (outcome) {
+         case 'Order placed': return { days: 0, reason: null, type: 'Retention', priority: 'Normal' };
+         case 'Not ready yet': return { days: 15, reason: 'Follow-up on Restock', type: 'Retention', priority: 'Normal' };
+         case 'Follow-up later': return { days: 'manual', reason: 'Follow-up on Restock', type: 'Retention', priority: 'Normal' };
+         case 'No response': return { days: 1, reason: 'Retention Follow-up (No Response)', type: 'Retention', priority: 'Normal' };
+         case 'Lost to competitor': return { days: 0, reason: null, type: 'Retention', priority: 'Normal' };
+         default: return null;
+       }
     } else {
        switch (outcome) {
          case 'Sending payment today': return { days: 1, reason: 'Verify Payment Received', type: 'Payment', priority: 'Normal' };
@@ -114,7 +132,7 @@ export default function FollowUpForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if ((formData.follow_up_type === 'Payment' || formData.follow_up_type === 'Lead' || formData.follow_up_type === 'Reactivation') && formData.status === 'Completed' && !formData.outcome_category) {
+    if ((formData.follow_up_type === 'Payment' || formData.follow_up_type === 'Lead' || formData.follow_up_type === 'Reactivation' || formData.follow_up_type === 'Commercial' || formData.follow_up_type === 'Retention') && formData.status === 'Completed' && !formData.outcome_category) {
        alert("Please select an Outcome before completing the task.");
        return;
     }
@@ -279,8 +297,8 @@ export default function FollowUpForm() {
         }
       }
       
-      // ACTIVITY INTEGRATION (Micro-Sprint 9.6 / 10.4 / 10.8)
-      if (id && formData.status === 'Completed' && (formData.follow_up_type === 'Payment' || formData.follow_up_type === 'Lead' || formData.follow_up_type === 'Reactivation')) {
+      // ACTIVITY INTEGRATION (Micro-Sprint 9.6 / 10.4 / 10.8 / 15.4 / 15.6)
+      if (id && formData.status === 'Completed' && (formData.follow_up_type === 'Payment' || formData.follow_up_type === 'Lead' || formData.follow_up_type === 'Reactivation' || formData.follow_up_type === 'Commercial' || formData.follow_up_type === 'Retention')) {
         let interactionNote = formData.notes ? `Task Notes: ${formData.notes}` : '';
         if (config && config.reason) {
           interactionNote += (interactionNote ? '\n' : '') + `Next Action: ${config.reason}`;
@@ -303,8 +321,8 @@ export default function FollowUpForm() {
         const interactionPayload = {
           party_id: formData.party_id,
           user_id: session?.session?.user?.id || null,
-          channel: formData.follow_up_type === 'Lead' ? 'Lead Task' : (formData.follow_up_type === 'Reactivation' ? 'Reactivation Task' : 'Payment Task'),
-          interaction_type: formData.follow_up_type === 'Lead' ? 'Lead Follow-up Completed' : (formData.follow_up_type === 'Reactivation' ? 'Reactivation Follow-up Completed' : 'Payment Follow-up Completed'),
+          channel: formData.follow_up_type === 'Lead' ? 'Lead Task' : (formData.follow_up_type === 'Reactivation' ? 'Reactivation Task' : (formData.follow_up_type === 'Commercial' ? 'Commercial Task' : (formData.follow_up_type === 'Retention' ? 'Retention Task' : 'Payment Task'))),
+          interaction_type: formData.follow_up_type === 'Lead' ? 'Lead Follow-up Completed' : (formData.follow_up_type === 'Reactivation' ? 'Reactivation Follow-up Completed' : (formData.follow_up_type === 'Commercial' ? 'Commercial Follow-up Completed' : (formData.follow_up_type === 'Retention' ? 'Retention Follow-up Completed' : 'Payment Follow-up Completed'))),
           outcome: formData.outcome_category,
           note: interactionNote,
           next_action: config ? config.reason : null,
@@ -533,6 +551,72 @@ export default function FollowUpForm() {
                     <option value="Interested">Interested</option>
                     <option value="Call later">Call later</option>
                     <option value="Not interested">Not interested</option>
+                  </select>
+                </div>
+                {getNextActionConfig(formData.outcome_category, formData.follow_up_type)?.days === 'manual' && (
+                  <div style={{marginTop: '1rem'}}>
+                    <label>Next Follow-up Date (Required) *</label>
+                    <input 
+                      required 
+                      type="datetime-local" 
+                      value={manualNextDate} 
+                      onChange={e => setManualNextDate(e.target.value)}
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {formData.follow_up_type === 'Commercial' && formData.status === 'Completed' && (
+              <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'var(--primary-light)', padding: '1rem', borderRadius: '4px' }}>
+                <div>
+                  <label>Commercial Outcome (Required) *</label>
+                  <select 
+                    required 
+                    value={formData.outcome_category} 
+                    onChange={e => setFormData({...formData, outcome_category: e.target.value})}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
+                  >
+                    <option value="">-- Select Outcome --</option>
+                    <option value="Quotation Sent">Quotation Sent</option>
+                    <option value="Order Intention Confirmed">Order Intention Confirmed (Awaiting Tally)</option>
+                    <option value="Delayed">Delayed / Needs more time</option>
+                    <option value="No response">No response</option>
+                    <option value="Lost">Lost</option>
+                  </select>
+                </div>
+                {getNextActionConfig(formData.outcome_category, formData.follow_up_type)?.days === 'manual' && (
+                  <div style={{marginTop: '1rem'}}>
+                    <label>Next Follow-up Date (Required) *</label>
+                    <input 
+                      required 
+                      type="datetime-local" 
+                      value={manualNextDate} 
+                      onChange={e => setManualNextDate(e.target.value)}
+                      style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {formData.follow_up_type === 'Retention' && formData.status === 'Completed' && (
+              <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'var(--warning-light)', padding: '1rem', borderRadius: '4px' }}>
+                <div>
+                  <label>Retention Outcome (Required) *</label>
+                  <select 
+                    required 
+                    value={formData.outcome_category} 
+                    onChange={e => setFormData({...formData, outcome_category: e.target.value})}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
+                  >
+                    <option value="">-- Select Outcome --</option>
+                    <option value="Order placed">Order placed</option>
+                    <option value="Not ready yet">Not ready yet (Auto follow-up in 15 days)</option>
+                    <option value="Follow-up later">Follow-up later (Pick date)</option>
+                    <option value="No response">No response</option>
+                    <option value="Lost to competitor">Lost to competitor</option>
                   </select>
                 </div>
                 {getNextActionConfig(formData.outcome_category, formData.follow_up_type)?.days === 'manual' && (

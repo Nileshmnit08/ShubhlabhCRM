@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -19,6 +19,7 @@ const navItems = [
   { path: '/requirements', label: 'Requirements', icon: ClipboardList },
   { path: '/follow-ups', label: 'Follow-ups', icon: Clock },
   { path: '/activity', label: 'Activity', icon: Activity },
+  { path: '/performance', label: 'My Performance', icon: TrendingUp },
   { path: '/control-room', label: 'Control Room', icon: BarChart },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];

@@ -37,11 +37,11 @@ export default function Opportunities() {
       const { data: oppData, error: oppErr } = await query;
       if (oppErr) throw oppErr;
 
-      // 2. Fetch parties to get contact details
+      // 2. Fetch parties to get contact details and owner
       const partyIds = [...new Set((oppData || []).map(o => o.party_id))];
       let partiesMap = {};
       if (partyIds.length > 0) {
-         const { data: pData } = await supabase.from('crm_parties').select('id, mobile, whatsapp, crm_status, display_name').in('id', partyIds);
+         const { data: pData } = await supabase.from('crm_parties').select('id, mobile, whatsapp, crm_status, display_name, assigned_owner_id, owner:app_users!crm_parties_assigned_owner_id_fkey(display_name)').in('id', partyIds);
          if (pData) {
             pData.forEach(p => partiesMap[p.id] = p);
          }
@@ -143,6 +143,12 @@ export default function Opportunities() {
                       {opp.recommended_action}
                     </div>
                   </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Owner</span>
+                    <div style={{ fontSize: '0.9rem', marginTop: '0.25rem', color: opp.party.assigned_owner_id ? 'var(--text-primary)' : 'var(--danger)' }}>
+                      {opp.party.owner?.display_name || 'Unassigned - Must assign to act'}
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -151,8 +157,14 @@ export default function Opportunities() {
                   Take action to clear this opportunity.
                 </span>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <CallAction party={opp.party} onComplete={fetchOpportunities} showLabel={false} />
-                  <WhatsAppAction party={opp.party} onComplete={fetchOpportunities} />
+                  {!opp.party.assigned_owner_id ? (
+                     <Link to={`/customers/${opp.party.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Assign Owner</Link>
+                  ) : (
+                     <>
+                        <CallAction party={opp.party} onComplete={fetchOpportunities} showLabel={false} />
+                        <WhatsAppAction party={opp.party} onComplete={fetchOpportunities} />
+                     </>
+                  )}
                 </div>
               </div>
             </div>

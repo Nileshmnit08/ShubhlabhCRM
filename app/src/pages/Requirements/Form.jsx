@@ -18,6 +18,7 @@ export default function RequirementForm() {
     expected_rate: '',
     expected_date: '',
     priority: 'Normal',
+    intent_type: 'Product Interest',
     notes: ''
   });
 
@@ -87,8 +88,9 @@ export default function RequirementForm() {
         expected_rate: formData.expected_rate ? parseFloat(formData.expected_rate) : null,
         expected_date: formData.expected_date || null,
         priority: formData.priority,
+        intent_type: formData.intent_type,
         notes: formData.notes,
-        status: 'New',
+        status: 'Identified',
         assigned_to: sessionData?.session?.user?.id || null
       }).select();
       
@@ -165,17 +167,33 @@ export default function RequirementForm() {
           </div>
         </div>
 
-        <div>
-          <label style={{display: 'block', marginBottom: '0.5rem'}}>Priority</label>
-          <select 
-            value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}
-            style={{width: '100%', padding: '0.75rem', borderRadius: '6px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
-          >
-            <option value="Low">Low</option>
-            <option value="Normal">Normal</option>
-            <option value="High">High</option>
-            <option value="Urgent">Urgent</option>
-          </select>
+        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem'}}>
+          <div>
+            <label style={{display: 'block', marginBottom: '0.5rem'}}>Priority</label>
+            <select 
+              value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}
+              style={{width: '100%', padding: '0.75rem', borderRadius: '6px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
+            >
+              <option value="Low">Low</option>
+              <option value="Normal">Normal</option>
+              <option value="High">High</option>
+              <option value="Urgent">Urgent</option>
+            </select>
+          </div>
+          
+          <div>
+            <label style={{display: 'block', marginBottom: '0.5rem'}}>Intent Type</label>
+            <select 
+              value={formData.intent_type} onChange={e => setFormData({...formData, intent_type: e.target.value})}
+              style={{width: '100%', padding: '0.75rem', borderRadius: '6px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
+            >
+              <option value="Product Interest">Product Interest</option>
+              <option value="Price Discussion">Price Discussion</option>
+              <option value="Quotation Requested">Quotation Requested</option>
+              <option value="Order Intention">Order Intention</option>
+              <option value="Requirement Confirmed">Requirement Confirmed</option>
+            </select>
+          </div>
         </div>
         
         <div>

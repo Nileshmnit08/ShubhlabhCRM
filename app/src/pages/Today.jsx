@@ -48,7 +48,7 @@ export default function Today() {
 
       // 1. Follow-ups
       let fuQuery = supabase.from('follow_ups')
-        .select(`*, crm_parties ( id, display_name, mobile, whatsapp, assigned_owner_id, crm_status, communication_preference )`)
+        .select(`*, crm_parties ( id, display_name, mobile, whatsapp, assigned_owner_id, crm_status, communication_preference ), owner:app_users!follow_ups_assigned_to_fkey(display_name)`)
         .eq('status', 'Pending');
       
       const { data: allPendingFu } = await fuQuery;
@@ -63,10 +63,13 @@ export default function Today() {
       
       let validFu = [];
       let paymentFu = [];
+      let commercialFu = [];
       
       allAccessibleFu.forEach(f => {
         if (f.follow_up_type === 'Payment') {
           paymentFu.push(f);
+        } else if (f.follow_up_type === 'Commercial') {
+          commercialFu.push(f);
         } else {
           validFu.push(f);
         }
@@ -86,9 +89,30 @@ export default function Today() {
       const overduePayment = paymentFu.filter(f => f.follow_up_date < todayStr);
       const todayPayment = paymentFu.filter(f => f.follow_up_date === todayStr);
 
-      const overdueFu = validFu.filter(f => f.follow_up_date < todayStr);
-      const todayFu = validFu.filter(f => f.follow_up_date === todayStr);
-      const highPriFu = validFu.filter(f => f.follow_up_date > todayStr && f.priority === 'High');
+      // Fetch recent Tally Transactions to link confirmed evidence to Commercial followups
+      const commPartyIds = [...new Set(commercialFu.map(f => f.party_id))];
+      let tallyEvidenceMap = {};
+      if (commPartyIds.length > 0) {
+        const { data: tallyData } = await supabase.from('tally_transactions')
+          .select('crm_party_id, voucher_type, voucher_number, date')
+          .in('voucher_type', ['Sales', 'Receipt'])
+          .in('crm_party_id', commPartyIds)
+          .order('date', { ascending: false });
+        
+        if (tallyData) {
+          tallyData.forEach(tx => {
+            if (!tallyEvidenceMap[tx.crm_party_id]) {
+               tallyEvidenceMap[tx.crm_party_id] = tx; // Just keep the most recent one
+            }
+          });
+        }
+      }
+      
+      commercialFu = commercialFu.map(f => ({ ...f, tally_evidence: tallyEvidenceMap[f.party_id] }));
+
+      const overdueFu = [...commercialFu, ...validFu].filter(f => f.follow_up_date < todayStr);
+      const todayFu = [...commercialFu, ...validFu].filter(f => f.follow_up_date === todayStr);
+      const highPriFu = [...commercialFu, ...validFu].filter(f => f.follow_up_date > todayStr && f.priority === 'High');
 
       const pWeight = { 'High': 3, 'Normal': 2, 'Low': 1 };
       const sortFn = (a, b) => {
@@ -160,7 +184,7 @@ export default function Today() {
       const oppPartyIds = [...new Set((oppData || []).map(o => o.party_id))];
       let oppPartiesMap = {};
       if (oppPartyIds.length > 0) {
-         const { data: pData } = await supabase.from('crm_parties').select('id, display_name, mobile, whatsapp, crm_status, communication_preference').in('id', oppPartyIds);
+         const { data: pData } = await supabase.from('crm_parties').select('id, display_name, mobile, whatsapp, crm_status, communication_preference, assigned_owner_id, owner:app_users!crm_parties_assigned_owner_id_fkey(display_name)').in('id', oppPartyIds);
          if (pData) pData.forEach(p => oppPartiesMap[p.id] = p);
       }
       
@@ -241,16 +265,30 @@ export default function Today() {
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           {item.reason}
           <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>• Type: {item.follow_up_type || 'General'}</span>
+          <span style={{ marginLeft: '0.5rem', color: item.assigned_to ? 'var(--text-muted)' : 'var(--danger)' }}>
+            • Owner: {item.owner?.display_name || 'Unassigned'}
+          </span>
         </div>
+        {item.tally_evidence && item.follow_up_type === 'Commercial' && (
+          <div style={{ fontSize: '0.8rem', color: 'var(--success)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+             <CheckCircle2 size={12} /> Tally Confirmed: {item.tally_evidence.voucher_type} #{item.tally_evidence.voucher_number} on {item.tally_evidence.date}
+          </div>
+        )}
       </div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
-        {item.crm_parties?.mobile && (
-           <CallAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={true} />
+        {!item.assigned_to && userProfile?.role === 'Admin' ? (
+           <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Assign</Link>
+        ) : (
+           <>
+             {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
+             {item.crm_parties?.mobile && (
+                <CallAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={true} />
+             )}
+             <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+               Open Profile
+             </Link>
+           </>
         )}
-        <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-          Open Profile
-        </Link>
         <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
           Open Task
         </Link>
@@ -282,11 +320,20 @@ export default function Today() {
          <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--danger)' }}>
             ₹{item.outstanding_balance ? Number(item.outstanding_balance).toLocaleString('en-IN') : '0'}
          </div>
+         <div style={{ fontSize: '0.75rem', color: item.assigned_to ? 'var(--text-muted)' : 'var(--danger)', marginTop: '0.25rem' }}>
+            Owner: {item.owner?.display_name || 'Unassigned'}
+         </div>
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        {item.crm_parties && <CallAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />}
-        {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
+        {!item.assigned_to && userProfile?.role === 'Admin' ? (
+           <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Assign</Link>
+        ) : (
+           <>
+             {item.crm_parties && <CallAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />}
+             {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
+           </>
+        )}
         <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
           Open Profile
         </Link>
@@ -313,13 +360,24 @@ export default function Today() {
         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
           Action: {item.recommended_action}
         </div>
+        <div style={{ fontSize: '0.8rem', color: item.crm_parties?.assigned_owner_id ? 'var(--text-muted)' : 'var(--danger)', marginTop: '0.2rem' }}>
+          Owner: {item.crm_parties?.owner?.display_name || 'Unassigned - Must assign to act'}
+        </div>
       </div>
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        {item.crm_parties?.mobile && <CallAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />}
-        {item.crm_parties?.whatsapp && <WhatsAppAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
-        <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-          Action
-        </Link>
+        {!item.crm_parties?.assigned_owner_id ? (
+          <Link to={`/customers/${item.crm_parties?.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+            Assign Owner
+          </Link>
+        ) : (
+          <>
+            {item.crm_parties?.mobile && <CallAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />}
+            {item.crm_parties?.whatsapp && <WhatsAppAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
+            <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
+              Action
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );

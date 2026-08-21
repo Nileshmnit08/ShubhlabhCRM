@@ -11,9 +11,9 @@ export default function ControlRoom() {
 
   const [healthData, setHealthData] = useState({ healthy: 0, atRisk: 0, inactive: 0, unknown: 0 });
   const [staffData, setStaffData] = useState([]);
-  const [pipelineData, setPipelineData] = useState({ open: 0, quotation: 0, stalled: 0, closed: 0 });
+  const [pipelineData, setPipelineData] = useState({ identified: 0, engaged: 0, qualified: 0, commercial: 0, closed: 0, stalled: 0, commercialIntents: 0 });
   const [reactivationCount, setReactivationCount] = useState(0);
-  const [engagementStats, setEngagementStats] = useState({ channels: {}, attempted: 0, responded: 0, completedTasks: 0, overdueTasks: 0 });
+  const [engagementStats, setEngagementStats] = useState({ channels: {}, attempted: 0, responded: 0, completedTasks: 0, overdueTasks: 0, reactivationOutcomes: 0, retentionOutcomes: 0 });
 
   useEffect(() => {
     if (userProfile?.role === 'Admin') {
@@ -38,14 +38,18 @@ export default function ControlRoom() {
       setHealthData(hc);
 
       // 2. Requirements Pipeline
-      const { data: reqRows } = await supabase.from('requirements').select('status');
-      const pc = { open: 0, quotation: 0, stalled: 0, closed: 0 };
+      const { data: reqRows } = await supabase.from('requirements').select('status, intent_type');
+      const pc = { identified: 0, engaged: 0, qualified: 0, commercial: 0, closed: 0, stalled: 0, commercialIntents: 0 };
       if (reqRows) {
         reqRows.forEach(r => {
-          if (['Open', 'Negotiation', 'Follow-up'].includes(r.status)) pc.open++;
-          else if (r.status === 'Quotation Required') pc.quotation++;
+          if (r.status === 'Open') pc.identified++;
+          else if (r.status === 'Negotiation') pc.engaged++;
+          else if (r.status === 'Quotation Required') pc.qualified++;
+          else if (r.status === 'Follow-up') pc.commercial++; // Maps to Commercial Follow-up
           else if (['Stalled', 'Blocked'].includes(r.status)) pc.stalled++;
           else if (['Confirmed', 'Lost', 'Closed'].includes(r.status)) pc.closed++;
+
+          if (r.intent_type && r.intent_type !== 'Product Interest') pc.commercialIntents++;
         });
       }
       setPipelineData(pc);
@@ -67,11 +71,13 @@ export default function ControlRoom() {
       const { data: interactions } = await supabase.from('interactions').select('created_by, channel, outcome').gte('created_at', startIso);
       const { data: tasks } = await supabase.from('follow_ups').select('assigned_to, status, follow_up_date').gte('created_at', startIso);
       const { data: allPendingTasks } = await supabase.from('follow_ups').select('assigned_to, status, follow_up_date').eq('status', 'Pending');
+      const { data: allOpps } = await supabase.from('v_customer_opportunities').select('assigned_owner_id');
 
       if (users) {
         const staffMetrics = users.map(u => {
           const uInteractions = interactions?.filter(i => i.created_by === u.id).length || 0;
           const uTasks = allPendingTasks?.filter(t => t.assigned_to === u.id) || [];
+          const uOpps = allOpps?.filter(o => o.assigned_owner_id === u.id).length || 0;
           const overdue = uTasks.filter(t => t.follow_up_date && t.follow_up_date < todayIso).length;
           const totalPending = uTasks.length;
           return {
@@ -81,14 +87,15 @@ export default function ControlRoom() {
             active: u.is_active,
             recentInteractions: uInteractions,
             overdueTasks: overdue,
-            pendingTasks: totalPending
+            pendingTasks: totalPending,
+            openOpps: uOpps
           };
         });
         setStaffData(staffMetrics);
       }
       
       // 5. Engagement Analytics (Last 7 Days)
-      const eStats = { channels: {}, attempted: 0, responded: 0, completedTasks: 0, overdueTasks: 0 };
+      const eStats = { channels: {}, attempted: 0, responded: 0, completedTasks: 0, overdueTasks: 0, reactivationOutcomes: 0, retentionOutcomes: 0 };
       if (interactions) {
         interactions.forEach(i => {
           const ch = i.channel || 'Unknown';
@@ -96,6 +103,8 @@ export default function ControlRoom() {
           eStats.attempted++;
           if (i.outcome && i.outcome.trim() !== '') {
             eStats.responded++;
+            if (ch === 'Reactivation Task') eStats.reactivationOutcomes++;
+            if (ch === 'Retention Task') eStats.retentionOutcomes++;
           }
         });
       }
@@ -151,9 +160,12 @@ export default function ControlRoom() {
         
         {/* Customer Health Overview */}
         <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', marginTop: 0 }}>
-            <Users size={18} className="text-secondary" /> Base Health Distribution
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <Users size={18} className="text-secondary" /> Base Health Distribution
+            </h2>
+            <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>Tally Verified</span>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderLeft: '3px solid var(--success)', borderRadius: '0 4px 4px 0' }}>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Healthy</div>
@@ -179,26 +191,41 @@ export default function ControlRoom() {
 
         {/* Demand Pipeline */}
         <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', marginTop: 0 }}>
-            <Briefcase size={18} className="text-secondary" /> Demand Pipeline (Active)
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div style={{ padding: '1rem', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '4px' }}>
-              <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Open / Active</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{pipelineData.open}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <Briefcase size={18} className="text-secondary" /> Pipeline by Approved State
+            </h2>
+            <span className="badge badge-primary" style={{ fontSize: '0.65rem' }}>Phase 15.2 States</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+            <div style={{ padding: '0.75rem', background: 'var(--bg-surface-hover)', borderRadius: '4px' }}>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Identified</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{pipelineData.identified}</div>
             </div>
-            <div style={{ padding: '1rem', background: 'var(--warning-light)', color: 'var(--warning)', borderRadius: '4px' }}>
-              <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Quotation Needed</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{pipelineData.quotation}</div>
+            <div style={{ padding: '0.75rem', background: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '4px' }}>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Engaged</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{pipelineData.engaged}</div>
             </div>
-            <div style={{ padding: '1rem', background: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '4px' }}>
-              <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Stalled / Blocked</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{pipelineData.stalled}</div>
+            <div style={{ padding: '0.75rem', background: 'var(--warning-light)', color: 'var(--warning)', borderRadius: '4px' }}>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Qualified</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{pipelineData.qualified}</div>
             </div>
-            <div style={{ padding: '1rem', background: 'var(--success-light)', color: 'var(--success)', borderRadius: '4px' }}>
-              <div style={{ fontSize: '0.8rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Closed / Resolved</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>{pipelineData.closed}</div>
+            <div style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '4px' }}>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.25rem', color: 'var(--text-secondary)' }}>Commercial</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>{pipelineData.commercial}</div>
             </div>
+            <div style={{ padding: '0.75rem', background: 'var(--success-light)', color: 'var(--success)', borderRadius: '4px' }}>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Closed</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{pipelineData.closed}</div>
+            </div>
+            <div style={{ padding: '0.75rem', background: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '4px' }}>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Stalled</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{pipelineData.stalled}</div>
+            </div>
+          </div>
+          <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border)', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Commercial Intents Captured:</span>
+            <span style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--primary)' }}>{pipelineData.commercialIntents}</span>
           </div>
           <div style={{ marginTop: '1rem', textAlign: 'right' }}>
              <Link to="/requirements" className="text-primary" style={{ fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none' }}>Go to Pipeline &rarr;</Link>
@@ -241,11 +268,19 @@ export default function ControlRoom() {
             </div>
           </div>
 
-          <Link to="/follow-ups" style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '4px', textDecoration: 'none', color: 'inherit', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Task Completion</div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--primary)' }}>{engagementStats.completedTasks}</div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--danger)', marginTop: '0.5rem', fontWeight: 500 }}>{engagementStats.overdueTasks} Overdue Currently</div>
-          </Link>
+          <div style={{ padding: '1.25rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Key Campaign Outcomes</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Reactivations</span>
+                <strong style={{ color: 'var(--primary)' }}>{engagementStats.reactivationOutcomes}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Retentions</span>
+                <strong style={{ color: 'var(--warning)' }}>{engagementStats.retentionOutcomes}</strong>
+              </div>
+            </div>
+          </div>
 
         </div>
       </div>
@@ -264,6 +299,7 @@ export default function ControlRoom() {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                 <th style={{ padding: '1rem 0.5rem', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase' }}>Staff Member</th>
+                <th style={{ padding: '1rem 0.5rem', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', textAlign: 'right' }}>Open Opps (Tally)</th>
                 <th style={{ padding: '1rem 0.5rem', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', textAlign: 'right' }}>Recent Interactions</th>
                 <th style={{ padding: '1rem 0.5rem', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', textAlign: 'right' }}>Pending Tasks</th>
                 <th style={{ padding: '1rem 0.5rem', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', textAlign: 'right' }}>Overdue Tasks</th>
@@ -278,6 +314,9 @@ export default function ControlRoom() {
                       {!s.active && <span className="badge badge-dormant" style={{ fontSize: '0.65rem' }}>Inactive</span>}
                       {s.role === 'Admin' && <span className="badge badge-primary" style={{ fontSize: '0.65rem' }}>Admin</span>}
                     </div>
+                  </td>
+                  <td style={{ padding: '1rem 0.5rem', textAlign: 'right', fontWeight: 600, color: 'var(--warning)' }}>
+                    {s.openOpps}
                   </td>
                   <td style={{ padding: '1rem 0.5rem', textAlign: 'right', fontWeight: 600 }}>
                     {s.recentInteractions}

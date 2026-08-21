@@ -23,17 +23,17 @@ export default function RequirementList() {
       let query = supabase
         .from('requirements')
         .select(`
-          id, product_type, quantity, unit, expected_date, expected_rate, status, priority, assigned_to,
+          id, product_type, quantity, unit, expected_date, expected_rate, status, priority, assigned_to, intent_type,
           crm_parties ( id, display_name, city, mobile, whatsapp ),
           app_users:assigned_to ( email )
         `)
         .order('created_at', { ascending: false });
 
       if (statusFilter === 'All Open') {
-        query = query.not('status', 'in', '("Closed","Lost","Confirmed")');
+        query = query.not('status', 'in', '("Won","Lost")');
       } else if (statusFilter === 'Overdue') {
         const today = new Date().toISOString().split('T')[0];
-        query = query.not('status', 'in', '("Closed","Lost","Confirmed")').lt('expected_date', today);
+        query = query.not('status', 'in', '("Won","Lost")').lt('expected_date', today);
       } else if (statusFilter !== 'All') {
         query = query.eq('status', statusFilter);
       }
@@ -59,11 +59,13 @@ export default function RequirementList() {
   });
 
   const getStatusBadge = (status) => {
-    if (status === 'New') return 'badge badge-dormant';
-    if (status === 'Quotation Sent') return 'badge badge-active';
-    if (status === 'Confirmed') return 'badge badge-success';
+    if (status === 'Identified') return 'badge badge-dormant';
+    if (status === 'Engaged') return 'badge badge-active';
+    if (status === 'Qualified') return 'badge badge-active';
+    if (status === 'Commercial Intent') return 'badge badge-warning';
+    if (status === 'Won') return 'badge badge-success';
     if (status === 'Lost') return 'badge badge-danger';
-    if (status === 'Closed') return 'badge badge-danger';
+    if (status === 'On Hold') return 'badge badge-neutral';
     return 'badge'; // Default
   };
 
@@ -99,13 +101,13 @@ export default function RequirementList() {
         >
           <option value="All Open">Active Pipeline</option>
           <option value="Overdue">Overdue</option>
-          <option value="New">New</option>
-          <option value="Quotation Required">Quotation Required</option>
-          <option value="Quotation Sent">Quotation Sent</option>
-          <option value="Negotiation">Negotiation</option>
-          <option value="Confirmed">Confirmed (Won)</option>
+          <option value="Identified">Identified</option>
+          <option value="Engaged">Engaged</option>
+          <option value="Qualified">Qualified</option>
+          <option value="Commercial Intent">Commercial Intent</option>
+          <option value="On Hold">On Hold</option>
+          <option value="Won">Won</option>
           <option value="Lost">Lost</option>
-          <option value="Closed">Closed</option>
           <option value="All">All Lifetime</option>
         </select>
       </div>
@@ -121,7 +123,7 @@ export default function RequirementList() {
       ) : (
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem'}}>
           {filteredRequirements.map(req => {
-            const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && !['Closed', 'Lost', 'Confirmed'].includes(req.status);
+            const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && !['Won', 'Lost'].includes(req.status);
             
             return (
             <Link key={req.id} to={`/requirements/${req.id}`} className="glass-panel" style={{display: 'block', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s, border-color 0.2s', border: isOverdue ? '1px solid var(--danger)' : ''}}>
@@ -132,11 +134,14 @@ export default function RequirementList() {
               
               <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
                 <div style={{fontSize: '0.95rem'}}>
-                  <strong>{req.quantity} {req.unit}</strong> of {req.product_type}
+                  <strong>{req.quantity} {req.unit} (Est.)</strong> of {req.product_type}
+                </div>
+                <div className="text-secondary" style={{fontSize: '0.85rem'}}>
+                  Intent: <strong>{req.intent_type || 'Product Interest'}</strong>
                 </div>
                 {req.expected_rate && (
                   <div className="text-secondary" style={{fontSize: '0.85rem'}}>
-                    Target Rate: ₹{req.expected_rate}
+                    Target Rate (Est.): ₹{req.expected_rate}
                   </div>
                 )}
                 {req.expected_date && (
