@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, Edit2, MapPin, Phone, MessageCircle, Trash2, ShieldAlert, Calendar, Plus, CheckCircle2, Target, Info, DollarSign } from 'lucide-react';
+import { ArrowLeft, Edit2, MapPin, Phone, MessageCircle, Trash2, ShieldAlert, Calendar, Plus, CheckCircle2, Target, Info, DollarSign, Activity } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import CallAction from '../../components/CallAction';
@@ -49,6 +49,11 @@ export default function CustomerView({ isLeadMode = false }) {
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [newReview, setNewReview] = useState({ notes: '', next_actions: '', next_review_date: '' });
+  const [dealerProfile, setDealerProfile] = useState(null);
+  
+  // Schemes
+  const [activeSchemes, setActiveSchemes] = useState([]);
+  const [participations, setParticipations] = useState([]);
 
   useEffect(() => {
     fetchCustomerContext();
@@ -70,6 +75,21 @@ export default function CustomerView({ isLeadMode = false }) {
       
       setCustomer({ ...cData, owner_whatsapp: ownerWhatsapp });
 
+      if (cData.relationship_type === 'Dealer') {
+        const { data: dData } = await supabase.from('crm_dealer_profiles').select('*').eq('party_id', id).single();
+        if (dData) setDealerProfile(dData);
+
+        // Fetch schemes
+        const { data: schData } = await supabase.from('dealer_schemes').select('*').eq('status', 'Active');
+        setActiveSchemes(schData || []);
+
+        const { data: partData } = await supabase.from('dealer_scheme_participations').select('*, dealer_schemes(*)').eq('party_id', id);
+        setParticipations(partData || []);
+
+        // Default to execution tab for dealers
+        setActiveTab(prev => prev === 'details' ? 'execution' : prev);
+      }
+      
       const { data: fData, error: fErr } = await supabase.from('follow_ups').select('*').eq('party_id', id).order('follow_up_date', { ascending: true });
       if (fErr) throw fErr;
       setFollowUps(fData || []);
@@ -118,6 +138,29 @@ export default function CustomerView({ isLeadMode = false }) {
       } catch (err) {
         console.error(err);
       }
+    }
+  };
+
+  const handleEnrollScheme = async (schemeId) => {
+    try {
+      await supabase.from('dealer_scheme_participations').insert({
+        scheme_id: schemeId,
+        party_id: id,
+        status: 'Enrolled',
+        notes: 'Enrolled via CRM'
+      });
+      fetchCustomerContext();
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateParticipation = async (partId, newStatus) => {
+    try {
+      await supabase.from('dealer_scheme_participations').update({ status: newStatus }).eq('id', partId);
+      fetchCustomerContext();
+    } catch(err) {
+      console.error(err);
     }
   };
 
@@ -460,6 +503,26 @@ Please contact this customer and update Contact Information in CRM.`;
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isActive ? 'var(--success)' : 'var(--warning)', boxShadow: `0 0 8px ${isActive ? 'var(--success)' : 'var(--warning)'}` }}></span>
                 <span style={{ fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase' }}>{customer.crm_status}</span>
               </div>
+              
+              {customer.relationship_type === 'Dealer' && dealerProfile && (
+                <>
+                  <span style={{ opacity: 0.3 }}>|</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <span className="badge badge-neutral" style={{padding: '0.1rem 0.4rem', fontSize: '0.75rem', background: '#3b82f6', color: '#fff', border: 'none'}}>
+                      {dealerProfile.dealer_classification}
+                    </span>
+                  </div>
+                </>
+              )}
+              {customer.territory_name && (
+                <>
+                  <span style={{ opacity: 0.3 }}>|</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <MapPin size={14} />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{customer.territory_name}</span>
+                  </div>
+                </>
+              )}
               {customer.health_status && customer.crm_status !== 'Lead' && (
                 <>
                   <span style={{ opacity: 0.3 }}>|</span>
@@ -657,6 +720,16 @@ Please contact this customer and update Contact Information in CRM.`;
                 <option>Low</option>
               </select>
             </div>
+            {customer.relationship_type === 'Dealer' && (
+              <div>
+                <label>Type</label>
+                <select value={newFollowUp.follow_up_type} onChange={e => setNewFollowUp({...newFollowUp, follow_up_type: e.target.value})}>
+                  <option value="General">General</option>
+                  <option value="Dealer Visit">Dealer Visit</option>
+                  <option value="Dealer Contact">Dealer Contact</option>
+                </select>
+              </div>
+            )}
             <div>
               <label>Enroll in Sequence (Optional)</label>
               <select value={newFollowUp.sequence_id} onChange={e => {
@@ -894,10 +967,115 @@ Please contact this customer and update Contact Information in CRM.`;
             Timeline <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{timelineEvents.length}</span>
           </button>
         )}
+        {customer?.relationship_type === 'Dealer' && (
+          <button className={`cv-tab ${activeTab==='execution'?'active':''}`} onClick={() => setActiveTab('execution')}>
+            Execution Dashboard
+          </button>
+        )}
+        {customer?.relationship_type === 'Dealer' && (
+          <button className={`cv-tab ${activeTab==='schemes'?'active':''}`} onClick={() => setActiveTab('schemes')}>
+            Schemes <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{participations.length}</span>
+          </button>
+        )}
       </div>
 
       {/* Tab Content Areas */}
       
+      {/* 1.5 EXECUTION DASHBOARD (DEALERS ONLY) */}
+      {activeTab === 'execution' && customer?.relationship_type === 'Dealer' && (
+        <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
+          
+          {/* Active Intents / Opportunities */}
+          <div className="cv-panel" style={{ padding: '1.5rem', borderTop: '4px solid var(--primary)' }}>
+            <h3 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+               <Target size={18} className="text-primary" /> Active Intent & Opportunities
+            </h3>
+            {requirements.filter(r => !['Closed', 'Lost', 'Confirmed'].includes(r.status)).length === 0 ? (
+               <div className="text-muted italic">No active commercial intent.</div>
+            ) : (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                 {requirements.filter(r => !['Closed', 'Lost', 'Confirmed'].includes(r.status)).map(req => (
+                   <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                     <div>
+                       <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{req.product_name}</strong>
+                       <span className="text-muted text-sm">{req.intent_type || 'General Demand'} - {req.quantity} {req.unit}</span>
+                     </div>
+                     <button className="btn btn-secondary" onClick={() => setActiveTab('requirements')}>View Details</button>
+                   </div>
+                 ))}
+               </div>
+            )}
+          </div>
+
+          {/* Pending Action Items */}
+          <div className="cv-panel" style={{ padding: '1.5rem', borderTop: '4px solid var(--warning)' }}>
+            <h3 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+               <Calendar size={18} className="text-warning" /> Pending Actions
+            </h3>
+            {followUps.filter(f => f.status === 'Pending').length === 0 ? (
+               <div className="text-muted italic">No pending tasks or visits.</div>
+            ) : (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                 {followUps.filter(f => f.status === 'Pending').map(f => (
+                   <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                     <div>
+                       <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{f.follow_up_type}</strong>
+                       <span className="text-muted text-sm">{f.reason} (Due: {new Date(f.follow_up_date).toLocaleDateString()})</span>
+                     </div>
+                     <button className="btn btn-secondary" onClick={() => setActiveTab('followups')}>Manage</button>
+                   </div>
+                 ))}
+               </div>
+            )}
+          </div>
+
+          {/* Validated Purchase Indicators */}
+          <div className="cv-panel" style={{ padding: '1.5rem', borderTop: '4px solid var(--success)' }}>
+            <h3 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+               <DollarSign size={18} className="text-success" /> Validated Purchases
+            </h3>
+            {tallyTxns.filter(t => t.voucher_type === 'Sales' && !t.is_credit).length === 0 ? (
+               <div className="text-muted italic">No recent Tally sales vouchers found.</div>
+            ) : (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                 {tallyTxns.filter(t => t.voucher_type === 'Sales' && !t.is_credit).slice(0, 3).map(t => (
+                   <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                     <div>
+                       <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--text-primary)' }}>Sales Voucher: {t.voucher_number}</strong>
+                       <span className="text-muted text-sm">{new Date(t.voucher_date).toLocaleDateString()} - ₹{t.amount}</span>
+                     </div>
+                     <button className="btn btn-secondary" onClick={() => setActiveTab('financials')}>View Ledger</button>
+                   </div>
+                 ))}
+               </div>
+            )}
+          </div>
+
+          {/* Unresolved Service Issues */}
+          <div className="cv-panel" style={{ padding: '1.5rem', borderTop: '4px solid var(--danger)' }}>
+            <h3 style={{ fontSize: '1.1rem', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+               <ShieldAlert size={18} className="text-danger" /> Open Issues
+            </h3>
+            {issues.filter(i => !['Resolved', 'Closed'].includes(i.status)).length === 0 ? (
+               <div className="text-muted italic">No open service issues.</div>
+            ) : (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                 {issues.filter(i => !['Resolved', 'Closed'].includes(i.status)).map(i => (
+                   <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                     <div>
+                       <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{i.category}</strong>
+                       <span className="text-muted text-sm">{i.status} - {i.priority} Priority</span>
+                     </div>
+                     <button className="btn btn-secondary" onClick={() => setActiveTab('issues')}>Resolve</button>
+                   </div>
+                 ))}
+               </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
       {/* 1. ACCOUNT 360 */}
       {activeTab === 'details' && (
         <div className="animate-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
@@ -1014,9 +1192,10 @@ Please contact this customer and update Contact Information in CRM.`;
             </div>
 
             {/* Owner Section */}
-            <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px dashed var(--border)' }}>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Assigned CRM Owner</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px dashed var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Assigned CRM Owner</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <span className="badge badge-neutral" style={{fontSize: '0.85rem', padding: '0.25rem 0.5rem', fontWeight: 500}}>{customer.owner_name || 'Unassigned'}</span>
                 {customer.assigned_owner_id && (
                   <button 
@@ -1035,7 +1214,17 @@ Please contact this customer and update Contact Information in CRM.`;
                     <MessageCircle size={14} /> Send WhatsApp
                   </button>
                 )}
+                </div>
               </div>
+              
+              {customer.territory_name && (
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Territory Coverage ({customer.territory_name})</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span className="badge badge-neutral" style={{fontSize: '0.85rem', padding: '0.25rem 0.5rem', fontWeight: 500}}>{customer.territory_manager_name || 'Unassigned'}</span>
+                  </div>
+                </div>
+              )}
             </div>
             
             {isLeadMode && (
@@ -1313,38 +1502,168 @@ Please contact this customer and update Contact Information in CRM.`;
         </div>
       )}
 
-      {/* 3. REQUIREMENTS */}
+      {/* 3. REQUIREMENTS / PRODUCTS & DEMAND */}
       {activeTab === 'requirements' && (
-        <div className="animate-fade-in">
-          {requirements.length === 0 ? (
-            <div className="cv-empty">
-              <Target size={48} className="empty-state-icon" style={{ opacity: 0.5 }} />
-              <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No Active Requirements</h3>
-              <p className="text-secondary" style={{ maxWidth: '400px', margin: '0 auto 1.5rem' }}>Track what this customer wants to buy. Add a new requirement to build their demand pipeline.</p>
-              <button onClick={() => navigate(`/requirements/new?party_id=${id}`)} className="btn btn-primary">Add First Requirement</button>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              {requirements.map(req => (
-                <Link key={req.id} to={`/requirements/${req.id}`} className="cv-panel" style={{ padding: '1.5rem', textDecoration: 'none', color: 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s ease' }} onMouseOver={e => {e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}} onMouseOut={e => {e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'var(--bg-surface)'}}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.375rem' }}>
-                      <span style={{ fontWeight: 600, fontSize: '1.1rem' }}>{req.product_type}</span>
-                      <span className={`badge ${req.status === 'Confirmed' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`} style={{ fontSize: '0.7rem' }}>{req.status}</span>
-                    </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-                      Volume: <strong style={{ color: 'var(--text-primary)' }}>{req.quantity} {req.unit}</strong> 
-                      {req.expected_rate && <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>|</span>}
-                      {req.expected_rate && <span>Target Rate: <strong style={{ color: 'var(--text-primary)' }}>₹{req.expected_rate}</strong></span>}
-                    </div>
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* Dealer Product Profile */}
+          {customer.relationship_type === 'Dealer' && (
+            <div>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                Dealer Product Profile
+              </h3>
+              <div className="cv-panel" style={{ padding: '1.5rem', backgroundColor: 'rgba(var(--primary-rgb), 0.02)', borderColor: 'rgba(var(--primary-rgb), 0.1)' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Primary Product Categories / Interests</div>
+                {customer.product_interests ? (
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {customer.product_interests.split(',').map((interest, idx) => (
+                      <span key={idx} className="badge badge-active" style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}>
+                        {interest.trim()}
+                      </span>
+                    ))}
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <ArrowLeft size={20} className="text-muted" style={{ transform: 'rotate(135deg)', opacity: 0.5 }} />
-                  </div>
-                </Link>
-              ))}
+                ) : (
+                  <div className="text-muted italic" style={{ fontSize: '0.9rem' }}>No specific product interests recorded. Update in edit profile.</div>
+                )}
+              </div>
             </div>
           )}
+
+          {/* Stated Demand (Requirements) */}
+          <div>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Stated Demand <span className="badge" style={{ marginLeft: '0.5rem', backgroundColor: 'var(--bg-elevated)' }}>CRM Intent</span></span>
+              <button onClick={() => navigate(`/requirements/new?party_id=${id}`)} className="btn btn-primary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}>
+                + Add Requirement
+              </button>
+            </h3>
+            
+            {requirements.length === 0 ? (
+              <div className="cv-empty" style={{ padding: '2rem' }}>
+                <Target size={40} className="empty-state-icon" style={{ opacity: 0.5 }} />
+                <h4 style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>No Active Requirements</h4>
+                <p className="text-secondary" style={{ maxWidth: '400px', margin: '0 auto', fontSize: '0.9rem' }}>Track what this customer explicitly wants to buy.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: '1rem' }}>
+                {requirements.map(req => (
+                  <Link key={req.id} to={`/requirements/${req.id}`} className="cv-panel" style={{ padding: '1.25rem', textDecoration: 'none', color: 'inherit', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all 0.2s ease' }} onMouseOver={e => {e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.02)'}} onMouseOut={e => {e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'var(--bg-surface)'}}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.375rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '1.05rem' }}>{req.product_type}</span>
+                        <span className={`badge ${req.status === 'Confirmed' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`} style={{ fontSize: '0.7rem' }}>{req.status}</span>
+                      </div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                        Volume: <strong style={{ color: 'var(--text-primary)' }}>{req.quantity} {req.unit || 'units'}</strong> 
+                        {req.expected_rate && <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>|</span>}
+                        {req.expected_rate && <span>Target Rate: <strong style={{ color: 'var(--text-primary)' }}>₹{req.expected_rate}</strong></span>}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <ArrowLeft size={18} className="text-muted" style={{ transform: 'rotate(135deg)', opacity: 0.5 }} />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Realized Sales from Tally */}
+          <div>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
+              <span>Realized Sales <span className="badge badge-success" style={{ marginLeft: '0.5rem' }}>Tally Verified</span></span>
+            </h3>
+            
+            {tallyTxns.filter(t => t.voucher_type === 'Sales' && !t.is_credit).length === 0 ? (
+              <div className="cv-empty" style={{ padding: '2rem' }}>
+                <Activity size={40} className="empty-state-icon" style={{ opacity: 0.5 }} />
+                <p className="text-secondary" style={{ margin: 0, fontSize: '0.9rem' }}>No recent sales transactions found in Tally for this account.</p>
+              </div>
+            ) : (
+              <div className="cv-panel" style={{ overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                      <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Date</th>
+                      <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>Voucher</th>
+                      <th style={{ padding: '0.75rem 1.25rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', textAlign: 'right' }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tallyTxns.filter(t => t.voucher_type === 'Sales' && !t.is_credit).slice(0, 5).map((t, idx, arr) => (
+                      <tr key={t.id} style={{ borderBottom: idx === arr.length-1 ? 'none' : '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.75rem 1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{new Date(t.voucher_date).toLocaleDateString()}</td>
+                        <td style={{ padding: '0.75rem 1.25rem', fontSize: '0.9rem' }}>
+                          <span style={{ fontWeight: 500 }}>{t.voucher_type}</span>
+                          {t.voucher_no && t.voucher_no !== 'NA' && <span className="text-muted" style={{ marginLeft: '0.5rem', fontSize: '0.85rem' }}>#{t.voucher_no}</span>}
+                        </td>
+                        <td style={{ padding: '0.75rem 1.25rem', textAlign: 'right', fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                          ₹{Number(t.amount).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {/* 3.5 SCHEMES (DEALERS ONLY) */}
+      {activeTab === 'schemes' && customer?.relationship_type === 'Dealer' && (
+        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          <div className="cv-panel">
+            <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--border)' }}>
+              <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-primary)' }}>Enrolled Schemes</h3>
+            </div>
+            <div style={{ padding: '1.5rem 2rem' }}>
+              {participations.length === 0 ? (
+                <div className="text-muted italic">No schemes enrolled yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {participations.map(p => (
+                    <div key={p.id} style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-base)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong style={{ display: 'block', marginBottom: '0.25rem', fontSize: '1.05rem' }}>{p.dealer_schemes?.name}</strong>
+                        <span className="text-muted text-sm">Status: <strong style={{ color: p.status === 'Verified' ? 'var(--success)' : 'inherit' }}>{p.status}</strong></span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {p.status === 'Enrolled' && <button className="btn btn-secondary" onClick={() => handleUpdateParticipation(p.id, 'Target Achieved')}>Mark Achieved</button>}
+                        {p.status === 'Target Achieved' && <button className="btn btn-secondary" onClick={() => handleUpdateParticipation(p.id, 'Claimed')}>Mark Claimed</button>}
+                        {p.status === 'Claimed' && <button className="btn btn-primary" onClick={() => handleUpdateParticipation(p.id, 'Verified')}>Verify (CRM)</button>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="cv-panel">
+            <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid var(--border)' }}>
+              <h3 style={{ fontSize: '1.1rem', margin: 0, color: 'var(--text-primary)' }}>Available Schemes</h3>
+            </div>
+            <div style={{ padding: '1.5rem 2rem' }}>
+              {activeSchemes.filter(s => !participations.some(p => p.scheme_id === s.id)).length === 0 ? (
+                <div className="text-muted italic">No available schemes to enroll.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {activeSchemes.filter(s => !participations.some(p => p.scheme_id === s.id)).map(s => (
+                    <div key={s.id} style={{ padding: '1rem', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)' }}>
+                      <strong style={{ display: 'block', marginBottom: '0.25rem', fontSize: '1.05rem', color: 'var(--primary)' }}>{s.name}</strong>
+                      <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{s.description}</p>
+                      <div className="text-muted text-sm" style={{ marginBottom: '1rem' }}>Eligibility: {s.eligibility_criteria}</div>
+                      <button className="btn btn-primary" onClick={() => handleEnrollScheme(s.id)}>Enroll Dealer</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       )}
 

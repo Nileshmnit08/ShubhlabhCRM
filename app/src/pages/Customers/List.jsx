@@ -555,6 +555,11 @@ export default function CustomerList({ isLeadMode = false }) {
                     <td data-label="Customer">
                       <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem'}}>
                         <Link to={isLeadMode ? `/leads/${c.id}` : `/customers/${c.id}`} style={{fontWeight: 600, color: 'var(--primary)', textDecoration: 'none'}}>{c.display_name}</Link>
+                        {c.relationship_type === 'Dealer' && (
+                          <span className="badge badge-neutral" style={{fontSize: '0.7rem', padding: '0.1rem 0.4rem', background: '#3b82f6', color: '#fff', border: 'none'}}>
+                            Dealer
+                          </span>
+                        )}
                         {c.health_status && c.crm_status !== 'Lead' && (
                           <span className={`badge ${c.health_status === 'Healthy' ? 'badge-success' : c.health_status === 'At Risk' ? 'badge-danger' : 'badge-neutral'}`} style={{fontSize: '0.7rem', padding: '0.1rem 0.4rem'}} title={c.health_reason}>
                             {c.health_status}

@@ -3,7 +3,8 @@ import { AuthContext } from '../../AuthContext';
 import { LanguageContext } from '../../LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
-import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X, MessageCircle } from 'lucide-react';
+import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X, MessageCircle, Map } from 'lucide-react';
+import TerritoriesTab from './Territories';
 
 export default function Settings() {
   const { userProfile, setUserProfile, crmSettings, setCrmSettings } = useContext(AuthContext);
@@ -336,6 +337,7 @@ export default function Settings() {
   if (userProfile?.role === 'Admin') {
     tabs.splice(2, 0, { id: 'brand', label: t('settings.tabs.brand') || 'Brand & Identity', icon: SettingsIcon });
     tabs.push({ id: 'team', label: t('settings.tabs.team') || 'Team Management', icon: Users });
+    tabs.push({ id: 'territories', label: 'Territories', icon: Map });
     tabs.push({ id: 'templates', label: 'WhatsApp Templates', icon: MessageCircle });
     tabs.push({ id: 'defaults', label: t('settings.tabs.defaults') || 'CRM Defaults', icon: SettingsIcon });
   }
@@ -816,6 +818,10 @@ export default function Settings() {
                 </div>
               </div>
             </div>
+          )}
+          
+          {activeTab === 'territories' && userProfile?.role === 'Admin' && (
+            <TerritoriesTab />
           )}
 
         </div>

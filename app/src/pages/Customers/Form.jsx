@@ -29,9 +29,14 @@ export default function CustomerForm({ isLeadMode = false }) {
     crm_status: isLeadMode ? 'Lead' : 'Active',
     lead_source: '',
     notes: '',
-    assigned_owner_id: ''
+    assigned_owner_id: '',
+    territory_id: '',
+    product_interests: '',
+    dealer_classification: 'Retailer',
+    dealer_operating_status: 'Active'
   });
   const [teamMembers, setTeamMembers] = useState([]);
+  const [territories, setTerritories] = useState([]);
 
   useEffect(() => {
     // If not editing and not admin, default to self
@@ -42,10 +47,20 @@ export default function CustomerForm({ isLeadMode = false }) {
 
   useEffect(() => {
     fetchTeamMembers();
+    fetchTerritories();
     if (isEditing) {
       fetchCustomer();
     }
   }, [id]);
+
+  async function fetchTerritories() {
+    try {
+      const { data } = await supabase.from('crm_territories').select('id, name').eq('status', 'Active').order('name');
+      if (data) setTerritories(data);
+    } catch (err) {
+      console.error('Error fetching territories:', err);
+    }
+  }
 
   async function fetchTeamMembers() {
     try {
@@ -79,8 +94,21 @@ export default function CustomerForm({ isLeadMode = false }) {
           crm_status: data.crm_status || (isLeadMode ? 'Lead' : 'Active'),
           lead_source: data.lead_source || '',
           notes: data.notes || '',
-          assigned_owner_id: data.assigned_owner_id || ''
+          assigned_owner_id: data.assigned_owner_id || '',
+          territory_id: data.territory_id || '',
+          product_interests: data.product_interests || ''
         });
+
+        if (data.relationship_type === 'Dealer') {
+          const { data: dData } = await supabase.from('crm_dealer_profiles').select('*').eq('party_id', id).single();
+          if (dData) {
+            setFormData(prev => ({
+              ...prev,
+              dealer_classification: dData.dealer_classification || 'Retailer',
+              dealer_operating_status: dData.operating_status || 'Active'
+            }));
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching customer:', error);
@@ -181,36 +209,63 @@ export default function CustomerForm({ isLeadMode = false }) {
   const proceedWithSave = async () => {
     setDuplicateWarning(null);
     setLoading(true);
+    
+    const partyData = { ...formData };
+    delete partyData.dealer_classification;
+    delete partyData.dealer_operating_status;
+    
+    if (!partyData.territory_id) partyData.territory_id = null;
+    if (!partyData.assigned_owner_id) partyData.assigned_owner_id = null;
+
+    const dealerData = {
+      dealer_classification: formData.dealer_classification,
+      operating_status: formData.dealer_operating_status
+    };
+
     try {
       if (isEditing) {
-        const { error } = await supabase.from('crm_parties').update(formData).eq('id', id);
+        const { error } = await supabase.from('crm_parties').update(partyData).eq('id', id);
         if (error) throw error;
         
+        if (partyData.relationship_type === 'Dealer') {
+          dealerData.party_id = id;
+          await supabase.from('crm_dealer_profiles').upsert([dealerData], { onConflict: 'party_id' });
+        } else {
+          await supabase.from('crm_dealer_profiles').delete().eq('party_id', id);
+        }
+
         logActivity({
           module: 'Customers',
           actionType: 'UPDATED',
           entityType: 'crm_parties',
           entityId: id,
-          summary: `Updated customer profile: ${formData.display_name}`,
-          metadata: { updated_fields: Object.keys(formData) }
+          summary: `Updated profile: ${formData.display_name}`,
+          metadata: { updated_fields: Object.keys(partyData) }
         });
         
-        alert(isLeadMode ? 'Lead updated successfully!' : 'Customer updated successfully!');
+        alert(isLeadMode ? 'Lead updated successfully!' : 'Record updated successfully!');
         navigate(isLeadMode ? `/leads/${id}` : `/customers/${id}`);
       } else {
-        const { error, data } = await supabase.from('crm_parties').insert([formData]).select();
+        const { error, data } = await supabase.from('crm_parties').insert([partyData]).select();
         if (error) throw error;
         
+        const newId = data[0].id;
+        
+        if (partyData.relationship_type === 'Dealer') {
+          dealerData.party_id = newId;
+          await supabase.from('crm_dealer_profiles').insert([dealerData]);
+        }
+
         logActivity({
           module: 'Customers',
           actionType: 'CREATED',
           entityType: 'crm_parties',
-          entityId: data[0].id,
-          summary: `Created new customer: ${formData.display_name}`
+          entityId: newId,
+          summary: `Created new record: ${formData.display_name}`
         });
 
-        alert(isLeadMode ? 'Lead created successfully!' : 'Customer created successfully!');
-        navigate(isLeadMode ? `/leads/${data[0].id}` : `/customers/${data[0].id}`);
+        alert(isLeadMode ? 'Lead created successfully!' : 'Record created successfully!');
+        navigate(isLeadMode ? `/leads/${newId}` : `/customers/${newId}`);
       }
     } catch (error) {
       console.error('Error saving customer:', error);
@@ -269,20 +324,60 @@ export default function CustomerForm({ isLeadMode = false }) {
                   placeholder="Official registered name if different"
                 />
               </div>
-
-              <div style={{gridColumn: '1 / -1'}}>
-                <label>Relationship Type</label>
-                <select name="relationship_type" value={formData.relationship_type} onChange={handleChange}>
-                  <option value="Customer">Customer</option>
-                  <option value="Supplier">Supplier</option>
-                  <option value="Customer + Supplier">Customer + Supplier</option>
-                  <option value="Other">Other</option>
-                  <option value="Unknown">Unknown</option>
-                </select>
-              </div>
-
+              {!isLeadMode && (
+                <div style={{ gridColumn: '1 / -1', background: 'var(--bg-surface)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', marginBottom: '1rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)' }}>Relationship Details</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                    <div>
+                      <label>Relationship Type</label>
+                      <select name="relationship_type" value={formData.relationship_type} onChange={handleChange}>
+                        <option value="Customer">Customer</option>
+                        <option value="Dealer">Dealer</option>
+                        <option value="Supplier">Supplier</option>
+                        <option value="Partner">Partner</option>
+                      </select>
+                    </div>
+                    
+                    {formData.relationship_type === 'Dealer' && (
+                      <>
+                        <div>
+                          <label>Dealer Classification</label>
+                          <select name="dealer_classification" value={formData.dealer_classification} onChange={handleChange}>
+                            <option value="Distributor">Distributor</option>
+                            <option value="Sub-dealer">Sub-dealer</option>
+                            <option value="Retailer">Retailer</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label>Dealer Status</label>
+                          <select name="dealer_operating_status" value={formData.dealer_operating_status} onChange={handleChange}>
+                            <option value="Active">Active</option>
+                            <option value="On-Hold">On-Hold</option>
+                            <option value="Terminated">Terminated</option>
+                          </select>
+                        </div>
+                        <div style={{gridColumn: '1 / -1'}}>
+                          <label>Product Categories / Interests</label>
+                          <input type="text" name="product_interests" value={formData.product_interests} onChange={handleChange} placeholder="e.g. Premium Feed, Organic Supplements, Machinery" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
               <div style={{gridColumn: '1 / -1', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '0.5rem'}}>
-                <h4 style={{marginBottom: '1rem'}}>Location Information</h4>
+                <h4 style={{marginBottom: '1rem'}}>Location & Territory</h4>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem'}}>
+                  <div>
+                    <label>Assigned Territory</label>
+                    <select name="territory_id" value={formData.territory_id || ''} onChange={handleChange}>
+                      <option value="">-- Unassigned --</option>
+                      {territories.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem'}}>
                   <div>
                     <label>Pincode (Auto-fill)</label>

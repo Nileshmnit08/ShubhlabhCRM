@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { 
   Calendar, AlertCircle, Clock, Phone, ChevronRight, 
   BarChart3, AlertTriangle, Users, Plus, FileText, 
-  CheckCircle2, Activity, UserPlus, FileEdit, ClipboardList, Target
+  CheckCircle2, Activity, UserPlus, FileEdit, ClipboardList, Target, MapPin
 } from 'lucide-react';
 import WhatsAppAction from '../components/WhatsAppAction';
 import CallAction from '../components/CallAction';
@@ -66,12 +66,15 @@ export default function Today() {
       let validFu = [];
       let paymentFu = [];
       let commercialFu = [];
+      let dealerFu = [];
       
       allAccessibleFu.forEach(f => {
         if (f.follow_up_type === 'Payment') {
           paymentFu.push(f);
         } else if (f.follow_up_type === 'Commercial') {
           commercialFu.push(f);
+        } else if (f.follow_up_type === 'Dealer Visit' || f.follow_up_type === 'Dealer Contact') {
+          dealerFu.push(f);
         } else {
           validFu.push(f);
         }
@@ -116,6 +119,9 @@ export default function Today() {
       const todayFu = [...commercialFu, ...validFu].filter(f => f.follow_up_date === todayStr);
       const highPriFu = [...commercialFu, ...validFu].filter(f => f.follow_up_date > todayStr && f.priority === 'High');
 
+      const overdueDealer = dealerFu.filter(f => f.follow_up_date < todayStr);
+      const todayDealer = dealerFu.filter(f => f.follow_up_date === todayStr);
+
       const pWeight = { 'High': 3, 'Normal': 2, 'Low': 1 };
       const sortFn = (a, b) => {
         if (a.follow_up_date !== b.follow_up_date) return a.follow_up_date.localeCompare(b.follow_up_date);
@@ -127,6 +133,8 @@ export default function Today() {
       highPriFu.sort(sortFn);
       overduePayment.sort(sortFn);
       todayPayment.sort(sortFn);
+      overdueDealer.sort(sortFn);
+      todayDealer.sort(sortFn);
 
       // 2. Open Requirements
       const { data: openReqsData } = await supabase.from('v_open_requirements').select('*');
@@ -239,6 +247,10 @@ export default function Today() {
         paymentTasks: {
           overdue: overduePayment,
           today: todayPayment
+        },
+        dealerTasks: {
+          overdue: overdueDealer,
+          today: todayDealer
         },
         kpis: {
           overdue: overdueFu.length,
@@ -428,8 +440,9 @@ export default function Today() {
 
   const priorityTasks = [...data.followUps.overdue, ...data.followUps.today].slice(0, 7);
   const paymentTasksList = [...data.paymentTasks.overdue, ...data.paymentTasks.today].slice(0, 7);
-  const totalActionable = data.followUps.overdue.length + data.followUps.today.length + data.paymentTasks.overdue.length + data.paymentTasks.today.length;
-  const totalOverdue = data.kpis.overdue + data.paymentTasks.overdue.length;
+  const dealerTasksList = [...data.dealerTasks.overdue, ...data.dealerTasks.today].slice(0, 7);
+  const totalActionable = data.followUps.overdue.length + data.followUps.today.length + data.paymentTasks.overdue.length + data.paymentTasks.today.length + data.dealerTasks.overdue.length + data.dealerTasks.today.length;
+  const totalOverdue = data.kpis.overdue + data.paymentTasks.overdue.length + data.dealerTasks.overdue.length;
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
@@ -490,6 +503,30 @@ export default function Today() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {paymentTasksList.map(fu => <PaymentTaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
+              </div>
+            )}
+          </div>
+
+          {/* Dealer Activities Queue */}
+          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                <MapPin size={18} className="text-warning" /> Dealer Activities
+              </h2>
+              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                <span className="text-danger"><strong>{data.dealerTasks.overdue.length}</strong> Overdue</span>
+                <span className="text-warning"><strong>{data.dealerTasks.today.length}</strong> Due Today</span>
+              </div>
+            </div>
+            
+            {dealerTasksList.length === 0 ? (
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
+                <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>No dealer visits or contacts pending</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {dealerTasksList.map(fu => <TaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
               </div>
             )}
           </div>
