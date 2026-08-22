@@ -26,8 +26,8 @@ export default function DealerControlTower() {
     }
   }, [userProfile]);
 
-  async function fetchData() {
-    setLoading(true);
+  async function fetchData(retries = 2, delay = 1000) {
+    if (retries === 2) setLoading(true);
     try {
       const { data, error: fetchErr } = await supabase
         .from('v_management_dealer_control')
@@ -47,11 +47,24 @@ export default function DealerControlTower() {
 
       // Auto-expand all territories by default for better visibility
       setExpandedTerritories(new Set(Array.from(uniqueTerritories).concat(['Unassigned'])));
-
+      
+      setLoading(false);
     } catch (err) {
-      console.error(err);
-      setError("Failed to load dealer control tower data.");
-    } finally {
+      if (retries > 0) {
+        console.warn(`DealerControl request failed, retrying in ${delay}ms... (${retries} retries left)`);
+        setTimeout(() => fetchData(retries - 1, delay * 2), delay);
+        return;
+      }
+
+      console.error("Dealer Control Tower Fetch Error:", {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        hint: err?.hint,
+        raw: err
+      });
+      
+      setError("Dealer service unavailable – try again in 30s.");
       setLoading(false);
     }
   }
