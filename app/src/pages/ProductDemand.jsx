@@ -55,7 +55,14 @@ export default function ProductDemand() {
 
     } catch (err) {
       console.error("Product demand data load error:", err);
-      setError(err?.message || "Failed to load product demand data.");
+      let errorMessage = err?.message || "Failed to load product demand data.";
+      
+      // Map raw backend schema errors to a clean user-facing message
+      if (errorMessage.toLowerCase().includes('schema cache') || errorMessage.toLowerCase().includes('could not find the table')) {
+        errorMessage = "Product demand data is temporarily unavailable. The system is updating.";
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
