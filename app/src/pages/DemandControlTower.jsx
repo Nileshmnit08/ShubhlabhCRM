@@ -2,7 +2,8 @@ import React, { useEffect, useState, useContext } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthContext } from '../AuthContext';
 import { Link } from 'react-router-dom';
-import { LayoutDashboard, AlertCircle, ArrowRight, Target, ShieldAlert, Zap, Compass, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, AlertCircle, ArrowRight, Target, ShieldAlert, Zap, Compass, RefreshCw, Activity, CheckCircle2, TrendingUp } from 'lucide-react';
+import SectionErrorBoundary from '../components/SectionErrorBoundary';
 
 export default function DemandControlTower() {
   const { userProfile } = useContext(AuthContext);
@@ -38,7 +39,7 @@ export default function DemandControlTower() {
 
       // 2. Fetch Territory breakdown
       const { data: terrData } = await supabase.from('v_territory_demand_planning').select('*').order('total_demand_signals', { ascending: false });
-      setTerritoryDemand(terrData || []);
+      setTerritoryDemand(Array.isArray(terrData) ? terrData : []);
 
       // 3. Fetch High-Priority Action List
       const { data: actionsData } = await supabase.from('follow_ups')
@@ -48,7 +49,7 @@ export default function DemandControlTower() {
          .order('follow_up_date', { ascending: true })
          .limit(5);
       
-      setHighPriorityActions(actionsData || []);
+      setHighPriorityActions(Array.isArray(actionsData) ? actionsData : []);
 
     } catch (err) {
       console.error(err);
@@ -62,8 +63,9 @@ export default function DemandControlTower() {
   if (error) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{error}</div>;
 
   return (
-    <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
-      <div className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <SectionErrorBoundary sectionName="Demand Control Tower">
+      <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
+        <div className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <LayoutDashboard size={24} className="text-primary" /> Management Demand Control Tower
@@ -148,7 +150,7 @@ export default function DemandControlTower() {
                         </td>
                         <td style={{ padding: '1rem', fontWeight: 600 }}>{t.total_demand_signals}</td>
                         <td style={{ padding: '1rem' }}>
-                           {t.active_products && t.active_products.length > 0 ? (
+                           {Array.isArray(t.active_products) && t.active_products.length > 0 ? (
                               <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
                                  {t.active_products.slice(0, 2).map((p, i) => (
                                     <span key={i} className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>{p}</span>
@@ -225,8 +227,9 @@ export default function DemandControlTower() {
                   </Link>
                </div>
             </div>
-         </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </SectionErrorBoundary>
   );
 }
