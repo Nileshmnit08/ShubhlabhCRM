@@ -23,21 +23,64 @@ export default function ReactivationQueue() {
 
   async function fetchQueue() {
     setLoading(true);
+    setError(null);
     try {
-      let query = supabase.from('v_reactivation_queue').select('*').order('days_inactive', { ascending: false, nullsFirst: false });
-      
-      // Basic RLS safety in UI
+      // 1. Fetch approved dormant candidates
+      let candQuery = supabase.from('v_dormant_candidates')
+         .select('*')
+         .eq('review_state', 'APPROVED_FOR_REACTIVATION')
+         .order('days_inactive', { ascending: false, nullsFirst: false });
+
       if (userProfile?.role !== 'Admin') {
-         query = query.eq('assigned_owner_id', userProfile?.id);
+         candQuery = candQuery.eq('assigned_owner_id', userProfile?.id);
       }
 
-      const { data, error: fetchErr } = await query;
-      if (fetchErr) throw fetchErr;
-      
-      setCandidates(data || []);
+      const { data: dData, error: dErr } = await candQuery;
+      if (dErr) throw dErr;
+
+      const candidatesList = dData || [];
+      const partyIds = candidatesList.map(c => c.party_id);
+
+      // 2. Fetch latest reactivation tasks for these candidates
+      let tasksByParty = {};
+      if (partyIds.length > 0) {
+        const { data: fData, error: fErr } = await supabase.from('follow_ups')
+           .select('party_id, status, outcome_category, created_at')
+           .eq('follow_up_type', 'Reactivation')
+           .in('party_id', partyIds)
+           .order('created_at', { ascending: false });
+           
+        if (fErr) throw fErr;
+        
+        // Group by party_id, keeping only the latest (first encountered since we ordered desc)
+        if (fData) {
+           fData.forEach(task => {
+              if (!tasksByParty[task.party_id]) {
+                 tasksByParty[task.party_id] = task;
+              }
+           });
+        }
+      }
+
+      // 3. Client-side join mapping
+      const finalData = candidatesList.map(d => {
+         const t = tasksByParty[d.party_id] || {};
+         let state = 'APPROVED';
+         if (t.status === 'Pending') state = 'IN_PROGRESS';
+         else if (t.status === 'Completed' || t.status === 'Cancelled') state = 'COMPLETED';
+
+         return {
+            ...d,
+            latest_task_status: t.status || null,
+            latest_task_outcome: t.outcome_category || null,
+            reactivation_state: state
+         };
+      });
+
+      setCandidates(finalData);
     } catch (err) {
       console.error(err);
-      setError('Failed to load reactivation queue.');
+      setError(err?.message || 'Failed to load reactivation queue.');
     } finally {
       setLoading(false);
     }
