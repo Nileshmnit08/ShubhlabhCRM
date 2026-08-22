@@ -27,8 +27,19 @@ export default function CoverageIntelligence() {
       
       setGaps(grouped);
     } catch (err) {
-      console.error(err);
-      setError("Failed to load coverage intelligence. Please ensure the database view is created.");
+      console.error("Coverage Intelligence fetch error:", {
+        message: err?.message,
+        code: err?.code,
+        details: err?.details,
+        raw: err
+      });
+      
+      const errorMessage = err?.message || '';
+      if (errorMessage.toLowerCase().includes('schema cache') || errorMessage.toLowerCase().includes('could not find the table') || err?.code === 'PGRST205' || errorMessage.includes('404')) {
+        setError("Coverage view missing – please run the database migration (73_sprint_17_8_coverage_gaps.sql) or contact an admin.");
+      } else {
+        setError("Failed to load coverage intelligence. Service may be temporarily unavailable.");
+      }
     } finally {
       setLoading(false);
     }
