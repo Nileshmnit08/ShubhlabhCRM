@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthContext } from '../AuthContext';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Layers, Package, Map, ChevronDown, ChevronRight, Activity, TrendingUp, DollarSign, CheckCircle2 } from 'lucide-react';
+import { Search, Filter, Layers, Package, Map, ChevronDown, ChevronRight, Activity, TrendingUp, DollarSign, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
 export default function ProductDemand() {
@@ -25,28 +25,37 @@ export default function ProductDemand() {
   }, [userProfile]);
 
   async function fetchData() {
+    if (!userProfile) return; // Wait for profile
+    
     setLoading(true);
+    setError(null);
     try {
-      let query = supabase.from('v_product_demand_signals').select('*').order('product_category').order('standardized_product_name').order('signal_date', { ascending: false });
+      let query = supabase.from('v_product_demand_signals')
+        .select('*')
+        .order('product_category')
+        .order('standardized_product_name')
+        .order('signal_date', { ascending: false });
       
-      if (userProfile?.role !== 'Admin') {
-         query = query.eq('assigned_owner_id', userProfile?.id);
+      if (userProfile.role !== 'Admin') {
+         query = query.eq('assigned_owner_id', userProfile.id);
       }
 
       const { data, error: fetchErr } = await query;
       
       if (fetchErr) throw fetchErr;
-      setSignals(data || []);
+      
+      const normalizedData = Array.isArray(data) ? data : [];
+      setSignals(normalizedData);
 
       const uniqueTerritories = new Set();
-      data?.forEach(r => {
+      normalizedData.forEach(r => {
         if (r.territory_name) uniqueTerritories.add(r.territory_name);
       });
       setTerritories(Array.from(uniqueTerritories).sort());
 
     } catch (err) {
-      console.error(err);
-      setError("Failed to load product demand data.");
+      console.error("Product demand data load error:", err);
+      setError(err?.message || "Failed to load product demand data.");
     } finally {
       setLoading(false);
     }
@@ -95,8 +104,32 @@ export default function ProductDemand() {
     return sortedGroups;
   }, [filteredSignals]);
 
-  if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Product Demand...</div>;
-  if (error) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{error}</div>;
+  if (loading) return (
+    <div style={{ padding: '2rem' }}>
+      <div style={{ height: '40px', width: '300px', background: 'var(--bg-surface-hover)', borderRadius: '8px', marginBottom: '2rem', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}></div>
+      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+         <div style={{ height: '40px', width: '100%', background: 'var(--bg-surface-hover)', borderRadius: '8px', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}></div>
+      </div>
+      <div className="glass-panel" style={{ padding: '2rem' }}>
+         <div style={{ height: '60px', width: '100%', background: 'var(--bg-surface-hover)', borderRadius: '8px', marginBottom: '1rem', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}></div>
+         <div style={{ height: '60px', width: '100%', background: 'var(--bg-surface-hover)', borderRadius: '8px', marginBottom: '1rem', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}></div>
+         <div style={{ height: '60px', width: '100%', background: 'var(--bg-surface-hover)', borderRadius: '8px', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }}></div>
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ padding: '3rem', display: 'flex', justifyContent: 'center' }}>
+      <div className="cv-panel" style={{ padding: '2rem', textAlign: 'center', maxWidth: '400px', borderTop: '4px solid var(--danger)' }}>
+        <AlertTriangle size={32} className="text-danger" style={{ marginBottom: '1rem' }} />
+        <h3 style={{ margin: '0 0 1rem 0' }}>Data Fetch Failed</h3>
+        <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>{error}</p>
+        <button className="btn btn-secondary" onClick={fetchData} style={{ margin: '0 auto' }}>
+          <RefreshCw size={16} style={{ marginRight: '0.5rem' }} /> Retry
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
