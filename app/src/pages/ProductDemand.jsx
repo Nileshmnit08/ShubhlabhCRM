@@ -30,39 +30,71 @@ export default function ProductDemand() {
     setLoading(true);
     setError(null);
     try {
-      let query = supabase.from('v_product_demand_signals')
+      // 1. Fetch base demand signals
+      let query = supabase.from('v_demand_signals')
         .select('*')
-        .order('product_category')
-        .order('standardized_product_name')
         .order('signal_date', { ascending: false });
       
       if (userProfile.role !== 'Admin') {
          query = query.eq('assigned_owner_id', userProfile.id);
       }
 
-      const { data, error: fetchErr } = await query;
-      
+      const { data: dsData, error: fetchErr } = await query;
       if (fetchErr) throw fetchErr;
       
-      const normalizedData = Array.isArray(data) ? data : [];
-      setSignals(normalizedData);
+      const rawSignals = Array.isArray(dsData) ? dsData : [];
+
+      // 2. Fetch products to get categories
+      const { data: productsData } = await supabase.from('products').select('name, category');
+      const productsMap = {};
+      if (productsData) {
+        productsData.forEach(p => {
+           productsMap[p.name] = p;
+        });
+      }
+
+      // 3. Fetch territory mapping for the involved parties
+      const partyIds = [...new Set(rawSignals.map(s => s.party_id).filter(Boolean))];
+      const customerMap = {};
+      if (partyIds.length > 0) {
+        const { data: partyData } = await supabase.from('crm_parties').select('id, crm_territories(name)').in('id', partyIds);
+        if (partyData) {
+           partyData.forEach(p => {
+              customerMap[p.id] = { territory_name: p.crm_territories?.name };
+           });
+        }
+      }
+
+      // 4. Client-side join to mimic v_product_demand_signals
+      const enrichedData = rawSignals.map(ds => {
+         const prod = productsMap[ds.product_reference] || {};
+         const cust = customerMap[ds.party_id] || {};
+         return {
+            ...ds,
+            product_category: prod.category || 'Uncategorized',
+            standardized_product_name: prod.name || ds.product_reference || 'Unknown',
+            territory_name: cust.territory_name
+         };
+      });
+
+      // 5. Sort identically to original view expectation
+      enrichedData.sort((a, b) => {
+        if (a.product_category !== b.product_category) return (a.product_category || '').localeCompare(b.product_category || '');
+        if (a.standardized_product_name !== b.standardized_product_name) return (a.standardized_product_name || '').localeCompare(b.standardized_product_name || '');
+        return new Date(b.signal_date) - new Date(a.signal_date);
+      });
+
+      setSignals(enrichedData);
 
       const uniqueTerritories = new Set();
-      normalizedData.forEach(r => {
+      enrichedData.forEach(r => {
         if (r.territory_name) uniqueTerritories.add(r.territory_name);
       });
       setTerritories(Array.from(uniqueTerritories).sort());
 
     } catch (err) {
       console.error("Product demand data load error:", err);
-      let errorMessage = err?.message || "Failed to load product demand data.";
-      
-      // Map raw backend schema errors to a clean user-facing message
-      if (errorMessage.toLowerCase().includes('schema cache') || errorMessage.toLowerCase().includes('could not find the table')) {
-        errorMessage = "Product demand data is temporarily unavailable. The system is updating.";
-      }
-      
-      setError(errorMessage);
+      setError(err?.message || "Failed to load product demand data.");
     } finally {
       setLoading(false);
     }
