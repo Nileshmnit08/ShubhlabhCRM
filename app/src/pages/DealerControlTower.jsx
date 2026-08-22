@@ -61,10 +61,21 @@ export default function DealerControlTower() {
         code: err?.code,
         details: err?.details,
         hint: err?.hint,
-        raw: err
+        raw: err,
+        stack: err?.stack
       });
       
-      setError("Dealer service unavailable – try again in 30s.");
+      let devMessage = "Dealer service unavailable – try again in 30s.";
+      
+      if (err?.code === 'PGRST301' || err?.code === '401' || err?.code === '403') {
+         devMessage = "Auth/permission error. Please check your credentials.";
+      } else if (err?.message?.includes('Failed to fetch') || err?.message?.includes('Network Error')) {
+         devMessage = "Network error: Unable to reach the Supabase backend. Check your connection.";
+      } else if (err?.code?.startsWith('5') || err?.message?.includes('schema cache') || err?.message?.includes('could not find the table')) {
+         devMessage = "Server error: The requested view may be missing or the server is down. (Check v_management_dealer_control)";
+      }
+
+      setError(import.meta.env.DEV ? devMessage : "Dealer service unavailable – try again in 30s.");
       setLoading(false);
     }
   }
@@ -103,7 +114,18 @@ export default function DealerControlTower() {
   }
 
   if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Dealer Control Tower...</div>;
-  if (error) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{error}</div>;
+  if (error) return (
+    <div style={{padding: '3rem', display: 'flex', justifyContent: 'center'}}>
+      <div className="cv-panel" style={{padding: '2rem', textAlign: 'center', maxWidth: '500px', borderTop: '4px solid var(--danger)'}}>
+        <AlertTriangle size={32} className="text-danger" style={{marginBottom: '1rem'}} />
+        <h3 style={{margin: '0 0 1rem 0'}}>Data Fetch Failed</h3>
+        <p className="text-secondary" style={{marginBottom: '1.5rem'}}>{error}</p>
+        <button className="btn btn-secondary" onClick={() => fetchData(0)} style={{margin: '0 auto'}}>
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
