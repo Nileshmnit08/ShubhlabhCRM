@@ -226,6 +226,7 @@ label {
   flex-direction: column;
   gap: 0.25rem;
   flex: 1;
+  overflow-y: auto;
 }
 
 .nav-item {
