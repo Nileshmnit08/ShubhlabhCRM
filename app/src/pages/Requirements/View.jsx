@@ -36,6 +36,7 @@ export default function RequirementView() {
   const [req, setReq] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
   
   // Status Update State
@@ -60,13 +61,28 @@ export default function RequirementView() {
         .select(`
           *,
           crm_parties ( id, display_name, mobile, whatsapp, city ),
-          interactions ( id, channel, note, created_at ),
           app_users:assigned_to ( email )
         `)
         .eq('id', id)
-        .single();
+        .maybeSingle();
         
       if (rErr) throw rErr;
+      
+      if (!rData) {
+        setReq(null);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch interactions separately to avoid relationship errors breaking the main query
+      const { data: iData } = await supabase
+        .from('interactions')
+        .select('id, channel, note, created_at')
+        .eq('related_requirement_id', id)
+        .order('created_at', { ascending: false });
+        
+      rData.interactions = iData || [];
+
       setReq(rData);
       setNewStatus(rData.status);
 
@@ -93,6 +109,7 @@ export default function RequirementView() {
 
     } catch (err) {
       console.error(err);
+      setFetchError(err);
     } finally {
       setLoading(false);
     }
@@ -166,6 +183,15 @@ export default function RequirementView() {
   };
 
   if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading requirement...</div>;
+  
+  if (fetchError) return (
+    <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>
+      <h3>Error Loading Requirement</h3>
+      <p>Requirement found, but some related fields are unavailable or a network error occurred.</p>
+      <p style={{fontSize: '0.85rem', opacity: 0.8}}>{fetchError.message || JSON.stringify(fetchError)}</p>
+    </div>
+  );
+
   if (!req) return <div style={{padding: '3rem', textAlign: 'center'}}>Not Found</div>;
 
   return (
@@ -362,17 +388,17 @@ export default function RequirementView() {
               </div>
             ))}
             
-            {/* Source Interaction */}
-            {req.interactions && (
-              <div style={{position: 'relative'}}>
+            {/* Source Interactions */}
+            {req.interactions && req.interactions.length > 0 && req.interactions.map(interaction => (
+              <div key={interaction.id} style={{position: 'relative'}}>
                 <div style={{position: 'absolute', left: '-1.85rem', top: '0.25rem', width: '12px', height: '12px', borderRadius: '50%', background: 'var(--success)', border: '2px solid var(--bg-base)'}}></div>
-                <div className="text-muted" style={{fontSize: '0.8rem'}}>{new Date(req.interactions.created_at).toLocaleString()}</div>
-                <div style={{fontWeight: 600}}>Requirement Captured via {req.interactions.channel}</div>
+                <div className="text-muted" style={{fontSize: '0.8rem'}}>{new Date(interaction.created_at).toLocaleString()}</div>
+                <div style={{fontWeight: 600}}>Requirement Captured via {interaction.channel}</div>
                 <div style={{marginTop: '0.5rem', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', fontSize: '0.9rem'}}>
-                  {req.interactions.note || 'No interaction notes.'}
+                  {interaction.note || 'No interaction notes.'}
                 </div>
               </div>
-            )}
+            ))}
           </div>
         )}
       </div>
