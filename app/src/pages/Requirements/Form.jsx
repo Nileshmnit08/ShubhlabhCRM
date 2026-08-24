@@ -5,7 +5,9 @@ import { supabase } from '../../lib/supabase';
 export default function RequirementForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { id } = useParams();
   const partyId = searchParams.get('party_id');
+  const isEditMode = Boolean(id);
   
   const [party, setParty] = useState(null);
   const [products, setProducts] = useState([]);
@@ -23,32 +25,53 @@ export default function RequirementForm() {
   });
 
   useEffect(() => {
-    if (!partyId) {
+    if (!isEditMode && !partyId) {
       alert("Must provide a party_id");
       navigate(-1);
       return;
     }
     fetchInitialData();
-  }, [partyId]);
+  }, [partyId, id]);
 
   async function fetchInitialData() {
     setLoading(true);
     try {
-      const [partyRes, prodRes] = await Promise.all([
-        supabase.from('crm_parties').select('*').eq('id', partyId).single(),
-        supabase.from('products').select('*').eq('active', true)
-      ]);
-      
-      if (!partyRes.data) {
-        alert("Party not found or inaccessible.");
-        navigate(-1);
-        return;
-      }
-      
-      setParty(partyRes.data);
-      setProducts(prodRes.data || []);
-      if (prodRes.data?.length > 0) {
-        setFormData(f => ({ ...f, product_type: prodRes.data[0].name }));
+      if (isEditMode) {
+        const { data: req, error: reqErr } = await supabase.from('requirements').select('*, crm_parties(*)').eq('id', id).single();
+        if (reqErr || !req) throw new Error("Requirement not found");
+        
+        const { data: prodData } = await supabase.from('products').select('*').eq('active', true);
+        
+        setParty(req.crm_parties);
+        setProducts(prodData || []);
+        
+        setFormData({
+          product_type: req.product_type || '',
+          quantity: req.quantity || '',
+          unit: req.unit || 'Bags',
+          expected_rate: req.expected_rate || '',
+          expected_date: req.expected_date || '',
+          priority: req.priority || 'Normal',
+          intent_type: req.intent_type || 'Product Interest',
+          notes: req.notes || ''
+        });
+      } else {
+        const [partyRes, prodRes] = await Promise.all([
+          supabase.from('crm_parties').select('*').eq('id', partyId).single(),
+          supabase.from('products').select('*').eq('active', true)
+        ]);
+        
+        if (!partyRes.data) {
+          alert("Party not found or inaccessible.");
+          navigate(-1);
+          return;
+        }
+        
+        setParty(partyRes.data);
+        setProducts(prodRes.data || []);
+        if (prodRes.data?.length > 0) {
+          setFormData(f => ({ ...f, product_type: prodRes.data[0].name }));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -80,8 +103,7 @@ export default function RequirementForm() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       
-      const { data, error } = await supabase.from('requirements').insert({
-        party_id: partyId,
+      const payload = {
         product_type: formData.product_type,
         quantity: parseFloat(formData.quantity) || 0,
         unit: formData.unit,
@@ -89,16 +111,27 @@ export default function RequirementForm() {
         expected_date: formData.expected_date || null,
         priority: formData.priority,
         intent_type: formData.intent_type,
-        notes: formData.notes,
-        status: 'Identified',
-        assigned_to: sessionData?.session?.user?.id || null
-      }).select();
-      
-      if (error) throw error;
-      navigate(`/requirements/${data[0].id}`);
+        notes: formData.notes
+      };
+
+      if (isEditMode) {
+        const { error } = await supabase.from('requirements').update(payload).eq('id', id);
+        if (error) throw error;
+        navigate(`/requirements/${id}`);
+      } else {
+        const insertPayload = {
+          ...payload,
+          party_id: partyId,
+          status: 'New', // Fixed constraint issue
+          assigned_to: sessionData?.session?.user?.id || null
+        };
+        const { data, error } = await supabase.from('requirements').insert(insertPayload).select();
+        if (error) throw error;
+        navigate(`/requirements/${data[0].id}`);
+      }
     } catch (err) {
-      console.error(err);
-      alert("Failed to create requirement");
+      console.error("Failed to save requirement:", err);
+      alert("Failed to save requirement. Check console for details.");
     }
   };
 
@@ -107,7 +140,7 @@ export default function RequirementForm() {
   return (
     <div className="animate-fade-in" style={{maxWidth: '600px', margin: '0 auto'}}>
       <div className="page-header">
-        <h1 style={{margin: 0}}>New Requirement</h1>
+        <h1 style={{margin: 0}}>{isEditMode ? 'Edit Requirement' : 'New Requirement'}</h1>
         <p className="text-secondary">for {party?.display_name}</p>
       </div>
 
@@ -206,7 +239,9 @@ export default function RequirementForm() {
         </div>
 
         <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
-          <button type="submit" className="btn btn-primary" style={{flex: 1, justifyContent: 'center'}}>Create Requirement</button>
+          <button type="submit" className="btn btn-primary" style={{flex: 1, justifyContent: 'center'}}>
+            {isEditMode ? 'Save Changes' : 'Create Requirement'}
+          </button>
           <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>Cancel</button>
         </div>
       </form>

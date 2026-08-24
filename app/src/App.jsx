@@ -228,6 +228,7 @@ function App() {
                 <Route index element={<RequirementList />} />
                 <Route path="new" element={<RequirementForm />} />
                 <Route path=":id" element={<RequirementView />} />
+                <Route path=":id/edit" element={<RequirementForm />} />
               </Route>
               <Route path="follow-ups">
                 <Route index element={<FollowUpList />} />

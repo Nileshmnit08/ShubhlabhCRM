@@ -190,6 +190,9 @@ export default function RequirementView() {
           {req.crm_parties && (
              <WhatsAppAction party={req.crm_parties} onComplete={fetchData} btnClass="btn cv-btn-subtle" />
           )}
+          <Link to={`/requirements/${req.id}/edit`} className="btn btn-secondary">
+            <Edit2 size={16} /> Edit Requirement
+          </Link>
           <button className="btn btn-primary" onClick={() => setShowFollowUp(!showFollowUp)}>
             <Calendar size={16} /> Schedule Follow-up
           </button>
