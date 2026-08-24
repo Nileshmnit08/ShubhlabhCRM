@@ -12,6 +12,8 @@ export default function RequirementForm() {
   const [party, setParty] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const [formData, setFormData] = useState({
     product_type: '',
@@ -84,21 +86,24 @@ export default function RequirementForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError('');
     
     if (parseFloat(formData.quantity) <= 0) {
-      alert("Quantity must be greater than zero.");
+      setFormError("Quantity must be greater than zero.");
       return;
     }
     
     if (formData.expected_rate && parseFloat(formData.expected_rate) < 0) {
-      alert("Expected rate cannot be negative.");
+      setFormError("Expected rate cannot be negative.");
       return;
     }
     
     if (!formData.expected_date) {
-      alert("Required date is mandatory.");
+      setFormError("Required date is mandatory.");
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -115,9 +120,14 @@ export default function RequirementForm() {
       };
 
       if (isEditMode) {
-        const { error } = await supabase.from('requirements').update(payload).eq('id', id);
+        const { data, error } = await supabase.from('requirements').update(payload).eq('id', id).select();
         if (error) throw error;
-        navigate(`/requirements/${id}`);
+        
+        if (data && data.length > 0 && data[0].id) {
+          navigate(`/requirements/${data[0].id}`);
+        } else {
+          navigate(`/requirements`);
+        }
       } else {
         const insertPayload = {
           ...payload,
@@ -127,11 +137,18 @@ export default function RequirementForm() {
         };
         const { data, error } = await supabase.from('requirements').insert(insertPayload).select();
         if (error) throw error;
-        navigate(`/requirements/${data[0].id}`);
+        
+        if (data && data.length > 0 && data[0].id) {
+          navigate(`/requirements/${data[0].id}`);
+        } else {
+          navigate(`/requirements`); // Valid existing route
+        }
       }
     } catch (err) {
       console.error("Failed to save requirement:", err);
-      alert("Failed to save requirement. Check console for details.");
+      setFormError(err.message || "Failed to save requirement. Check console for details.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -145,6 +162,12 @@ export default function RequirementForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="glass-panel" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
+        {formError && (
+          <div style={{padding: '1rem', borderRadius: '6px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid var(--danger)'}}>
+            {formError}
+          </div>
+        )}
+        
         <div>
           <label style={{display: 'block', marginBottom: '0.5rem'}}>Product / Feed Type</label>
           <select 
@@ -239,10 +262,10 @@ export default function RequirementForm() {
         </div>
 
         <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
-          <button type="submit" className="btn btn-primary" style={{flex: 1, justifyContent: 'center'}}>
-            {isEditMode ? 'Save Changes' : 'Create Requirement'}
+          <button type="submit" className="btn btn-primary" style={{flex: 1, justifyContent: 'center'}} disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Create Requirement')}
           </button>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>Cancel</button>
+          <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)} disabled={isSubmitting}>Cancel</button>
         </div>
       </form>
     </div>
