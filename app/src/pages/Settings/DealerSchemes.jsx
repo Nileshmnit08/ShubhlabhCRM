@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Gift, Plus, Save, X, Edit, Trash2, Calendar, ShieldAlert } from 'lucide-react';
+import { Gift, Plus, Save, X, Edit, Trash2, Calendar, ShieldAlert, AlertCircle, Loader } from 'lucide-react';
 
 export default function DealerSchemes() {
   const [schemes, setSchemes] = useState([]);
@@ -8,8 +8,14 @@ export default function DealerSchemes() {
   const [error, setError] = useState(null);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  
   const [currentScheme, setCurrentScheme] = useState(null);
   const [currentSlabs, setCurrentSlabs] = useState([]);
+  const [deletedSlabs, setDeletedSlabs] = useState([]);
+  
+  const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
     fetchSchemes();
@@ -49,7 +55,10 @@ export default function DealerSchemes() {
     });
     // Sort slabs by min_bags
     const sortedSlabs = (scheme.dealer_scheme_slabs || []).sort((a, b) => a.min_bags - b.min_bags);
-    setCurrentSlabs(sortedSlabs);
+    setCurrentSlabs(sortedSlabs.map(s => ({...s}))); // clone
+    setDeletedSlabs([]);
+    setSaveError(null);
+    setValidationErrors({});
     setIsEditing(true);
   };
 
@@ -65,6 +74,9 @@ export default function DealerSchemes() {
       customer_type: 'Dealers Only'
     });
     setCurrentSlabs([]);
+    setDeletedSlabs([]);
+    setSaveError(null);
+    setValidationErrors({});
     setIsEditing(true);
   };
 
@@ -76,14 +88,18 @@ export default function DealerSchemes() {
       min_bags: newMin,
       max_bags: '',
       reward_type: 'Physical Gift',
+      reward_value: '',
       reward_description: ''
     }]);
   };
 
   const handleRemoveSlab = (idx) => {
     const newSlabs = [...currentSlabs];
-    newSlabs.splice(idx, 1);
+    const removed = newSlabs.splice(idx, 1)[0];
     setCurrentSlabs(newSlabs);
+    if (removed.id) {
+      setDeletedSlabs([...deletedSlabs, removed.id]);
+    }
   };
 
   const handleSlabChange = (idx, field, value) => {
@@ -92,30 +108,79 @@ export default function DealerSchemes() {
     setCurrentSlabs(newSlabs);
   };
 
+  const validateForm = () => {
+    const errors = {};
+    if (!currentScheme.name?.trim()) errors.name = "Scheme name is required.";
+    if (!currentScheme.start_date) errors.start_date = "Start date is required.";
+    if (!currentScheme.end_date) errors.end_date = "End date is required.";
+    
+    if (currentScheme.start_date && currentScheme.end_date) {
+      if (new Date(currentScheme.end_date) < new Date(currentScheme.start_date)) {
+        errors.end_date = "End date must be on or after start date.";
+      }
+    }
+
+    if (currentSlabs.length === 0 && currentScheme.status === 'Active') {
+      errors.general = "An active scheme must have at least one reward slab.";
+    }
+
+    let slabErrors = false;
+    let prevMin = -1;
+    let prevRewardVal = -1;
+
+    const sortedSlabs = [...currentSlabs].sort((a, b) => Number(a.min_bags || 0) - Number(b.min_bags || 0));
+
+    sortedSlabs.forEach((s, idx) => {
+      const minBags = Number(s.min_bags);
+      if (isNaN(minBags) || minBags <= 0) {
+        errors[`slab_${idx}_min_bags`] = "Must be a positive number.";
+        slabErrors = true;
+      }
+      if (!s.reward_description?.trim()) {
+        errors[`slab_${idx}_desc`] = "Description required.";
+        slabErrors = true;
+      }
+      if (minBags <= prevMin) {
+        errors[`slab_${idx}_min_bags`] = "Bag thresholds must be strictly increasing and unique.";
+        slabErrors = true;
+      }
+      prevMin = minBags;
+
+      if (s.reward_type === 'Reward Points') {
+        const rVal = Number(s.reward_value);
+        if (isNaN(rVal) || rVal <= 0) {
+          errors[`slab_${idx}_val`] = "Points must be positive.";
+          slabErrors = true;
+        } else if (rVal <= prevRewardVal) {
+          errors[`slab_${idx}_val`] = "Reward points must increase with bag thresholds.";
+          slabErrors = true;
+        }
+        prevRewardVal = Math.max(prevRewardVal, rVal);
+      }
+    });
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
-    if (currentSlabs.length === 0 && currentScheme.status === 'Active') {
-      alert("An active scheme must have at least one reward slab.");
+    setSaveError(null);
+    
+    if (!validateForm()) {
       return;
     }
 
-    // Validate strictly increasing min_bags
-    const sorted = [...currentSlabs].sort((a, b) => a.min_bags - b.min_bags);
-    for (let i = 1; i < sorted.length; i++) {
-      if (Number(sorted[i].min_bags) <= Number(sorted[i-1].min_bags)) {
-        alert("Slab thresholds must be strictly increasing and unique.");
-        return;
-      }
-    }
+    setIsSaving(true);
 
     try {
       let schemeId = currentScheme.id;
       
       const schemeData = {
-        name: currentScheme.name,
+        name: currentScheme.name.trim(),
         start_date: currentScheme.start_date,
         end_date: currentScheme.end_date,
-        description: currentScheme.description,
+        description: currentScheme.description?.trim(),
         status: currentScheme.status,
         overlap_policy: currentScheme.overlap_policy,
         customer_type: currentScheme.customer_type
@@ -139,34 +204,46 @@ export default function DealerSchemes() {
         if (updErr) throw updErr;
       }
 
-      // Handle slabs (simple approach: delete existing, insert new for this MVP)
-      if (currentScheme.id) {
-        const { error: delErr } = await supabase.from('dealer_scheme_slabs').delete().eq('scheme_id', schemeId);
+      // Handle Deleted Slabs
+      if (deletedSlabs.length > 0) {
+        const { error: delErr } = await supabase
+          .from('dealer_scheme_slabs')
+          .delete()
+          .in('id', deletedSlabs);
         if (delErr) throw delErr;
       }
 
+      // Upsert Slabs safely (Insert missing, Update existing)
       if (currentSlabs.length > 0) {
-        const slabsToInsert = currentSlabs.map(s => ({
+        const slabsToUpsert = currentSlabs.map(s => ({
+          ...(s.id ? { id: s.id } : {}), // only include id if it's already an existing record
           scheme_id: schemeId,
           min_bags: Number(s.min_bags),
           max_bags: s.max_bags ? Number(s.max_bags) : null,
           reward_type: s.reward_type,
-          reward_description: s.reward_description || 'Reward'
+          reward_value: s.reward_value ? Number(s.reward_value) : null,
+          reward_description: s.reward_description.trim()
         }));
-        const { error: slabErr } = await supabase.from('dealer_scheme_slabs').insert(slabsToInsert);
+        
+        const { error: slabErr } = await supabase
+          .from('dealer_scheme_slabs')
+          .upsert(slabsToUpsert, { onConflict: 'id' });
+        
         if (slabErr) throw slabErr;
       }
 
-      alert("Scheme saved successfully.");
       setIsEditing(false);
       fetchSchemes();
+      // We can use a standard JS alert here, or just let it close cleanly
+      // We'll let it close cleanly, the main screen will reload
     } catch (err) {
-      console.error("Save scheme error:", err);
-      const errorMessage = err.message 
-        + (err.details ? `\nDetails: ${err.details}` : '') 
-        + (err.hint ? `\nHint: ${err.hint}` : '')
-        + (err.code ? `\nCode: ${err.code}` : '');
-      alert("Failed to save scheme:\n" + errorMessage);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error("Save scheme error:", err);
+      }
+      const errorMessage = err.message || 'Unknown error occurred.';
+      setSaveError(`Could not save scheme: ${errorMessage}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -174,19 +251,32 @@ export default function DealerSchemes() {
     return (
       <div className="glass-panel" style={{ padding: '2.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
             <Gift size={24} className="text-primary" /> 
             {currentScheme.id ? 'Edit Scheme' : 'Create New Scheme'}
           </h2>
-          <button className="btn cv-btn-subtle" onClick={() => setIsEditing(false)}><X size={20} /> Cancel</button>
+          <button className="btn cv-btn-subtle" onClick={() => setIsEditing(false)} disabled={isSaving}><X size={20} /> Cancel</button>
         </div>
+
+        {saveError && (
+          <div style={{ padding: '1rem', background: 'rgba(231,76,60,0.1)', color: 'var(--danger)', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <AlertCircle size={18} /> {saveError}
+          </div>
+        )}
+
+        {validationErrors.general && (
+          <div style={{ padding: '1rem', background: 'rgba(231,76,60,0.1)', color: 'var(--danger)', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <AlertCircle size={18} /> {validationErrors.general}
+          </div>
+        )}
 
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           {/* Basics */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
             <div>
               <label>Scheme Name *</label>
-              <input required type="text" className="input" value={currentScheme.name} onChange={e => setCurrentScheme({...currentScheme, name: e.target.value})} style={{ width: '100%' }} />
+              <input type="text" className={`input ${validationErrors.name ? 'input-error' : ''}`} value={currentScheme.name} onChange={e => setCurrentScheme({...currentScheme, name: e.target.value})} style={{ width: '100%', borderColor: validationErrors.name ? 'var(--danger)' : '' }} />
+              {validationErrors.name && <div style={{color: 'var(--danger)', fontSize: '0.8rem', marginTop: '4px'}}>{validationErrors.name}</div>}
             </div>
             <div>
               <label>Status</label>
@@ -203,11 +293,13 @@ export default function DealerSchemes() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
             <div>
               <label>Start Date *</label>
-              <input required type="date" className="input" value={currentScheme.start_date} onChange={e => setCurrentScheme({...currentScheme, start_date: e.target.value})} style={{ width: '100%' }} />
+              <input type="date" className="input" value={currentScheme.start_date} onChange={e => setCurrentScheme({...currentScheme, start_date: e.target.value})} style={{ width: '100%', borderColor: validationErrors.start_date ? 'var(--danger)' : '' }} />
+              {validationErrors.start_date && <div style={{color: 'var(--danger)', fontSize: '0.8rem', marginTop: '4px'}}>{validationErrors.start_date}</div>}
             </div>
             <div>
               <label>End Date *</label>
-              <input required type="date" className="input" value={currentScheme.end_date} onChange={e => setCurrentScheme({...currentScheme, end_date: e.target.value})} style={{ width: '100%' }} />
+              <input type="date" className="input" value={currentScheme.end_date} onChange={e => setCurrentScheme({...currentScheme, end_date: e.target.value})} style={{ width: '100%', borderColor: validationErrors.end_date ? 'var(--danger)' : '' }} />
+              {validationErrors.end_date && <div style={{color: 'var(--danger)', fontSize: '0.8rem', marginTop: '4px'}}>{validationErrors.end_date}</div>}
             </div>
           </div>
 
@@ -243,7 +335,7 @@ export default function DealerSchemes() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Reward Slabs (Bag Thresholds)</h3>
-              <button type="button" className="btn btn-secondary" onClick={handleAddSlab} style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={handleAddSlab} style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }} disabled={isSaving}>
                 <Plus size={16} style={{ marginRight: '0.25rem' }}/> Add Slab
               </button>
             </div>
@@ -255,12 +347,13 @@ export default function DealerSchemes() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {currentSlabs.map((slab, idx) => (
-                  <div key={slab.tempId || slab.id || idx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', background: 'var(--bg-surface)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: '0.8rem' }}>Min Qualifying Bags *</label>
-                      <input required type="number" min="1" className="input" value={slab.min_bags} onChange={e => handleSlabChange(idx, 'min_bags', e.target.value)} style={{ width: '100%' }} />
+                  <div key={slab.id || slab.tempId || idx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', background: 'var(--bg-surface)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ flex: '1' }}>
+                      <label style={{ fontSize: '0.8rem' }}>Min Bags *</label>
+                      <input type="number" min="1" className="input" value={slab.min_bags} onChange={e => handleSlabChange(idx, 'min_bags', e.target.value)} style={{ width: '100%', borderColor: validationErrors[`slab_${idx}_min_bags`] ? 'var(--danger)' : '' }} />
+                      {validationErrors[`slab_${idx}_min_bags`] && <div style={{color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px', lineHeight: '1.2'}}>{validationErrors[`slab_${idx}_min_bags`]}</div>}
                     </div>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: '1.5' }}>
                       <label style={{ fontSize: '0.8rem' }}>Reward Type</label>
                       <select className="input" value={slab.reward_type} onChange={e => handleSlabChange(idx, 'reward_type', e.target.value)} style={{ width: '100%' }}>
                         <option value="Physical Gift">Physical Gift</option>
@@ -269,12 +362,18 @@ export default function DealerSchemes() {
                         <option value="Reward Points">Reward Points</option>
                       </select>
                     </div>
-                    <div style={{ flex: 2 }}>
-                      <label style={{ fontSize: '0.8rem' }}>Reward Description / Name *</label>
-                      <input required type="text" className="input" placeholder="e.g. Mixer Grinder" value={slab.reward_description} onChange={e => handleSlabChange(idx, 'reward_description', e.target.value)} style={{ width: '100%' }} />
+                    <div style={{ flex: '1' }}>
+                      <label style={{ fontSize: '0.8rem' }}>Value (Optional)</label>
+                      <input type="number" className="input" placeholder="e.g. 500" value={slab.reward_value || ''} onChange={e => handleSlabChange(idx, 'reward_value', e.target.value)} style={{ width: '100%', borderColor: validationErrors[`slab_${idx}_val`] ? 'var(--danger)' : '' }} />
+                      {validationErrors[`slab_${idx}_val`] && <div style={{color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px', lineHeight: '1.2'}}>{validationErrors[`slab_${idx}_val`]}</div>}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'flex-end', height: '65px' }}>
-                      <button type="button" className="btn cv-btn-subtle" style={{ color: 'var(--danger)' }} onClick={() => handleRemoveSlab(idx)}>
+                    <div style={{ flex: '2' }}>
+                      <label style={{ fontSize: '0.8rem' }}>Reward Description *</label>
+                      <input type="text" className="input" placeholder="e.g. 500 Points" value={slab.reward_description} onChange={e => handleSlabChange(idx, 'reward_description', e.target.value)} style={{ width: '100%', borderColor: validationErrors[`slab_${idx}_desc`] ? 'var(--danger)' : '' }} />
+                      {validationErrors[`slab_${idx}_desc`] && <div style={{color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px', lineHeight: '1.2'}}>{validationErrors[`slab_${idx}_desc`]}</div>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', height: '100%', paddingTop: '1.8rem' }}>
+                      <button type="button" className="btn cv-btn-subtle" style={{ color: 'var(--danger)' }} onClick={() => handleRemoveSlab(idx)} disabled={isSaving}>
                         <Trash2 size={18} />
                       </button>
                     </div>
@@ -285,9 +384,9 @@ export default function DealerSchemes() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-            <button type="button" className="btn cv-btn-subtle" onClick={() => setIsEditing(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">
-              <Save size={18} style={{ marginRight: '0.5rem' }} /> Save Scheme
+            <button type="button" className="btn cv-btn-subtle" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={isSaving}>
+              {isSaving ? <><Loader size={18} className="spin" style={{ marginRight: '0.5rem' }} /> Saving...</> : <><Save size={18} style={{ marginRight: '0.5rem' }} /> Save Scheme</>}
             </button>
           </div>
         </form>
