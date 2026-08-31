@@ -3,8 +3,9 @@ import { AuthContext } from '../../AuthContext';
 import { LanguageContext } from '../../LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
-import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X, MessageCircle, Map } from 'lucide-react';
+import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X, MessageCircle, Map, Gift } from 'lucide-react';
 import TerritoriesTab from './Territories';
+import DealerSchemes from './DealerSchemes';
 
 export default function Settings() {
   const { userProfile, setUserProfile, crmSettings, setCrmSettings } = useContext(AuthContext);
@@ -339,6 +340,7 @@ export default function Settings() {
     tabs.push({ id: 'team', label: t('settings.tabs.team') || 'Team Management', icon: Users });
     tabs.push({ id: 'territories', label: 'Territories', icon: Map });
     tabs.push({ id: 'templates', label: 'WhatsApp Templates', icon: MessageCircle });
+    tabs.push({ id: 'dealer_schemes', label: 'Dealer Schemes', icon: Gift });
     tabs.push({ id: 'defaults', label: t('settings.tabs.defaults') || 'CRM Defaults', icon: SettingsIcon });
   }
 
@@ -820,8 +822,14 @@ export default function Settings() {
             </div>
           )}
           
+          {/* TERRITORIES TAB */}
           {activeTab === 'territories' && userProfile?.role === 'Admin' && (
             <TerritoriesTab />
+          )}
+
+          {/* DEALER SCHEMES TAB */}
+          {activeTab === 'dealer_schemes' && userProfile?.role === 'Admin' && (
+            <DealerSchemes />
           )}
 
         </div>

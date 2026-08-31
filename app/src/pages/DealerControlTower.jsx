@@ -18,6 +18,8 @@ export default function DealerGrowthHub() {
   // Data State
   const [dealers, setDealers] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [activeSchemesCount, setActiveSchemesCount] = useState(0);
+  const [eligibleRewards, setEligibleRewards] = useState([]);
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,6 +50,21 @@ export default function DealerGrowthHub() {
       const tSet = new Set();
       validDealers.forEach(d => { if (d.territory_name) tSet.add(d.territory_name); });
       setTerritories(Array.from(tSet).sort());
+
+      // Fetch Active Schemes Count
+      const { count: sCount, error: sErr } = await supabase
+        .from('dealer_schemes')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Active');
+      
+      if (!sErr) setActiveSchemesCount(sCount || 0);
+
+      // Fetch Rewards
+      const { data: rData, error: rErr } = await supabase
+        .from('dealer_reward_eligibility')
+        .select('id, status');
+      
+      if (!rErr) setEligibleRewards(rData || []);
 
       // 2. Fetch mock alerts (In production, this would be a JOIN from dealer_target_alerts, dealer_targets, crm_parties)
       // Since this is MVP, we dynamically simulate alerts from the target data if available, 
@@ -149,11 +166,13 @@ export default function DealerGrowthHub() {
   // --- KPIs ---
   const kpi = {
     total: dealers.length,
-    activeSchemes: dealers.reduce((acc, d) => acc + (d.active_schemes_count || 0), 0),
-    atRisk: alerts.filter(a => a.alert_type === 'Target At Risk' || a.alert_type === 'No Recent Activity').length,
-    closingSoon: alerts.filter(a => a.days_left <= 7).length,
+    activeSchemes: activeSchemesCount,
+    eligibleRewards: eligibleRewards.filter(r => r.status === 'Eligible' || r.status === 'Approved' || r.status === 'Pending Approval').length,
+    pendingApproval: eligibleRewards.filter(r => r.status === 'Pending Approval').length,
+    pendingFulfillment: eligibleRewards.filter(r => r.status === 'Approved').length,
     nearTarget: alerts.filter(a => a.alert_type === 'Near Target' || a.alert_type === 'One Slab Away').length,
-    pendingRewards: dealers.reduce((acc, d) => acc + (d.pending_claims_count || 0), 0)
+    closingSoon: alerts.filter(a => a.days_left <= 7).length,
+    atRisk: alerts.filter(a => a.alert_type === 'Target At Risk' || a.alert_type === 'No Recent Activity').length
   };
 
   if (!isAdmin) {
@@ -190,26 +209,38 @@ export default function DealerGrowthHub() {
       )}
 
       {/* 2. KPI CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--text-primary)' }}>
           <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Users size={14}/> Active Dealers</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{kpi.total}</div>
         </div>
         <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--success)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Gift size={14}/> Enrolled in Schemes</div>
+          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Gift size={14}/> Active Schemes</div>
           <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--success)' }}>{kpi.activeSchemes}</div>
         </div>
-        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--danger)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Targets Closing Soon</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)' }}>{kpi.closingSoon}</div>
-        </div>
         <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--primary)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Target size={14}/> Near Target / 1 Slab Away</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)' }}>{kpi.nearTarget}</div>
+          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Target size={14}/> Eligible for Rewards</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)' }}>{kpi.eligibleRewards}</div>
         </div>
         <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--warning)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><TrendingUp size={14}/> Target At Risk</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>{kpi.atRisk}</div>
+          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Rewards Pending Approval</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>{kpi.pendingApproval}</div>
+        </div>
+        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--warning)' }}>
+          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Rewards Pending Fulfillment</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>{kpi.pendingFulfillment}</div>
+        </div>
+        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--info)' }}>
+          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><TrendingUp size={14}/> Near Next Slab</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--info)' }}>{kpi.nearTarget}</div>
+        </div>
+        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--danger)' }}>
+          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Schemes Closing Soon</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)' }}>{kpi.closingSoon}</div>
+        </div>
+        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--danger)' }}>
+          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><AlertCircle size={14}/> At Risk of Missing Target</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)' }}>{kpi.atRisk}</div>
         </div>
       </div>
 
