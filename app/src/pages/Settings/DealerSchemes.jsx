@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Gift, Plus, Save, X, Edit, Trash2, Calendar, ShieldAlert, AlertCircle, Loader } from 'lucide-react';
 
+function buildSlabName(minBags, rewardDescription) {
+  const description = rewardDescription?.trim();
+  return description ? `${minBags} Bags - ${description}` : `${minBags} Bags`;
+}
+
 export default function DealerSchemes() {
   const [schemes, setSchemes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +33,7 @@ export default function DealerSchemes() {
         .from('dealer_schemes')
         .select(`
           id, name, start_date, end_date, status, description, overlap_policy, customer_type,
-          dealer_scheme_slabs (id, min_bags, max_bags, reward_type, reward_value, reward_description)
+          dealer_scheme_slabs (id, slab_name, min_bags, max_bags, reward_type, reward_value, reward_description)
         `)
         .order('created_at', { ascending: false });
 
@@ -215,15 +220,19 @@ export default function DealerSchemes() {
 
       // Upsert Slabs safely (Insert missing, Update existing)
       if (currentSlabs.length > 0) {
-        const slabsToUpsert = currentSlabs.map(s => ({
-          ...(s.id ? { id: s.id } : {}), // only include id if it's already an existing record
-          scheme_id: schemeId,
-          min_bags: Number(s.min_bags),
-          max_bags: s.max_bags ? Number(s.max_bags) : null,
-          reward_type: s.reward_type,
-          reward_value: s.reward_value ? Number(s.reward_value) : null,
-          reward_description: s.reward_description.trim()
-        }));
+        const slabsToUpsert = currentSlabs.map(s => {
+          const minBagsNum = Number(s.min_bags);
+          return {
+            ...(s.id ? { id: s.id } : {}), // only include id if it's already an existing record
+            scheme_id: schemeId,
+            slab_name: buildSlabName(minBagsNum, s.reward_description),
+            min_bags: minBagsNum,
+            max_bags: s.max_bags ? Number(s.max_bags) : null,
+            reward_type: s.reward_type,
+            reward_value: s.reward_value ? Number(s.reward_value) : null,
+            reward_description: s.reward_description.trim()
+          };
+        });
         
         const { error: slabErr } = await supabase
           .from('dealer_scheme_slabs')
