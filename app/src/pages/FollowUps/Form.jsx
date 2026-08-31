@@ -121,14 +121,6 @@ export default function FollowUpForm() {
           sequence_id: fData.sequence_id || '',
           sequence_step_number: fData.sequence_step_number || ''
         });
-        
-        if (fData.party_id) {
-           const match = cData?.find(c => c.id === fData.party_id);
-           if (match) {
-             setCustomerMobile(match.mobile || '');
-             setInitialMobile(match.mobile || '');
-           }
-        }
       } else {
         // Auto-assign to current user if new
         const { data: session } = await supabase.auth.getSession();
@@ -141,6 +133,44 @@ export default function FollowUpForm() {
       setFetching(false);
     }
   };
+
+  useEffect(() => {
+    if (fetching || !formData.party_id) return;
+    
+    let isActive = true;
+    
+    // Instant populate if available in the dropdown data to prevent lag
+    const match = customers.find(c => c.id === formData.party_id);
+    if (match && (match.mobile || match.mobile_number || match.phone || match.phone_number)) {
+      const m = match.mobile ?? match.mobile_number ?? match.phone ?? match.phone_number ?? "";
+      setCustomerMobile(m);
+      setInitialMobile(m);
+    }
+    
+    const fetchMobile = async () => {
+      try {
+        const { data: customer, error } = await supabase
+          .from('crm_parties')
+          .select('*')
+          .eq('id', formData.party_id)
+          .single();
+          
+        if (error) throw error;
+        
+        if (isActive && customer) {
+          const mobile = customer.mobile ?? customer.mobile_number ?? customer.phone ?? customer.phone_number ?? "";
+          setCustomerMobile(mobile);
+          setInitialMobile(mobile);
+        }
+      } catch (err) {
+        console.error("Error fetching customer mobile:", err);
+      }
+    };
+    
+    fetchMobile();
+    
+    return () => { isActive = false; };
+  }, [formData.party_id, fetching, customers]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -436,16 +466,9 @@ export default function FollowUpForm() {
                 required 
                 value={formData.party_id} 
                 onChange={e => {
-                  const newPartyId = e.target.value;
-                  setFormData({...formData, party_id: newPartyId});
-                  const match = customers.find(c => c.id === newPartyId);
-                  if (match) {
-                    setCustomerMobile(match.mobile || '');
-                    setInitialMobile(match.mobile || '');
-                  } else {
-                    setCustomerMobile('');
-                    setInitialMobile('');
-                  }
+                  setFormData({...formData, party_id: e.target.value});
+                  setCustomerMobile('');
+                  setInitialMobile('');
                 }}
                 disabled={!!id} // Usually don't change customer of existing follow-up
               >
