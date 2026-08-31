@@ -218,12 +218,14 @@ export default function DealerSchemes() {
         if (delErr) throw delErr;
       }
 
-      // Upsert Slabs safely (Insert missing, Update existing)
+      // Upsert existing slabs and insert new slabs separately to avoid 'null id' errors
       if (currentSlabs.length > 0) {
-        const slabsToUpsert = currentSlabs.map(s => {
+        const existingSlabs = [];
+        const newSlabs = [];
+
+        currentSlabs.forEach(s => {
           const minBagsNum = Number(s.min_bags);
-          return {
-            ...(s.id ? { id: s.id } : {}), // only include id if it's already an existing record
+          const slabPayload = {
             scheme_id: schemeId,
             slab_name: buildSlabName(minBagsNum, s.reward_description),
             threshold_value: minBagsNum,
@@ -233,13 +235,29 @@ export default function DealerSchemes() {
             reward_value: s.reward_value ? Number(s.reward_value) : null,
             reward_description: s.reward_description.trim()
           };
+
+          if (s.id) {
+            existingSlabs.push({ ...slabPayload, id: s.id });
+          } else {
+            newSlabs.push(slabPayload);
+          }
         });
-        
-        const { error: slabErr } = await supabase
-          .from('dealer_scheme_slabs')
-          .upsert(slabsToUpsert, { onConflict: 'id' });
-        
-        if (slabErr) throw slabErr;
+
+        // 1. Update existing slabs
+        if (existingSlabs.length > 0) {
+          const { error: updErr } = await supabase
+            .from('dealer_scheme_slabs')
+            .upsert(existingSlabs, { onConflict: 'id' });
+          if (updErr) throw updErr;
+        }
+
+        // 2. Insert new slabs (payload contains no 'id' field at all)
+        if (newSlabs.length > 0) {
+          const { error: insErr } = await supabase
+            .from('dealer_scheme_slabs')
+            .insert(newSlabs);
+          if (insErr) throw insErr;
+        }
       }
 
       setIsEditing(false);
