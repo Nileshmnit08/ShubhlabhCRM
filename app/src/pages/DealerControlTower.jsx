@@ -42,7 +42,7 @@ export default function DealerGrowthHub() {
         .from('v_dealer_growth_hub')
         .select('*');
       
-      if (dErr && dErr.code !== '42P01') throw dErr;
+      if (dErr) throw dErr;
       const validDealers = dData || [];
       setDealers(validDealers);
 
@@ -78,7 +78,7 @@ export default function DealerGrowthHub() {
         `)
         .eq('status', 'Active');
 
-      if (aErr && aErr.code !== '42P01') throw aErr;
+      if (aErr) throw aErr;
       
       // Transform raw alert data into usable flat objects, or generate demo data if empty
       let mappedAlerts = [];
@@ -144,8 +144,14 @@ export default function DealerGrowthHub() {
 
       setLoading(false);
     } catch (err) {
-      console.error(err);
-      setError("Dealer service unavailable. Ensure backend views and tables are generated.");
+      console.error("Dealer Growth Hub data load failed", { 
+        error: err, 
+        code: err?.code, 
+        message: err?.message, 
+        details: err?.details, 
+        hint: err?.hint 
+      });
+      setError("Unable to load dealer data. Please try again.");
       setLoading(false);
     }
   }

@@ -141,7 +141,8 @@ export default function DealerSchemes() {
 
       // Handle slabs (simple approach: delete existing, insert new for this MVP)
       if (currentScheme.id) {
-        await supabase.from('dealer_scheme_slabs').delete().eq('scheme_id', schemeId);
+        const { error: delErr } = await supabase.from('dealer_scheme_slabs').delete().eq('scheme_id', schemeId);
+        if (delErr) throw delErr;
       }
 
       if (currentSlabs.length > 0) {
@@ -160,8 +161,12 @@ export default function DealerSchemes() {
       setIsEditing(false);
       fetchSchemes();
     } catch (err) {
-      console.error(err);
-      alert("Failed to save scheme: " + err.message);
+      console.error("Save scheme error:", err);
+      const errorMessage = err.message 
+        + (err.details ? `\nDetails: ${err.details}` : '') 
+        + (err.hint ? `\nHint: ${err.hint}` : '')
+        + (err.code ? `\nCode: ${err.code}` : '');
+      alert("Failed to save scheme:\n" + errorMessage);
     }
   };
 
