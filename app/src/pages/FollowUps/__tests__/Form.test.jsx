@@ -25,8 +25,17 @@ describe('FollowUpForm Mobile Field Behaviors', () => {
   //         </Routes>
   //       </MemoryRouter>
   //     </AuthContext.Provider>
-  //   );
   // };
+
+  it('Scenario 0: Searchable-dropdown - searches and selects a customer dynamically', async () => {
+    // 1. Mock supabase.from('v_customer_master').select().or(...) to return a matching customer.
+    // 2. renderForm().
+    // 3. fireEvent.change search input to 'Test Cust'.
+    // 4. Assert: supabase is called after debounce.
+    // 5. Assert: Dropdown displays 'Test Cust'.
+    // 6. fireEvent.mouseDown on the list item.
+    // 7. Assert: Selected customer is set and formData.party_id is updated.
+  });
 
   it('Scenario 1: Saved-number - selects a customer with a saved mobile number', async () => {
     // 1. Mock supabase.from('crm_parties').select to return [{id: '1', display_name: 'Test', mobile: '9876543210'}]

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Save, X } from 'lucide-react';
+import { ArrowLeft, Save, X, Search } from 'lucide-react';
 import { LanguageContext } from '../../LanguageContext';
 import { AuthContext } from '../../AuthContext';
 
@@ -15,8 +15,14 @@ export default function FollowUpForm() {
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
-  const [customers, setCustomers] = useState([]);
   const [manualNextDate, setManualNextDate] = useState('');
+  
+  // Searchable Dropdown States
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   
   const [mobileStatus, setMobileStatus] = useState('idle'); // idle | loading | missing | viewing | editing | saving | error
   const [mobileInput, setMobileInput] = useState('');
@@ -111,13 +117,14 @@ export default function FollowUpForm() {
 
   const fetchInitialData = async () => {
     try {
-      // Fetch customers for dropdown
-      const { data: cData } = await supabase.from('crm_parties').select('id, display_name, mobile').order('display_name');
-      setCustomers(cData || []);
-
       if (id) {
-        const { data: fData, error } = await supabase.from('follow_ups').select('*').eq('id', id).single();
+        const { data: fData, error } = await supabase.from('follow_ups').select('*, crm_parties(id, display_name, mobile)').eq('id', id).single();
         if (error) throw error;
+        
+        if (fData.crm_parties) {
+           setSelectedCustomer(fData.crm_parties);
+           setCustomerSearch(fData.crm_parties.display_name);
+        }
         
         // Format dates for local datetime-local input
         const formatForInput = (isoString) => {
@@ -161,7 +168,7 @@ export default function FollowUpForm() {
     setMobileValidationError('');
     
     // Instant populate if available in the dropdown data to prevent lag
-    const match = customers.find(c => c.id === formData.party_id);
+    const match = selectedCustomer;
     let foundValidLocal = false;
     if (match && (match.mobile || match.mobile_number || match.phone || match.phone_number)) {
       const m = match.mobile ?? match.mobile_number ?? match.phone ?? match.phone_number ?? "";
@@ -208,7 +215,36 @@ export default function FollowUpForm() {
     fetchMobile();
     
     return () => { isActive = false; };
-  }, [formData.party_id, fetching, customers]);
+  }, [formData.party_id, fetching, selectedCustomer]);
+
+  // Handle Search Debounce
+  useEffect(() => {
+    if (!customerSearch || selectedCustomer?.display_name === customerSearch) {
+      setCustomerOptions([]);
+      return;
+    }
+    
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearchingCustomers(true);
+      try {
+        const query = customerSearch.trim();
+        const { data } = await supabase
+          .from('v_customer_master')
+          .select('id, display_name, mobile, crm_status')
+          .or(`display_name.ilike.%${query}%,mobile.ilike.%${query}%`)
+          .limit(50);
+        
+        setCustomerOptions(data || []);
+        setShowCustomerDropdown(true);
+      } catch (err) {
+        console.error("Error searching customers:", err);
+      } finally {
+        setIsSearchingCustomers(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [customerSearch, selectedCustomer]);
 
   const handleSaveMobile = async () => {
     setMobileValidationError('');
@@ -499,25 +535,76 @@ export default function FollowUpForm() {
         
         <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
           <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem'}}>
-            <div>
+            <div style={{ position: 'relative' }}>
               <label>{t('form.customer')} *</label>
-              <select 
-                required 
-                value={formData.party_id} 
-                onChange={e => {
-                  setFormData({...formData, party_id: e.target.value});
-                  setMobileStatus('idle');
-                  setMobileInput('');
-                  setCustomerMobileFromDb('');
-                  setMobileValidationError('');
-                }}
-                disabled={!!id} // Usually don't change customer of existing follow-up
-              >
-                <option value="">-- Select Customer --</option>
-                {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.display_name}</option>
-                ))}
-              </select>
+              <div style={{ position: 'relative' }}>
+                <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+                <input 
+                  type="text" 
+                  required={!formData.party_id}
+                  placeholder="Search customer by name or mobile..."
+                  value={customerSearch} 
+                  onChange={e => {
+                    setCustomerSearch(e.target.value);
+                    if (selectedCustomer) {
+                       setSelectedCustomer(null);
+                       setFormData({...formData, party_id: ''});
+                       setMobileStatus('idle');
+                       setMobileInput('');
+                       setCustomerMobileFromDb('');
+                       setMobileValidationError('');
+                    }
+                  }}
+                  onFocus={() => { if (customerOptions.length > 0) setShowCustomerDropdown(true); }}
+                  onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)}
+                  disabled={!!id} 
+                  style={{ paddingLeft: '2rem', width: '100%', borderColor: formData.party_id ? 'var(--success)' : 'var(--border)' }}
+                />
+                {isSearchingCustomers && <span style={{ position: 'absolute', right: '10px', top: '10px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Searching...</span>}
+              </div>
+              
+              {showCustomerDropdown && customerOptions.length > 0 && !selectedCustomer && (
+                <ul style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  zIndex: 10,
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  margin: 0,
+                  padding: 0,
+                  listStyle: 'none',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                }}>
+                  {customerOptions.map(c => (
+                    <li 
+                      key={c.id} 
+                      style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border-light)' }}
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // prevent blur
+                        setSelectedCustomer(c);
+                        setCustomerSearch(c.display_name);
+                        setFormData({...formData, party_id: c.id});
+                        setCustomerOptions([]);
+                        setShowCustomerDropdown(false);
+                        setMobileStatus('idle');
+                        setMobileInput('');
+                        setCustomerMobileFromDb('');
+                        setMobileValidationError('');
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ fontWeight: 500 }}>{c.display_name}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{c.mobile || 'No mobile'} • {c.crm_status}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <div>
