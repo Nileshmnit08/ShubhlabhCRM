@@ -172,7 +172,9 @@ export default function DealerGrowthHub() {
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-secondary" onClick={fetchData}><RefreshCw size={16} /> Sync Data</button>
-          <Link to="/settings/dealer-schemes" className="btn btn-primary"><Gift size={16} /> Manage Schemes</Link>
+          {!loading && !error && performanceRecords.length > 0 && (
+            <Link to="/settings/dealer-schemes" className="btn btn-primary"><Gift size={16} /> Manage Schemes</Link>
+          )}
         </div>
       </div>
 
@@ -274,9 +276,9 @@ export default function DealerGrowthHub() {
               {performanceRecords.length === 0 ? (
                 <>
                   <Gift size={48} className="text-muted" style={{ opacity: 0.5, marginBottom: '1rem' }} />
-                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No active schemes are currently available</h3>
-                  <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>Create a scheme to start tracking customer progress.</p>
-                  <Link to="/settings/dealer-schemes" className="btn btn-primary">Create Scheme</Link>
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No active customer schemes yet</h3>
+                  <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>Create your first scheme to track purchase slabs, eligibility, rewards, customer progress, and follow-up opportunities.</p>
+                  <Link to="/settings/dealer-schemes" className="btn btn-primary">Create Your First Scheme</Link>
                 </>
               ) : (
                 <>
