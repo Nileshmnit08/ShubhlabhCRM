@@ -31,10 +31,10 @@ BEGIN
     RETURN QUERY
     WITH active_schemes AS (
         SELECT 
-            id, name, start_date, end_date, 
-            near_slab_percentage, near_slab_bag_threshold
-        FROM public.dealer_schemes
-        WHERE status = 'Active'
+            ds.id, ds.name, ds.start_date, ds.end_date, 
+            ds.near_slab_percentage, ds.near_slab_bag_threshold
+        FROM public.dealer_schemes ds
+        WHERE ds.status = 'Active'
     ),
     purchasing_customers AS (
         -- Customers with at least one completed invoice
@@ -79,27 +79,27 @@ BEGIN
     ),
     historical_metrics AS (
         SELECT 
-            customer_id,
-            hist_total_bags,
+            hb.customer_id,
+            hb.hist_total_bags,
             GREATEST(1, 
                 LEAST(3, 
                     COALESCE(
-                        (EXTRACT(year FROM age(date_trunc('month', CURRENT_DATE), date_trunc('month', first_invoice_date))) * 12 +
-                        EXTRACT(month FROM age(date_trunc('month', CURRENT_DATE), date_trunc('month', first_invoice_date))))::INT,
+                        (EXTRACT(year FROM age(date_trunc('month', CURRENT_DATE), date_trunc('month', hb.first_invoice_date))) * 12 +
+                        EXTRACT(month FROM age(date_trunc('month', CURRENT_DATE), date_trunc('month', hb.first_invoice_date))))::INT,
                         1
                     )
                 )
             ) AS active_months,
-            hist_total_bags / GREATEST(1, 
+            hb.hist_total_bags / GREATEST(1, 
                 LEAST(3, 
                     COALESCE(
-                        (EXTRACT(year FROM age(date_trunc('month', CURRENT_DATE), date_trunc('month', first_invoice_date))) * 12 +
-                        EXTRACT(month FROM age(date_trunc('month', CURRENT_DATE), date_trunc('month', first_invoice_date))))::INT,
+                        (EXTRACT(year FROM age(date_trunc('month', CURRENT_DATE), date_trunc('month', hb.first_invoice_date))) * 12 +
+                        EXTRACT(month FROM age(date_trunc('month', CURRENT_DATE), date_trunc('month', hb.first_invoice_date))))::INT,
                         1
                     )
                 )
             ) AS historical_monthly_bags
-        FROM historical_bags
+        FROM historical_bags hb
     ),
     slab_eval AS (
         SELECT 
