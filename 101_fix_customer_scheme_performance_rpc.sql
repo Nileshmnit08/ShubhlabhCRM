@@ -23,8 +23,8 @@ RETURNS TABLE (
     next_slab_id UUID,
     next_slab_name VARCHAR,
     bags_needed NUMERIC,
-    reward_earned VARCHAR,
-    potential_next_reward VARCHAR,
+    reward_earned TEXT,
+    potential_next_reward TEXT,
     status VARCHAR
 ) AS $$
 BEGIN
@@ -144,7 +144,7 @@ BEGIN
         COALESCE(se.next_slab_min_bags - se.current_net_bags, 0) AS bags_needed,
         se.reward_earned,
         se.potential_next_reward,
-        CASE
+        (CASE
             WHEN CURRENT_DATE > s.end_date THEN 'ended'
             WHEN se.achieved_slab_id IS NOT NULL THEN 'eligible'
             WHEN se.next_slab_id IS NOT NULL AND (
@@ -159,7 +159,7 @@ BEGIN
                     ELSE 'at_risk'
                 END
             ELSE 'no_activity'
-        END AS status
+        END)::VARCHAR AS status
     FROM purchasing_customers pc
     JOIN slab_eval se ON pc.id = se.customer_id
     JOIN active_schemes s ON se.scheme_id = s.id;

@@ -74,12 +74,11 @@ export default function DealerGrowthHub() {
       console.error("Authenticated Role:", userProfile?.role);
       console.error("Full Error Object:", err);
       
-      // We explicitly provide the technical error to the UI for immediate debugging
+      // We explicitly log the technical error to the console, but show a user-friendly one in the UI.
       setError(
-        `Unable to load scheme performance data. \n` +
-        `RPC Error Code: ${err?.code || 'Unknown'}\n` +
-        `Message: ${err?.message || 'Check console for details.'}\n` + 
-        `Details: ${err?.details || ''}`
+        "There was a temporary issue loading the scheme performance metrics. " +
+        "Please try refreshing the page. If the problem persists, please contact support with Error Code: " + 
+        (err?.code || 'Unknown')
       );
       setLoading(false);
     }
