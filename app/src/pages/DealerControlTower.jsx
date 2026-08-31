@@ -2,8 +2,14 @@ import React, { useEffect, useState, useContext, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthContext } from '../AuthContext';
 import { Link, Navigate } from 'react-router-dom';
-import { ShieldAlert, Search, Filter, AlertTriangle, Building2, Map, Users, ChevronDown, ChevronRight, DollarSign, Activity, FileText, CheckCircle2 } from 'lucide-react';
+import { 
+  Building2, Search, Filter, AlertTriangle, Users, 
+  Map as MapIcon, ChevronDown, ChevronRight, Activity, 
+  CheckCircle2, Plus, Upload, XCircle, MoreVertical, Phone, AlertCircle
+} from 'lucide-react';
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import AddDealerDrawer from '../components/AddDealerDrawer';
+import ImportDealersModal from '../components/ImportDealersModal';
 
 export default function DealerControlTower() {
   const { userProfile } = useContext(AuthContext);
@@ -11,14 +17,20 @@ export default function DealerControlTower() {
   const [error, setError] = useState(null);
   const [dealers, setDealers] = useState([]);
 
+  // Modals
+  const [showAddDrawer, setShowAddDrawer] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+
   // Filters
-  const [filterTerritory, setFilterTerritory] = useState('All');
   const [filterHealth, setFilterHealth] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterTerritory, setFilterTerritory] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterOwner, setFilterOwner] = useState('All');
+  
+  // Data Options
   const [territories, setTerritories] = useState([]);
-
-  // Expanded territory state
-  const [expandedTerritories, setExpandedTerritories] = useState(new Set());
+  const [owners, setOwners] = useState([]);
 
   useEffect(() => {
     if (userProfile?.role === 'Admin') {
@@ -26,285 +38,399 @@ export default function DealerControlTower() {
     }
   }, [userProfile]);
 
-  async function fetchData(retries = 2, delay = 1000) {
-    if (retries === 2) setLoading(true);
+  async function fetchData() {
+    setLoading(true);
     try {
       const { data, error: fetchErr } = await supabase
         .from('v_management_dealer_control')
-        .select('*')
-        .order('display_name');
+        .select('*');
       
-      if (fetchErr) throw fetchErr;
-
-      setDealers(data || []);
-
-      // Extract unique territories for filter
-      const uniqueTerritories = new Set();
-      data?.forEach(r => {
-        if (r.territory_name) uniqueTerritories.add(r.territory_name);
-      });
-      setTerritories(Array.from(uniqueTerritories).sort());
-
-      // Auto-expand all territories by default for better visibility
-      setExpandedTerritories(new Set(Array.from(uniqueTerritories).concat(['Unassigned'])));
+      if (fetchErr) {
+        if (fetchErr.code === '42P01') {
+          // View doesn't exist yet, gracefully handle
+          console.warn("View v_management_dealer_control is missing.");
+          setDealers([]);
+        } else {
+          throw fetchErr;
+        }
+      } else {
+        setDealers(data || []);
+        
+        // Extract unique territories and owners for filter dropdowns
+        const tSet = new Set();
+        const oSet = new Set();
+        data?.forEach(d => {
+          if (d.territory_name) tSet.add(d.territory_name);
+          if (d.owner_name) oSet.add(d.owner_name);
+        });
+        setTerritories(Array.from(tSet).sort());
+        setOwners(Array.from(oSet).sort());
+      }
       
       setLoading(false);
     } catch (err) {
-      if (retries > 0) {
-        console.warn(`DealerControl request failed, retrying in ${delay}ms... (${retries} retries left)`);
-        setTimeout(() => fetchData(retries - 1, delay * 2), delay);
-        return;
-      }
-
-      console.error("Dealer Control Tower Fetch Error:", {
-        message: err?.message,
-        code: err?.code,
-        details: err?.details,
-        hint: err?.hint,
-        raw: err,
-        stack: err?.stack
-      });
-      
-      let devMessage = "Dealer service unavailable – try again in 30s.";
-      
-      if (err?.code === 'PGRST301' || err?.code === '401' || err?.code === '403') {
-         devMessage = "Auth/permission error. Please check your credentials.";
-      } else if (err?.message?.includes('Failed to fetch') || err?.message?.includes('Network Error')) {
-         devMessage = "Network error: Unable to reach the Supabase backend. Check your connection.";
-      } else if (err?.code?.startsWith('5') || err?.message?.includes('schema cache') || err?.message?.includes('could not find the table')) {
-         devMessage = "Server error: The requested view may be missing or the server is down. (Check v_management_dealer_control)";
-      }
-
-      setError(import.meta.env.DEV ? devMessage : "Dealer service unavailable – try again in 30s.");
+      console.error("Dealer Control Tower Fetch Error:", err);
+      setError("Dealer service unavailable. Please check your connection or database schema.");
       setLoading(false);
     }
   }
 
-  const toggleTerritory = (tName) => {
-    setExpandedTerritories(prev => {
-      const next = new Set(prev);
-      if (next.has(tName)) next.delete(tName);
-      else next.add(tName);
-      return next;
+  // --- Filtering Logic ---
+  const filteredDealers = useMemo(() => {
+    return dealers.filter(d => {
+      if (filterHealth !== 'All' && d.health_category !== filterHealth) return false;
+      if (filterTerritory !== 'All' && (d.territory_name || 'Unassigned') !== filterTerritory) return false;
+      if (filterStatus !== 'All' && d.crm_status !== filterStatus) return false;
+      if (filterOwner !== 'All' && (d.owner_name || 'Unassigned') !== filterOwner) return false;
+      
+      if (searchQuery) {
+        const sq = searchQuery.toLowerCase();
+        const searchStr = `${d.display_name} ${d.mobile} ${d.owner_name} ${d.city} ${d.party_id}`.toLowerCase();
+        if (!searchStr.includes(sq)) return false;
+      }
+      return true;
+    }).sort((a, b) => {
+      // Default sorting: 
+      // 1. Dealers requiring action (Needs Attention)
+      // 2. At-risk dealers
+      // 3. Inactive dealers
+      // 4. Recently active
+      const rank = { 'Needs Attention': 1, 'At Risk': 2, 'Inactive': 3, 'Healthy': 4 };
+      const rankA = rank[a.health_category] || 5;
+      const rankB = rank[b.health_category] || 5;
+      if (rankA !== rankB) return rankA - rankB;
+      return (a.days_since_last_activity || 0) - (b.days_since_last_activity || 0);
     });
+  }, [dealers, filterHealth, filterTerritory, filterStatus, filterOwner, searchQuery]);
+
+  // --- KPIs ---
+  const kpi = {
+    total: dealers.length,
+    healthy: dealers.filter(d => d.health_category === 'Healthy').length,
+    atRisk: dealers.filter(d => d.health_category === 'At Risk').length,
+    inactive: dealers.filter(d => d.health_category === 'Inactive').length,
+    unassigned: dealers.filter(d => !d.territory_name).length,
+    needsAttention: dealers.filter(d => d.health_category === 'Needs Attention').length,
   };
 
-  const filteredDealers = useMemo(() => dealers.filter(d => {
-    if (filterTerritory !== 'All' && (d.territory_name || 'Unassigned') !== filterTerritory) return false;
-    if (filterHealth !== 'All' && d.health_status !== filterHealth) return false;
-    if (searchQuery) {
-      const sq = searchQuery.toLowerCase();
-      if (!d.display_name?.toLowerCase().includes(sq) && !d.party_id?.toLowerCase().includes(sq)) return false;
-    }
-    return true;
-  }), [dealers, filterTerritory, filterHealth, searchQuery]);
-
-  const groupedByTerritory = useMemo(() => {
-    const groups = {};
-    filteredDealers.forEach(d => {
+  // --- Territory Coverage Data ---
+  const territoryStats = useMemo(() => {
+    const map = {};
+    dealers.forEach(d => {
       const t = d.territory_name || 'Unassigned';
-      if (!groups[t]) groups[t] = { name: t, manager: d.territory_manager_name, dealers: [] };
-      groups[t].dealers.push(d);
+      if (!map[t]) {
+        map[t] = { name: t, total: 0, healthy: 0, atRisk: 0, inactive: 0, needsAttention: 0, opps: 0, overdue: 0 };
+      }
+      map[t].total++;
+      if (d.health_category === 'Healthy') map[t].healthy++;
+      if (d.health_category === 'At Risk') map[t].atRisk++;
+      if (d.health_category === 'Inactive') map[t].inactive++;
+      if (d.health_category === 'Needs Attention') map[t].needsAttention++;
+      map[t].opps += (d.active_opportunities_count || 0);
+      map[t].overdue += (d.overdue_actions_count || 0);
     });
-    return Object.values(groups).sort((a, b) => a.name === 'Unassigned' ? 1 : b.name === 'Unassigned' ? -1 : a.name.localeCompare(b.name));
-  }, [filteredDealers]);
+    return Object.values(map).sort((a, b) => a.name === 'Unassigned' ? 1 : b.name === 'Unassigned' ? -1 : a.name.localeCompare(b.name));
+  }, [dealers]);
+
+  const hasActiveFilters = filterHealth !== 'All' || filterTerritory !== 'All' || filterStatus !== 'All' || filterOwner !== 'All' || searchQuery !== '';
+  const clearFilters = () => {
+    setFilterHealth('All');
+    setFilterTerritory('All');
+    setFilterStatus('All');
+    setFilterOwner('All');
+    setSearchQuery('');
+  };
+
+  const getHealthBadge = (health, reason) => {
+    let color = 'var(--text-muted)';
+    let bg = 'rgba(0,0,0,0.05)';
+    if (health === 'Healthy') { color = 'var(--success)'; bg = 'rgba(46, 204, 113, 0.1)'; }
+    if (health === 'At Risk') { color = 'var(--warning)'; bg = 'rgba(241, 196, 15, 0.1)'; }
+    if (health === 'Inactive') { color = 'var(--danger)'; bg = 'rgba(231, 76, 60, 0.1)'; }
+    if (health === 'Needs Attention') { color = 'var(--primary)'; bg = 'rgba(52, 152, 219, 0.1)'; }
+
+    return (
+      <span style={{ 
+        padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600,
+        backgroundColor: bg, color: color, display: 'inline-block', cursor: 'help'
+      }} title={reason || health}>
+        {health || 'Unknown'}
+      </span>
+    );
+  };
 
   if (userProfile?.role !== 'Admin') {
     return <Navigate to="/" replace />;
   }
 
   if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Dealer Control Tower...</div>;
-  if (error) return (
-    <div style={{padding: '3rem', display: 'flex', justifyContent: 'center'}}>
-      <div className="cv-panel" style={{padding: '2rem', textAlign: 'center', maxWidth: '500px', borderTop: '4px solid var(--danger)'}}>
-        <AlertTriangle size={32} className="text-danger" style={{marginBottom: '1rem'}} />
-        <h3 style={{margin: '0 0 1rem 0'}}>Data Fetch Failed</h3>
-        <p className="text-secondary" style={{marginBottom: '1.5rem'}}>{error}</p>
-        <button className="btn btn-secondary" onClick={() => fetchData(0)} style={{margin: '0 auto'}}>
-          Try Again
-        </button>
+
+  // Global Empty State (Zero dealers entirely)
+  if (!loading && dealers.length === 0 && !error) {
+    return (
+      <div className="animate-fade-in" style={{ padding: '4rem 1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        <Building2 size={64} className="text-muted" style={{ opacity: 0.5, marginBottom: '1.5rem' }} />
+        <h2 style={{ fontSize: '1.75rem', marginBottom: '1rem' }}>No dealers added yet</h2>
+        <p className="text-secondary" style={{ maxWidth: '500px', marginBottom: '2rem' }}>
+          Add your first dealer or import an existing dealer list to start monitoring coverage and dealer health.
+        </p>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button className="btn btn-primary" onClick={() => setShowAddDrawer(true)}>
+            <Plus size={18} style={{ marginRight: '0.5rem' }} /> Add First Dealer
+          </button>
+          <button className="btn btn-secondary" onClick={() => setShowImportModal(true)}>
+            <Upload size={18} style={{ marginRight: '0.5rem' }} /> Import Dealer List
+          </button>
+        </div>
+        {showAddDrawer && <AddDealerDrawer onClose={() => setShowAddDrawer(false)} onSave={fetchData} />}
+        {showImportModal && <ImportDealersModal onClose={() => setShowImportModal(false)} onSave={fetchData} />}
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
-      <div className="page-header" style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Building2 size={24} className="text-primary" /> Dealer Control Tower
-        </h1>
-        <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
-          Compact channel-execution view for management. Tracks coverage, engagement, opportunities, and workload by territory.
-        </p>
-      </div>
-
-      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ flex: '1 1 250px', position: 'relative' }}>
-             <Search size={18} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
-             <input
-               type="text"
-               className="input"
-               placeholder="Search dealers..."
-               style={{ paddingLeft: '2.5rem', width: '100%' }}
-               value={searchQuery}
-               onChange={(e) => setSearchQuery(e.target.value)}
-             />
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <Filter size={18} className="text-muted" />
-            <select className="input" value={filterTerritory} onChange={e => setFilterTerritory(e.target.value)} style={{ padding: '0.5rem', minWidth: '150px' }}>
-              <option value="All">All Territories</option>
-              {territories.map(t => <option key={t} value={t}>{t}</option>)}
-              <option value="Unassigned">Unassigned</option>
-            </select>
-            <select className="input" value={filterHealth} onChange={e => setFilterHealth(e.target.value)} style={{ padding: '0.5rem' }}>
-              <option value="All">All Health Status</option>
-              <option value="Healthy">Healthy</option>
-              <option value="At Risk">At Risk</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
+      {/* 1. HEADER */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 600, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Building2 size={24} className="text-primary" /> Dealer Control Tower
+          </h1>
+          <p className="text-secondary" style={{ fontSize: '0.95rem', maxWidth: '600px' }}>
+            Monitor dealer health, territory coverage, sales activity, and follow-up priorities.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn cv-btn-subtle" onClick={() => setShowImportModal(true)}>
+            <Upload size={16} /> Import Dealers
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowAddDrawer(true)}>
+            <Plus size={16} /> Add Dealer
+          </button>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {groupedByTerritory.length === 0 ? (
-          <div className="glass-panel" style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            No dealers found matching your filters.
-          </div>
-        ) : (
-          groupedByTerritory.map(group => {
-            const isExpanded = expandedTerritories.has(group.name);
-            return (
-              <div key={group.name} className="glass-panel" style={{ overflow: 'hidden' }}>
-                <div 
-                  style={{ 
-                    padding: '1.25rem 1.5rem', 
-                    background: 'var(--bg-surface)', 
-                    borderBottom: isExpanded ? '1px solid var(--border)' : 'none',
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    cursor: 'pointer',
-                    userSelect: 'none'
-                  }}
-                  onClick={() => toggleTerritory(group.name)}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    {isExpanded ? <ChevronDown size={20} className="text-muted" /> : <ChevronRight size={20} className="text-muted" />}
-                    <Map size={20} className="text-primary" />
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
-                      {group.name}
-                    </h2>
-                    <span className="badge badge-secondary" style={{ marginLeft: '0.5rem' }}>{group.dealers.length} Dealers</span>
-                  </div>
-                  {group.name !== 'Unassigned' && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                      <Users size={16} /> Manager: <strong>{group.manager || 'Unassigned'}</strong>
-                    </div>
-                  )}
-                </div>
+      {error && (
+        <div style={{ padding: '1rem', background: 'rgba(231,76,60,0.1)', color: 'var(--danger)', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid var(--danger)' }}>
+          <AlertTriangle size={16} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
+          {error}
+        </div>
+      )}
 
-                {isExpanded && (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
-                          <th style={{ padding: '0.75rem 1.5rem', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Dealer</th>
-                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Owner</th>
-                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-secondary)', textAlign: 'center' }}>Active Opps/Reqs</th>
-                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-secondary)', textAlign: 'center' }}>Overdue Actions</th>
-                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Last Engagement</th>
-                          <th style={{ padding: '0.75rem 1rem', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-secondary)', textAlign: 'center' }}>Schemes</th>
-                          <th style={{ padding: '0.75rem 1.5rem', fontWeight: 600, fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-secondary)', textAlign: 'right' }}>Payment Workload</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.dealers.map(dealer => (
-                          <tr key={dealer.party_id} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td style={{ padding: '1rem 1.5rem' }}>
-                              <Link to={`/customers/${dealer.party_id}`} className="text-primary" style={{ fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                {dealer.display_name}
-                              </Link>
-                              <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                {dealer.health_status === 'Healthy' && <span className="text-success" style={{ display: 'flex', alignItems: 'center', gap: '0.1rem' }}><CheckCircle2 size={12}/> Healthy</span>}
-                                {dealer.health_status === 'At Risk' && <span className="text-danger" style={{ display: 'flex', alignItems: 'center', gap: '0.1rem' }}><AlertTriangle size={12}/> At Risk</span>}
-                                {dealer.health_status === 'Inactive' && <span className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: '0.1rem' }}>Inactive</span>}
-                                {dealer.health_status === 'Unknown' && <span className="text-warning" style={{ display: 'flex', alignItems: 'center', gap: '0.1rem' }}>Unknown</span>}
-                              </div>
-                            </td>
-                            <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                              {dealer.owner_name || <span className="text-danger italic">Orphaned</span>}
-                            </td>
-                            <td style={{ padding: '1rem', textAlign: 'center' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                                {dealer.active_opportunities_count > 0 ? (
-                                  <Link to={`/opportunities?search=${encodeURIComponent(dealer.display_name)}`} title="Open Opportunities" className="badge badge-primary">{dealer.active_opportunities_count} Opps</Link>
-                                ) : (
-                                  <span className="text-muted" style={{fontSize: '0.8rem'}}>0 Opps</span>
-                                )}
-                                {dealer.active_requirements_count > 0 ? (
-                                  <Link to={`/requirements?search=${encodeURIComponent(dealer.display_name)}`} title="Open Requirements" className="badge badge-success">{dealer.active_requirements_count} Reqs</Link>
-                                ) : (
-                                  <span className="text-muted" style={{fontSize: '0.8rem'}}>0 Reqs</span>
-                                )}
-                              </div>
-                            </td>
-                            <td style={{ padding: '1rem', textAlign: 'center' }}>
-                              {dealer.overdue_actions_count > 0 ? (
-                                <Link to={`/follow-ups?search=${encodeURIComponent(dealer.display_name)}`} className="badge badge-danger">
-                                  <AlertTriangle size={12} style={{marginRight: '2px'}}/> {dealer.overdue_actions_count} Overdue
-                                </Link>
-                              ) : (
-                                <span className="text-muted" style={{fontSize: '0.8rem'}}><CheckCircle2 size={14}/> Clear</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '1rem', fontSize: '0.85rem' }}>
-                              {dealer.last_engagement_date ? (
-                                <span>
-                                  {formatDistanceToNow(parseISO(dealer.last_engagement_date), { addSuffix: true })}
-                                </span>
-                              ) : (
-                                <span className="text-warning"><AlertTriangle size={12} style={{display: 'inline', verticalAlign: 'middle', marginRight: '2px'}}/> None Logged</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '1rem', textAlign: 'center' }}>
-                              {dealer.active_schemes_count > 0 ? (
-                                <span className="badge badge-primary">{dealer.active_schemes_count} Active</span>
-                              ) : (
-                                <span className="text-muted" style={{fontSize: '0.8rem'}}>-</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                              {dealer.tally_outstanding_balance > 0 ? (
-                                <div>
-                                  <div style={{ fontWeight: 600, color: 'var(--warning)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem' }}>
-                                    <DollarSign size={14}/> {Number(dealer.tally_outstanding_balance).toLocaleString()}
-                                  </div>
-                                  <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                                    {dealer.pending_payment_tasks > 0 ? (
-                                      <Link to="/payments" className="text-primary">{dealer.pending_payment_tasks} Pending Task(s)</Link>
-                                    ) : (
-                                      <span className="text-danger">No Payment Task</span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span style={{ color: 'var(--text-muted)' }}>Cleared</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            );
-          })
+      {/* Data Quality Banner */}
+      {kpi.needsAttention > 0 && (
+        <div style={{ padding: '1rem', background: 'rgba(52,152,219,0.1)', color: 'var(--primary)', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <AlertCircle size={16} style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
+            <strong>{kpi.needsAttention} dealer profiles need attention.</strong> Complete their details to improve territory coverage and health reporting.
+          </div>
+          <button className="btn btn-secondary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }} onClick={() => setFilterHealth('Needs Attention')}>
+            Review Data Issues
+          </button>
+        </div>
+      )}
+
+      {/* 2. KPI CARDS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        {[
+          { label: 'Total Dealers', val: kpi.total, filter: 'All', color: 'var(--text-primary)' },
+          { label: 'Healthy', val: kpi.healthy, filter: 'Healthy', color: 'var(--success)' },
+          { label: 'At Risk', val: kpi.atRisk, filter: 'At Risk', color: 'var(--warning)' },
+          { label: 'Inactive', val: kpi.inactive, filter: 'Inactive', color: 'var(--danger)' },
+          { label: 'Requires Action', val: kpi.needsAttention, filter: 'Needs Attention', color: 'var(--primary)' },
+        ].map(k => (
+          <div 
+            key={k.label} 
+            className="cv-panel" 
+            style={{ 
+              padding: '1.25rem', cursor: 'pointer', 
+              borderLeft: filterHealth === k.filter ? `4px solid ${k.color}` : '4px solid transparent',
+              background: filterHealth === k.filter ? 'var(--bg-hover)' : 'var(--bg-surface)'
+            }} 
+            onClick={() => setFilterHealth(k.filter)}
+          >
+            <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>{k.label}</div>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: k.color }}>{k.val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* 3. FILTER AND SEARCH BAR */}
+      <div className="glass-panel" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: '1 1 250px' }}>
+          <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input 
+            type="text" 
+            placeholder="Search name, mobile, city, code..." 
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ width: '100%', paddingLeft: '2.5rem' }}
+          />
+        </div>
+        
+        <select value={filterTerritory} onChange={e => setFilterTerritory(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
+          <option value="All">All Territories</option>
+          <option value="Unassigned">Unassigned Territory</option>
+          {territories.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+
+        <select value={filterOwner} onChange={e => setFilterOwner(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
+          <option value="All">All Owners</option>
+          <option value="Unassigned">Unassigned Owner</option>
+          {owners.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+
+        {hasActiveFilters && (
+          <button className="btn cv-btn-subtle" onClick={clearFilters} style={{ color: 'var(--danger)' }}>
+            <XCircle size={16} /> Clear Filters
+          </button>
         )}
       </div>
+
+      <div style={{ marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+        Showing {filteredDealers.length} of {dealers.length} dealers
+      </div>
+
+      {/* 4. MAIN DEALER TABLE */}
+      {filteredDealers.length === 0 ? (
+        <div className="cv-panel" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+          <Filter size={48} className="text-muted" style={{ opacity: 0.5, marginBottom: '1rem' }} />
+          <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No dealers match these filters</h3>
+          <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>Try changing your search or clearing active filters.</p>
+          <button className="btn btn-secondary" onClick={clearFilters}>Clear Filters</button>
+        </div>
+      ) : (
+        <div className="cv-panel" style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1000px' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dealer</th>
+                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Contact</th>
+                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Health</th>
+                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Last Activity</th>
+                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>Open Opps / Tasks</th>
+                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Owner / Territory</th>
+                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDealers.map(d => (
+                <tr key={d.party_id} style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s' }}>
+                  <td style={{ padding: '1rem' }}>
+                    <Link to={`/customers/${d.party_id}`} style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none' }}>
+                      {d.display_name}
+                    </Link>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                      {d.city || 'No City'}
+                    </div>
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <div style={{ fontSize: '0.9rem' }}>{d.mobile || <span className="text-danger">No Mobile</span>}</div>
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    {getHealthBadge(d.health_category, d.health_reason_text)}
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <div style={{ fontSize: '0.9rem' }}>
+                      {d.last_engagement_date ? (
+                        <span title={new Date(d.last_engagement_date).toLocaleString()}>
+                          {formatDistanceToNow(new Date(d.last_engagement_date), { addSuffix: true })}
+                        </span>
+                      ) : 'Never'}
+                    </div>
+                  </td>
+                  <td style={{ padding: '1rem', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+                      <span title="Open Opportunities" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: d.active_opportunities_count > 0 ? 'var(--primary)' : 'var(--text-muted)' }}>
+                        <Activity size={14} /> {d.active_opportunities_count}
+                      </span>
+                      <span title="Overdue Actions" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: d.overdue_actions_count > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
+                        <AlertTriangle size={14} /> {d.overdue_actions_count}
+                      </span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '1rem' }}>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{d.owner_name || <span className="text-warning">Unassigned</span>}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{d.territory_name || 'No Territory'}</div>
+                  </td>
+                  <td style={{ padding: '1rem', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
+                      <Link to={`/customers/${d.party_id}`} className="btn cv-btn-subtle" style={{ padding: '0.25rem 0.5rem' }} title="View Dealer"><ChevronRight size={16} /></Link>
+                      <button className="btn cv-btn-subtle" style={{ padding: '0.25rem 0.5rem' }} title="Quick Actions"><MoreVertical size={16} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* 5. TERRITORY COVERAGE */}
+      {dealers.length > 0 && (
+        <div style={{ marginTop: '3rem' }}>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <MapIcon size={20} className="text-primary" /> Territory Coverage
+          </h2>
+          <div className="cv-panel" style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+                  <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Territory</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Total Dealers</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Health Mix (H / R / I)</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Data Issues</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Open Opps</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Overdue Tasks</th>
+                  <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Coverage Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {territoryStats.map(t => {
+                  let coverageStatus = 'Adequate';
+                  let coverageColor = 'var(--success)';
+                  if (t.name === 'Unassigned') {
+                    coverageStatus = 'Data Incomplete';
+                    coverageColor = 'var(--text-muted)';
+                  } else if (t.total === 0) {
+                    coverageStatus = 'No Dealer Coverage';
+                    coverageColor = 'var(--danger)';
+                  } else if (t.total < 3) {
+                    coverageStatus = 'Low Coverage';
+                    coverageColor = 'var(--warning)';
+                  }
+
+                  return (
+                    <tr key={t.name} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => { setFilterTerritory(t.name); window.scrollTo(0,0); }}>
+                      <td style={{ padding: '1rem', fontWeight: 600 }}>{t.name}</td>
+                      <td style={{ padding: '1rem' }}>{t.total}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <span className="text-success">{t.healthy}</span> / <span className="text-warning">{t.atRisk}</span> / <span className="text-danger">{t.inactive}</span>
+                      </td>
+                      <td style={{ padding: '1rem', color: t.needsAttention > 0 ? 'var(--primary)' : 'inherit' }}>
+                        {t.needsAttention}
+                      </td>
+                      <td style={{ padding: '1rem' }}>{t.opps}</td>
+                      <td style={{ padding: '1rem', color: t.overdue > 0 ? 'var(--danger)' : 'inherit' }}>{t.overdue}</td>
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{ 
+                          padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600,
+                          backgroundColor: `${coverageColor}20`, color: coverageColor 
+                        }}>
+                          {coverageStatus}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {showAddDrawer && <AddDealerDrawer onClose={() => setShowAddDrawer(false)} onSave={fetchData} />}
+      {showImportModal && <ImportDealersModal onClose={() => setShowImportModal(false)} onSave={fetchData} />}
     </div>
   );
 }
