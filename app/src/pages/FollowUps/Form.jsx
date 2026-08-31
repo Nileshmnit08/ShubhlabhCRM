@@ -17,8 +17,27 @@ export default function FollowUpForm() {
   const [fetching, setFetching] = useState(!!id);
   const [customers, setCustomers] = useState([]);
   const [manualNextDate, setManualNextDate] = useState('');
-  const [customerMobile, setCustomerMobile] = useState('');
-  const [initialMobile, setInitialMobile] = useState('');
+  
+  const [mobileStatus, setMobileStatus] = useState('idle'); // idle | loading | missing | viewing | editing | saving | error
+  const [mobileInput, setMobileInput] = useState('');
+  const [customerMobileFromDb, setCustomerMobileFromDb] = useState('');
+  const [mobileValidationError, setMobileValidationError] = useState('');
+
+  const normalizeMobile = (val) => {
+    if (!val) return '';
+    let cleaned = val.replace(/[^0-9]/g, '');
+    if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      cleaned = cleaned.substring(2);
+    } else if (cleaned.length === 11 && cleaned.startsWith('0')) {
+      cleaned = cleaned.substring(1);
+    }
+    return cleaned;
+  };
+
+  const validateMobile = (val) => {
+    const norm = normalizeMobile(val);
+    return /^[6-9]\d{9}$/.test(norm);
+  };
   
   const getNextActionConfig = (outcome, followUpType) => {
     if (followUpType === 'Lead' || followUpType === 'Reactivation') {
@@ -138,13 +157,21 @@ export default function FollowUpForm() {
     if (fetching || !formData.party_id) return;
     
     let isActive = true;
+    setMobileStatus('loading');
+    setMobileValidationError('');
     
     // Instant populate if available in the dropdown data to prevent lag
     const match = customers.find(c => c.id === formData.party_id);
+    let foundValidLocal = false;
     if (match && (match.mobile || match.mobile_number || match.phone || match.phone_number)) {
       const m = match.mobile ?? match.mobile_number ?? match.phone ?? match.phone_number ?? "";
-      setCustomerMobile(m);
-      setInitialMobile(m);
+      const normalized = normalizeMobile(m);
+      if (validateMobile(normalized)) {
+        setCustomerMobileFromDb(normalized);
+        setMobileInput(normalized);
+        setMobileStatus('viewing');
+        foundValidLocal = true;
+      }
     }
     
     const fetchMobile = async () => {
@@ -158,12 +185,23 @@ export default function FollowUpForm() {
         if (error) throw error;
         
         if (isActive && customer) {
-          const mobile = customer.mobile ?? customer.mobile_number ?? customer.phone ?? customer.phone_number ?? "";
-          setCustomerMobile(mobile);
-          setInitialMobile(mobile);
+          const m = customer.mobile ?? customer.mobile_number ?? customer.phone ?? customer.phone_number ?? "";
+          const normalized = normalizeMobile(m);
+          if (validateMobile(normalized)) {
+            setCustomerMobileFromDb(normalized);
+            setMobileInput(normalized);
+            setMobileStatus('viewing');
+          } else {
+            setCustomerMobileFromDb('');
+            setMobileInput('');
+            setMobileStatus('missing');
+          }
         }
       } catch (err) {
         console.error("Error fetching customer mobile:", err);
+        if (isActive && !foundValidLocal) {
+           setMobileStatus('error');
+        }
       }
     };
     
@@ -172,37 +210,59 @@ export default function FollowUpForm() {
     return () => { isActive = false; };
   }, [formData.party_id, fetching, customers]);
 
+  const handleSaveMobile = async () => {
+    setMobileValidationError('');
+    const normalized = normalizeMobile(mobileInput);
+    
+    if (!validateMobile(normalized)) {
+      setMobileValidationError('Enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+    
+    setMobileStatus('saving');
+    
+    try {
+      const { error } = await supabase
+        .from('crm_parties')
+        .update({ mobile: normalized })
+        .eq('id', formData.party_id);
+        
+      if (error) throw error;
+      
+      logActivity({
+        module: 'Customers',
+        actionType: 'UPDATED',
+        entityType: 'crm_parties',
+        entityId: formData.party_id,
+        summary: `Updated mobile number from New Follow-up page: ${customerMobileFromDb || 'None'} -> ${normalized}`
+      });
+      
+      setCustomerMobileFromDb(normalized);
+      setMobileInput(normalized);
+      setMobileStatus('viewing');
+      
+      // Update local customers cache
+      setCustomers(prev => prev.map(c => c.id === formData.party_id ? { ...c, mobile: normalized } : c));
+      
+      alert(customerMobileFromDb ? 'Customer mobile number updated successfully.' : 'Customer mobile number added successfully.');
+    } catch (err) {
+      console.error(err);
+      setMobileStatus('error');
+      alert('Failed to save mobile number. Please try again.');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    let normalizedMobileToSave = null;
-    if (formData.party_id) {
-       const rawMobile = customerMobile ? customerMobile.replace(/[-\s]/g, '') : '';
-       const phoneRegex = /^(?:\+91|0)?[0-9]{10}$/;
-       
-       if (!rawMobile && isAdmin) {
-           alert("Mobile Number is required.");
-           return;
-       } else if (!rawMobile && !isAdmin) {
-           alert("Customer has no mobile number. Please contact an authorised user to update.");
-           return;
-       }
-       
-       if (rawMobile && !phoneRegex.test(rawMobile)) {
-           alert("Invalid Mobile format. Ensure it contains a legitimate 10-digit Indian number.");
-           return;
-       }
-       
-       let normalizedMobile = rawMobile;
-       if (normalizedMobile && normalizedMobile.length === 10) {
-           normalizedMobile = '+91' + normalizedMobile;
-       } else if (normalizedMobile && normalizedMobile.startsWith('0') && normalizedMobile.length === 11) {
-           normalizedMobile = '+91' + normalizedMobile.substring(1);
-       }
-       
-       if (isAdmin && normalizedMobile !== initialMobile) {
-           normalizedMobileToSave = normalizedMobile;
-       }
+    if (!formData.party_id) {
+       alert("Please select a customer.");
+       return;
+    }
+    
+    if (mobileStatus === 'missing' || mobileStatus === 'editing' || mobileStatus === 'error' || mobileStatus === 'saving') {
+       alert("Please add and save a valid mobile number for the selected customer before creating this follow-up.");
+       return;
     }
     
     if ((formData.follow_up_type === 'Payment' || formData.follow_up_type === 'Lead' || formData.follow_up_type === 'Reactivation' || formData.follow_up_type === 'Commercial' || formData.follow_up_type === 'Retention') && formData.status === 'Completed' && !formData.outcome_category) {
@@ -229,19 +289,6 @@ export default function FollowUpForm() {
         reminder_at: toISO(formData.reminder_at)
       };
 
-      if (normalizedMobileToSave) {
-          const { error: customerError } = await supabase.from('crm_parties').update({ mobile: normalizedMobileToSave }).eq('id', formData.party_id);
-          if (customerError) throw customerError;
-          
-          logActivity({
-             module: 'Customers',
-             actionType: 'UPDATED',
-             entityType: 'crm_parties',
-             entityId: formData.party_id,
-             summary: `Updated mobile number from New Follow-up page: ${initialMobile || 'None'} -> ${normalizedMobileToSave}`
-          });
-      }
-
       if (id) {
         const { error } = await supabase.from('follow_ups').update(payload).eq('id', id);
         if (error) throw error;
@@ -254,11 +301,7 @@ export default function FollowUpForm() {
           summary: `Updated follow-up: ${payload.reason}`
         });
 
-        if (normalizedMobileToSave) {
-           alert("Customer mobile number updated and follow-up updated.");
-        } else {
-           alert(t('msg.updateSuccess'));
-        }
+        alert(t('msg.updateSuccess'));
       } else {
         payload.created_by = session?.session?.user?.id || null;
         
@@ -280,11 +323,7 @@ export default function FollowUpForm() {
           summary: `Created follow-up: ${payload.reason}`
         });
 
-        if (normalizedMobileToSave) {
-           alert("Customer mobile number updated and follow-up created.");
-        } else {
-           alert(t('msg.createSuccess'));
-        }
+        alert(t('msg.createSuccess'));
       }
       
       // SEQUENCE AUTOMATION
@@ -467,8 +506,10 @@ export default function FollowUpForm() {
                 value={formData.party_id} 
                 onChange={e => {
                   setFormData({...formData, party_id: e.target.value});
-                  setCustomerMobile('');
-                  setInitialMobile('');
+                  setMobileStatus('idle');
+                  setMobileInput('');
+                  setCustomerMobileFromDb('');
+                  setMobileValidationError('');
                 }}
                 disabled={!!id} // Usually don't change customer of existing follow-up
               >
@@ -480,22 +521,78 @@ export default function FollowUpForm() {
             </div>
 
             <div>
-              <label>Mobile Number {(!initialMobile && isAdmin) ? '*' : ''}</label>
-              <input 
-                type="text" 
-                required={!initialMobile && isAdmin}
-                disabled={!isAdmin}
-                value={customerMobile} 
-                onChange={e => setCustomerMobile(e.target.value)}
-                placeholder={isAdmin ? "Enter mobile number (e.g., 9876543210)" : ""}
-              />
-              <div style={{ fontSize: '0.8rem', marginTop: '0.375rem', color: initialMobile ? 'var(--success)' : (isAdmin ? 'var(--danger)' : 'var(--warning)') }}>
-                {initialMobile 
-                  ? `Saved customer number${!isAdmin ? ' (Read-only)' : ''}` 
-                  : (isAdmin 
-                      ? "No mobile number saved for this customer. Please add one to continue." 
-                      : "No mobile number saved. Please contact an authorised user to update.")}
-              </div>
+              <label>Mobile Number</label>
+              
+              {!formData.party_id && (
+                 <div style={{ padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-muted)' }}>
+                    Select a customer to view mobile number.
+                 </div>
+              )}
+              
+              {formData.party_id && mobileStatus === 'loading' && (
+                 <div style={{ padding: '0.75rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-muted)' }}>
+                    Loading customer details...
+                 </div>
+              )}
+              
+              {formData.party_id && (mobileStatus === 'viewing' || mobileStatus === 'editing' || mobileStatus === 'missing' || mobileStatus === 'saving' || mobileStatus === 'error') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  
+                  {mobileStatus === 'missing' && (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--danger)', marginBottom: '0.25rem' }}>
+                      Mobile number is not available for this customer. Please add it to continue.
+                    </div>
+                  )}
+                  
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <input 
+                      type="text" 
+                      value={mobileInput} 
+                      onChange={e => {
+                        setMobileInput(e.target.value);
+                        if (mobileValidationError) setMobileValidationError('');
+                      }}
+                      disabled={mobileStatus === 'viewing' || mobileStatus === 'saving' || !isAdmin}
+                      placeholder="e.g. 9876543210"
+                      style={{ flex: 1, borderColor: mobileValidationError ? 'var(--danger)' : 'var(--border)' }}
+                    />
+                    
+                    {isAdmin && mobileStatus === 'viewing' && (
+                      <button type="button" className="btn btn-secondary" onClick={() => setMobileStatus('editing')}>
+                        Edit
+                      </button>
+                    )}
+                    
+                    {isAdmin && (mobileStatus === 'missing' || mobileStatus === 'editing' || mobileStatus === 'error') && (
+                      <button type="button" className="btn btn-primary" onClick={handleSaveMobile}>
+                        {mobileStatus === 'missing' ? 'Update Mobile Number' : 'Save'}
+                      </button>
+                    )}
+                    
+                    {isAdmin && mobileStatus === 'editing' && (
+                      <button type="button" className="btn btn-secondary" onClick={() => {
+                        setMobileInput(customerMobileFromDb);
+                        setMobileValidationError('');
+                        setMobileStatus('viewing');
+                      }}>
+                        Cancel
+                      </button>
+                    )}
+                    
+                    {isAdmin && mobileStatus === 'saving' && (
+                      <button type="button" className="btn btn-secondary" disabled>
+                        Saving...
+                      </button>
+                    )}
+                  </div>
+                  
+                  {mobileValidationError && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--danger)' }}>
+                      {mobileValidationError}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             
             <div>
