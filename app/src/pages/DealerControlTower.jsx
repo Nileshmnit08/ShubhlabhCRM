@@ -4,9 +4,8 @@ import { AuthContext } from '../AuthContext';
 import { Link, Navigate } from 'react-router-dom';
 import { 
   Building2, TrendingUp, Users, Target, Clock, Gift,
-  MessageSquare, MoreVertical, Search, Filter, XCircle, AlertCircle
+  MessageSquare, MoreVertical, Search, Filter, XCircle, AlertCircle, RefreshCw, ChevronDown, ChevronUp, CheckCircle, AlertTriangle
 } from 'lucide-react';
-import TargetClosingAlerts from '../components/TargetClosingAlerts';
 
 export default function DealerGrowthHub() {
   const { userProfile } = useContext(AuthContext);
@@ -16,17 +15,18 @@ export default function DealerGrowthHub() {
   const [error, setError] = useState(null);
   
   // Data State
-  const [dealers, setDealers] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [activeSchemesCount, setActiveSchemesCount] = useState(0);
+  const [performanceRecords, setPerformanceRecords] = useState([]);
+  const [slabs, setSlabs] = useState([]);
   const [eligibleRewards, setEligibleRewards] = useState([]);
   
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterScheme, setFilterScheme] = useState('All');
   const [filterTerritory, setFilterTerritory] = useState('All');
-  
-  // Dropdowns
-  const [territories, setTerritories] = useState([]);
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterPace, setFilterPace] = useState('All');
+
+  const [expandedSchemes, setExpandedSchemes] = useState({});
 
   useEffect(() => {
     if (isAdmin) {
@@ -36,111 +36,32 @@ export default function DealerGrowthHub() {
 
   async function fetchData() {
     setLoading(true);
+    setError(null);
     try {
-      // 1. Fetch Dealers from v_dealer_growth_hub
-      const { data: dData, error: dErr } = await supabase
-        .from('v_dealer_growth_hub')
+      // 1. Fetch Performance Records from RPC
+      const { data: pData, error: pErr } = await supabase.rpc('get_customer_scheme_performance');
+      if (pErr) throw pErr;
+      
+      const records = pData || [];
+      setPerformanceRecords(records);
+
+      // Initialize expanded schemes state
+      const schemeIds = [...new Set(records.map(r => r.scheme_id))];
+      const initialExpanded = {};
+      schemeIds.forEach(id => { initialExpanded[id] = true; });
+      setExpandedSchemes(initialExpanded);
+
+      // 2. Fetch Slabs for Summary
+      const { data: sData, error: sErr } = await supabase
+        .from('dealer_scheme_slabs')
         .select('*');
-      
-      if (dErr) throw dErr;
-      const validDealers = dData || [];
-      setDealers(validDealers);
+      if (!sErr) setSlabs(sData || []);
 
-      // Extract unique territories
-      const tSet = new Set();
-      validDealers.forEach(d => { if (d.territory_name) tSet.add(d.territory_name); });
-      setTerritories(Array.from(tSet).sort());
-
-      // Fetch Active Schemes Count
-      const { count: sCount, error: sErr } = await supabase
-        .from('dealer_schemes')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'Active');
-      
-      if (!sErr) setActiveSchemesCount(sCount || 0);
-
-      // Fetch Rewards
+      // 3. Fetch Rewards for KPIs
       const { data: rData, error: rErr } = await supabase
         .from('dealer_reward_eligibility')
         .select('id, status');
-      
       if (!rErr) setEligibleRewards(rData || []);
-
-      // 2. Fetch mock alerts (In production, this would be a JOIN from dealer_target_alerts, dealer_targets, crm_parties)
-      // Since this is MVP, we dynamically simulate alerts from the target data if available, 
-      // or fetch from dealer_target_alerts. We will simulate fetching from dealer_target_alerts + targets.
-      const { data: aData, error: aErr } = await supabase
-        .from('dealer_target_alerts')
-        .select(`
-          id, alert_type, priority,
-          dealer_targets ( target_period, target_end_date, target_value, achievement_value ),
-          crm_parties ( id, display_name, mobile, city, territory_name )
-        `)
-        .eq('status', 'Active');
-
-      if (aErr) throw aErr;
-      
-      // Transform raw alert data into usable flat objects, or generate demo data if empty
-      let mappedAlerts = [];
-      if (aData && aData.length > 0) {
-        mappedAlerts = aData.map(a => {
-          const tEnd = new Date(a.dealer_targets?.target_end_date || new Date());
-          const daysLeft = Math.max(0, Math.ceil((tEnd - new Date()) / (1000 * 3600 * 24)));
-          return {
-            alert_id: a.id,
-            customer_id: a.crm_parties?.id,
-            alert_type: a.alert_type,
-            priority: a.priority,
-            display_name: a.crm_parties?.display_name,
-            mobile: a.crm_parties?.mobile,
-            territory_name: a.crm_parties?.territory_name,
-            target_period: a.dealer_targets?.target_period,
-            target_value: a.dealer_targets?.target_value,
-            achievement_value: a.dealer_targets?.achievement_value,
-            target_end_date: a.dealer_targets?.target_end_date,
-            days_left: daysLeft,
-            scheme_name: 'Monsoon Bonanza', // simulated
-            next_reward: '500 Points' // simulated
-          };
-        });
-      } else {
-        // Generate realistic demo alerts if table is empty for preview
-        mappedAlerts = [
-          {
-            alert_id: '1', customer_id: 'abc', alert_type: 'Near Target', priority: 'Critical',
-            display_name: 'Super Traders', mobile: '9876543210', territory_name: 'Mumbai North',
-            target_period: 'Q3 2026', target_value: 500000, achievement_value: 485000,
-            target_end_date: new Date(new Date().getTime() + 86400000 * 2).toISOString(), days_left: 2,
-            scheme_name: 'Q3 Volume Bonus', next_reward: '2% Cash Back'
-          },
-          {
-            alert_id: '2', customer_id: 'def', alert_type: 'One Slab Away', priority: 'High',
-            display_name: 'Aggarwal Stores', mobile: '9123456789', territory_name: 'Delhi South',
-            target_period: 'Aug 2026', target_value: 200000, achievement_value: 150000,
-            target_end_date: new Date(new Date().getTime() + 86400000 * 5).toISOString(), days_left: 5,
-            scheme_name: 'August Starter', next_reward: 'Silver Plaque & 500 Pts'
-          },
-          {
-            alert_id: '3', customer_id: 'ghi', alert_type: 'No Recent Activity', priority: 'High',
-            display_name: 'National Agencies', mobile: '9988776655', territory_name: 'Pune Central',
-            target_period: 'Q3 2026', target_value: 1000000, achievement_value: 200000,
-            target_end_date: new Date(new Date().getTime() + 86400000 * 4).toISOString(), days_left: 4,
-            scheme_name: 'Q3 Mega Target', next_reward: 'Gold Coin'
-          },
-          {
-            alert_id: '4', customer_id: 'jkl', alert_type: 'Target Achieved', priority: 'Achieved',
-            display_name: 'Premier Distributors', mobile: '9012345678', territory_name: 'Ahmedabad',
-            target_period: 'Aug 2026', target_value: 300000, achievement_value: 310000,
-            target_end_date: new Date(new Date().getTime() + 86400000 * 10).toISOString(), days_left: 10,
-            scheme_name: 'August Starter', next_reward: 'Silver Plaque & 500 Pts'
-          }
-        ];
-      }
-
-      // Sort alerts
-      const rank = { 'Critical': 1, 'High': 2, 'Medium': 3, 'Achieved': 4 };
-      mappedAlerts.sort((a, b) => (rank[a.priority] || 5) - (rank[b.priority] || 5));
-      setAlerts(mappedAlerts);
 
       setLoading(false);
     } catch (err) {
@@ -151,41 +72,83 @@ export default function DealerGrowthHub() {
         details: err?.details, 
         hint: err?.hint 
       });
-      setError("Unable to load dealer data. Please try again.");
+      setError("Unable to load scheme performance data.");
       setLoading(false);
     }
   }
 
-  // --- Filtering Logic for Main Dealer Table ---
-  const filteredDealers = useMemo(() => {
-    return dealers.filter(d => {
-      if (filterTerritory !== 'All' && (d.territory_name || 'Unassigned') !== filterTerritory) return false;
+  const toggleScheme = (schemeId) => {
+    setExpandedSchemes(prev => ({ ...prev, [schemeId]: !prev[schemeId] }));
+  };
+
+  // --- Filtering Logic ---
+  const filteredRecords = useMemo(() => {
+    return performanceRecords.filter(r => {
+      if (filterScheme !== 'All' && r.scheme_id !== filterScheme) return false;
+      if (filterTerritory !== 'All' && (r.territory_name || 'Unassigned') !== filterTerritory) return false;
+      if (filterStatus !== 'All' && r.status !== filterStatus) return false;
+      // Pace filters could map to status or be separate. We'll map Pace to Status for simplicity here if they match
       if (searchQuery) {
         const sq = searchQuery.toLowerCase();
-        const searchStr = `${d.display_name} ${d.mobile} ${d.owner_name} ${d.city}`.toLowerCase();
+        const searchStr = `${r.customer_name} ${r.mobile} ${r.city} ${r.owner_name}`.toLowerCase();
         if (!searchStr.includes(sq)) return false;
       }
       return true;
     });
-  }, [dealers, filterTerritory, searchQuery]);
+  }, [performanceRecords, filterScheme, filterTerritory, filterStatus, searchQuery]);
+
+  // --- Group By Scheme ---
+  const groupedByScheme = useMemo(() => {
+    const groups = {};
+    filteredRecords.forEach(r => {
+      if (!groups[r.scheme_id]) {
+        groups[r.scheme_id] = {
+          scheme_id: r.scheme_id,
+          scheme_name: r.scheme_name,
+          start_date: r.start_date,
+          end_date: r.end_date,
+          days_remaining: r.days_remaining,
+          records: []
+        };
+      }
+      groups[r.scheme_id].records.push(r);
+    });
+    return Object.values(groups);
+  }, [filteredRecords]);
 
   // --- KPIs ---
+  const uniqueCustomers = new Set(performanceRecords.map(r => r.customer_id)).size;
+  const activeSchemesCount = new Set(performanceRecords.map(r => r.scheme_id)).size;
   const kpi = {
-    total: dealers.length,
+    activeCustomers: uniqueCustomers,
     activeSchemes: activeSchemesCount,
-    eligibleRewards: eligibleRewards.filter(r => r.status === 'Eligible' || r.status === 'Approved' || r.status === 'Pending Approval').length,
+    eligibleRewards: performanceRecords.filter(r => r.status === 'eligible').length, // Unique records that are eligible
     pendingApproval: eligibleRewards.filter(r => r.status === 'Pending Approval').length,
     pendingFulfillment: eligibleRewards.filter(r => r.status === 'Approved').length,
-    nearTarget: alerts.filter(a => a.alert_type === 'Near Target' || a.alert_type === 'One Slab Away').length,
-    closingSoon: alerts.filter(a => a.days_left <= 7).length,
-    atRisk: alerts.filter(a => a.alert_type === 'Target At Risk' || a.alert_type === 'No Recent Activity').length
+    nearTarget: performanceRecords.filter(r => r.status === 'near_next_slab').length,
+    nearMonthly: performanceRecords.filter(r => r.status === 'near_monthly_target').length,
+    atRisk: performanceRecords.filter(r => r.status === 'at_risk').length,
+    closingSoon: performanceRecords.filter(r => r.days_remaining <= 7 && r.days_remaining > 0).length,
+    noActivity: performanceRecords.filter(r => r.status === 'no_activity').length
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'eligible': return <span className="badge badge-success"><Gift size={12} style={{marginRight: '4px'}}/> Eligible</span>;
+      case 'near_next_slab': return <span className="badge badge-warning"><TrendingUp size={12} style={{marginRight: '4px'}}/> Near Next Slab</span>;
+      case 'near_monthly_target': return <span className="badge badge-warning"><Target size={12} style={{marginRight: '4px'}}/> Near Target</span>;
+      case 'in_progress': return <span className="badge badge-primary"><Clock size={12} style={{marginRight: '4px'}}/> In Progress</span>;
+      case 'at_risk': return <span className="badge badge-danger"><AlertTriangle size={12} style={{marginRight: '4px'}}/> At Risk</span>;
+      case 'ended': return <span className="badge badge-secondary"><CheckCircle size={12} style={{marginRight: '4px'}}/> Ended</span>;
+      case 'no_baseline': return <span className="badge badge-secondary">No Baseline</span>;
+      case 'no_activity': return <span className="badge badge-secondary">No Activity</span>;
+      default: return <span className="badge badge-secondary">{status}</span>;
+    }
   };
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
-
-  if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Dealer Growth Hub...</div>;
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
@@ -194,158 +157,278 @@ export default function DealerGrowthHub() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 600, marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <TrendingUp size={24} className="text-primary" /> Dealer Growth Hub
+            <TrendingUp size={24} className="text-primary" /> Customer Scheme & Growth Hub
           </h1>
           <p className="text-secondary" style={{ fontSize: '0.95rem', maxWidth: '650px' }}>
-            Manage dealer targets, schemes, rewards, performance, and direct dealer updates.
+            Track scheme eligibility, bag slabs, purchase pace, rewards, and customer follow-up opportunities automatically.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary"><Target size={16} /> Assign Targets</button>
-          <button className="btn btn-secondary"><Gift size={16} /> Create Scheme</button>
-          <button className="btn btn-primary"><MessageSquare size={16} /> Send Dealer Update</button>
-          <button className="btn cv-btn-subtle" title="More Actions"><MoreVertical size={16} /></button>
+          <button className="btn btn-secondary" onClick={fetchData}><RefreshCw size={16} /> Sync Data</button>
+          <Link to="/settings/dealer-schemes" className="btn btn-primary"><Gift size={16} /> Manage Schemes</Link>
         </div>
       </div>
 
-      {error && (
-        <div style={{ padding: '1rem', background: 'rgba(231,76,60,0.1)', color: 'var(--danger)', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <AlertCircle size={18} /> {error}
-        </div>
-      )}
-
-      {/* 2. KPI CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--text-primary)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Users size={14}/> Active Dealers</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{kpi.total}</div>
-        </div>
-        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--success)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Gift size={14}/> Active Schemes</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--success)' }}>{kpi.activeSchemes}</div>
-        </div>
-        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--primary)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Target size={14}/> Eligible for Rewards</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--primary)' }}>{kpi.eligibleRewards}</div>
-        </div>
-        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--warning)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Rewards Pending Approval</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>{kpi.pendingApproval}</div>
-        </div>
-        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--warning)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Rewards Pending Fulfillment</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>{kpi.pendingFulfillment}</div>
-        </div>
-        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--info)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><TrendingUp size={14}/> Near Next Slab</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--info)' }}>{kpi.nearTarget}</div>
-        </div>
-        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--danger)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Schemes Closing Soon</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)' }}>{kpi.closingSoon}</div>
-        </div>
-        <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--danger)' }}>
-          <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><AlertCircle size={14}/> At Risk of Missing Target</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)' }}>{kpi.atRisk}</div>
-        </div>
-      </div>
-
-      {/* 3. TARGET CLOSING ALERTS */}
-      <TargetClosingAlerts alerts={alerts} onActionComplete={fetchData} />
-
-      {/* 4. MAIN DEALER TABLE */}
-      <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <Building2 size={20} className="text-primary" /> Dealer Database
-      </h2>
-      <div className="glass-panel" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <div style={{ position: 'relative', flex: '1 1 250px' }}>
-          <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            placeholder="Search dealer, mobile, city..." 
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: '100%', paddingLeft: '2.5rem' }}
-          />
-        </div>
-        
-        <select value={filterTerritory} onChange={e => setFilterTerritory(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
-          <option value="All">All Territories</option>
-          <option value="Unassigned">Unassigned Territory</option>
-          {territories.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        
-        {(filterTerritory !== 'All' || searchQuery !== '') && (
-          <button className="btn cv-btn-subtle" onClick={() => { setFilterTerritory('All'); setSearchQuery(''); }} style={{ color: 'var(--danger)' }}>
-            <XCircle size={16} /> Clear
-          </button>
-        )}
-      </div>
-
-      {dealers.length === 0 ? (
+      {error ? (
         <div className="cv-panel" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-          <Users size={48} className="text-muted" style={{ opacity: 0.5, marginBottom: '1rem' }} />
-          <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No eligible dealer customers found</h3>
-          <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>Dealers are managed directly from the Customers module.</p>
+          <AlertCircle size={48} className="text-danger" style={{ opacity: 0.8, marginBottom: '1rem' }} />
+          <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>{error}</h3>
+          <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>There was an issue fetching the customer scheme data from the database.</p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <Link to="/customers" className="btn btn-secondary">Open Customers</Link>
-            <button className="btn btn-primary">Mark Customer as Dealer</button>
+            <button className="btn btn-primary" onClick={fetchData}><RefreshCw size={16} /> Retry</button>
           </div>
         </div>
+      ) : loading ? (
+        <div style={{padding: '3rem', textAlign: 'center'}}>Loading Scheme Performance Data...</div>
       ) : (
-        <div className="cv-panel" style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1000px' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
-                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dealer Name</th>
-                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Territory</th>
-                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>Active Targets</th>
-                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>Enrolled Schemes</th>
-                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'right' }}>Reward Points</th>
-                <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredDealers.map(d => (
-                <tr key={d.customer_id} style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s' }}>
-                  <td style={{ padding: '1rem' }}>
-                    <Link to={`/customers/${d.customer_id}`} style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none' }}>
-                      {d.display_name}
-                    </Link>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                      {d.city || 'No City'} • {d.mobile}
+        <>
+          {/* 2. KPI CARDS */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--text-primary)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Users size={14}/> Active Customers</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{kpi.activeCustomers}</div>
+            </div>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--success)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Gift size={14}/> Active Schemes</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--success)' }}>{kpi.activeSchemes}</div>
+            </div>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--success)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Target size={14}/> Eligible for Rewards</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--success)' }}>{kpi.eligibleRewards}</div>
+            </div>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--warning)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Rewards Pending Approval</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>{kpi.pendingApproval}</div>
+            </div>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--warning)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Rewards Pending Fulfillment</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>{kpi.pendingFulfillment}</div>
+            </div>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--info)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><TrendingUp size={14}/> Near Next Slab</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--info)' }}>{kpi.nearTarget}</div>
+            </div>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--info)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><TrendingUp size={14}/> Near Monthly Target</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--info)' }}>{kpi.nearMonthly}</div>
+            </div>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--danger)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><AlertTriangle size={14}/> At Risk of Missing Target</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)' }}>{kpi.atRisk}</div>
+            </div>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--danger)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Clock size={14}/> Schemes Closing Soon</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--danger)' }}>{kpi.closingSoon}</div>
+            </div>
+            <div className="cv-panel" style={{ padding: '1.25rem', borderLeft: '4px solid var(--border)' }}>
+              <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><XCircle size={14}/> No Activity Customers</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{kpi.noActivity}</div>
+            </div>
+          </div>
+
+          {/* 3. FILTERS */}
+          <div className="glass-panel" style={{ padding: '1rem', marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: '1 1 250px' }}>
+              <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input 
+                type="text" 
+                placeholder="Search customer name, mobile, city..." 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ width: '100%', paddingLeft: '2.5rem' }}
+              />
+            </div>
+            
+            <select value={filterScheme} onChange={e => setFilterScheme(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
+              <option value="All">All Schemes</option>
+              {[...new Set(performanceRecords.map(r => r.scheme_name))].map(s => <option key={s} value={performanceRecords.find(r => r.scheme_name === s).scheme_id}>{s}</option>)}
+            </select>
+
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
+              <option value="All">All Statuses</option>
+              <option value="eligible">Eligible</option>
+              <option value="near_next_slab">Near Next Slab</option>
+              <option value="near_monthly_target">Near Monthly Target</option>
+              <option value="in_progress">In Progress</option>
+              <option value="at_risk">At Risk</option>
+              <option value="no_activity">No Activity</option>
+            </select>
+            
+            {(filterScheme !== 'All' || filterStatus !== 'All' || searchQuery !== '') && (
+              <button className="btn cv-btn-subtle" onClick={() => { setFilterScheme('All'); setFilterStatus('All'); setSearchQuery(''); }} style={{ color: 'var(--danger)' }}>
+                <XCircle size={16} /> Clear Filters
+              </button>
+            )}
+          </div>
+
+          {/* 4. MAIN DATA PRESENTATION (GROUPED BY SCHEME) */}
+          {groupedByScheme.length === 0 ? (
+            <div className="cv-panel" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+              {performanceRecords.length === 0 ? (
+                <>
+                  <Gift size={48} className="text-muted" style={{ opacity: 0.5, marginBottom: '1rem' }} />
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No active schemes are currently available</h3>
+                  <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>Create a scheme to start tracking customer progress.</p>
+                  <Link to="/settings/dealer-schemes" className="btn btn-primary">Create Scheme</Link>
+                </>
+              ) : (
+                <>
+                  <Filter size={48} className="text-muted" style={{ opacity: 0.5, marginBottom: '1rem' }} />
+                  <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No customers match the selected filters</h3>
+                  <button className="btn btn-secondary" onClick={() => { setFilterScheme('All'); setFilterStatus('All'); setSearchQuery(''); }}>Clear Filters</button>
+                </>
+              )}
+            </div>
+          ) : (
+            groupedByScheme.map(group => {
+              const isExpanded = expandedSchemes[group.scheme_id];
+              const schemeSlabs = slabs.filter(s => s.scheme_id === group.scheme_id).sort((a,b) => a.min_bags - b.min_bags);
+              
+              return (
+                <div key={group.scheme_id} className="cv-panel" style={{ marginBottom: '2rem', overflow: 'hidden' }}>
+                  {/* Scheme Header */}
+                  <div 
+                    style={{ 
+                      padding: '1.5rem', 
+                      background: 'var(--bg-surface)', 
+                      borderBottom: isExpanded ? '1px solid var(--border)' : 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                    onClick={() => toggleScheme(group.scheme_id)}
+                  >
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {group.scheme_name}
+                        {group.days_remaining > 0 ? (
+                          <span className="badge badge-primary">{group.days_remaining} Days Left</span>
+                        ) : (
+                          <span className="badge badge-secondary">Ended</span>
+                        )}
+                      </h3>
+                      <div className="text-secondary" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                        Period: {new Date(group.start_date).toLocaleDateString()} - {new Date(group.end_date).toLocaleDateString()}
+                      </div>
                     </div>
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{d.territory_name || <span className="text-warning">Unassigned</span>}</div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Owner: {d.owner_name || 'N/A'}</div>
-                  </td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
-                    <span className={`badge ${d.active_targets_count > 0 ? 'badge-primary' : 'badge-secondary'}`}>{d.active_targets_count || 0}</span>
-                  </td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
-                    <span className={`badge ${d.active_schemes_count > 0 ? 'badge-success' : 'badge-secondary'}`}>{d.active_schemes_count || 0}</span>
-                  </td>
-                  <td style={{ padding: '1rem', textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 600, color: d.current_reward_points > 0 ? 'var(--warning)' : 'inherit' }}>
-                      {Number(d.current_reward_points || 0).toLocaleString('en-IN')}
+                    <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{group.records.length}</div>
+                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>Participants</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--success)' }}>
+                          {group.records.filter(r => r.status === 'eligible').length}
+                        </div>
+                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>Eligible</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--info)' }}>
+                          {group.records.filter(r => r.status === 'near_next_slab').length}
+                        </div>
+                        <div className="text-muted" style={{ fontSize: '0.75rem' }}>Near Slab</div>
+                      </div>
+                      <div className="text-muted">
+                        {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                      </div>
                     </div>
-                    {d.pending_claims_count > 0 && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem' }}>{d.pending_claims_count} Claim(s) Pending</div>
-                    )}
-                  </td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
-                      <button className="btn cv-btn-subtle" style={{ padding: '0.25rem 0.5rem' }} title="Dealer 360"><Building2 size={16} /></button>
-                      <button className="btn cv-btn-subtle" style={{ padding: '0.25rem 0.5rem' }} title="Send Message"><MessageSquare size={16} /></button>
-                      <button className="btn cv-btn-subtle" style={{ padding: '0.25rem 0.5rem' }} title="More Options"><MoreVertical size={16} /></button>
+                  </div>
+
+                  {/* Expanded Content */}
+                  {isExpanded && (
+                    <div style={{ padding: '0', overflowX: 'auto' }}>
+                      {/* Slabs Summary (Optional) */}
+                      {schemeSlabs.length > 0 && (
+                        <div style={{ padding: '1rem 1.5rem', background: 'rgba(0,0,0,0.02)', borderBottom: '1px solid var(--border)', display: 'flex', gap: '1rem', overflowX: 'auto' }}>
+                          <span className="text-muted" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Slabs:</span>
+                          {schemeSlabs.map(slab => (
+                            <span key={slab.id} className="badge" style={{ background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+                              {slab.slab_name} ({slab.min_bags} bags) - {slab.reward_description}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Customer Table */}
+                      {group.records.length === 0 ? (
+                        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          No eligible customer purchases recorded yet.
+                        </div>
+                      ) : (
+                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1200px' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-surface)' }}>
+                              <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Customer</th>
+                              <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Status</th>
+                              <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'right' }}>Net Bags</th>
+                              <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Slab Progress</th>
+                              <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Reward Earned</th>
+                              <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Pace (Monthly)</th>
+                              <th style={{ padding: '1rem', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {group.records.map(r => (
+                              <tr key={r.customer_id} style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s' }}>
+                                <td style={{ padding: '1rem' }}>
+                                  <Link to={`/customers/${r.customer_id}`} style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none' }}>
+                                    {r.customer_name}
+                                  </Link>
+                                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                    {r.city || 'No City'} • {r.mobile}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '1rem' }}>
+                                  {getStatusBadge(r.status)}
+                                </td>
+                                <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                  <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>{Number(r.current_net_bags || 0).toLocaleString()}</div>
+                                </td>
+                                <td style={{ padding: '1rem' }}>
+                                  <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                                    {r.achieved_slab_name ? `Achieved: ${r.achieved_slab_name}` : 'No Slab Achieved'}
+                                  </div>
+                                  {r.next_slab_name && (
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                      Next: {r.next_slab_name} ({Number(r.bags_needed).toLocaleString()} more)
+                                    </div>
+                                  )}
+                                </td>
+                                <td style={{ padding: '1rem' }}>
+                                  <div style={{ fontSize: '0.85rem', color: r.reward_earned ? 'var(--success)' : 'inherit' }}>
+                                    {r.reward_earned || '-'}
+                                  </div>
+                                </td>
+                                <td style={{ padding: '1rem' }}>
+                                  <div style={{ fontSize: '0.85rem' }}>
+                                    Pace: <span style={{fontWeight: 600, color: r.pace_percentage >= 100 ? 'var(--success)' : r.pace_percentage >= 80 ? 'var(--warning)' : r.pace_percentage > 0 ? 'var(--danger)' : 'inherit'}}>{r.pace_percentage}%</span>
+                                  </div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                    Avg: {Number(r.historical_monthly_bags).toLocaleString()}/mo
+                                  </div>
+                                </td>
+                                <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
+                                    {r.status === 'eligible' && (
+                                      <button className="btn btn-sm btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Start Approval</button>
+                                    )}
+                                    <button className="btn cv-btn-subtle" style={{ padding: '0.25rem 0.5rem' }} title="Send Follow-up"><MessageSquare size={16} /></button>
+                                    <button className="btn cv-btn-subtle" style={{ padding: '0.25rem 0.5rem' }} title="More Options"><MoreVertical size={16} /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </>
       )}
     </div>
   );
