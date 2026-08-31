@@ -4,16 +4,21 @@ import { logActivity } from '../../lib/activityLogger';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Save, X } from 'lucide-react';
 import { LanguageContext } from '../../LanguageContext';
+import { AuthContext } from '../../AuthContext';
 
 export default function FollowUpForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useContext(LanguageContext);
+  const { userProfile } = useContext(AuthContext);
+  const isAdmin = userProfile?.role === 'Admin';
   
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(!!id);
   const [customers, setCustomers] = useState([]);
   const [manualNextDate, setManualNextDate] = useState('');
+  const [customerMobile, setCustomerMobile] = useState('');
+  const [initialMobile, setInitialMobile] = useState('');
   
   const getNextActionConfig = (outcome, followUpType) => {
     if (followUpType === 'Lead' || followUpType === 'Reactivation') {
@@ -88,7 +93,7 @@ export default function FollowUpForm() {
   const fetchInitialData = async () => {
     try {
       // Fetch customers for dropdown
-      const { data: cData } = await supabase.from('crm_parties').select('id, display_name').order('display_name');
+      const { data: cData } = await supabase.from('crm_parties').select('id, display_name, mobile').order('display_name');
       setCustomers(cData || []);
 
       if (id) {
@@ -116,6 +121,14 @@ export default function FollowUpForm() {
           sequence_id: fData.sequence_id || '',
           sequence_step_number: fData.sequence_step_number || ''
         });
+        
+        if (fData.party_id) {
+           const match = cData?.find(c => c.id === fData.party_id);
+           if (match) {
+             setCustomerMobile(match.mobile || '');
+             setInitialMobile(match.mobile || '');
+           }
+        }
       } else {
         // Auto-assign to current user if new
         const { data: session } = await supabase.auth.getSession();
@@ -131,6 +144,36 @@ export default function FollowUpForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    let normalizedMobileToSave = null;
+    if (formData.party_id) {
+       const rawMobile = customerMobile ? customerMobile.replace(/[-\s]/g, '') : '';
+       const phoneRegex = /^(?:\+91|0)?[0-9]{10}$/;
+       
+       if (!rawMobile && isAdmin) {
+           alert("Mobile Number is required.");
+           return;
+       } else if (!rawMobile && !isAdmin) {
+           alert("Customer has no mobile number. Please contact an authorised user to update.");
+           return;
+       }
+       
+       if (rawMobile && !phoneRegex.test(rawMobile)) {
+           alert("Invalid Mobile format. Ensure it contains a legitimate 10-digit Indian number.");
+           return;
+       }
+       
+       let normalizedMobile = rawMobile;
+       if (normalizedMobile && normalizedMobile.length === 10) {
+           normalizedMobile = '+91' + normalizedMobile;
+       } else if (normalizedMobile && normalizedMobile.startsWith('0') && normalizedMobile.length === 11) {
+           normalizedMobile = '+91' + normalizedMobile.substring(1);
+       }
+       
+       if (isAdmin && normalizedMobile !== initialMobile) {
+           normalizedMobileToSave = normalizedMobile;
+       }
+    }
     
     if ((formData.follow_up_type === 'Payment' || formData.follow_up_type === 'Lead' || formData.follow_up_type === 'Reactivation' || formData.follow_up_type === 'Commercial' || formData.follow_up_type === 'Retention') && formData.status === 'Completed' && !formData.outcome_category) {
        alert("Please select an Outcome before completing the task.");
@@ -156,6 +199,19 @@ export default function FollowUpForm() {
         reminder_at: toISO(formData.reminder_at)
       };
 
+      if (normalizedMobileToSave) {
+          const { error: customerError } = await supabase.from('crm_parties').update({ mobile: normalizedMobileToSave }).eq('id', formData.party_id);
+          if (customerError) throw customerError;
+          
+          logActivity({
+             module: 'Customers',
+             actionType: 'UPDATED',
+             entityType: 'crm_parties',
+             entityId: formData.party_id,
+             summary: `Updated mobile number from New Follow-up page: ${initialMobile || 'None'} -> ${normalizedMobileToSave}`
+          });
+      }
+
       if (id) {
         const { error } = await supabase.from('follow_ups').update(payload).eq('id', id);
         if (error) throw error;
@@ -168,7 +224,11 @@ export default function FollowUpForm() {
           summary: `Updated follow-up: ${payload.reason}`
         });
 
-        alert(t('msg.updateSuccess'));
+        if (normalizedMobileToSave) {
+           alert("Customer mobile number updated and follow-up updated.");
+        } else {
+           alert(t('msg.updateSuccess'));
+        }
       } else {
         payload.created_by = session?.session?.user?.id || null;
         
@@ -190,7 +250,11 @@ export default function FollowUpForm() {
           summary: `Created follow-up: ${payload.reason}`
         });
 
-        alert(t('msg.createSuccess'));
+        if (normalizedMobileToSave) {
+           alert("Customer mobile number updated and follow-up created.");
+        } else {
+           alert(t('msg.createSuccess'));
+        }
       }
       
       // SEQUENCE AUTOMATION
@@ -371,7 +435,18 @@ export default function FollowUpForm() {
               <select 
                 required 
                 value={formData.party_id} 
-                onChange={e => setFormData({...formData, party_id: e.target.value})}
+                onChange={e => {
+                  const newPartyId = e.target.value;
+                  setFormData({...formData, party_id: newPartyId});
+                  const match = customers.find(c => c.id === newPartyId);
+                  if (match) {
+                    setCustomerMobile(match.mobile || '');
+                    setInitialMobile(match.mobile || '');
+                  } else {
+                    setCustomerMobile('');
+                    setInitialMobile('');
+                  }
+                }}
                 disabled={!!id} // Usually don't change customer of existing follow-up
               >
                 <option value="">-- Select Customer --</option>
@@ -379,6 +454,25 @@ export default function FollowUpForm() {
                   <option key={c.id} value={c.id}>{c.display_name}</option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label>Mobile Number {(!initialMobile && isAdmin) ? '*' : ''}</label>
+              <input 
+                type="text" 
+                required={!initialMobile && isAdmin}
+                disabled={!isAdmin}
+                value={customerMobile} 
+                onChange={e => setCustomerMobile(e.target.value)}
+                placeholder={isAdmin ? "Enter mobile number (e.g., 9876543210)" : ""}
+              />
+              <div style={{ fontSize: '0.8rem', marginTop: '0.375rem', color: initialMobile ? 'var(--success)' : (isAdmin ? 'var(--danger)' : 'var(--warning)') }}>
+                {initialMobile 
+                  ? `Saved customer number${!isAdmin ? ' (Read-only)' : ''}` 
+                  : (isAdmin 
+                      ? "No mobile number saved for this customer. Please add one to continue." 
+                      : "No mobile number saved. Please contact an authorised user to update.")}
+              </div>
             </div>
             
             <div>
