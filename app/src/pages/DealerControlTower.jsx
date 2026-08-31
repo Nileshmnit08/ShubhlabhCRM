@@ -173,7 +173,7 @@ export default function DealerGrowthHub() {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-secondary" onClick={fetchData}><RefreshCw size={16} /> Sync Data</button>
           {!loading && !error && performanceRecords.length > 0 && (
-            <Link to="/settings/dealer-schemes" className="btn btn-primary"><Gift size={16} /> Manage Schemes</Link>
+            <Link to="/settings?tab=dealer_schemes" className="btn btn-primary"><Gift size={16} /> Manage Schemes</Link>
           )}
         </div>
       </div>
@@ -278,7 +278,7 @@ export default function DealerGrowthHub() {
                   <Gift size={48} className="text-muted" style={{ opacity: 0.5, marginBottom: '1rem' }} />
                   <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>No active customer schemes yet</h3>
                   <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>Create your first scheme to track purchase slabs, eligibility, rewards, customer progress, and follow-up opportunities.</p>
-                  <Link to="/settings/dealer-schemes" className="btn btn-primary">Create Your First Scheme</Link>
+                  <Link to="/settings?tab=dealer_schemes" className="btn btn-primary">Create Your First Scheme</Link>
                 </>
               ) : (
                 <>

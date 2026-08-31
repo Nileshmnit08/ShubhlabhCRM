@@ -6,12 +6,23 @@ import { logActivity } from '../../lib/activityLogger';
 import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X, MessageCircle, Map, Gift } from 'lucide-react';
 import TerritoriesTab from './Territories';
 import DealerSchemes from './DealerSchemes';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Settings() {
   const { userProfile, setUserProfile, crmSettings, setCrmSettings } = useContext(AuthContext);
   const { t, setLanguage } = useContext(LanguageContext);
+  const location = useLocation();
+  const navigate = useNavigate();
   
-  const [activeTab, setActiveTab] = useState('profile');
+  const getInitialTab = () => {
+    const searchParams = new URLSearchParams(location.search);
+    const tabParam = searchParams.get('tab');
+    const validTabs = ['profile', 'security', 'appearance', 'personalization', 'notifications', 'brand', 'team', 'territories', 'templates', 'dealer_schemes', 'defaults'];
+    if (tabParam && validTabs.includes(tabParam)) return tabParam;
+    return 'profile';
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab());
   const [loading, setLoading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   
@@ -135,6 +146,7 @@ export default function Settings() {
     }
     resetForm();
     setActiveTab(newTab);
+    navigate(`/settings?tab=${newTab}`, { replace: true });
   };
 
   const resetForm = () => {
