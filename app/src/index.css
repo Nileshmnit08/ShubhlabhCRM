@@ -2,12 +2,12 @@
 
 :root {
   /* Warm Light Dashboard Theme */
-  --bg-base: #f8fafc;
-  --bg-surface: #ffffff;
+  --bg-base: #F8FAFC;
+  --bg-surface: #FFFFFF;
   --bg-surface-hover: #f1f5f9;
-  --text-primary: #0f172a;
+  --text-primary: #1E293B;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748B;
   
   /* Teal / Deep Green Accent */
   --primary: #0f766e;
@@ -18,7 +18,8 @@
   --warning: #f59e0b;
   --danger: #ef4444;
 
-  --border: #e2e8f0;
+  --border: #CBD5E1;
+  --focus-border: #2563EB;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
@@ -28,7 +29,7 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --shadow-glow: 0 0 15px var(--primary-glow);
   
-  --glass-bg: rgba(255, 255, 255, 0.9);
+  --glass-bg: #FFFFFF;
   --glass-border: rgba(0, 0, 0, 0.05);
 
   --sidebar-width: 260px;
@@ -93,7 +94,7 @@ button {
 /* Form Elements */
 input, select, textarea {
   font-family: inherit;
-  background-color: rgba(15, 23, 42, 0.6);
+  background-color: #FFFFFF;
   border: 1px solid var(--border);
   color: var(--text-primary);
   border-radius: var(--radius-md);
@@ -103,17 +104,26 @@ input, select, textarea {
   width: 100%;
 }
 
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+select option {
+  color: var(--text-primary);
+  background-color: #FFFFFF;
+}
+
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px var(--primary-glow);
+  border-color: var(--focus-border);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 label {
   display: block;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   margin-bottom: 0.375rem;
 }
 
