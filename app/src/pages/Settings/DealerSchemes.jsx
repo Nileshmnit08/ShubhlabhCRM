@@ -226,6 +226,7 @@ export default function DealerSchemes() {
             ...(s.id ? { id: s.id } : {}), // only include id if it's already an existing record
             scheme_id: schemeId,
             slab_name: buildSlabName(minBagsNum, s.reward_description),
+            threshold_value: minBagsNum,
             min_bags: minBagsNum,
             max_bags: s.max_bags ? Number(s.max_bags) : null,
             reward_type: s.reward_type,
