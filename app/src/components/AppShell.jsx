@@ -28,7 +28,7 @@ const navItems = [
   { path: '/performance', label: 'My Performance', icon: TrendingUp },
   { path: '/control-room', label: 'Control Room', icon: BarChart },
   { path: '/account-control', label: 'Account Control', icon: ShieldAlert },
-  { path: '/dealer-control', label: 'Dealer Control', icon: Map },
+  { path: '/dealer-control', label: 'Dealer Growth Hub', icon: Map },
   { path: '/coverage', label: 'Coverage Gaps', icon: Map },
   { path: '/automation-control', label: 'Automation Control', icon: Zap },
   { path: '/settings', label: 'Settings', icon: Settings },
