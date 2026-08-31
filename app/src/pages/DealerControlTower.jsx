@@ -65,14 +65,22 @@ export default function DealerGrowthHub() {
 
       setLoading(false);
     } catch (err) {
-      console.error("Dealer Growth Hub data load failed", { 
-        error: err, 
-        code: err?.code, 
-        message: err?.message, 
-        details: err?.details, 
-        hint: err?.hint 
-      });
-      setError("Unable to load scheme performance data.");
+      console.error("=== Dealer Growth Hub Error Diagnostic ===");
+      console.error("Query/RPC: get_customer_scheme_performance");
+      console.error("Error Code:", err?.code);
+      console.error("Error Message:", err?.message);
+      console.error("Error Details:", err?.details);
+      console.error("Error Hint:", err?.hint);
+      console.error("Authenticated Role:", userProfile?.role);
+      console.error("Full Error Object:", err);
+      
+      // We explicitly provide the technical error to the UI for immediate debugging
+      setError(
+        `Unable to load scheme performance data. \n` +
+        `RPC Error Code: ${err?.code || 'Unknown'}\n` +
+        `Message: ${err?.message || 'Check console for details.'}\n` + 
+        `Details: ${err?.details || ''}`
+      );
       setLoading(false);
     }
   }
