@@ -110,4 +110,14 @@ describe('FollowUpForm Mobile Field Behaviors', () => {
     // 2. fireEvent.change to customer 1, then immediately customer 2.
     // 3. Assert: Mobile input correctly shows customer 2's mobile, not customer 1's.
   });
+
+  it('Scenario 10: Backend-payload-sanitation - ensures empty strings are mapped to nulls for UUIDs', async () => {
+    // 1. Mock supabase.from('follow_ups').insert().
+    // 2. renderForm().
+    // 3. Select a valid customer and valid dates.
+    // 4. Leave optional fields like sequence_id and assigned_to empty (empty strings in state).
+    // 5. fireEvent.click on Save.
+    // 6. Assert: payload sent to insert() has sequence_id: null and assigned_to: null, NOT empty strings.
+    // 7. Assert: exact DB errors are shown via alert when save fails.
+  });
 });

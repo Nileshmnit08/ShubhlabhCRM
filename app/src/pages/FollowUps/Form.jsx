@@ -315,14 +315,19 @@ export default function FollowUpForm() {
     setLoading(true);
     try {
       const { data: session } = await supabase.auth.getSession();
-      
+        
       // Convert datetime-local strings back to ISO for DB
       const toISO = (localStr) => localStr ? new Date(localStr).toISOString() : null;
+      const cleanEmpty = (val) => val === '' ? null : val;
       
       const payload = {
         ...formData,
         due_at: toISO(formData.due_at),
-        reminder_at: toISO(formData.reminder_at)
+        reminder_at: toISO(formData.reminder_at),
+        assigned_to: cleanEmpty(formData.assigned_to),
+        sequence_id: cleanEmpty(formData.sequence_id),
+        sequence_step_number: cleanEmpty(formData.sequence_step_number),
+        outcome_category: cleanEmpty(formData.outcome_category)
       };
 
       if (id) {
@@ -513,7 +518,8 @@ export default function FollowUpForm() {
       navigate('/follow-ups');
     } catch (err) {
       console.error(err);
-      alert(t('msg.error'));
+      const errMsg = err.message || JSON.stringify(err);
+      alert(`Save failed: ${errMsg}`);
     } finally {
       setLoading(false);
     }
