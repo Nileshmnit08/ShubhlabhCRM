@@ -277,14 +277,21 @@ export default function FollowUpForm() {
       setMobileInput(normalized);
       setMobileStatus('viewing');
       
-      // Update local customers cache
-      setCustomers(prev => prev.map(c => c.id === formData.party_id ? { ...c, mobile: normalized } : c));
+      // Update selected customer cache
+      if (selectedCustomer) {
+        setSelectedCustomer({ ...selectedCustomer, mobile: normalized });
+      }
       
       alert(customerMobileFromDb ? 'Customer mobile number updated successfully.' : 'Customer mobile number added successfully.');
     } catch (err) {
       console.error(err);
-      setMobileStatus('error');
-      alert('Failed to save mobile number. Please try again.');
+      if (err.code === '23505') {
+        setMobileValidationError('This mobile number is already registered to another customer.');
+        setMobileStatus('editing'); // leave input open for correction
+      } else {
+        setMobileStatus('error');
+        alert('Failed to save mobile number. Please try again.');
+      }
     }
   };
 
