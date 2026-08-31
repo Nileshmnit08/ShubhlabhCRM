@@ -100,6 +100,8 @@ export default function FollowUpForm() {
   const [formData, setFormData] = useState({
     party_id: '',
     reason: '',
+    follow_up_reason: '',
+    custom_reason: '',
     notes: '',
     due_at: '',
     priority: 'Normal',
@@ -111,6 +113,85 @@ export default function FollowUpForm() {
     sequence_id: '',
     sequence_step_number: ''
   });
+
+  const predefinedReasons = [
+    "Follow-up for Payment",
+    "Payment Commitment",
+    "Order Follow-up",
+    "Price / Quotation",
+    "Product Inquiry",
+    "Product Demonstration",
+    "Sample Dispatch",
+    "Complaint",
+    "Meeting / Visit",
+    "Callback Requested",
+    "Document / Ledger Required",
+    "Other / Custom Reason"
+  ];
+  const [reasonSearch, setReasonSearch] = useState('');
+  const [showReasonDropdown, setShowReasonDropdown] = useState(false);
+
+  // Speech-to-Text States
+  const [isListening, setIsListening] = useState(false);
+  const [speechLang, setSpeechLang] = useState('en-IN');
+  const [speechError, setSpeechError] = useState('');
+  const [recognition, setRecognition] = useState(null);
+
+  const toggleSpeechRecognition = () => {
+    if (isListening) {
+      if (recognition) {
+        recognition.stop();
+      }
+      return;
+    }
+    
+    setSpeechError('');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      setSpeechError('Voice input is not supported in this browser. Please type your note.');
+      return;
+    }
+    
+    try {
+      const rec = new SpeechRecognition();
+      rec.lang = speechLang;
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+      
+      rec.onstart = () => {
+        setIsListening(true);
+      };
+      
+      rec.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setFormData(prev => ({
+          ...prev,
+          notes: prev.notes ? `${prev.notes} ${transcript}` : transcript
+        }));
+      };
+      
+      rec.onerror = (event) => {
+        if (event.error === 'not-allowed') {
+          setSpeechError('Microphone permission is required for voice input. You can enable it in browser settings or type manually.');
+        } else if (event.error !== 'aborted') {
+          setSpeechError('Could not transcribe. Please try again or type manually.');
+        }
+        setIsListening(false);
+      };
+      
+      rec.onend = () => {
+        setIsListening(false);
+      };
+      
+      setRecognition(rec);
+      rec.start();
+    } catch (err) {
+      console.error(err);
+      setSpeechError('Could not start microphone.');
+      setIsListening(false);
+    }
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -134,9 +215,24 @@ export default function FollowUpForm() {
           return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0,16);
         };
 
+        let initialReason = fData.follow_up_reason;
+        let initialCustom = fData.custom_reason || '';
+        
+        // Backward compatibility
+        if (!initialReason && fData.reason) {
+          if (predefinedReasons.includes(fData.reason)) {
+             initialReason = fData.reason;
+          } else {
+             initialReason = 'Other / Custom Reason';
+             initialCustom = fData.reason;
+          }
+        }
+
         setFormData({
           party_id: fData.party_id || '',
           reason: fData.reason || '',
+          follow_up_reason: initialReason || '',
+          custom_reason: initialCustom,
           notes: fData.notes || '',
           due_at: formatForInput(fData.due_at) || formatForInput(fData.follow_up_date),
           priority: fData.priority || 'Normal',
@@ -148,6 +244,7 @@ export default function FollowUpForm() {
           sequence_id: fData.sequence_id || '',
           sequence_step_number: fData.sequence_step_number || ''
         });
+        setReasonSearch(initialReason || '');
       } else {
         // Auto-assign to current user if new
         const { data: session } = await supabase.auth.getSession();
@@ -169,8 +266,10 @@ export default function FollowUpForm() {
           assigned_to: searchParams.get('assigned_to') || session?.session?.user?.id || '',
           party_id: prefillParty || '',
           reason: prefillReason || '',
+          follow_up_reason: prefillReason || '',
           follow_up_type: prefillType || 'General'
         }));
+        setReasonSearch(prefillReason || '');
       }
     } catch (err) {
       console.error(err);
@@ -339,16 +438,28 @@ export default function FollowUpForm() {
        return;
     }
     
+    if (!formData.follow_up_reason) {
+      alert("Follow-up Reason is required.");
+      return;
+    }
+    
+    if (formData.follow_up_reason === 'Other / Custom Reason' && !formData.custom_reason) {
+      alert("Please specify the custom reason.");
+      return;
+    }
+    
     setLoading(true);
     try {
       const { data: session } = await supabase.auth.getSession();
         
-      // Convert datetime-local strings back to ISO for DB
       const toISO = (localStr) => localStr ? new Date(localStr).toISOString() : null;
       const cleanEmpty = (val) => val === '' ? null : val;
       
+      const finalReason = formData.follow_up_reason === 'Other / Custom Reason' ? formData.custom_reason : formData.follow_up_reason;
+      
       const payload = {
         ...formData,
+        reason: finalReason,
         due_at: toISO(formData.due_at),
         reminder_at: toISO(formData.reminder_at),
         assigned_to: cleanEmpty(formData.assigned_to),
@@ -716,23 +827,124 @@ export default function FollowUpForm() {
             </div>
             
             <div>
-              <label>{t('form.reason')} *</label>
-              <input 
-                required 
-                type="text" 
-                value={formData.reason} 
-                onChange={e => setFormData({...formData, reason: e.target.value})}
-              />
+              <label>Follow-up Reason *</label>
+              <p className="text-secondary" style={{fontSize: '0.8rem', marginTop: 0, marginBottom: '0.5rem'}}>Choose the main purpose of this follow-up.</p>
+              
+              <div style={{ position: 'relative' }}>
+                <input 
+                  type="text"
+                  placeholder="Select or search a reason"
+                  value={reasonSearch}
+                  onFocus={() => setShowReasonDropdown(true)}
+                  onChange={e => {
+                    setReasonSearch(e.target.value);
+                    setShowReasonDropdown(true);
+                  }}
+                  onBlur={() => setTimeout(() => setShowReasonDropdown(false), 200)}
+                  style={{ width: '100%' }}
+                />
+                {showReasonDropdown && (
+                  <div className="glass-panel" style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, 
+                    maxHeight: '200px', overflowY: 'auto', zIndex: 10,
+                    padding: '0.5rem', marginTop: '0.25rem', boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                  }}>
+                    {predefinedReasons
+                      .filter(r => r.toLowerCase().includes(reasonSearch.toLowerCase()))
+                      .map(r => (
+                        <div 
+                          key={r}
+                          onClick={() => {
+                            setFormData({...formData, follow_up_reason: r});
+                            setReasonSearch(r);
+                            setShowReasonDropdown(false);
+                          }}
+                          style={{
+                            padding: '0.5rem 1rem', cursor: 'pointer', borderRadius: '4px',
+                            background: formData.follow_up_reason === r ? 'var(--bg-hover)' : 'transparent',
+                            color: formData.follow_up_reason === r ? 'var(--primary)' : 'var(--text-primary)',
+                            fontWeight: formData.follow_up_reason === r ? 600 : 400
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                          onMouseLeave={e => e.currentTarget.style.background = formData.follow_up_reason === r ? 'var(--bg-hover)' : 'transparent'}
+                        >
+                          {r}
+                        </div>
+                      ))}
+                    {predefinedReasons.filter(r => r.toLowerCase().includes(reasonSearch.toLowerCase())).length === 0 && (
+                      <div style={{ padding: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No matching reasons found</div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+            
+            {formData.follow_up_reason === 'Other / Custom Reason' && (
+              <div>
+                <label>Specify Reason *</label>
+                <input 
+                  required
+                  type="text" 
+                  placeholder="Enter the reason for this follow-up"
+                  value={formData.custom_reason} 
+                  onChange={e => setFormData({...formData, custom_reason: e.target.value})}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            )}
           </div>
 
           <div>
-            <label>{t('form.notes')}</label>
+            <label>Notes</label>
+            <p className="text-secondary" style={{fontSize: '0.8rem', marginTop: 0, marginBottom: '0.5rem'}}>Add customer context, discussion details, commitment, or next action.</p>
             <textarea 
-              rows="3"
+              rows="4"
               value={formData.notes} 
               onChange={e => setFormData({...formData, notes: e.target.value})}
+              placeholder="Type your notes here..."
+              style={{ width: '100%', marginBottom: '0.5rem' }}
             ></textarea>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'var(--bg-base)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <button 
+                    type="button"
+                    onClick={toggleSpeechRecognition}
+                    className={`btn ${isListening ? 'btn-danger' : 'btn-secondary'}`}
+                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  >
+                    {isListening ? (
+                      <>
+                        <span className="pulse-icon" style={{ display: 'inline-block', width: '8px', height: '8px', background: '#fff', borderRadius: '50%' }}></span>
+                        Stop Recording
+                      </>
+                    ) : (
+                      <>🎙️ Speak Note</>
+                    )}
+                  </button>
+                  
+                  <select 
+                    value={speechLang} 
+                    onChange={e => setSpeechLang(e.target.value)}
+                    style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                    disabled={isListening}
+                  >
+                    <option value="en-IN">English / Hinglish</option>
+                    <option value="hi-IN">Hindi</option>
+                  </select>
+                </div>
+                <div className="text-muted" style={{ fontSize: '0.75rem' }}>
+                  Tap the microphone to dictate. Only transcribed text is saved; audio is not stored.
+                </div>
+              </div>
+              
+              {speechError && (
+                <div style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                  {speechError}
+                </div>
+              )}
+            </div>
           </div>
 
           <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem'}}>
