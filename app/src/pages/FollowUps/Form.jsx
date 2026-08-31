@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Save, X, Search } from 'lucide-react';
 import { LanguageContext } from '../../LanguageContext';
 import { AuthContext } from '../../AuthContext';
 
 export default function FollowUpForm() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useContext(LanguageContext);
   const { userProfile } = useContext(AuthContext);
@@ -150,7 +151,26 @@ export default function FollowUpForm() {
       } else {
         // Auto-assign to current user if new
         const { data: session } = await supabase.auth.getSession();
-        setFormData(prev => ({ ...prev, assigned_to: session?.session?.user?.id || '' }));
+        
+        const prefillParty = searchParams.get('party_id');
+        const prefillReason = searchParams.get('reason');
+        const prefillType = searchParams.get('follow_up_type');
+        
+        if (prefillParty) {
+           const { data: cData } = await supabase.from('crm_parties').select('id, display_name, mobile').eq('id', prefillParty).single();
+           if (cData) {
+             setSelectedCustomer(cData);
+             setCustomerSearch(cData.display_name);
+           }
+        }
+        
+        setFormData(prev => ({ 
+          ...prev, 
+          assigned_to: searchParams.get('assigned_to') || session?.session?.user?.id || '',
+          party_id: prefillParty || '',
+          reason: prefillReason || '',
+          follow_up_type: prefillType || 'General'
+        }));
       }
     } catch (err) {
       console.error(err);

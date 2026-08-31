@@ -38,6 +38,7 @@ import TerritoryDemand from './pages/TerritoryDemand';
 import DemandControlTower from './pages/DemandControlTower';
 import Performance from './pages/Performance';
 import Settings from './pages/Settings';
+import FollowUpActivityReport from './pages/Activity/FollowUpActivityReport';
 
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
@@ -238,6 +239,7 @@ function App() {
               <Route path="payments" element={<PaymentWorkspace />} />
               
               <Route path="activity" element={<ActivityTimeline />} />
+              <Route path="reports/follow-up-activity" element={<FollowUpActivityReport />} />
               <Route path="performance" element={<Performance />} />
               <Route path="control-room" element={<ControlRoom />} />
               <Route path="account-control" element={<AccountControl />} />
