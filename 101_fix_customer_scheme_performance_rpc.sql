@@ -1,6 +1,8 @@
 -- Migration: 101_fix_customer_scheme_performance_rpc.sql
 -- Description: Fix division by zero errors in the scheme performance RPC
 
+DROP FUNCTION IF EXISTS public.get_customer_scheme_performance();
+
 CREATE OR REPLACE FUNCTION public.get_customer_scheme_performance()
 RETURNS TABLE (
     scheme_id UUID,
