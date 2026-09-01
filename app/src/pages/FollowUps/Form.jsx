@@ -24,6 +24,7 @@ export default function FollowUpForm() {
   const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [existingPendingFollowUps, setExistingPendingFollowUps] = useState([]);
   
   const [mobileStatus, setMobileStatus] = useState('idle'); // idle | loading | missing | viewing | editing | saving | error
   const [mobileInput, setMobileInput] = useState('');
@@ -323,6 +324,15 @@ export default function FollowUpForm() {
             setMobileStatus('missing');
           }
         }
+        
+        if (isActive && !id) {
+           const { data: pendingFUs } = await supabase
+              .from('follow_ups')
+              .select('*')
+              .eq('party_id', formData.party_id)
+              .eq('status', 'Pending');
+           setExistingPendingFollowUps(pendingFUs || []);
+        }
       } catch (err) {
         console.error("Error fetching customer mobile:", err);
         if (isActive && !foundValidLocal) {
@@ -485,14 +495,7 @@ export default function FollowUpForm() {
         payload.created_by = session?.session?.user?.id || null;
         
         const { data, error } = await supabase.from('follow_ups').insert(payload).select();
-        if (error) {
-           if (error.code === '23505' && error.message.includes('idx_unique_pending_followup')) {
-               alert(`A pending ${payload.follow_up_type} follow-up already exists for this customer.`);
-               setLoading(false);
-               return;
-           }
-           throw error;
-        }
+        if (error) throw error;
 
         logActivity({
           module: 'FollowUps',
@@ -1180,6 +1183,20 @@ export default function FollowUpForm() {
               </div>
             )}
           </div>
+
+          {!id && existingPendingFollowUps.length > 0 && (
+            <div style={{ background: 'var(--warning-light)', border: '1px solid var(--warning)', padding: '1rem', borderRadius: '4px', marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div style={{ fontWeight: 600, color: 'var(--warning-dark)' }}>
+                This customer already has {existingPendingFollowUps.length} pending follow-up(s).
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                You can still create a new follow-up. 
+                <Link to={`/customers/${formData.party_id}`} target="_blank" style={{ color: 'var(--primary)', marginLeft: '0.5rem', fontWeight: 500, textDecoration: 'underline' }}>
+                  View existing follow-ups
+                </Link>
+              </div>
+            </div>
+          )}
 
           <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem'}}>
             <Link to="/follow-ups" className="btn btn-secondary">

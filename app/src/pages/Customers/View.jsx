@@ -106,7 +106,7 @@ export default function CustomerView({ isLeadMode = false }) {
       }
       
       try {
-        const { data: fData } = await supabase.from('follow_ups').select('*').eq('party_id', id).order('follow_up_date', { ascending: true });
+        const { data: fData } = await supabase.from('follow_ups').select('*, assigned_owner:app_users!assigned_to(display_name)').eq('party_id', id).order('created_at', { ascending: false });
         setFollowUps(fData || []);
       } catch (e) { console.error('Failed to fetch follow-ups:', e); }
 
@@ -512,7 +512,7 @@ Please contact this customer and update Contact Information in CRM.`;
     );
   }
 
-  const nextAction = followUps.find(f => f.status === 'Pending');
+  const nextAction = [...followUps].filter(f => f.status === 'Pending').sort((a, b) => new Date(a.follow_up_date) - new Date(b.follow_up_date))[0];
   const lastContact = timelineEvents.find(e => e.event_type === 'Interaction');
   const openReqsCount = requirements.filter(r => !['Closed', 'Lost', 'Confirmed'].includes(r.status)).length;
   const isActive = customer.crm_status === 'Active';
@@ -1836,22 +1836,25 @@ Please contact this customer and update Contact Information in CRM.`;
           ) : (
             <div style={{ display: 'grid', gap: '1rem' }}>
               {followUps.map(f => (
-                <div key={f.id} className="cv-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: f.status !== 'Pending' ? 0.6 : 1, borderLeft: f.status === 'Pending' ? '4px solid var(--primary)' : '1px solid var(--border)' }}>
+                <div key={f.id} className="cv-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: f.status !== 'Pending' ? 0.7 : 1, borderLeft: f.status === 'Pending' ? '4px solid var(--primary)' : '1px solid var(--border)' }}>
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '1.1rem', textDecoration: f.status !== 'Pending' ? 'line-through' : 'none', marginBottom: '0.375rem' }}>
+                    <div style={{ fontWeight: 600, fontSize: '1.1rem', textDecoration: (f.status === 'Completed' || f.status === 'Cancelled') ? 'line-through' : 'none', marginBottom: '0.375rem' }}>
                       {f.sequence_id && <span style={{marginRight: '0.5rem', color: 'var(--primary)'}}>[Seq]</span>}
                       {f.reason}
                     </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    {f.notes && (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.5rem', fontStyle: 'italic', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        "{f.notes}"
+                      </div>
+                    )}
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span className={`badge ${f.status === 'Pending' ? 'badge-primary' : (f.status === 'Completed' ? 'badge-active' : 'badge-dormant')}`}>{f.status}</span>
+                      <span style={{ opacity: 0.5 }}>|</span>
                       <span>Due: <strong style={{ color: 'var(--text-primary)' }}>{new Date(f.follow_up_date).toLocaleDateString()}</strong></span>
                       <span style={{ opacity: 0.5 }}>|</span>
-                      <span>Priority: <strong style={{ color: 'var(--text-primary)' }}>{f.priority}</strong></span>
-                      {f.status !== 'Pending' && (
-                        <>
-                          <span style={{ opacity: 0.5 }}>|</span>
-                          <span className={`badge ${f.status === 'Completed' ? 'badge-active' : 'badge-dormant'}`}>{f.status}</span>
-                        </>
-                      )}
+                      <span>Owner: <strong style={{ color: 'var(--text-primary)' }}>{f.assigned_owner?.display_name || 'Unassigned'}</strong></span>
+                      <span style={{ opacity: 0.5 }}>|</span>
+                      <span>Created: {new Date(f.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                   {f.status === 'Pending' && (
