@@ -21,7 +21,7 @@ SELECT
     p.display_name AS customer_name,
     p.city AS customer_city,
     p.mobile AS customer_mobile,
-    p.whatsapp AS customer_whatsapp
+    p.whatsapp AS customer_whatsapp,
     
     -- User details
     u.email AS owner_email,
