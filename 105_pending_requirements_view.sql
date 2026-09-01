@@ -1,6 +1,8 @@
 -- Migration: 105_pending_requirements_view.sql
 -- Description: Creates a flat view of requirements with pending status logic enforced for the Requirements Board
 
+DROP VIEW IF EXISTS public.v_board_requirements;
+
 CREATE OR REPLACE VIEW public.v_board_requirements WITH (security_invoker = true) AS
 SELECT 
     r.id,
