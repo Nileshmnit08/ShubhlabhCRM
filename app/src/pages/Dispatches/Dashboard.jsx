@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
-import { Truck, Package, Users, AlertCircle, CheckCircle2, Search, ArrowRight, X } from 'lucide-react';
+import { Truck, Package, Users, AlertCircle, CheckCircle2, Search, ArrowRight, X, Edit2, Trash2, Save } from 'lucide-react';
 
 export default function DispatchDashboard() {
   const [loading, setLoading] = useState(true);
@@ -22,6 +22,9 @@ export default function DispatchDashboard() {
   const [selectedReq, setSelectedReq] = useState(null);
   const [selectedReqHistory, setSelectedReqHistory] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
+
+  const [editingDispatchId, setEditingDispatchId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   useEffect(() => {
     fetchDashboardData();
@@ -179,6 +182,54 @@ export default function DispatchDashboard() {
       alert("Failed to load dispatch history.");
     } finally {
       setModalLoading(false);
+    }
+  };
+
+  const handleDeleteDispatch = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this dispatch record?')) return;
+    try {
+      const { error } = await supabase.from('requirement_dispatches').delete().eq('id', id);
+      if (error) throw error;
+      handleViewDetails(selectedReq);
+      fetchDashboardData();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete record.');
+    }
+  };
+
+  const handleEditClick = (dispatch) => {
+    setEditingDispatchId(dispatch.id);
+    setEditForm({
+      quantity: dispatch.quantity || '',
+      invoice_number: dispatch.invoice_number || '',
+      lr_bilty_number: dispatch.lr_bilty_number || '',
+      truck_number: dispatch.truck_number || '',
+      transporter_name: dispatch.transporter_name || '',
+      remarks: dispatch.remarks || ''
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const { error } = await supabase.from('requirement_dispatches')
+        .update({
+          quantity: editForm.quantity,
+          invoice_number: editForm.invoice_number,
+          lr_bilty_number: editForm.lr_bilty_number,
+          truck_number: editForm.truck_number,
+          transporter_name: editForm.transporter_name,
+          remarks: editForm.remarks
+        })
+        .eq('id', editingDispatchId);
+        
+      if (error) throw error;
+      setEditingDispatchId(null);
+      handleViewDetails(selectedReq);
+      fetchDashboardData();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update record.');
     }
   };
 
@@ -390,34 +441,65 @@ export default function DispatchDashboard() {
                           <th style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>Invoice / LR</th>
                           <th style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>Transporter & Vehicle</th>
                           <th style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>Remarks</th>
+                          <th style={{ padding: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {selectedReqHistory.map(historyItem => {
                            const isCancelled = ['Cancelled', 'Voided', 'Deleted', 'Reversed'].includes(historyItem.status);
+                           const isEditing = editingDispatchId === historyItem.id;
                            return (
-                             <tr key={historyItem.id} style={{ borderBottom: '1px solid var(--border)', opacity: isCancelled ? 0.6 : 1 }}>
+                             <tr key={historyItem.id} style={{ borderBottom: '1px solid var(--border)', opacity: isCancelled && !isEditing ? 0.6 : 1 }}>
                                <td style={{ padding: '0.75rem' }}>{new Date(historyItem.dispatch_date).toLocaleDateString()}</td>
                                <td style={{ padding: '0.75rem' }}>
                                  <span className={`badge ${getStatusBadgeClass(historyItem.status)}`} style={{fontSize: '0.75rem', padding: '2px 6px'}}>
                                    {historyItem.status}
                                  </span>
                                </td>
-                               <td style={{ padding: '0.75rem', fontWeight: 600 }}>
-                                 {Number(historyItem.quantity).toLocaleString()}
-                                 {historyItem.return_quantity > 0 && <span style={{color: 'var(--danger)', fontSize: '0.75rem', display: 'block'}}>(-{historyItem.return_quantity} Ret)</span>}
-                               </td>
-                               <td style={{ padding: '0.75rem' }}>
-                                 <div>Inv: {historyItem.invoice_number || <span className="text-muted">Missing</span>}</div>
-                                 <div>LR: {historyItem.lr_bilty_number || <span className="text-muted">Missing</span>}</div>
-                               </td>
-                               <td style={{ padding: '0.75rem' }}>
-                                 <div>{historyItem.transporter_name || 'N/A'}</div>
-                                 <div className="text-secondary">{historyItem.truck_number}</div>
-                               </td>
-                               <td style={{ padding: '0.75rem', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={historyItem.remarks}>
-                                 {historyItem.remarks || '-'}
-                               </td>
+                               {isEditing ? (
+                                 <>
+                                   <td style={{ padding: '0.75rem' }}>
+                                     <input type="number" value={editForm.quantity} onChange={e => setEditForm({...editForm, quantity: e.target.value})} style={{width: '70px', padding: '4px', fontSize: '0.85rem'}} />
+                                   </td>
+                                   <td style={{ padding: '0.75rem' }}>
+                                     <input type="text" placeholder="Invoice" value={editForm.invoice_number} onChange={e => setEditForm({...editForm, invoice_number: e.target.value})} style={{width: '100px', padding: '4px', fontSize: '0.85rem', marginBottom: '4px'}} />
+                                     <input type="text" placeholder="LR" value={editForm.lr_bilty_number} onChange={e => setEditForm({...editForm, lr_bilty_number: e.target.value})} style={{width: '100px', padding: '4px', fontSize: '0.85rem'}} />
+                                   </td>
+                                   <td style={{ padding: '0.75rem' }}>
+                                     <input type="text" placeholder="Transporter" value={editForm.transporter_name} onChange={e => setEditForm({...editForm, transporter_name: e.target.value})} style={{width: '100px', padding: '4px', fontSize: '0.85rem', marginBottom: '4px'}} />
+                                     <input type="text" placeholder="Truck No" value={editForm.truck_number} onChange={e => setEditForm({...editForm, truck_number: e.target.value})} style={{width: '100px', padding: '4px', fontSize: '0.85rem'}} />
+                                   </td>
+                                   <td style={{ padding: '0.75rem' }}>
+                                     <input type="text" value={editForm.remarks} onChange={e => setEditForm({...editForm, remarks: e.target.value})} style={{width: '120px', padding: '4px', fontSize: '0.85rem'}} />
+                                   </td>
+                                   <td style={{ padding: '0.75rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                     <button className="btn-icon" style={{color: 'var(--success)'}} onClick={handleSaveEdit} title="Save"><Save size={16} /></button>
+                                     <button className="btn-icon" style={{color: 'var(--text-muted)'}} onClick={() => setEditingDispatchId(null)} title="Cancel"><X size={16} /></button>
+                                   </td>
+                                 </>
+                               ) : (
+                                 <>
+                                   <td style={{ padding: '0.75rem', fontWeight: 600 }}>
+                                     {Number(historyItem.quantity).toLocaleString()}
+                                     {historyItem.return_quantity > 0 && <span style={{color: 'var(--danger)', fontSize: '0.75rem', display: 'block'}}>(-{historyItem.return_quantity} Ret)</span>}
+                                   </td>
+                                   <td style={{ padding: '0.75rem' }}>
+                                     <div>Inv: {historyItem.invoice_number || <span className="text-muted">Missing</span>}</div>
+                                     <div>LR: {historyItem.lr_bilty_number || <span className="text-muted">Missing</span>}</div>
+                                   </td>
+                                   <td style={{ padding: '0.75rem' }}>
+                                     <div>{historyItem.transporter_name || 'N/A'}</div>
+                                     <div className="text-secondary">{historyItem.truck_number}</div>
+                                   </td>
+                                   <td style={{ padding: '0.75rem', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={historyItem.remarks}>
+                                     {historyItem.remarks || '-'}
+                                   </td>
+                                   <td style={{ padding: '0.75rem', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                     <button className="btn-icon" style={{color: 'var(--primary)', marginRight: '4px'}} onClick={() => handleEditClick(historyItem)} title="Edit"><Edit2 size={16} /></button>
+                                     <button className="btn-icon" style={{color: 'var(--danger)'}} onClick={() => handleDeleteDispatch(historyItem.id)} title="Delete"><Trash2 size={16} /></button>
+                                   </td>
+                                 </>
+                               )}
                              </tr>
                            )
                         })}
