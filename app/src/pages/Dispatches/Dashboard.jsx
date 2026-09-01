@@ -1,25 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
-import { Activity, Truck, Package, DollarSign, Users, AlertCircle, FileText, CheckCircle2, Navigation } from 'lucide-react';
+import { Truck, Package, Users, AlertCircle, CheckCircle2, Search, ArrowRight, X } from 'lucide-react';
 
 export default function DispatchDashboard() {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Data State
   const [dispatches, setDispatches] = useState([]);
-  const [kpis, setKpis] = useState({
-    total: 0,
-    quantity: 0,
-    value: 0,
-    uniqueDealers: 0,
-    missingInfo: 0,
-    fullyDispatchedReqs: 0,
-    partiallyDispatchedReqs: 0
-  });
-
-  // Basic filters
+  const [reqSummaryMap, setReqSummaryMap] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Filter State
   const [dateRange, setDateRange] = useState('This Month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // Drilldown Modal State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedReq, setSelectedReq] = useState(null);
+  const [selectedReqHistory, setSelectedReqHistory] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -27,103 +29,173 @@ export default function DispatchDashboard() {
 
   const fetchDashboardData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      let query = supabase.from('requirement_dispatches').select(`
-        *,
-        requirements (
-          quantity, 
-          crm_parties (id, display_name, territory_name, city, state)
-        )
-      `).neq('status', 'Cancelled');
-
-      // Date Filtering Logic
+      // 1. Determine Date Range in YYYY-MM-DD
       const today = new Date();
-      let filterStart = null;
-      let filterEnd = null;
+      let startStr = null;
+      let endStr = null;
+
+      const pad = (n) => n.toString().padStart(2, '0');
+      const formatDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
       if (dateRange === 'Today') {
-        filterStart = new Date(today.setHours(0,0,0,0)).toISOString();
-        filterEnd = new Date(today.setHours(23,59,59,999)).toISOString();
+        startStr = formatDate(today);
+        endStr = startStr;
       } else if (dateRange === 'This Month') {
-        filterStart = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
-        filterEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59).toISOString();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        startStr = formatDate(firstDay);
+        endStr = formatDate(lastDay);
+      } else if (dateRange === 'Last Month') {
+        const firstDay = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth(), 0);
+        startStr = formatDate(firstDay);
+        endStr = formatDate(lastDay);
       } else if (dateRange === 'Custom' && startDate && endDate) {
-        filterStart = new Date(startDate).toISOString();
-        filterEnd = new Date(endDate + 'T23:59:59').toISOString();
+        startStr = startDate;
+        endStr = endDate;
       }
 
-      if (filterStart && filterEnd) {
-        query = query.gte('dispatch_date', filterStart).lte('dispatch_date', filterEnd);
+      // 2. Query valid dispatches for the selected range
+      let query = supabase
+        .from('requirement_dispatches')
+        .select(`
+          *,
+          requirements (
+            id, requirement_number, quantity, product_name, required_date,
+            crm_parties (id, display_name, city, territory_name, owner_name)
+          )
+        `)
+        .not('status', 'in', '("Cancelled","Voided","Deleted","Reversed")');
+
+      if (startStr && endStr && dateRange !== 'All Time') {
+        query = query.gte('dispatch_date', startStr).lte('dispatch_date', endStr);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      const { data, error: qErr } = await query;
+      if (qErr) throw qErr;
+      
+      const validDispatches = data || [];
+      setDispatches(validDispatches);
 
-      setDispatches(data || []);
-
-      // Calculate KPIs
-      const uniqueDealers = new Set();
-      let qty = 0;
-      let val = 0;
-      let missing = 0;
-
-      data?.forEach(d => {
-        qty += Number(d.quantity);
-        val += Number(d.quantity) * (d.requirements?.expected_rate || 0); // Approx value if rate exists
-        if (d.requirements?.crm_parties?.id) {
-          uniqueDealers.add(d.requirements.crm_parties.id);
-        }
-        if (!d.invoice_number || !d.lr_bilty_number || !d.truck_number) {
-          missing += 1;
-        }
-      });
-
-      // To calculate fully vs partially dispatched, we'd ideally query v_requirement_dispatch_summary,
-      // but for a quick KPI we can fetch summary for requirements related to these dispatches.
-      const reqIds = [...new Set(data?.map(d => d.requirement_id) || [])];
-      let fully = 0;
-      let partially = 0;
-
+      // 3. Fetch cumulative dispatch summary for the requirements involved
+      const reqIds = [...new Set(validDispatches.map(d => d.requirement_id))].filter(Boolean);
+      
       if (reqIds.length > 0) {
-        const { data: summaryData } = await supabase
+        const { data: summaryData, error: sErr } = await supabase
           .from('v_requirement_dispatch_summary')
-          .select('dispatch_progress')
+          .select('*')
           .in('requirement_id', reqIds);
           
+        if (sErr) throw sErr;
+        
+        const map = {};
         summaryData?.forEach(s => {
-          if (s.dispatch_progress === 'Fully Dispatched') fully++;
-          else if (s.dispatch_progress === 'Partially Dispatched') partially++;
+          map[s.requirement_id] = s;
         });
+        setReqSummaryMap(map);
+      } else {
+        setReqSummaryMap({});
       }
 
-      setKpis({
-        total: data?.length || 0,
-        quantity: qty,
-        value: val,
-        uniqueDealers: uniqueDealers.size,
-        missingInfo: missing,
-        fullyDispatchedReqs: fully,
-        partiallyDispatchedReqs: partially
-      });
-
     } catch (err) {
-      console.error("Failed to fetch dashboard data:", err);
+      console.error(err);
+      setError("Failed to load dashboard data. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // KPI Calculations (Based on the filtered dispatches only)
+  const totalDispatches = dispatches.length;
+  const dispatchedQty = dispatches.reduce((sum, d) => sum + Number(d.quantity || 0), 0);
+  const uniqueDealers = new Set(dispatches.map(d => d.requirements?.crm_parties?.id).filter(Boolean)).size;
+  const missingInfo = dispatches.filter(d => !d.lr_bilty_number || !d.invoice_number).length;
+  
+  // Fully Dispatched Reqs is based on the all-time cumulative summary
+  const fullyDispatchedReqs = Object.values(reqSummaryMap).filter(s => s.dispatch_progress === 'Fully Dispatched').length;
+
+  // Aggregate dispatches by requirement for the table
+  const reqAggregation = {};
+  dispatches.forEach(d => {
+    const req = d.requirements;
+    if (!req) return;
+    
+    if (!reqAggregation[req.id]) {
+      const summary = reqSummaryMap[req.id] || {};
+      reqAggregation[req.id] = {
+        id: req.id,
+        number: req.requirement_number,
+        date: req.required_date,
+        product: req.product_name,
+        dealer: req.crm_parties?.display_name || 'Unknown',
+        territory: req.crm_parties?.territory_name || 'N/A',
+        owner: req.crm_parties?.owner_name || 'N/A',
+        requiredQty: Number(req.quantity || 0),
+        cumulativeDispatched: Number(summary.total_dispatched_quantity || 0),
+        pendingQty: Number(summary.pending_quantity || 0),
+        dispatchProgress: summary.dispatch_progress || 'Not Dispatched',
+        latestDispatchDate: summary.latest_dispatch_date,
+        dispatchCount: 0,
+        missingDocs: 0
+      };
+    }
+    
+    reqAggregation[req.id].dispatchCount += 1;
+    if (!d.lr_bilty_number || !d.invoice_number) {
+       reqAggregation[req.id].missingDocs += 1;
+    }
+  });
+
+  const tableData = Object.values(reqAggregation).filter(row => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      row.number?.toLowerCase().includes(q) ||
+      row.dealer.toLowerCase().includes(q) ||
+      row.product?.toLowerCase().includes(q) ||
+      row.territory.toLowerCase().includes(q)
+    );
+  });
+
+  // Drill Down Modal Handlers
+  const handleViewDetails = async (req) => {
+    setSelectedReq(req);
+    setModalOpen(true);
+    setModalLoading(true);
+    try {
+      // Fetch ALL dispatches for this requirement, regardless of date filter
+      const { data, error } = await supabase
+        .from('requirement_dispatches')
+        .select('*')
+        .eq('requirement_id', req.id)
+        .order('dispatch_date', { ascending: false });
+        
+      if (error) throw error;
+      setSelectedReqHistory(data || []);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load dispatch history.");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const getStatusBadgeClass = (status) => {
+    if (status === 'Fully Dispatched' || status === 'Delivered') return 'badge-success';
+    if (status === 'Partially Dispatched' || status === 'Dispatched') return 'badge-warning';
+    if (status === 'Not Dispatched') return 'badge-secondary';
+    if (status === 'Cancelled' || status === 'Voided' || status === 'Returned') return 'badge-danger';
+    return 'badge-primary';
+  };
+
   return (
-    <div className="animate-fade-in">
-      <div className="page-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+    <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
+      <div className="page-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem'}}>
         <div>
           <h1 style={{margin: 0}}>Dispatch Dashboard</h1>
-          <p className="text-secondary">Track requirement fulfillments and logistics.</p>
-        </div>
-        <div style={{display: 'flex', gap: '1rem'}}>
-          <Link to="/dispatches/list" className="btn btn-secondary">
-            <Navigation size={16} /> View All Dispatches
-          </Link>
+          <p className="text-secondary">Requirement fulfillment and logistics overview.</p>
         </div>
       </div>
 
@@ -132,7 +204,7 @@ export default function DispatchDashboard() {
           <label style={{display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem'}} className="text-muted">Date Range</label>
           <select 
             value={dateRange} onChange={(e) => setDateRange(e.target.value)}
-            style={{padding: '0.5rem', borderRadius: '6px', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
+            style={{padding: '0.5rem', borderRadius: '4px', background: 'var(--bg-base)', border: '1px solid var(--border)'}}
           >
             <option value="Today">Today</option>
             <option value="This Month">This Month</option>
@@ -147,84 +219,221 @@ export default function DispatchDashboard() {
             <div>
               <label style={{display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem'}} className="text-muted">From</label>
               <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-                style={{padding: '0.5rem', borderRadius: '6px', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
+                style={{padding: '0.5rem', borderRadius: '4px', background: 'var(--bg-base)', border: '1px solid var(--border)'}}
               />
             </div>
             <div>
               <label style={{display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem'}} className="text-muted">To</label>
               <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-                style={{padding: '0.5rem', borderRadius: '6px', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
+                style={{padding: '0.5rem', borderRadius: '4px', background: 'var(--bg-base)', border: '1px solid var(--border)'}}
               />
             </div>
           </>
         )}
       </div>
 
-      {loading ? (
-        <div style={{textAlign: 'center', padding: '3rem'}} className="text-muted">Loading metrics...</div>
+      {error ? (
+        <div className="cv-panel" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+          <AlertCircle size={48} className="text-danger" style={{ margin: '0 auto 1rem', opacity: 0.8 }} />
+          <h3>{error}</h3>
+          <button className="btn btn-primary" onClick={fetchDashboardData}>Retry</button>
+        </div>
+      ) : loading ? (
+        <div style={{textAlign: 'center', padding: '3rem'}} className="text-muted">Loading dispatch records...</div>
       ) : (
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1.5rem'}}>
-          
-          <div className="glass-panel" style={{padding: '1.5rem'}}>
-            <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem'}}>
-              <div style={{padding: '0.75rem', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6'}}>
-                <Truck size={24} />
+        <>
+          {/* KPI Cards */}
+          <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem', marginBottom: '2rem'}}>
+            <div className="cv-panel kpi-card" style={{padding: '1.25rem', borderLeft: '4px solid #3b82f6'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: 'var(--text-muted)'}}>
+                <Truck size={16}/> <span style={{fontSize: '0.85rem'}}>Total Dispatches</span>
               </div>
-              <div>
-                <h4 style={{margin: 0, fontWeight: 500}} className="text-muted">Total Dispatches</h4>
-                <div style={{fontSize: '1.75rem', fontWeight: 700}}>{kpis.total}</div>
+              <div style={{fontSize: '1.75rem', fontWeight: 700}}>{totalDispatches}</div>
+            </div>
+            <div className="cv-panel kpi-card" style={{padding: '1.25rem', borderLeft: '4px solid #10b981'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: 'var(--text-muted)'}}>
+                <Package size={16}/> <span style={{fontSize: '0.85rem'}}>Dispatched Qty</span>
               </div>
+              <div style={{fontSize: '1.75rem', fontWeight: 700}}>{dispatchedQty.toLocaleString()}</div>
+            </div>
+            <div className="cv-panel kpi-card" style={{padding: '1.25rem', borderLeft: '4px solid #8b5cf6'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: 'var(--text-muted)'}}>
+                <Users size={16}/> <span style={{fontSize: '0.85rem'}}>Unique Dealers</span>
+              </div>
+              <div style={{fontSize: '1.75rem', fontWeight: 700}}>{uniqueDealers}</div>
+            </div>
+            <div className="cv-panel kpi-card" style={{padding: '1.25rem', borderLeft: '4px solid var(--danger)'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: 'var(--text-muted)'}}>
+                <AlertCircle size={16}/> <span style={{fontSize: '0.85rem'}}>Missing LR/Invoice</span>
+              </div>
+              <div style={{fontSize: '1.75rem', fontWeight: 700, color: missingInfo > 0 ? 'var(--danger)' : 'inherit'}}>{missingInfo}</div>
+              <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)'}}>Dispatch Records</div>
+            </div>
+            <div className="cv-panel kpi-card" style={{padding: '1.25rem', borderLeft: '4px solid #10b981'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: 'var(--text-muted)'}}>
+                <CheckCircle2 size={16}/> <span style={{fontSize: '0.85rem'}}>Fully Dispatched Reqs</span>
+              </div>
+              <div style={{fontSize: '1.75rem', fontWeight: 700}}>{fullyDispatchedReqs}</div>
             </div>
           </div>
 
-          <div className="glass-panel" style={{padding: '1.5rem'}}>
-            <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem'}}>
-              <div style={{padding: '0.75rem', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981'}}>
-                <Package size={24} />
-              </div>
-              <div>
-                <h4 style={{margin: 0, fontWeight: 500}} className="text-muted">Dispatched Qty</h4>
-                <div style={{fontSize: '1.75rem', fontWeight: 700}}>{kpis.quantity.toLocaleString()}</div>
+          {/* Table */}
+          <div className="glass-panel" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Requirement-wise Dispatches</h3>
+              <div style={{ position: 'relative', width: '250px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+                <input 
+                  type="text" 
+                  placeholder="Search req, dealer, product..." 
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}
+                />
               </div>
             </div>
-          </div>
 
-          <div className="glass-panel" style={{padding: '1.5rem'}}>
-            <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem'}}>
-              <div style={{padding: '0.75rem', borderRadius: '12px', background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6'}}>
-                <Users size={24} />
+            {tableData.length === 0 ? (
+               <div style={{ padding: '4rem 2rem', textAlign: 'center' }} className="text-muted">
+                 {dispatches.length === 0 ? "No dispatches found for the selected date range." : "No requirements match your search."}
+               </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '1000px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Requirement</th>
+                      <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Dealer & Location</th>
+                      <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Required Qty</th>
+                      <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Dispatched Qty (All-time)</th>
+                      <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Pending Qty</th>
+                      <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>Status</th>
+                      <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>LR/Inv Status</th>
+                      <th style={{ padding: '1rem', color: 'var(--text-muted)', textAlign: 'center' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableData.map(row => (
+                      <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ fontWeight: 600 }}>{row.number || 'N/A'}</div>
+                          <div className="text-secondary" style={{ fontSize: '0.85rem' }}>{row.product}</div>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <div style={{ fontWeight: 500 }}>{row.dealer}</div>
+                          <div className="text-secondary" style={{ fontSize: '0.85rem' }}>{row.territory}</div>
+                        </td>
+                        <td style={{ padding: '1rem', fontWeight: 600 }}>{row.requiredQty.toLocaleString()}</td>
+                        <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--primary)' }}>{row.cumulativeDispatched.toLocaleString()}</td>
+                        <td style={{ padding: '1rem' }}>{row.pendingQty.toLocaleString()}</td>
+                        <td style={{ padding: '1rem' }}>
+                          <span className={`badge ${getStatusBadgeClass(row.dispatchProgress)}`}>
+                            {row.dispatchProgress}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                           {row.missingDocs === 0 ? (
+                             <span style={{color: 'var(--success)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                               <CheckCircle2 size={14}/> Complete
+                             </span>
+                           ) : (
+                             <span style={{color: 'var(--danger)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                               <AlertCircle size={14}/> Missing in {row.missingDocs}
+                             </span>
+                           )}
+                        </td>
+                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                          <button className="btn btn-secondary btn-sm" onClick={() => handleViewDetails(row)}>
+                            View Details <ArrowRight size={14} style={{marginLeft: '4px'}}/>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div>
-                <h4 style={{margin: 0, fontWeight: 500}} className="text-muted">Unique Dealers</h4>
-                <div style={{fontSize: '1.75rem', fontWeight: 700}}>{kpis.uniqueDealers}</div>
-              </div>
-            </div>
+            )}
           </div>
+        </>
+      )}
 
-          <div className="glass-panel" style={{padding: '1.5rem'}}>
-            <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem'}}>
-              <div style={{padding: '0.75rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444'}}>
-                <AlertCircle size={24} />
-              </div>
+      {/* Drill-down Modal */}
+      {modalOpen && selectedReq && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '90%', maxWidth: '1000px', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-surface)' }}>
+            
+            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 1 }}>
               <div>
-                <h4 style={{margin: 0, fontWeight: 500}} className="text-muted">Missing LR/Invoice</h4>
-                <div style={{fontSize: '1.75rem', fontWeight: 700, color: 'var(--danger)'}}>{kpis.missingInfo}</div>
+                <h2 style={{ margin: '0 0 0.5rem 0' }}>Dispatch History: {selectedReq.number || 'Requirement'}</h2>
+                <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.9rem' }} className="text-secondary">
+                  <span><strong>Dealer:</strong> {selectedReq.dealer}</span>
+                  <span><strong>Product:</strong> {selectedReq.product}</span>
+                  <span><strong>Status:</strong> <span className={`badge ${getStatusBadgeClass(selectedReq.dispatchProgress)}`} style={{fontSize: '0.75rem', padding: '2px 6px'}}>{selectedReq.dispatchProgress}</span></span>
+                </div>
               </div>
+              <button className="btn-icon" onClick={() => setModalOpen(false)}><X size={24} /></button>
             </div>
-          </div>
-          
-          <div className="glass-panel" style={{padding: '1.5rem'}}>
-            <div style={{display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem'}}>
-              <div style={{padding: '0.75rem', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.1)', color: '#10b981'}}>
-                <CheckCircle2 size={24} />
-              </div>
-              <div>
-                <h4 style={{margin: 0, fontWeight: 500}} className="text-muted">Fully Dispatched Reqs</h4>
-                <div style={{fontSize: '1.75rem', fontWeight: 700}}>{kpis.fullyDispatchedReqs}</div>
-              </div>
-            </div>
-          </div>
 
+            <div style={{ padding: '1.5rem' }}>
+              {modalLoading ? (
+                 <div style={{textAlign: 'center', padding: '2rem'}} className="text-muted">Loading dispatch history...</div>
+              ) : selectedReqHistory.length === 0 ? (
+                 <div style={{textAlign: 'center', padding: '2rem'}} className="text-muted">No valid dispatches recorded for this requirement.</div>
+              ) : (
+                 <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px', fontSize: '0.9rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-base)' }}>
+                          <th style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>Dispatch Date</th>
+                          <th style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>Status</th>
+                          <th style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>Qty</th>
+                          <th style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>Invoice / LR</th>
+                          <th style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>Transporter & Vehicle</th>
+                          <th style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedReqHistory.map(historyItem => {
+                           const isCancelled = ['Cancelled', 'Voided', 'Deleted', 'Reversed'].includes(historyItem.status);
+                           return (
+                             <tr key={historyItem.id} style={{ borderBottom: '1px solid var(--border)', opacity: isCancelled ? 0.6 : 1 }}>
+                               <td style={{ padding: '0.75rem' }}>{new Date(historyItem.dispatch_date).toLocaleDateString()}</td>
+                               <td style={{ padding: '0.75rem' }}>
+                                 <span className={`badge ${getStatusBadgeClass(historyItem.status)}`} style={{fontSize: '0.75rem', padding: '2px 6px'}}>
+                                   {historyItem.status}
+                                 </span>
+                               </td>
+                               <td style={{ padding: '0.75rem', fontWeight: 600 }}>
+                                 {Number(historyItem.quantity).toLocaleString()}
+                                 {historyItem.return_quantity > 0 && <span style={{color: 'var(--danger)', fontSize: '0.75rem', display: 'block'}}>(-{historyItem.return_quantity} Ret)</span>}
+                               </td>
+                               <td style={{ padding: '0.75rem' }}>
+                                 <div>Inv: {historyItem.invoice_number || <span className="text-muted">Missing</span>}</div>
+                                 <div>LR: {historyItem.lr_bilty_number || <span className="text-muted">Missing</span>}</div>
+                               </td>
+                               <td style={{ padding: '0.75rem' }}>
+                                 <div>{historyItem.transporter_name || 'N/A'}</div>
+                                 <div className="text-secondary">{historyItem.truck_number}</div>
+                               </td>
+                               <td style={{ padding: '0.75rem', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={historyItem.remarks}>
+                                 {historyItem.remarks || '-'}
+                               </td>
+                             </tr>
+                           )
+                        })}
+                      </tbody>
+                    </table>
+                 </div>
+              )}
+            </div>
+            
+            <div style={{ padding: '1.5rem', borderTop: '1px solid var(--border)', background: 'var(--bg-base)', display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+               <div>Required Qty: {selectedReq.requiredQty.toLocaleString()}</div>
+               <div style={{ color: 'var(--primary)' }}>Cumulative Dispatched: {selectedReq.cumulativeDispatched.toLocaleString()}</div>
+               <div>Pending: {selectedReq.pendingQty.toLocaleString()}</div>
+            </div>
+
+          </div>
         </div>
       )}
     </div>
