@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { AuthContext } from '../AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Calendar, AlertCircle, Clock, Phone, ChevronRight, 
+  Calendar, AlertCircle, Clock, Phone, ChevronRight, ChevronDown,
   BarChart3, AlertTriangle, Users, Plus, FileText, 
   CheckCircle2, Activity, UserPlus, FileEdit, ClipboardList, Target, MapPin, 
   Search, Bell, ArrowRight, Truck, IndianRupee
@@ -37,13 +37,25 @@ export default function Today() {
   }, [userProfile]);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
+    const handlePointerDown = (event) => {
       if (newMenuRef.current && !newMenuRef.current.contains(event.target)) {
         setNewMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setNewMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   async function fetchDashboardData() {
@@ -275,17 +287,38 @@ export default function Today() {
           </button>
           
           <div style={{ position: 'relative' }} ref={newMenuRef}>
-             <button className="btn btn-primary" onClick={() => setNewMenuOpen(!newMenuOpen)}>
-                <Plus size={16} style={{ marginRight: '4px' }} /> New
+             <button 
+                type="button"
+                className="btn btn-primary" 
+                onClick={() => setNewMenuOpen((open) => !open)}
+                aria-haspopup="menu"
+                aria-expanded={newMenuOpen}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+             >
+                <Plus size={16} /> 
+                New
+                <ChevronDown size={16} style={{ transition: 'transform 0.2s', transform: newMenuOpen ? 'rotate(180deg)' : 'none' }} />
              </button>
              {newMenuOpen && (
-               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', zIndex: 100, minWidth: '200px', padding: '0.5rem 0' }}>
-                 <Link to="/customers/new" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Add Customer</Link>
-                 <Link to="/requirements/new" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Add Requirement</Link>
-                 <Link to="/follow-ups/new" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Log Follow-up</Link>
-                 <Link to="/requirements" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Create Dispatch</Link>
-                 <Link to="/payments" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Record Payment</Link>
-                 <Link to="/requirements/new" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Create Quotation</Link>
+               <div role="menu" style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', zIndex: 100, minWidth: '220px', padding: '0.5rem' }}>
+                 <Link to="/customers/new" role="menuitem" className="dropdown-item" onClick={() => setNewMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', textDecoration: 'none', color: 'var(--text-primary)', borderRadius: '4px' }}>
+                    <UserPlus size={16} /> Add Customer
+                 </Link>
+                 <Link to="/requirements/new" role="menuitem" className="dropdown-item" onClick={() => setNewMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', textDecoration: 'none', color: 'var(--text-primary)', borderRadius: '4px' }}>
+                    <FileEdit size={16} /> Add Requirement
+                 </Link>
+                 <Link to="/follow-ups/new" role="menuitem" className="dropdown-item" onClick={() => setNewMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', textDecoration: 'none', color: 'var(--text-primary)', borderRadius: '4px' }}>
+                    <ClipboardList size={16} /> Log Follow-up
+                 </Link>
+                 <Link to="/requirements" role="menuitem" className="dropdown-item" onClick={() => setNewMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', textDecoration: 'none', color: 'var(--text-primary)', borderRadius: '4px' }}>
+                    <Truck size={16} /> Create Dispatch
+                 </Link>
+                 <Link to="/payments" role="menuitem" className="dropdown-item" onClick={() => setNewMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', textDecoration: 'none', color: 'var(--text-primary)', borderRadius: '4px' }}>
+                    <IndianRupee size={16} /> Record Payment
+                 </Link>
+                 <Link to="/requirements/new" role="menuitem" className="dropdown-item" onClick={() => setNewMenuOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0.75rem', textDecoration: 'none', color: 'var(--text-primary)', borderRadius: '4px' }}>
+                    <FileText size={16} /> Create Quotation
+                 </Link>
                </div>
              )}
           </div>
