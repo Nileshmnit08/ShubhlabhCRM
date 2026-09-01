@@ -458,6 +458,22 @@ export default function FollowUpForm() {
       return;
     }
     
+    if (formData.due_at && formData.reminder_at) {
+      if (new Date(formData.reminder_at) > new Date(formData.due_at)) {
+        alert("Reminder time cannot be after the Action Due time.");
+        return;
+      }
+    }
+
+    if (formData.due_at && formData.status === 'Pending') {
+      const now = new Date();
+      const due = new Date(formData.due_at);
+      if (due < now) {
+        const proceed = window.confirm("The Next Action time is in the past. If you have already completed this follow-up, please change the status to 'Completed'. Or you can reschedule it to a future date.\n\nDo you want to save it as 'Overdue' anyway?");
+        if (!proceed) return;
+      }
+    }
+    
     setLoading(true);
     try {
       const { data: session } = await supabase.auth.getSession();
