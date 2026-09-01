@@ -80,7 +80,11 @@ export default function AppShell() {
   const [pinnedItems, setPinnedItems] = React.useState(() => {
     try {
       const saved = localStorage.getItem('shublabh_pinned_nav');
-      return saved ? JSON.parse(saved) : defaultPinned;
+      let items = saved ? JSON.parse(saved) : defaultPinned;
+      if (!items.includes('/')) {
+         items = ['/', ...items]; // Restore Today if it was removed
+      }
+      return items;
     } catch {
       return defaultPinned;
     }
@@ -102,6 +106,7 @@ export default function AppShell() {
   const togglePin = (e, path) => {
     e.preventDefault();
     e.stopPropagation();
+    if (path === '/') return; // Prevent unpinning the homepage
     setPinnedItems(prev => 
       prev.includes(path) 
         ? prev.filter(p => p !== path) 
@@ -152,13 +157,15 @@ export default function AppShell() {
             </span>
           )}
         </div>
-        <button 
-          className={`pin-btn ${isPinned ? 'is-pinned' : ''}`}
-          onClick={(e) => togglePin(e, path)}
-          title={isPinned ? 'Unpin' : 'Pin to top'}
-        >
-          {isPinned ? <PinOff size={16} /> : <Pin size={16} />}
-        </button>
+        {path !== '/' && (
+          <button 
+            className={`pin-btn ${isPinned ? 'is-pinned' : ''}`}
+            onClick={(e) => togglePin(e, path)}
+            title={isPinned ? 'Unpin' : 'Pin to top'}
+          >
+            {isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+          </button>
+        )}
       </NavLink>
     );
   };
