@@ -1,14 +1,13 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map, Zap } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map, Zap, AlertTriangle, ChevronDown, ChevronRight, Pin, PinOff } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../lib/activityLogger';
-import { AlertTriangle } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 
-const navItems = [
+const allNavItems = [
   { path: '/', label: 'Today', icon: LayoutDashboard },
   { path: '/demand-control-tower', label: 'Demand Control Tower', icon: Target },
   { path: '/leads', label: 'Leads', icon: Target },
@@ -35,10 +34,87 @@ const navItems = [
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
+const menuGroups = [
+  {
+    id: 'customers-growth',
+    title: 'CUSTOMERS & GROWTH',
+    items: ['/customers', '/dealer-control', '/dormant', '/reactivation', '/leads', '/opportunities']
+  },
+  {
+    id: 'demand-insights',
+    title: 'DEMAND INSIGHTS',
+    items: ['/demand-control-tower', '/demand-signals', '/product-demand', '/territory-demand', '/coverage']
+  },
+  {
+    id: 'operations',
+    title: 'OPERATIONS',
+    items: ['/activity', '/performance', '/control-room', '/account-control']
+  },
+  {
+    id: 'data-automation',
+    title: 'DATA & AUTOMATION',
+    items: ['/data', '/data/quality', '/automation-control']
+  },
+  {
+    id: 'settings',
+    title: 'SETTINGS',
+    items: ['/settings']
+  }
+];
+
+const defaultPinned = ['/', '/requirements', '/follow-ups', '/payments', '/dispatches', '/customers'];
+
+const getBadge = (path) => {
+  if (path === '/requirements') return { count: 3, type: 'amber' };
+  if (path === '/follow-ups') return { count: 5, type: 'amber' };
+  if (path === '/payments') return { count: 2, type: 'red' };
+  if (path === '/dispatches') return { count: 1, type: 'red' };
+  return null;
+};
+
 export default function AppShell() {
   const { userProfile, crmSettings } = useContext(AuthContext);
   const { language, setLanguage, t } = useContext(LanguageContext);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+
+  const [pinnedItems, setPinnedItems] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem('shublabh_pinned_nav');
+      return saved ? JSON.parse(saved) : defaultPinned;
+    } catch {
+      return defaultPinned;
+    }
+  });
+
+  const [expandedGroups, setExpandedGroups] = React.useState({
+    'pinned': true,
+    'customers-growth': false,
+    'demand-insights': false,
+    'operations': false,
+    'data-automation': false,
+    'settings': false
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('shublabh_pinned_nav', JSON.stringify(pinnedItems));
+  }, [pinnedItems]);
+
+  const togglePin = (e, path) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPinnedItems(prev => 
+      prev.includes(path) 
+        ? prev.filter(p => p !== path) 
+        : [...prev, path]
+    );
+  };
+
+  const toggleGroup = (groupId) => {
+    setExpandedGroups(prev => ({
+      ...prev,
+      [groupId]: !prev[groupId]
+    }));
+  };
 
   const handleLogout = async () => {
     await logActivity({
@@ -47,6 +123,44 @@ export default function AppShell() {
       summary: `User logged out.`
     });
     await supabase.auth.signOut();
+  };
+
+  const renderNavItem = (path) => {
+    if (['/data', '/data/quality', '/control-room', '/account-control', '/dealer-control', '/automation-control'].includes(path) && userProfile?.role !== 'Admin') return null;
+    
+    const itemInfo = allNavItems.find(item => item.path === path);
+    if (!itemInfo) return null;
+    
+    const Icon = itemInfo.icon;
+    const isPinned = pinnedItems.includes(path);
+    const badge = getBadge(path);
+    
+    return (
+      <NavLink
+        key={itemInfo.path}
+        to={itemInfo.path}
+        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+        title={sidebarOpen ? '' : itemInfo.label}
+      >
+        <div className="nav-item-content">
+          <Icon size={20} className="nav-icon" />
+          <span className="nav-label">{itemInfo.label}</span>
+          {badge && (
+            <span className={`nav-badge nav-badge-${badge.type}`}>
+              {badge.count}
+            </span>
+          )}
+        </div>
+        <button 
+          className={`pin-btn ${isPinned ? 'is-pinned' : ''}`}
+          onClick={(e) => togglePin(e, path)}
+          title={isPinned ? 'Unpin' : 'Pin to top'}
+        >
+          {isPinned ? <PinOff size={16} /> : <Pin size={16} />}
+        </button>
+      </NavLink>
+    );
   };
 
   return (
@@ -65,21 +179,40 @@ export default function AppShell() {
           </div>
         </div>
         <nav className="sidebar-nav">
-          {navItems.map((item) => {
-            if (['/data', '/data/quality', '/control-room', '/account-control', '/dealer-control', '/automation-control'].includes(item.path) && userProfile?.role !== 'Admin') return null;
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                onClick={() => setSidebarOpen(false)}
+          <div className="nav-group">
+            <button 
+              className="nav-section-header" 
+              onClick={() => toggleGroup('pinned')}
+            >
+              <span>PINNED / DAILY WORK</span>
+              {expandedGroups['pinned'] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+            {expandedGroups['pinned'] && (
+              <div className="nav-group-items">
+                {pinnedItems.map(path => renderNavItem(path))}
+                {pinnedItems.length === 0 && (
+                  <div className="nav-empty-state">No items pinned</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {menuGroups.map(group => (
+            <div key={group.id} className="nav-group">
+              <button 
+                className="nav-section-header" 
+                onClick={() => toggleGroup(group.id)}
               >
-                <Icon size={20} />
-                {item.label}
-              </NavLink>
-            );
-          })}
+                <span>{group.title}</span>
+                {expandedGroups[group.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+              {expandedGroups[group.id] && (
+                <div className="nav-group-items">
+                  {group.items.map(path => renderNavItem(path))}
+                </div>
+              )}
+            </div>
+          ))}
         </nav>
       </aside>
 
