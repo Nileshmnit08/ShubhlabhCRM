@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit } from 'lucide-react';
+import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
