@@ -172,7 +172,7 @@ export default function CallAction({ party, followUpId, onComplete, btnClass = "
         className={btnClass} 
         onClick={handleOpen} 
         disabled={!isValidNumber} 
-        title={isValidNumber ? "Call & Log" : "Invalid Number"} 
+        title={isValidNumber ? "Call & Log" : "Valid mobile number unavailable"} 
         style={{display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', fontSize: '0.85rem', opacity: isValidNumber ? 1 : 0.5}}
       >
         <Phone size={16} />

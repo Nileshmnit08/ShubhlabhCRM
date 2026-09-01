@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2 } from 'lucide-react';
+import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
@@ -19,6 +19,7 @@ export default function RequirementList() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [toast, setToast] = useState(null);
   const deleteTriggerRef = useRef(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   // URL Params State
   const [searchParams, setSearchParams] = useSearchParams();
@@ -244,6 +245,23 @@ export default function RequirementList() {
     return 'badge';
   };
 
+  const formatRate = (rate) => {
+    if (!rate) return '-';
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(rate);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const options = { day: '2-digit', month: 'short', year: 'numeric' };
+    return new Date(dateString).toLocaleDateString('en-GB', options);
+  };
+
+  const getPriorityColor = (priority) => {
+    if (priority === 'High' || priority === 'Urgent') return 'var(--danger)';
+    if (priority === 'Normal') return 'var(--warning)';
+    return 'var(--primary)'; // Low/Neutral
+  };
+
   const activeFilterCount = Array.from(searchParams.keys()).length;
 
   return (
@@ -399,82 +417,167 @@ export default function RequirementList() {
           )}
         </div>
       ) : (
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem'}}>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem'}}>
           {filteredRequirements.map(req => {
             const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && req.is_pending;
             const isPartiallyDispatched = req.dispatch_progress === 'Partially Dispatched' && req.total_dispatched_quantity > 0;
             
             return (
-            <Link key={req.id} to={`/requirements/${req.id}`} className="glass-panel" style={{display: 'block', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s, border-color 0.2s', border: isOverdue ? '1px solid var(--danger)' : ''}}>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem'}}>
-                <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{req.customer_name}</div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                  <span className={getStatusBadge(req.status)}>{req.status}</span>
-                  <button 
-                    type="button"
-                    onClick={(e) => openDeleteModal(e, req)} 
-                    className="btn-icon" 
-                    style={{padding: '4px', color: 'var(--danger)', opacity: 0.8}} 
-                    aria-label="Delete requirement" 
-                    title="Delete requirement"
-                  >
-                     <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-              
-              <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                <div style={{fontSize: '0.95rem'}}>
-                  <strong>{req.required_quantity} {req.unit} (Est.)</strong> of {req.product_type}
+              <div 
+                key={req.id} 
+                className="glass-panel" 
+                style={{
+                  position: 'relative',
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  background: '#ffffff',
+                  borderRadius: '12px',
+                  padding: '24px', 
+                  border: isOverdue ? '1px solid var(--danger)' : '1px solid #E5E7EB',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                {/* 1. Header */}
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px'}}>
+                  <div style={{flex: 1, paddingRight: '12px'}}>
+                    <div style={{fontWeight: 700, fontSize: '1.1rem', lineHeight: 1.3, marginBottom: '4px', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)'}}>{req.customer_name}</div>
+                    <div className="text-muted" style={{fontSize: '0.8rem'}}>
+                      {req.customer_city || 'Location N/A'} • {req.owner_email ? req.owner_email.split('@')[0] : 'Unassigned'}
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                    <span className={getStatusBadge(req.status)} style={{whiteSpace: 'nowrap'}}>{req.status}</span>
+                    <div style={{position: 'relative'}}>
+                      <button 
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === req.id ? null : req.id);
+                        }}
+                        className="btn-icon"
+                        style={{padding: '4px', color: 'var(--text-muted)'}}
+                        aria-label="More actions"
+                        title="More actions"
+                      >
+                        <MoreVertical size={18} />
+                      </button>
+                      {openMenuId === req.id && (
+                        <>
+                          <div style={{position: 'fixed', top:0, left:0, right:0, bottom:0, zIndex: 9}} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpenMenuId(null); }} />
+                          <div style={{
+                            position: 'absolute', 
+                            right: 0, top: '100%', 
+                            background: '#fff', 
+                            border: '1px solid #E5E7EB', 
+                            borderRadius: '6px', 
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            zIndex: 10,
+                            minWidth: '120px',
+                            padding: '4px 0'
+                          }}>
+                            <button 
+                              type="button"
+                              onClick={(e) => {
+                                setOpenMenuId(null);
+                                openDeleteModal(e, req);
+                              }}
+                              style={{
+                                width: '100%', padding: '8px 16px', background: 'none', border: 'none',
+                                textAlign: 'left', color: 'var(--danger)', fontSize: '0.85rem',
+                                display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer'
+                              }}
+                            >
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 
-                {isPartiallyDispatched && (
-                  <div style={{ fontSize: '0.85rem', padding: '0.5rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.2)', color: 'var(--success)', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Dispatched: {req.total_dispatched_quantity}</span>
-                    <strong style={{color: 'var(--warning)'}}>Pending: {req.pending_quantity}</strong>
+                {/* 2. Main requirement summary */}
+                <div style={{display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px'}}>
+                  <div style={{display: 'flex', alignItems: 'baseline', gap: '6px'}}>
+                    <span style={{fontSize: '2rem', fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)'}}>{req.required_quantity}</span>
+                    <span className="text-muted" style={{fontSize: '0.9rem'}}>{req.unit} (Est.)</span>
                   </div>
-                )}
-
-                <div className="text-secondary" style={{fontSize: '0.85rem'}}>
-                  Intent: <strong>{req.intent_type || 'Product Interest'}</strong>
-                </div>
-                {req.expected_rate && (
-                  <div className="text-secondary" style={{fontSize: '0.85rem'}}>
-                    Target Rate (Est.): ₹{req.expected_rate}
+                  <div style={{fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)'}}>
+                    {req.product_type}
                   </div>
-                )}
-                {req.expected_date && (
-                  <div className={isOverdue ? "text-danger" : "text-secondary"} style={{fontSize: '0.85rem', fontWeight: isOverdue ? 600 : 400}}>
-                    {isOverdue && '⚠️ '}Required By: {new Date(req.expected_date).toLocaleDateString()}
+                  <div style={{marginTop: '4px'}}>
+                     <span style={{display: 'inline-block', fontSize: '0.75rem', padding: '2px 8px', background: '#F3F4F6', color: '#4B5563', borderRadius: '4px', fontWeight: 500}}>
+                       {req.intent_type || 'Product Interest'}
+                     </span>
                   </div>
-                )}
-              </div>
-              
-              <div style={{marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem'}}>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '0.25rem'}}>
-                  <span style={{color: req.priority === 'High' ? 'var(--warning)' : 'var(--text-muted)'}}>
-                    Priority: {req.priority}
-                  </span>
-                  {req.owner_email && (
-                    <span style={{color: 'var(--text-muted)'}}>
-                      Owner: {req.owner_email.split('@')[0]}
-                    </span>
+                  
+                  {isPartiallyDispatched && (
+                    <div style={{ fontSize: '0.8rem', padding: '6px 10px', background: '#ECFDF5', borderRadius: '4px', border: '1px solid #D1FAE5', color: '#065F46', display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                      <span>Dispatched: {req.total_dispatched_quantity}</span>
+                      <strong style={{color: '#B45309'}}>Pending: {req.pending_quantity}</strong>
+                    </div>
                   )}
                 </div>
-                <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
-                  <div onClick={e => e.preventDefault()}>
-                     {req.party_id && <CallAction party={{id: req.party_id, mobile: req.customer_mobile}} onComplete={fetchRequirements} showLabel={false} />}
+
+                {/* 3. Commercial and timeline details */}
+                <hr style={{border: 'none', borderTop: '1px solid #F0F1F3', margin: '0 0 16px 0'}} />
+                
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px'}}>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                    <span className="text-muted" style={{fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600}}>Target Rate</span>
+                    <span style={{fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)'}}>{formatRate(req.expected_rate)}</span>
                   </div>
-                  <div onClick={e => e.preventDefault()}>
-                     {req.party_id && <WhatsAppAction party={{id: req.party_id, whatsapp: req.customer_whatsapp, mobile: req.customer_mobile}} onComplete={fetchRequirements} />}
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                    <span className="text-muted" style={{fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600}}>Required By</span>
+                    <span style={{fontSize: '0.9rem', fontWeight: 500, color: isOverdue ? 'var(--danger)' : 'var(--text-primary)'}}>{formatDate(req.expected_date)}</span>
                   </div>
-                  <span style={{display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', marginLeft: '0.5rem'}}>
-                    View <ChevronRight size={14} />
-                  </span>
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                    <span className="text-muted" style={{fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600}}>Priority</span>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)'}}>
+                      <div style={{width: '8px', height: '8px', borderRadius: '50%', backgroundColor: getPriorityColor(req.priority)}}></div>
+                      {req.priority || 'Normal'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Footer actions */}
+                <hr style={{border: 'none', borderTop: '1px solid #F0F1F3', margin: 'auto 0 16px 0'}} />
+                
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                  <div style={{display: 'flex', gap: '8px'}}>
+                    <div onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+                      {req.party_id && <CallAction party={{id: req.party_id, mobile: req.customer_mobile}} onComplete={fetchRequirements} showLabel={false} />}
+                    </div>
+                    <div onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+                      {req.party_id && <WhatsAppAction party={{id: req.party_id, whatsapp: req.customer_whatsapp, mobile: req.customer_mobile}} onComplete={fetchRequirements} />}
+                    </div>
+                  </div>
+                  <Link 
+                    to={`/requirements/${req.id}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      color: 'var(--primary)', fontWeight: 600, fontSize: '0.9rem', textDecoration: 'none',
+                      padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--primary)',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(29, 78, 216, 0.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    View <ChevronRight size={16} />
+                  </Link>
                 </div>
               </div>
-            </Link>
-          )})}
+            );
+          })}
         </div>
       )}
 

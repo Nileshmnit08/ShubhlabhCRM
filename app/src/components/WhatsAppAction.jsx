@@ -224,7 +224,7 @@ export default function WhatsAppAction({ party, followUpId, onComplete, btnClass
 
   return (
     <>
-      <button className={btnClass} onClick={handleOpen} disabled={!isValidNumber} title={isValidNumber ? "WhatsApp Action" : "Invalid WhatsApp Number"} style={{display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', fontSize: '0.85rem', opacity: isValidNumber ? 1 : 0.5}}>
+      <button className={btnClass} onClick={handleOpen} disabled={!isValidNumber} title={isValidNumber ? "WhatsApp Action" : "Valid mobile number unavailable"} style={{display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.4rem 0.75rem', fontSize: '0.85rem', opacity: isValidNumber ? 1 : 0.5}}>
         <MessageCircle size={16} style={{color: isValidNumber ? '#25D366' : 'inherit'}} /> WhatsApp
       </button>
 
