@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle } from 'lucide-react';
+import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2 } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
@@ -13,6 +13,13 @@ export default function RequirementList() {
   const [error, setError] = useState(null);
   const [users, setUsers] = useState([]);
   
+  // Delete Modal & Toast State
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [reqToDelete, setReqToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [toast, setToast] = useState(null);
+  const deleteTriggerRef = useRef(null);
+
   // URL Params State
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -32,6 +39,13 @@ export default function RequirementList() {
   useEffect(() => {
     fetchRequirements();
   }, [statusFilter, ownerFilter, dateField, dateRange, startDate, endDate, includeCompleted]);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Push filter changes to URL
   const updateFilter = (key, value) => {
@@ -172,6 +186,40 @@ export default function RequirementList() {
       setLoading(false);
     }
   }
+
+  const openDeleteModal = (e, req) => {
+    e.preventDefault();
+    e.stopPropagation();
+    deleteTriggerRef.current = e.currentTarget;
+    setReqToDelete(req);
+    setDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setReqToDelete(null);
+    if (deleteTriggerRef.current) {
+      deleteTriggerRef.current.focus();
+    }
+  };
+
+  const executeDelete = async () => {
+    if (!reqToDelete) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase.from('requirements').delete().eq('id', reqToDelete.id);
+      if (error) throw error;
+      
+      setToast({ type: 'success', message: 'Requirement deleted successfully.' });
+      setRequirements(prev => prev.filter(r => r.id !== reqToDelete.id));
+      closeDeleteModal();
+    } catch (err) {
+      console.error("Delete Error:", err);
+      setToast({ type: 'error', message: 'Could not delete requirement. Please try again.' });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Client-side search (Title, Product, City)
   const filteredRequirements = requirements.filter(req => {
@@ -360,7 +408,19 @@ export default function RequirementList() {
             <Link key={req.id} to={`/requirements/${req.id}`} className="glass-panel" style={{display: 'block', textDecoration: 'none', color: 'inherit', transition: 'transform 0.2s, border-color 0.2s', border: isOverdue ? '1px solid var(--danger)' : ''}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem'}}>
                 <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{req.customer_name}</div>
-                <span className={getStatusBadge(req.status)}>{req.status}</span>
+                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                  <span className={getStatusBadge(req.status)}>{req.status}</span>
+                  <button 
+                    type="button"
+                    onClick={(e) => openDeleteModal(e, req)} 
+                    className="btn-icon" 
+                    style={{padding: '4px', color: 'var(--danger)', opacity: 0.8}} 
+                    aria-label="Delete requirement" 
+                    title="Delete requirement"
+                  >
+                     <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
               
               <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
@@ -415,6 +475,74 @@ export default function RequirementList() {
               </div>
             </Link>
           )})}
+        </div>
+      )}
+
+      {toast && (
+        <div 
+          role="status"
+          aria-live="polite"
+          style={{ 
+            position: 'fixed', bottom: '1.5rem', right: '1.5rem', 
+            padding: '1rem 1.5rem', 
+            background: toast.type === 'success' ? 'var(--success)' : 'var(--danger)', 
+            color: '#fff', borderRadius: '6px', zIndex: 9999, 
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            fontWeight: 500, fontSize: '0.95rem'
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
+
+      {deleteModalOpen && reqToDelete && (
+        <div 
+          role="dialog" 
+          aria-modal="true" 
+          aria-labelledby="delete-dialog-title"
+          style={{ 
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+            backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000, 
+            display: 'flex', alignItems: 'center', justifyContent: 'center' 
+          }}
+          onClick={closeDeleteModal}
+        >
+          <div 
+            style={{ 
+              background: 'var(--bg-card)', padding: '2rem', borderRadius: '8px', 
+              maxWidth: '400px', width: '90%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' 
+            }} 
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => { if (e.key === 'Escape') closeDeleteModal(); }}
+            tabIndex={-1}
+            ref={el => el && el.focus()}
+          >
+            <h3 id="delete-dialog-title" style={{ margin: '0 0 1rem 0', color: 'var(--text-primary)', fontSize: '1.25rem' }}>
+              Delete requirement?
+            </h3>
+            <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              This will permanently delete the requirement for <strong>{reqToDelete.customer_name}</strong> — <strong>{reqToDelete.product_type}</strong>. This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                onClick={closeDeleteModal} 
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }} 
+                onClick={executeDelete} 
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
