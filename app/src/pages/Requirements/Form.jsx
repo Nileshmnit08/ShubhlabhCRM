@@ -10,12 +10,14 @@ export default function RequirementForm() {
   const isEditMode = Boolean(id);
   
   const [party, setParty] = useState(null);
+  const [allParties, setAllParties] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
   const [formData, setFormData] = useState({
+    party_id: partyId || '',
     product_type: '',
     quantity: '',
     unit: 'Bags',
@@ -27,12 +29,8 @@ export default function RequirementForm() {
   });
 
   useEffect(() => {
-    if (!isEditMode && !partyId) {
-      alert("Must provide a party_id");
-      navigate(-1);
-      return;
-    }
     fetchInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [partyId, id]);
 
   async function fetchInitialData() {
@@ -48,6 +46,7 @@ export default function RequirementForm() {
         setProducts(prodData || []);
         
         setFormData({
+          party_id: req.party_id || '',
           product_type: req.product_type || '',
           quantity: req.quantity || '',
           unit: req.unit || 'Bags',
@@ -58,18 +57,21 @@ export default function RequirementForm() {
           notes: req.notes || ''
         });
       } else {
-        const [partyRes, prodRes] = await Promise.all([
-          supabase.from('crm_parties').select('*').eq('id', partyId).single(),
-          supabase.from('products').select('*').eq('active', true)
+        const [partyRes, prodRes, allPartiesRes] = await Promise.all([
+          partyId ? supabase.from('crm_parties').select('*').eq('id', partyId).single() : Promise.resolve({ data: null }),
+          supabase.from('products').select('*').eq('active', true),
+          !partyId ? supabase.from('crm_parties').select('id, display_name').order('display_name') : Promise.resolve({ data: null })
         ]);
         
-        if (!partyRes.data) {
+        if (partyId && !partyRes.data) {
           alert("Party not found or inaccessible.");
           navigate(-1);
           return;
         }
         
-        setParty(partyRes.data);
+        if (partyId) setParty(partyRes.data);
+        if (allPartiesRes.data) setAllParties(allPartiesRes.data);
+        
         setProducts(prodRes.data || []);
         if (prodRes.data?.length > 0) {
           setFormData(f => ({ ...f, product_type: prodRes.data[0].name }));
@@ -87,6 +89,12 @@ export default function RequirementForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    
+    const finalPartyId = isEditMode ? formData.party_id : (partyId || formData.party_id);
+    if (!isEditMode && !finalPartyId) {
+      setFormError("Please select a Party / Customer.");
+      return;
+    }
     
     if (parseFloat(formData.quantity) <= 0) {
       setFormError("Quantity must be greater than zero.");
@@ -131,12 +139,19 @@ export default function RequirementForm() {
       } else {
         const insertPayload = {
           ...payload,
-          party_id: partyId,
+          party_id: finalPartyId,
           status: 'New', // Fixed constraint issue
           assigned_to: sessionData?.session?.user?.id || null
         };
         const { data, error } = await supabase.from('requirements').insert(insertPayload).select();
-        if (error) throw error;
+        
+        // Handle database-level party_id NOT NULL violation gracefully
+        if (error) {
+           if (error.code === '23502' && error.message.includes('party_id')) {
+              throw new Error("Please select a Party / Customer. The party field cannot be empty.");
+           }
+           throw error;
+        }
         
         if (data && data.length > 0 && data[0].id) {
           navigate(`/requirements/${data[0].id}`);
@@ -158,7 +173,7 @@ export default function RequirementForm() {
     <div className="animate-fade-in" style={{maxWidth: '600px', margin: '0 auto'}}>
       <div className="page-header">
         <h1 style={{margin: 0}}>{isEditMode ? 'Edit Requirement' : 'New Requirement'}</h1>
-        <p className="text-secondary">for {party?.display_name}</p>
+        <p className="text-secondary">{party?.display_name ? `for ${party.display_name}` : 'Fill in the requirement details below'}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="glass-panel" style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
@@ -168,6 +183,21 @@ export default function RequirementForm() {
           </div>
         )}
         
+        {(!isEditMode && !partyId) && (
+          <div>
+            <label style={{display: 'block', marginBottom: '0.5rem'}}>Party / Customer <span style={{color: 'var(--danger)'}}>*</span></label>
+            <select 
+              required
+              value={formData.party_id}
+              onChange={e => setFormData({...formData, party_id: e.target.value})}
+              style={{width: '100%', padding: '0.75rem', borderRadius: '6px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
+            >
+              <option value="">-- Select Party --</option>
+              {allParties.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+            </select>
+          </div>
+        )}
+
         <div>
           <label style={{display: 'block', marginBottom: '0.5rem'}}>Product / Feed Type</label>
           <select 
