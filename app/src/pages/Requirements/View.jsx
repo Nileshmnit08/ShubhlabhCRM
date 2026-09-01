@@ -6,7 +6,7 @@ import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 
 const STATUS_OPTIONS = [
-  'Identified', 'Engaged', 'Qualified', 'Commercial Intent', 'Won', 'Lost', 'On Hold'
+  'Identified', 'Engaged', 'Qualified', 'Commercial Intent', 'Won', 'Dispatched', 'Lost', 'On Hold'
 ];
 
 const VALID_TRANSITIONS = {
@@ -14,8 +14,9 @@ const VALID_TRANSITIONS = {
   'Engaged': ['Qualified', 'Lost', 'On Hold'],
   'Qualified': ['Commercial Intent', 'Lost', 'On Hold'],
   'Commercial Intent': ['Won', 'Lost', 'On Hold'],
+  'Won': ['Dispatched'],
+  'Dispatched': [],
   'On Hold': ['Engaged', 'Qualified', 'Lost'],
-  'Won': [],
   'Lost': ['Identified', 'Engaged']
 };
 
@@ -24,10 +25,13 @@ const NEXT_ACTION_DESC = {
   'Engaged': 'Next Step: Verify requirement feasibility and qualify lead.',
   'Qualified': 'Next Step: Negotiate pricing, quantity, and terms.',
   'Commercial Intent': 'Next Step: Close the deal and convert to Won.',
+  'Won': 'Next Step: Create dispatch entry for delivery.',
+  'Dispatched': 'Requirement successfully fulfilled and dispatched.',
   'On Hold': 'Waiting for unblock.',
-  'Won': 'Deal successfully closed (financial tracking happens in Tally).',
   'Lost': 'Deal went to competitor or was abandoned.'
 };
+
+import CreateDispatchModal from './CreateDispatchModal';
 
 export default function RequirementView() {
   const { id } = useParams();
@@ -42,6 +46,10 @@ export default function RequirementView() {
   // Status Update State
   const [newStatus, setNewStatus] = useState('');
   const [statusNote, setStatusNote] = useState('');
+  
+  // Dispatch Modal State
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [dispatchSummary, setDispatchSummary] = useState(null);
 
   // Follow up state
   const [showFollowUp, setShowFollowUp] = useState(false);
@@ -107,6 +115,15 @@ export default function RequirementView() {
       
       setReq(prev => ({ ...prev, tally_transactions: tData || [] }));
 
+      // 4. Fetch Dispatch Summary
+      const { data: dSummary } = await supabase
+        .from('v_requirement_dispatch_summary')
+        .select('*')
+        .eq('requirement_id', id)
+        .maybeSingle();
+      
+      if (dSummary) setDispatchSummary(dSummary);
+
     } catch (err) {
       console.error(err);
       setFetchError(err);
@@ -129,6 +146,12 @@ export default function RequirementView() {
     if (['Won', 'Lost', 'On Hold', 'Commercial Intent'].includes(newStatus) && !statusNote.trim()) {
       alert(`Evidence/Note is strictly required to transition to ${newStatus}. Please provide details.`);
       return;
+    }
+
+    // Intercept 'Dispatched' status
+    if (newStatus === 'Dispatched') {
+       setShowDispatchModal(true);
+       return;
     }
 
     setStatusUpdating(true);
@@ -278,6 +301,63 @@ export default function RequirementView() {
           </div>
         </div>
 
+        {/* Dispatch Summary Card */}
+        {(dispatchSummary || req.status === 'Won' || req.status === 'Dispatched') && (
+          <div className="glass-panel" style={{padding: '1.5rem', border: '1px solid var(--border)'}}>
+            <h3 style={{marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+              Dispatch Summary
+              {dispatchSummary && (
+                <span className={`badge ${dispatchSummary.dispatch_progress === 'Fully Dispatched' ? 'badge-success' : dispatchSummary.dispatch_progress === 'Partially Dispatched' ? 'badge-warning' : 'badge-active'}`}>
+                  {dispatchSummary.dispatch_progress}
+                </span>
+              )}
+            </h3>
+            
+            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem'}}>
+                <div>
+                  <label className="text-muted" style={{fontSize: '0.85rem'}}>Required</label>
+                  <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{req.quantity} {req.unit}</div>
+                </div>
+                <div>
+                  <label className="text-muted" style={{fontSize: '0.85rem'}}>Dispatched</label>
+                  <div style={{fontWeight: 600, fontSize: '1.1rem', color: 'var(--success)'}}>
+                    {dispatchSummary?.total_dispatched_quantity || 0} {req.unit}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-muted" style={{fontSize: '0.85rem'}}>Pending</label>
+                  <div style={{fontWeight: 600, fontSize: '1.1rem', color: 'var(--warning)'}}>
+                    {dispatchSummary?.pending_quantity || req.quantity} {req.unit}
+                  </div>
+                </div>
+              </div>
+
+              {dispatchSummary?.latest_dispatch_date && (
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem'}}>
+                  <div>
+                    <label className="text-muted" style={{fontSize: '0.85rem'}}>Latest Dispatch Date</label>
+                    <div>{new Date(dispatchSummary.latest_dispatch_date).toLocaleDateString()}</div>
+                  </div>
+                  <div>
+                    <label className="text-muted" style={{fontSize: '0.85rem'}}>Latest Vehicle</label>
+                    <div>{dispatchSummary.latest_truck_number || 'N/A'}</div>
+                  </div>
+                </div>
+              )}
+              
+              <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
+                 <button className="btn btn-primary" onClick={() => setShowDispatchModal(true)} style={{flex: 1, justifyContent: 'center'}}>
+                   <Plus size={16} /> Add Dispatch
+                 </button>
+                 <Link to={`/dispatches/list?requirement_id=${req.id}`} className="btn btn-secondary" style={{flex: 1, justifyContent: 'center'}}>
+                   View All Dispatches
+                 </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Update Status Panel */}
         <div className="glass-panel" style={{padding: '1.5rem', background: 'rgba(37, 99, 235, 0.05)', border: '1px solid rgba(37, 99, 235, 0.2)'}}>
           <h3 style={{marginBottom: '0.5rem', color: 'var(--primary)'}}>Update Pipeline Status</h3>
@@ -402,6 +482,17 @@ export default function RequirementView() {
           </div>
         )}
       </div>
+      
+      {showDispatchModal && (
+        <CreateDispatchModal 
+          requirement={{ ...req, pending_quantity: dispatchSummary?.pending_quantity }}
+          onClose={() => setShowDispatchModal(false)}
+          onComplete={() => {
+            setShowDispatchModal(false);
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 }

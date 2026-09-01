@@ -40,6 +40,10 @@ import Performance from './pages/Performance';
 import Settings from './pages/Settings';
 import FollowUpActivityReport from './pages/Activity/FollowUpActivityReport';
 
+import DispatchDashboard from './pages/Dispatches/Dashboard';
+import DispatchList from './pages/Dispatches/List';
+import DispatchDetail from './pages/Dispatches/Detail';
+
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
   <div className="animate-fade-in" style={{padding: '3rem', textAlign: 'center'}}>
@@ -251,6 +255,12 @@ function App() {
               <Route path="coverage" element={<CoverageIntelligence />} />
               <Route path="automation-control" element={<AutomationControl />} />
               <Route path="settings" element={<Settings />} />
+
+              <Route path="dispatches">
+                <Route index element={<DispatchDashboard />} />
+                <Route path="list" element={<DispatchList />} />
+                <Route path=":id" element={<DispatchDetail />} />
+              </Route>
               
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
