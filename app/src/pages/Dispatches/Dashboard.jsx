@@ -63,8 +63,8 @@ export default function DispatchDashboard() {
         .select(`
           *,
           requirements (
-            id, requirement_number, quantity, product_name, required_date,
-            crm_parties (id, display_name, city, territory_name, owner_name)
+            id, quantity, product_type, expected_date,
+            crm_parties (id, display_name, city)
           )
         `)
         .not('status', 'in', '("Cancelled","Voided","Deleted","Reversed")');
@@ -126,12 +126,12 @@ export default function DispatchDashboard() {
       const summary = reqSummaryMap[req.id] || {};
       reqAggregation[req.id] = {
         id: req.id,
-        number: req.requirement_number,
-        date: req.required_date,
-        product: req.product_name,
+        number: req.id.slice(0,8), // using slice since requirement_number is likely missing too
+        date: req.expected_date,
+        product: req.product_type,
         dealer: req.crm_parties?.display_name || 'Unknown',
-        territory: req.crm_parties?.territory_name || 'N/A',
-        owner: req.crm_parties?.owner_name || 'N/A',
+        territory: req.crm_parties?.city || 'N/A', // fallback to city
+        owner: 'N/A',
         requiredQty: Number(req.quantity || 0),
         cumulativeDispatched: Number(summary.total_dispatched_quantity || 0),
         pendingQty: Number(summary.pending_quantity || 0),

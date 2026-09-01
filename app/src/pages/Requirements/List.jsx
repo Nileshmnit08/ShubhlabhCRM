@@ -170,8 +170,7 @@ export default function RequirementList() {
     return (
       req.customer_name?.toLowerCase().includes(q) ||
       req.product_type?.toLowerCase().includes(q) ||
-      req.customer_city?.toLowerCase().includes(q) ||
-      req.requirement_number?.toLowerCase().includes(q)
+      req.customer_city?.toLowerCase().includes(q)
     );
   });
 

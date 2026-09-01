@@ -4,10 +4,8 @@
 CREATE OR REPLACE VIEW public.v_board_requirements WITH (security_invoker = true) AS
 SELECT 
     r.id,
-    r.requirement_number,
     r.party_id,
     r.product_type,
-    r.product_name,
     r.quantity AS required_quantity,
     r.unit,
     r.expected_date,
