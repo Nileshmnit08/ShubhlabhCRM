@@ -1,41 +1,50 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthContext } from '../AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Calendar, AlertCircle, Clock, Phone, ChevronRight, 
   BarChart3, AlertTriangle, Users, Plus, FileText, 
-  CheckCircle2, Activity, UserPlus, FileEdit, ClipboardList, Target, MapPin
+  CheckCircle2, Activity, UserPlus, FileEdit, ClipboardList, Target, MapPin, 
+  Search, Bell, ArrowRight, Truck, IndianRupee
 } from 'lucide-react';
-import WhatsAppAction from '../components/WhatsAppAction';
-import CallAction from '../components/CallAction';
-import ScheduleAction from '../components/ScheduleAction';
-import AlertsPanel from '../components/AlertsPanel';
-import CommunicationDraftsPanel from '../components/CommunicationDraftsPanel';
+import CreateDispatchModal from './Requirements/CreateDispatchModal';
 
 export default function Today() {
   const { userProfile } = useContext(AuthContext);
+  const navigate = useNavigate();
   
   const [data, setData] = useState({
-    followUps: { overdue: [], today: [], highPriority: [] },
-    paymentTasks: { overdue: [], today: [] },
-    kpis: { overdue: 0, today: 0, pendingQuotes: 0, newCustomersToday: 0, dormant: 0 },
-    risks: { noContact: [], pendingQuote: [], stalledReq: [], dormant: [] },
-    recentActivity: [],
-    pipeline: { openReqs: 0 },
-    unassigned: 0,
-    opportunities: [],
-    openIssues: [],
-    dueReviews: []
+    kpis: { overdueActions: 0, dueTodayActions: 0, readyToDispatchCount: 0, overduePaymentCount: 0, openServiceIssuesCount: 0 },
+    myPriorities: [],
+    operations: { openReqs: 0, pendingDispatches: 0, pendingQuotes: 0, topReqs: [] },
+    collections: { overdueCount: 0, overdueAmount: 0, todayCount: 0, todayAmount: 0, topPayments: [] },
+    issues: { openCount: 0, criticalCount: 0, topIssues: [] },
+    atAGlance: { growthOpps: 0, dormant: 0, unassigned: 0, openReqs: 0 },
+    recentActivity: []
   });
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [newMenuOpen, setNewMenuOpen] = useState(false);
+  const [dispatchModalReq, setDispatchModalReq] = useState(null);
+  
+  const newMenuRef = useRef(null);
 
   useEffect(() => {
     fetchDashboardData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (newMenuRef.current && !newMenuRef.current.contains(event.target)) {
+        setNewMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   async function fetchDashboardData() {
     if (!userProfile) return;
@@ -44,47 +53,31 @@ export default function Today() {
       const today = new Date();
       const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
       
-      const now = new Date();
-      now.setHours(0,0,0,0);
-      const isoToday = now.toISOString();
-
       const isAdmin = userProfile?.role === 'Admin';
       const ownerId = userProfile?.id;
 
-      // 1. Follow-ups
+      // 1. Fetch Follow-ups
       let fuQuery = supabase.from('follow_ups')
-        .select(`*, crm_parties ( id, display_name, mobile, whatsapp, assigned_owner_id, crm_status, communication_preference ), owner:app_users!follow_ups_assigned_to_fkey(display_name)`)
+        .select(`*, crm_parties ( id, display_name, assigned_owner_id ), owner:app_users!follow_ups_assigned_to_fkey(display_name)`)
         .eq('status', 'Pending');
       
       const { data: allPendingFu } = await fuQuery;
-      
-      // Filter valid follow-ups (RLS ensures we only get accessible parties, but we defensively check)
       let allAccessibleFu = (allPendingFu || []).filter(f => f.crm_parties !== null);
       
-      // If operator, they only see followups where they are the owner OR they are assigned the followup
       if (!isAdmin) {
          allAccessibleFu = allAccessibleFu.filter(f => f.assigned_to === ownerId || f.crm_parties.assigned_owner_id === ownerId);
       }
       
-      let validFu = [];
-      let paymentFu = [];
-      let commercialFu = [];
-      let dealerFu = [];
+      let paymentTasks = [];
+      let otherTasks = [];
       
       allAccessibleFu.forEach(f => {
-        if (f.follow_up_type === 'Payment') {
-          paymentFu.push(f);
-        } else if (f.follow_up_type === 'Commercial') {
-          commercialFu.push(f);
-        } else if (f.follow_up_type === 'Dealer Visit' || f.follow_up_type === 'Dealer Contact') {
-          dealerFu.push(f);
-        } else {
-          validFu.push(f);
-        }
+        if (f.follow_up_type === 'Payment') paymentTasks.push(f);
+        else otherTasks.push(f);
       });
       
-      // Fetch financials for payment followups
-      const partyIds = [...new Set(paymentFu.map(f => f.party_id))];
+      // Financials for payment tasks
+      const partyIds = [...new Set(paymentTasks.map(f => f.party_id))];
       let financialsMap = {};
       if (partyIds.length > 0) {
         const { data: finData } = await supabase.from('v_customer_financials').select('party_id, outstanding_balance').in('party_id', partyIds);
@@ -92,188 +85,148 @@ export default function Today() {
           finData.forEach(fin => financialsMap[fin.party_id] = fin.outstanding_balance);
         }
       }
-      paymentFu = paymentFu.map(f => ({ ...f, outstanding_balance: financialsMap[f.party_id] || 0 }));
+      paymentTasks = paymentTasks.map(f => ({ ...f, amount: financialsMap[f.party_id] || 0 }));
+
+      // 2. Fetch Issues
+      let issuesQuery = supabase.from('crm_issues')
+         .select(`*, crm_parties(id, display_name), owner:app_users!crm_issues_assigned_owner_id_fkey(display_name)`)
+         .not('status', 'in', '("Resolved","Closed")');
       
-      const overduePayment = paymentFu.filter(f => f.follow_up_date < todayStr);
-      const todayPayment = paymentFu.filter(f => f.follow_up_date === todayStr);
+      if (!isAdmin) issuesQuery = issuesQuery.eq('assigned_owner_id', ownerId);
+      const { data: issuesData } = await issuesQuery;
+      const issues = issuesData || [];
 
-      // Fetch recent Tally Transactions to link confirmed evidence to Commercial followups
-      const commPartyIds = [...new Set(commercialFu.map(f => f.party_id))];
-      let tallyEvidenceMap = {};
-      if (commPartyIds.length > 0) {
-        const { data: tallyData } = await supabase.from('tally_transactions')
-          .select('crm_party_id, voucher_type, voucher_number, date')
-          .in('voucher_type', ['Sales', 'Receipt'])
-          .in('crm_party_id', commPartyIds)
-          .order('date', { ascending: false });
-        
-        if (tallyData) {
-          tallyData.forEach(tx => {
-            if (!tallyEvidenceMap[tx.crm_party_id]) {
-               tallyEvidenceMap[tx.crm_party_id] = tx; // Just keep the most recent one
-            }
-          });
-        }
-      }
-      
-      commercialFu = commercialFu.map(f => ({ ...f, tally_evidence: tallyEvidenceMap[f.party_id] }));
-
-      const overdueFu = [...commercialFu, ...validFu].filter(f => f.follow_up_date < todayStr);
-      const todayFu = [...commercialFu, ...validFu].filter(f => f.follow_up_date === todayStr);
-      const highPriFu = [...commercialFu, ...validFu].filter(f => f.follow_up_date > todayStr && f.priority === 'High');
-
-      const overdueDealer = dealerFu.filter(f => f.follow_up_date < todayStr);
-      const todayDealer = dealerFu.filter(f => f.follow_up_date === todayStr);
-
-      const pWeight = { 'High': 3, 'Normal': 2, 'Low': 1 };
-      const sortFn = (a, b) => {
-        if (a.follow_up_date !== b.follow_up_date) return a.follow_up_date.localeCompare(b.follow_up_date);
-        return pWeight[b.priority || 'Normal'] - pWeight[a.priority || 'Normal'];
+      // 3. Process My Priorities
+      const isUrgent = (task, dateField) => {
+        if (['High', 'Urgent', 'Critical'].includes(task.priority)) return true;
+        if (task[dateField] <= todayStr) return true;
+        return false;
       };
 
-      overdueFu.sort(sortFn);
-      todayFu.sort(sortFn);
-      highPriFu.sort(sortFn);
-      overduePayment.sort(sortFn);
-      todayPayment.sort(sortFn);
-      overdueDealer.sort(sortFn);
-      todayDealer.sort(sortFn);
+      const myFu = otherTasks.filter(t => (t.assigned_to === ownerId || t.crm_parties.assigned_owner_id === ownerId) && isUrgent(t, 'follow_up_date'));
+      const myPayments = paymentTasks.filter(t => (t.assigned_to === ownerId || t.crm_parties.assigned_owner_id === ownerId) && isUrgent(t, 'follow_up_date'));
+      const myIssues = issues.filter(t => t.assigned_owner_id === ownerId && isUrgent(t, 'created_at'));
 
-      // 2. Open Requirements
-      const { data: openReqsData } = await supabase.from('v_open_requirements').select('*');
-      let pendingQuotes = 0;
-      let stalledReqs = [];
-      if (openReqsData) {
-         openReqsData.forEach(r => {
-           if (r.status === 'Quotation Required') pendingQuotes++;
-           if (r.status === 'Stalled' || r.status === 'Blocked') stalledReqs.push(r);
-         });
-      }
+      const unifiedMyPriorities = [
+        ...myFu.map(t => ({ ...t, _type: 'follow_up', _date: t.follow_up_date, _label: t.reason || t.follow_up_type, _isOverdue: t.follow_up_date < todayStr, _isToday: t.follow_up_date === todayStr })),
+        ...myPayments.map(t => ({ ...t, _type: 'payment', _date: t.follow_up_date, _label: 'Payment Collection', _isOverdue: t.follow_up_date < todayStr, _isToday: t.follow_up_date === todayStr })),
+        ...myIssues.map(t => ({ ...t, _type: 'issue', _date: t.created_at.split('T')[0], _label: t.category || 'Service Issue', _isOverdue: true, _isToday: false }))
+      ];
 
-      // 3. New Customers Today
-      let custQuery = supabase.from('crm_parties').select('*', { count: 'exact', head: true }).gte('created_at', isoToday);
-      if (!isAdmin) custQuery = custQuery.eq('assigned_owner_id', ownerId);
-      const { count: newCustCount } = await custQuery;
-
-      // 4. At Risk (from v_customer_attention)
-      const { data: attentionData } = await supabase.from('v_customer_attention').select('*');
-      const risks = {
-         noContact: [],
-         pendingQuote: openReqsData?.filter(r => r.status === 'Quotation Required') || [],
-         stalledReq: stalledReqs,
-         dormant: []
-      };
-
-      if (attentionData) {
-         attentionData.forEach(a => {
-            if (a.attention_reason === 'Dormant Candidate') risks.dormant.push(a);
-            else if (a.attention_reason === 'Follow-up Risk') risks.noContact.push(a);
-         });
-      }
-
-      // 5. Recent Activity (using interactions for timeline)
-      let activityQuery = supabase.from('interactions')
-        .select(`*, crm_parties(display_name)`)
-        .order('created_at', { ascending: false })
-        .limit(6);
-      const { data: activityData } = await activityQuery;
+      const pWeight = { 'Critical': 4, 'High': 3, 'Urgent': 3, 'Normal': 2, 'Low': 1 };
+      unifiedMyPriorities.sort((a, b) => {
+        if (a._isOverdue && !b._isOverdue) return -1;
+        if (!a._isOverdue && b._isOverdue) return 1;
+        if (a._isToday && !b._isToday) return -1;
+        if (!a._isToday && b._isToday) return 1;
+        const priA = pWeight[a.priority || 'Normal'] || 2;
+        const priB = pWeight[b.priority || 'Normal'] || 2;
+        if (priA !== priB) return priB - priA;
+        return a._date.localeCompare(b._date);
+      });
       
-      const engagedPartyIds = new Set();
-      if (activityData) {
-         activityData.forEach(act => {
-            if (new Date(act.created_at) >= now) {
-                engagedPartyIds.add(act.party_id);
-            }
-         });
-      }
+      const myPrioritiesLimited = unifiedMyPriorities.slice(0, 8);
 
-      // 5b. Fetch Opportunities
-      let oppQuery = supabase.from('v_customer_opportunities').select('*').order('priority_sort', { ascending: true });
-      if (!isAdmin) {
-        oppQuery = oppQuery.eq('assigned_owner_id', ownerId);
-      }
-      const { data: oppData } = await oppQuery;
+      // 4. KPI Cards
+      const overdueActions = otherTasks.filter(t => t.follow_up_date < todayStr).length;
+      const dueTodayActions = otherTasks.filter(t => t.follow_up_date === todayStr).length;
       
-      const oppPartyIds = [...new Set((oppData || []).map(o => o.party_id))];
-      let oppPartiesMap = {};
-      if (oppPartyIds.length > 0) {
-         const { data: pData } = await supabase.from('crm_parties').select('id, display_name, mobile, whatsapp, crm_status, communication_preference, assigned_owner_id, owner:app_users!crm_parties_assigned_owner_id_fkey(display_name)').in('id', oppPartyIds);
-         if (pData) pData.forEach(p => oppPartiesMap[p.id] = p);
+      const { data: reqsData } = await supabase.from('v_board_requirements').select('*').in('status', ['Won', 'Dispatched']);
+      let readyToDispatchCount = 0;
+      let urgentReqs = [];
+      if (reqsData) {
+        reqsData.forEach(r => {
+           if (r.pending_quantity > 0 || (r.pending_quantity === null && r.required_quantity > 0)) {
+             readyToDispatchCount++;
+             urgentReqs.push(r);
+           }
+        });
       }
-      
-      const finalOpps = (oppData || [])
-         .filter(o => !engagedPartyIds.has(o.party_id))
-         .map(o => ({
-             ...o,
-             id: `opp-${o.party_id}-${o.opportunity_type}`,
-             crm_parties: oppPartiesMap[o.party_id] || { id: o.party_id, display_name: o.display_name },
-             reason: o.opportunity_type,
-             evidence: o.evidence,
-             recommended_action: o.recommended_action
-         }));
+      urgentReqs.sort((a, b) => {
+        if (!a.expected_date) return 1;
+        if (!b.expected_date) return -1;
+        return a.expected_date.localeCompare(b.expected_date);
+      });
+      const topUrgentReqs = urgentReqs.slice(0, 3);
 
-      // 6. Lower Section Data (Unassigned)
+      const overduePaymentTasks = paymentTasks.filter(t => t.follow_up_date < todayStr);
+      const openServiceIssuesCount = issues.length;
+
+      // 5. Collections
+      const dueTodayPaymentTasks = paymentTasks.filter(t => t.follow_up_date === todayStr);
+      const overduePaymentAmount = overduePaymentTasks.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      const dueTodayPaymentAmount = dueTodayPaymentTasks.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+      const topActionablePayments = [...overduePaymentTasks, ...dueTodayPaymentTasks].sort((a, b) => {
+         const pA = a.follow_up_date < todayStr ? 1 : 0;
+         const pB = b.follow_up_date < todayStr ? 1 : 0;
+         if (pA !== pB) return pB - pA;
+         return Number(b.amount || 0) - Number(a.amount || 0);
+      }).slice(0, 3);
+
+      // 6. Issues
+      const criticalIssuesCount = issues.filter(i => i.priority === 'Critical' || i.priority === 'High').length;
+      const topIssues = issues.sort((a, b) => {
+         const pA = (a.priority === 'Critical' || a.priority === 'High') ? 1 : 0;
+         const pB = (b.priority === 'Critical' || b.priority === 'High') ? 1 : 0;
+         if (pA !== pB) return pB - pA;
+         return a.created_at.localeCompare(b.created_at);
+      }).slice(0, 3);
+
+      // 7. Operations & At a Glance
+      const { count: openReqsCount } = await supabase.from('v_open_requirements').select('*', { count: 'exact', head: true });
+      const { count: pendingQuotesCount } = await supabase.from('v_open_requirements').select('*', { count: 'exact', head: true }).eq('status', 'Quotation Required');
+      const { count: growthOppsCount } = await supabase.from('v_customer_opportunities').select('*', { count: 'exact', head: true });
+      const { count: dormantCount } = await supabase.from('v_customer_attention').select('*', { count: 'exact', head: true }).eq('attention_reason', 'Dormant Candidate');
+      
       let unassignedCount = 0;
       if (isAdmin) {
-         const { count: unCount } = await supabase.from('crm_parties').select('*', { count: 'exact', head: true }).is('assigned_owner_id', null);
-         unassignedCount = unCount || 0;
+         const { count: uCount } = await supabase.from('crm_parties').select('*', { count: 'exact', head: true }).is('assigned_owner_id', null);
+         unassignedCount = uCount || 0;
       }
 
-      // 7. Fetch Open Issues
-      let issuesQuery = supabase.from('crm_issues')
-         .select(`*, crm_parties(display_name, mobile, whatsapp)`)
-         .not('status', 'in', '("Resolved","Closed")')
-         .order('created_at', { ascending: false });
-      
-      if (!isAdmin) {
-         issuesQuery = issuesQuery.eq('assigned_owner_id', ownerId);
-      }
-      const { data: issuesData } = await issuesQuery;
-
-      // 8. Fetch Due Account Reviews
-      let reviewsQuery = supabase.from('crm_parties')
-         .select(`id, display_name, crm_status, next_review_date`)
-         .lte('next_review_date', isoToday)
-         .order('next_review_date', { ascending: true });
-
-      if (!isAdmin) {
-         reviewsQuery = reviewsQuery.eq('assigned_owner_id', ownerId);
-      }
-      const { data: reviewsData } = await reviewsQuery;
+      // 8. Recent Activity
+      const { data: recentActivityData } = await supabase.from('interactions')
+        .select(`*, crm_parties(display_name)`)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
       setData({
-        followUps: {
-          overdue: overdueFu,
-          today: todayFu,
-          highPriority: highPriFu
-        },
-        paymentTasks: {
-          overdue: overduePayment,
-          today: todayPayment
-        },
-        dealerTasks: {
-          overdue: overdueDealer,
-          today: todayDealer
-        },
         kpis: {
-          overdue: overdueFu.length,
-          today: todayFu.length,
-          pendingQuotes,
-          newCustomersToday: newCustCount || 0,
-          dormant: risks.dormant.length
+          overdueActions,
+          dueTodayActions,
+          readyToDispatchCount,
+          overduePaymentCount: overduePaymentTasks.length,
+          openServiceIssuesCount
         },
-        risks,
-        recentActivity: activityData || [],
-        pipeline: {
-          openReqs: openReqsData?.length || 0
+        myPriorities: myPrioritiesLimited,
+        operations: {
+          openReqs: openReqsCount || 0,
+          pendingDispatches: readyToDispatchCount,
+          pendingQuotes: pendingQuotesCount || 0,
+          topReqs: topUrgentReqs
         },
-        unassigned: unassignedCount,
-        opportunities: finalOpps,
-        openIssues: issuesData || [],
-        dueReviews: reviewsData || []
+        collections: {
+          overdueCount: overduePaymentTasks.length,
+          overdueAmount: overduePaymentAmount,
+          todayCount: dueTodayPaymentTasks.length,
+          todayAmount: dueTodayPaymentAmount,
+          topPayments: topActionablePayments
+        },
+        issues: {
+          openCount: openServiceIssuesCount,
+          criticalCount: criticalIssuesCount,
+          topIssues
+        },
+        atAGlance: {
+          growthOpps: growthOppsCount || 0,
+          dormant: dormantCount || 0,
+          unassigned: unassignedCount,
+          openReqs: openReqsCount || 0
+        },
+        recentActivity: recentActivityData || []
       });
 
-    } catch(err) {
+    } catch (err) {
       console.error(err);
       setError("Unable to load operations data.");
     } finally {
@@ -281,474 +234,313 @@ export default function Today() {
     }
   }
 
-  // Helper Components
-  const KpiCard = ({ title, value, icon: Icon, colorClass, link }) => (
-    <Link to={link || '#'} style={{ display: 'flex', flexDirection: 'column', padding: '1.25rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', textDecoration: 'none', color: 'inherit', minWidth: '160px', flex: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }} className="kpi-card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{title}</span>
-        <Icon size={16} className={`text-${colorClass}`} />
-      </div>
-      <div style={{ fontSize: '1.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>{value}</div>
-    </Link>
-  );
+  const KpiCard = ({ title, value, colorClass, link }) => {
+    const isZeroClear = value === 0 && ['Overdue Actions', 'Overdue Payments', 'Open Service Issues'].includes(title);
+    const displayValue = isZeroClear ? 'All clear' : value;
+    
+    return (
+      <Link to={link || '#'} style={{ display: 'flex', flexDirection: 'column', padding: '1.25rem', background: 'var(--bg-surface)', border: `1px solid ${value === 0 ? 'var(--border)' : `var(--${colorClass})`}`, borderRadius: 'var(--radius-md)', textDecoration: 'none', color: 'inherit', minWidth: '160px', flex: 1, boxShadow: '0 1px 3px rgba(0,0,0,0.02)', textAlign: 'center', transition: 'border-color 0.2s' }}>
+        <div style={{ fontSize: isZeroClear ? '1.2rem' : '2rem', fontWeight: 600, color: value === 0 ? 'var(--text-muted)' : `var(--${colorClass})`, marginBottom: '0.25rem', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {displayValue}
+        </div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{title}</div>
+      </Link>
+    );
+  };
 
-  const TaskRow = ({ item, isOverdue }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-base)', borderRadius: '4px', marginBottom: '0.5rem' }}>
-      <div style={{ flex: '1 1 0', minWidth: 0, paddingRight: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-          <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {item.crm_parties?.display_name || 'Unknown Party'}
-          </strong>
-          {isOverdue && <span style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: 'none', padding: '0.1rem 0.4rem', fontSize: '0.7rem', borderRadius: '12px', fontWeight: 600 }}>Overdue</span>}
-          {!isOverdue && item.priority === 'High' && <span style={{ background: 'var(--warning-light)', color: 'var(--warning)', border: 'none', padding: '0.1rem 0.4rem', fontSize: '0.7rem', borderRadius: '12px', fontWeight: 600 }}>High Priority</span>}
-          {!isOverdue && item.priority !== 'High' && <span style={{ background: 'var(--primary-light)', color: 'var(--primary)', border: 'none', padding: '0.1rem 0.4rem', fontSize: '0.7rem', borderRadius: '12px', fontWeight: 600 }}>Due Today</span>}
-        </div>
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          {item.reason}
-          <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>• Type: {item.follow_up_type || 'General'}</span>
-          <span style={{ marginLeft: '0.5rem', color: item.assigned_to ? 'var(--text-muted)' : 'var(--danger)' }}>
-            • Owner: {item.owner?.display_name || 'Unassigned'}
-          </span>
-        </div>
-        {item.tally_evidence && item.follow_up_type === 'Commercial' && (
-          <div style={{ fontSize: '0.8rem', color: 'var(--success)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-             <CheckCircle2 size={12} /> Tally Confirmed: {item.tally_evidence.voucher_type} #{item.tally_evidence.voucher_number} on {item.tally_evidence.date}
-          </div>
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        {!item.assigned_to && userProfile?.role === 'Admin' ? (
-           <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Assign</Link>
-        ) : (
-           <>
-             {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
-             {item.crm_parties?.mobile && (
-                <CallAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={true} />
-             )}
-             <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-               Open Profile
-             </Link>
-           </>
-        )}
-        <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-          Open Task
-        </Link>
-      </div>
-    </div>
-  );
-
-  const PaymentTaskRow = ({ item, isOverdue }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-base)', borderRadius: '4px', marginBottom: '0.5rem' }}>
-      <div style={{ flex: '1 1 0', minWidth: 0, paddingRight: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-          <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {item.crm_parties?.display_name || 'Unknown Party'}
-          </strong>
-          {isOverdue ? (
-            <span style={{ background: 'var(--danger-light)', color: 'var(--danger)', border: 'none', padding: '0.1rem 0.4rem', fontSize: '0.7rem', borderRadius: '12px', fontWeight: 600 }}>Overdue</span>
-          ) : (
-            <span style={{ background: 'var(--warning-light)', color: 'var(--warning)', border: 'none', padding: '0.1rem 0.4rem', fontSize: '0.7rem', borderRadius: '12px', fontWeight: 600 }}>Due Today</span>
-          )}
-        </div>
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          {item.reason} 
-          <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>• Due: {new Date(item.follow_up_date).toLocaleDateString()}</span>
-        </div>
-      </div>
-      
-      <div style={{ padding: '0 1.5rem', textAlign: 'right', minWidth: '120px' }}>
-         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Outstanding</div>
-         <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--danger)' }}>
-            ₹{item.outstanding_balance ? Number(item.outstanding_balance).toLocaleString('en-IN') : '0'}
-         </div>
-         <div style={{ fontSize: '0.75rem', color: item.assigned_to ? 'var(--text-muted)' : 'var(--danger)', marginTop: '0.25rem' }}>
-            Owner: {item.owner?.display_name || 'Unassigned'}
-         </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        {!item.assigned_to && userProfile?.role === 'Admin' ? (
-           <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Assign</Link>
-        ) : (
-           <>
-             {item.crm_parties && <CallAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />}
-             {item.crm_parties && <WhatsAppAction party={item.crm_parties} followUpId={item.id} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
-           </>
-        )}
-        <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-          Open Profile
-        </Link>
-        <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-          Open Task
-        </Link>
-      </div>
-    </div>
-  );
-
-  const OpportunityRow = ({ item }) => (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-base)', borderRadius: '4px', marginBottom: '0.5rem', borderLeft: '3px solid var(--primary)' }}>
-      <div style={{ flex: '1 1 0', minWidth: 0, paddingRight: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-          <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {item.crm_parties?.display_name || 'Unknown Party'}
-          </strong>
-          <span style={{ background: 'var(--primary-light)', color: 'var(--primary)', border: 'none', padding: '0.1rem 0.4rem', fontSize: '0.7rem', borderRadius: '12px', fontWeight: 600 }}>Opportunity</span>
-        </div>
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          <strong style={{color: 'var(--text-primary)'}}>{item.reason}</strong>
-          <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>• {item.evidence}</span>
-        </div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-          Action: {item.recommended_action}
-        </div>
-        <div style={{ fontSize: '0.8rem', color: item.crm_parties?.assigned_owner_id ? 'var(--text-muted)' : 'var(--danger)', marginTop: '0.2rem' }}>
-          Owner: {item.crm_parties?.owner?.display_name || 'Unassigned - Must assign to act'}
-        </div>
-      </div>
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-        {!item.crm_parties?.assigned_owner_id ? (
-          <Link to={`/customers/${item.crm_parties?.id}/edit`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-            Assign Owner
-          </Link>
-        ) : (
-          <>
-            {item.crm_parties?.mobile && <CallAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />}
-            {item.crm_parties?.whatsapp && <WhatsAppAction party={item.crm_parties} onComplete={fetchDashboardData} btnClass="btn btn-secondary" />}
-            <ScheduleAction party={item.crm_parties} opportunityType={item.reason} evidence={item.evidence} onComplete={fetchDashboardData} btnClass="btn btn-secondary" showLabel={false} />
-            <Link to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.crm_parties?.id}` : `/customers/${item.crm_parties?.id}`} className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>
-              Action
-            </Link>
-          </>
-        )}
-      </div>
-    </div>
-  );
-
-  const RiskGroup = ({ title, count, link, icon: Icon }) => (
-    <Link to={link || '#'} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid var(--border)', textDecoration: 'none', color: 'inherit' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <div style={{ background: 'var(--bg-surface)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
-          <Icon size={16} className="text-secondary" />
-        </div>
-        <span style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)' }}>{title}</span>
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <span style={{ fontSize: '0.9rem', fontWeight: 600, color: count > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>{count}</span>
-        <ChevronRight size={16} className="text-muted" />
-      </div>
-    </Link>
-  );
-
-  if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Workspace...</div>;
+  if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Command Center...</div>;
   if (error) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{error}</div>;
-
-  const priorityTasks = [...data.followUps.overdue, ...data.followUps.today].slice(0, 7);
-  const paymentTasksList = [...data.paymentTasks.overdue, ...data.paymentTasks.today].slice(0, 7);
-  const dealerTasksList = [...data.dealerTasks.overdue, ...data.dealerTasks.today].slice(0, 7);
-  const totalActionable = data.followUps.overdue.length + data.followUps.today.length + data.paymentTasks.overdue.length + data.paymentTasks.today.length + data.dealerTasks.overdue.length + data.dealerTasks.today.length;
-  const totalOverdue = data.kpis.overdue + data.paymentTasks.overdue.length + data.dealerTasks.overdue.length;
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
       
-      {/* 1. Top Header Area */}
-      <div className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      {/* HEADER */}
+      <div className="page-header" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Communication Queue</h1>
-          <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
-            {totalActionable > 0 || data.opportunities.length > 0
-              ? `${totalActionable} tasks and ${data.opportunities.length} opportunities waiting for engagement.` 
-              : `You are all caught up for today.`}
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {userProfile?.display_name || 'User'}
+          </h1>
+          <p className="text-secondary" style={{ fontSize: '0.9rem', marginTop: '0.25rem' }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} &bull; {userProfile?.role || 'Operator'}
           </p>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '1.1rem', fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.1rem' }}>
-            Good afternoon, {userProfile?.display_name || 'User'}
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, maxWidth: '500px', justifyContent: 'flex-end' }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: '300px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+            <input type="text" placeholder="Search customers, requirements, dispatches, payments..." style={{ width: '100%', padding: '0.5rem 1rem 0.5rem 2.25rem', borderRadius: '20px', border: '1px solid var(--border)', background: 'var(--bg-base)', fontSize: '0.85rem' }} disabled title="Search placeholder" />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            <span className="badge" style={{ background: 'var(--primary-light)', color: 'var(--primary)', border: 'none' }}>{userProfile?.role || 'Operator'}</span>
-            <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+          <button className="btn-icon" style={{ position: 'relative' }}>
+            <Bell size={20} />
+          </button>
+          
+          <div style={{ position: 'relative' }} ref={newMenuRef}>
+             <button className="btn btn-primary" onClick={() => setNewMenuOpen(!newMenuOpen)}>
+                <Plus size={16} style={{ marginRight: '4px' }} /> New
+             </button>
+             {newMenuOpen && (
+               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '0.5rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)', zIndex: 100, minWidth: '200px', padding: '0.5rem 0' }}>
+                 <Link to="/customers/new" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Add Customer</Link>
+                 <Link to="/requirements/new" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Add Requirement</Link>
+                 <Link to="/follow-ups/new" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Log Follow-up</Link>
+                 <Link to="/requirements" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Create Dispatch</Link>
+                 <Link to="/payments" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Record Payment</Link>
+                 <Link to="/requirements/new" className="dropdown-item" onClick={() => setNewMenuOpen(false)}>Create Quotation</Link>
+               </div>
+             )}
           </div>
         </div>
       </div>
 
-      <AlertsPanel />
-      <CommunicationDraftsPanel />
-
-      {/* 2. KPI Summary Row */}
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
-        <KpiCard title="Overdue Actions" value={data.kpis.overdue} icon={AlertCircle} colorClass="danger" link="/follow-ups" />
-        <KpiCard title="Due Today" value={data.kpis.today} icon={Calendar} colorClass="warning" link="/follow-ups" />
-        <KpiCard title="Pending Quotes" value={data.kpis.pendingQuotes} icon={FileText} colorClass="primary" link="/requirements" />
-        <KpiCard title="New Customers" value={data.kpis.newCustomersToday} icon={Users} colorClass="success" link="/customers" />
-        <KpiCard title="Dormant Accounts" value={data.kpis.dormant} icon={Clock} colorClass="muted" link="/customers" />
+      {/* SECTION 1: TODAY'S PRIORITIES */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+        <KpiCard title="Overdue Actions" value={data.kpis.overdueActions} colorClass="danger" link="/follow-ups?status=Pending&dateRange=Overdue" />
+        <KpiCard title="Due Today" value={data.kpis.dueTodayActions} colorClass="warning" link="/follow-ups?status=Pending&dateRange=Today" />
+        <KpiCard title="Ready to Dispatch" value={data.kpis.readyToDispatchCount} colorClass="primary" link="/requirements" />
+        <KpiCard title="Overdue Payments" value={data.kpis.overduePaymentCount} colorClass="danger" link="/payments" />
+        <KpiCard title="Open Service Issues" value={data.kpis.openServiceIssuesCount} colorClass="warning" link="/customers" />
       </div>
 
-      {/* 3. Main Work Area & 4. Right Panel */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem', marginBottom: '2rem', alignItems: 'start' }}>
-        
-        {/* Left Column: Priority Queue & Payment Queue */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          
-          {/* Payment Queue */}
-          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                <AlertCircle size={18} className="text-danger" /> Payment Queue
-              </h2>
-              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
-                <span className="text-danger"><strong>{data.paymentTasks.overdue.length}</strong> Overdue</span>
-                <span className="text-warning"><strong>{data.paymentTasks.today.length}</strong> Due Today</span>
-              </div>
+      {/* SECTION 2: MY PRIORITIES */}
+      <div className="glass-panel" style={{ marginBottom: '2rem', padding: '1.5rem', background: 'var(--bg-surface)' }}>
+         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>My Priorities</h2>
+            <Link to="/follow-ups" className="text-primary" style={{ fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>View All <ArrowRight size={14} style={{ verticalAlign: 'middle' }} /></Link>
+         </div>
+         {data.myPriorities.length === 0 ? (
+            <div style={{ padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
+              <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+              <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>You are all caught up. No immediate actions assigned to you.</div>
             </div>
-            
-            {paymentTasksList.length === 0 ? (
-              <div style={{ padding: '2rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
-                <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>No payments due</div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {paymentTasksList.map(fu => <PaymentTaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
-              </div>
-            )}
-          </div>
-
-          {/* Dealer Activities Queue */}
-          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                <MapPin size={18} className="text-warning" /> Dealer Activities
-              </h2>
-              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
-                <span className="text-danger"><strong>{data.dealerTasks.overdue.length}</strong> Overdue</span>
-                <span className="text-warning"><strong>{data.dealerTasks.today.length}</strong> Due Today</span>
-              </div>
+         ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+               {data.myPriorities.map((item, idx) => (
+                  <div key={`${item._type}-${item.id}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: idx === data.myPriorities.length - 1 ? 'none' : '1px solid var(--border)', background: 'var(--bg-base)', borderRadius: '4px', marginBottom: '0.5rem' }}>
+                     <div style={{ flex: '1 1 0', minWidth: 0, paddingRight: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                           <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {item.crm_parties?.display_name || 'Unknown'}
+                           </strong>
+                           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>&bull; {item._label}</span>
+                           {item._isOverdue && <span className="badge badge-danger" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem' }}>Overdue</span>}
+                           {!item._isOverdue && item._isToday && <span className="badge badge-warning" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem' }}>Today</span>}
+                           {!item._isOverdue && !item._isToday && (item.priority === 'High' || item.priority === 'Critical') && <span className="badge badge-warning" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem' }}>High</span>}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                           {item._type === 'issue' ? item.description : item.reason}
+                           {item._type === 'payment' && item.amount > 0 && <span style={{ marginLeft: '0.5rem', color: 'var(--danger)', fontWeight: 500 }}>&bull; ₹{Number(item.amount).toLocaleString('en-IN')}</span>}
+                           <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>&bull; {item._type === 'issue' ? 'Opened' : 'Due'}: {new Date(item._date).toLocaleDateString()}</span>
+                        </div>
+                     </div>
+                     <div>
+                        {item._type === 'follow_up' && (
+                           <Link to={`/follow-ups/${item.id}/edit`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Call & Log</Link>
+                        )}
+                        {item._type === 'payment' && (
+                           <Link to={`/payments`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Record Payment</Link>
+                        )}
+                        {item._type === 'issue' && (
+                           <Link to={`/customers/${item.party_id}`} className="btn btn-secondary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }}>Resolve</Link>
+                        )}
+                     </div>
+                  </div>
+               ))}
             </div>
-            
-            {dealerTasksList.length === 0 ? (
-              <div style={{ padding: '2rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
-                <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>No dealer visits or contacts pending</div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {dealerTasksList.map(fu => <TaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
-              </div>
-            )}
-          </div>
+         )}
+      </div>
 
-          {/* Priority Queue (General & Sales) */}
-          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                <Target size={18} className="text-primary" /> Follow-ups Queue
-              </h2>
-              <Link to="/follow-ups" className="text-primary" style={{ fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>View All</Link>
+      {/* SECTION 3: OPERATIONS */}
+      <div style={{ marginBottom: '2rem' }}>
+         <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Operations</h2>
+         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+            <div className="glass-panel" style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Open Requirements</span>
+               <span style={{ fontSize: '1.25rem', fontWeight: 600 }}>{data.operations.openReqs}</span>
             </div>
-            
-            {priorityTasks.length === 0 ? (
-              <div style={{ padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
-                <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>Inbox Zero</div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No immediate actions pending in your queue.</div>
-              </div>
+            <div className="glass-panel" style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Pending Dispatches</span>
+               <span style={{ fontSize: '1.25rem', fontWeight: 600, color: data.operations.pendingDispatches > 0 ? 'var(--primary)' : 'inherit' }}>{data.operations.pendingDispatches}</span>
+            </div>
+            <div className="glass-panel" style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Pending Quotes</span>
+               <span style={{ fontSize: '1.25rem', fontWeight: 600, color: data.operations.pendingQuotes > 0 ? 'var(--warning)' : 'inherit' }}>{data.operations.pendingQuotes}</span>
+            </div>
+         </div>
+         <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+            {data.operations.topReqs.length === 0 ? (
+               <div className="text-secondary" style={{ fontSize: '0.85rem' }}>No urgent operational tasks.</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {priorityTasks.map(fu => <TaskRow key={fu.id} item={fu} isOverdue={fu.follow_up_date < new Date().toISOString().split('T')[0]} />)}
-              </div>
+               <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+                     <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                           <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>Customer</th>
+                           <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>Product & Qty</th>
+                           <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>Required Date</th>
+                           <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>Owner</th>
+                           <th style={{ padding: '0.75rem 0.5rem', fontWeight: 500, textAlign: 'right' }}>Action</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        {data.operations.topReqs.map(req => (
+                           <tr key={req.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>{req.customer_name}</td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>{req.required_quantity} {req.unit} {req.product_type}</td>
+                              <td style={{ padding: '0.75rem 0.5rem', color: (req.expected_date && req.expected_date < todayStr) ? 'var(--danger)' : 'inherit' }}>{req.expected_date ? new Date(req.expected_date).toLocaleDateString() : '-'}</td>
+                              <td style={{ padding: '0.75rem 0.5rem' }}>{req.owner_email?.split('@')[0] || 'Unassigned'}</td>
+                              <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
+                                 <button className="btn btn-primary" style={{ padding: '0.4rem 0.75rem', fontSize: '0.8rem' }} onClick={() => setDispatchModalReq(req)}>
+                                    Mark Dispatched
+                                 </button>
+                              </td>
+                           </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
             )}
+            <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
+               <Link to="/requirements" className="text-primary" style={{ fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none' }}>View Requirements <ArrowRight size={14} style={{ verticalAlign: 'middle' }} /></Link>
+               <Link to="/dispatches" className="text-primary" style={{ fontSize: '0.85rem', fontWeight: 500, textDecoration: 'none' }}>View Dispatches <ArrowRight size={14} style={{ verticalAlign: 'middle' }} /></Link>
+            </div>
+         </div>
+      </div>
 
-            {/* Unresolved Issues */}
-            {data.openIssues.length > 0 && (
-              <div className="cv-panel animate-fade-in" style={{ borderTop: '4px solid var(--danger)' }}>
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,0,0,0.02)' }}>
-                  <AlertTriangle size={18} className="text-danger" />
-                  <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--danger)' }}>Unresolved Service Issues ({data.openIssues.length})</h3>
-                </div>
-                <div style={{ padding: '0' }}>
-                  {data.openIssues.map((issue, idx) => (
-                    <div key={issue.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '1.25rem 1.5rem', borderBottom: idx === data.openIssues.length - 1 ? 'none' : '1px solid var(--border)', transition: 'background-color 0.2s' }} className="hover-bg-surface">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                           <Link to={`/customers/${issue.party_id}`} style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                             {issue.crm_parties?.display_name} <ChevronRight size={14} className="text-muted" />
-                           </Link>
-                           <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                             {issue.category} &bull; Priority: <span className={issue.priority === 'Critical' || issue.priority === 'High' ? 'text-danger' : 'text-primary'}>{issue.priority}</span>
+      {/* SECTION 4: COLLECTIONS & ISSUES */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
+         {/* Collections Column */}
+         <div>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Collections</h2>
+            <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ flex: 1 }}>
+                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Overdue</div>
+                     <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--danger)' }}>{data.collections.overdueCount} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>/ ₹{Number(data.collections.overdueAmount).toLocaleString('en-IN')}</span></div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Due Today</div>
+                     <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--warning)' }}>{data.collections.todayCount} <span style={{ fontSize: '0.85rem', fontWeight: 400 }}>/ ₹{Number(data.collections.todayAmount).toLocaleString('en-IN')}</span></div>
+                  </div>
+               </div>
+               
+               {data.collections.topPayments.length === 0 ? (
+                  <div className="text-secondary" style={{ fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>No pending collections.</div>
+               ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                     {data.collections.topPayments.map(p => (
+                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--bg-base)', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                           <div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)' }}>{p.crm_parties?.display_name || 'Unknown'}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Due: {new Date(p.follow_up_date).toLocaleDateString()} &bull; Owner: {p.owner?.display_name || 'Unassigned'}</div>
+                           </div>
+                           <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--danger)', marginBottom: '0.25rem' }}>₹{Number(p.amount).toLocaleString('en-IN')}</div>
+                              <Link to={`/payments`} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.7rem' }}>Record</Link>
                            </div>
                         </div>
-                        <span className={`badge badge-neutral`}>{issue.status}</span>
-                      </div>
-                      <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', marginTop: '0.25rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                         "{issue.description}"
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                         {issue.crm_parties?.whatsapp && (
-                           <WhatsAppAction party={{ whatsapp: issue.crm_parties.whatsapp, display_name: issue.crm_parties.display_name }} onComplete={fetchDashboardData} btnClass="badge badge-active" />
-                         )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Account Reviews Due */}
-            {data.dueReviews.length > 0 && (
-              <div className="cv-panel animate-fade-in" style={{ borderTop: '4px solid var(--primary)' }}>
-                <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(0,102,255,0.02)' }}>
-                  <Calendar size={18} className="text-primary" />
-                  <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--text-primary)' }}>Account Reviews Due ({data.dueReviews.length})</h3>
-                </div>
-                <div style={{ padding: '0' }}>
-                  {data.dueReviews.map((review, idx) => (
-                    <div key={review.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', borderBottom: idx === data.dueReviews.length - 1 ? 'none' : '1px solid var(--border)', transition: 'background-color 0.2s' }} className="hover-bg-surface">
-                      <div>
-                         <Link to={`/customers/${review.id}`} style={{ fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                           {review.display_name} <ChevronRight size={14} className="text-muted" />
-                         </Link>
-                         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                           Scheduled for: <span className="text-danger">{new Date(review.next_review_date).toLocaleDateString()}</span>
-                         </div>
-                      </div>
-                      <span className="badge badge-neutral">{review.crm_status}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-          </div>
-          
-          {/* Opportunities Queue */}
-          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                <Activity size={18} className="text-primary" /> Opportunity Queue
-              </h2>
-              <Link to="/opportunities" className="text-primary" style={{ fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500 }}>View All</Link>
+                     ))}
+                  </div>
+               )}
             </div>
-            
-            {data.opportunities.length === 0 ? (
-              <div style={{ padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
-                <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-                <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>No Unengaged Opportunities</div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {data.opportunities.map(opp => <OpportunityRow key={opp.id} item={opp} />)}
-              </div>
-            )}
-          </div>
-          
-        </div>
+         </div>
 
-        {/* Right Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          {/* Quick Actions Panel */}
-          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-             <h2 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '1rem', marginTop: 0 }}>Quick Actions</h2>
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-               <Link to="/customers/new" className="btn btn-secondary" style={{ justifyContent: 'flex-start', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
-                 <UserPlus size={16} /> Add Customer
-               </Link>
-               <Link to="/customers" className="btn btn-secondary" style={{ justifyContent: 'flex-start', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
-                 <ClipboardList size={16} /> Log Follow-up
-               </Link>
-               <Link to="/requirements" className="btn btn-secondary" style={{ justifyContent: 'flex-start', border: '1px solid var(--border)', background: 'var(--bg-base)' }}>
-                 <FileEdit size={16} /> Create Quotation
-               </Link>
-             </div>
-          </div>
-
-          {/* Risk and Exception Section */}
-          <div className="glass-panel" style={{ padding: '0', background: 'var(--bg-surface)', overflow: 'hidden' }}>
-            <div style={{ padding: '1.25rem 1.25rem 0.5rem 1.25rem' }}>
-              <h2 style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: 0 }}>At Risk</h2>
+         {/* Issues Column */}
+         <div>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Service Issues</h2>
+            <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div style={{ flex: 1 }}>
+                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Open Issues</div>
+                     <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{data.issues.openCount}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                     <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Critical Priority</div>
+                     <div style={{ fontSize: '1.1rem', fontWeight: 600, color: data.issues.criticalCount > 0 ? 'var(--danger)' : 'inherit' }}>{data.issues.criticalCount}</div>
+                  </div>
+               </div>
+               
+               {data.issues.topIssues.length === 0 ? (
+                  <div className="text-secondary" style={{ fontSize: '0.85rem', textAlign: 'center', padding: '1rem 0' }}>No open service issues.</div>
+               ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                     {data.issues.topIssues.map(issue => (
+                        <div key={issue.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--bg-base)', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                           <div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 500, color: 'var(--text-primary)' }}>{issue.crm_parties?.display_name || 'Unknown'}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{issue.category} &bull; Owner: {issue.owner?.display_name || 'Unassigned'}</div>
+                           </div>
+                           <div style={{ textAlign: 'right' }}>
+                              <span className={`badge ${(issue.priority === 'Critical' || issue.priority === 'High') ? 'badge-danger' : 'badge-neutral'}`} style={{ fontSize: '0.7rem', padding: '0.1rem 0.3rem', marginBottom: '0.25rem', display: 'inline-block' }}>{issue.priority}</span>
+                              <Link to={`/customers/${issue.party_id}`} className="btn btn-secondary" style={{ display: 'block', padding: '0.2rem 0.5rem', fontSize: '0.7rem' }}>Resolve</Link>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+               )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <RiskGroup title="No contact in 7+ days" count={data.risks.noContact.length} icon={Phone} link="/customers" />
-              <RiskGroup title="Quotation pending" count={data.risks.pendingQuote.length} icon={FileText} link="/requirements" />
-              <RiskGroup title="Requirement stalled" count={data.risks.stalledReq.length} icon={AlertTriangle} link="/requirements" />
-              <RiskGroup title="Dormant customers" count={data.risks.dormant.length} icon={Clock} link="/reactivation-queue" />
-            </div>
-          </div>
-
-        </div>
+         </div>
       </div>
 
-      {/* 5. Recent Changes & 6. Lower Support */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-        
-        {/* Recent Activity Timeline */}
-        <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', marginTop: 0 }}>
-            <Activity size={18} className="text-secondary" /> Recent Activity
-          </h2>
-          {data.recentActivity.length === 0 ? (
-            <div className="text-secondary" style={{ fontSize: '0.85rem' }}>No recent activity found.</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {data.recentActivity.map(act => (
-                <div key={act.id} style={{ display: 'flex', gap: '1rem' }}>
-                  <div style={{ width: '2px', background: 'var(--border)', margin: '4px 0 4px 6px', position: 'relative' }}>
-                     <div style={{ position: 'absolute', top: 0, left: '-4px', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--primary)' }}></div>
-                  </div>
-                  <div style={{ flex: 1, paddingBottom: '0.5rem' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-                      {act.crm_parties?.display_name || 'System'}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      Logged a {act.interaction_type || 'interaction'} ({act.outcome || 'No outcome'})
-                    </div>
-                    {act.note && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem', fontStyle: 'italic', background: 'var(--bg-base)', padding: '0.4rem', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>
-                        "{act.note}"
-                      </div>
-                    )}
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                      {new Date(act.created_at).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Lower Supporting Section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          
-          <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', marginTop: 0 }}>
-              <BarChart3 size={18} className="text-secondary" /> Pipeline Summary
-            </h2>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'var(--bg-base)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-              <div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Open Requirements</div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)' }}>{data.pipeline.openReqs}</div>
-              </div>
-              <Link to="/requirements" className="btn btn-secondary" style={{ fontSize: '0.8rem' }}>View Pipeline</Link>
-            </div>
-          </div>
-
-          {userProfile?.role === 'Admin' && data.unassigned > 0 && (
-            <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--danger-light)', border: '1px solid var(--danger)' }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', marginTop: 0 }}>
-                <AlertTriangle size={18} /> Admin Alerts
-              </h2>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.9rem', color: 'var(--danger)' }}>{data.unassigned} Customers are unassigned</span>
-                <Link to="/customers" className="btn btn-secondary" style={{ fontSize: '0.8rem', background: 'white', color: 'var(--danger)', border: '1px solid var(--danger)' }}>Assign Now</Link>
-              </div>
-            </div>
-          )}
-
-        </div>
-
+      {/* SECTION 5: QUICK ACTIONS */}
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Quick Actions</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+         <Link to="/customers/new" className="btn btn-secondary" style={{ justifyContent: 'center', background: 'var(--bg-surface)', height: '3rem', border: '1px solid var(--border)' }}><UserPlus size={16} /> Add Customer</Link>
+         <Link to="/requirements/new" className="btn btn-secondary" style={{ justifyContent: 'center', background: 'var(--bg-surface)', height: '3rem', border: '1px solid var(--border)' }}><FileEdit size={16} /> Add Requirement</Link>
+         <Link to="/follow-ups/new" className="btn btn-secondary" style={{ justifyContent: 'center', background: 'var(--bg-surface)', height: '3rem', border: '1px solid var(--border)' }}><ClipboardList size={16} /> Log Follow-up</Link>
+         <Link to="/requirements" className="btn btn-secondary" style={{ justifyContent: 'center', background: 'var(--bg-surface)', height: '3rem', border: '1px solid var(--border)' }}><Truck size={16} /> Create Dispatch</Link>
+         <Link to="/payments" className="btn btn-secondary" style={{ justifyContent: 'center', background: 'var(--bg-surface)', height: '3rem', border: '1px solid var(--border)' }}><IndianRupee size={16} /> Record Payment</Link>
+         <Link to="/requirements/new" className="btn btn-secondary" style={{ justifyContent: 'center', background: 'var(--bg-surface)', height: '3rem', border: '1px solid var(--border)' }}><FileText size={16} /> Create Quotation</Link>
       </div>
+
+      {/* SECTION 6: AT A GLANCE */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '2rem', background: 'var(--bg-surface)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+         <Link to="/opportunities" style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Growth Opps</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--primary)' }}>{data.atAGlance.growthOpps}</div>
+         </Link>
+         <Link to="/dormant" style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center', borderLeft: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dormant Accounts</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>{data.atAGlance.dormant}</div>
+         </Link>
+         <Link to="/customers" style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center', borderLeft: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unassigned Urgent</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: data.atAGlance.unassigned > 0 ? 'var(--danger)' : 'var(--text-primary)' }}>{data.atAGlance.unassigned}</div>
+         </Link>
+         <Link to="/requirements" style={{ textDecoration: 'none', color: 'inherit', textAlign: 'center', borderLeft: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Open Requirements</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>{data.atAGlance.openReqs}</div>
+         </Link>
+      </div>
+
+      {/* RECENT ACTIVITY */}
+      {data.recentActivity.length > 0 && (
+         <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Recent Activity</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+               {data.recentActivity.map(act => (
+                  <div key={act.id} style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                     <div style={{ width: '2px', background: 'var(--border)', position: 'relative', margin: '4px 0' }}>
+                        <div style={{ position: 'absolute', top: 0, left: '-4px', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--text-muted)' }}></div>
+                     </div>
+                     <div style={{ paddingBottom: '0.25rem' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>{new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} &bull; </span>
+                        <strong style={{ color: 'var(--text-primary)' }}>{act.crm_parties?.display_name || 'System'}</strong> - 
+                        <span style={{ color: 'var(--text-secondary)' }}> {act.interaction_type || 'interaction'} ({act.outcome || 'No outcome'})</span>
+                     </div>
+                  </div>
+               ))}
+            </div>
+         </div>
+      )}
+
+      {/* DISPATCH MODAL */}
+      {dispatchModalReq && (
+         <CreateDispatchModal 
+           requirement={{ id: dispatchModalReq.id, quantity: dispatchModalReq.required_quantity, pending_quantity: dispatchModalReq.pending_quantity, unit: dispatchModalReq.unit, status: dispatchModalReq.status }}
+           onClose={() => setDispatchModalReq(null)}
+           onComplete={() => { setDispatchModalReq(null); fetchDashboardData(); }}
+         />
+      )}
 
     </div>
   );
