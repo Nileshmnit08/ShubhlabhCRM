@@ -44,7 +44,7 @@ SELECT
 
 FROM public.requirements r
 LEFT JOIN public.crm_parties p ON r.party_id = p.id
-LEFT JOIN auth.users u ON r.assigned_to = u.id
+LEFT JOIN public.app_users u ON r.assigned_to = u.id
 LEFT JOIN public.v_requirement_dispatch_summary s ON r.id = s.requirement_id;
 
 GRANT SELECT ON public.v_board_requirements TO authenticated;

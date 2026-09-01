@@ -152,12 +152,22 @@ export default function RequirementList() {
         if (dateRange === 'Overdue') query = query.lt(dateField, endStr);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      const { data, error, status, statusText } = await query;
+      if (error) {
+        console.error("Supabase Error Details:", {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          httpStatus: status,
+          statusText: statusText
+        });
+        throw error;
+      }
       setRequirements(data || []);
     } catch (err) {
-      console.error(err);
-      setError("Failed to load requirements. Please try again.");
+      console.error("fetchRequirements caught error:", err);
+      setError('Failed to load requirements. Please try again.');
     } finally {
       setLoading(false);
     }
