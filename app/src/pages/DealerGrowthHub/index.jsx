@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useContext, useMemo } from 'react';
-import { supabase } from '../../../lib/supabase';
-import { AuthContext } from '../../../AuthContext';
+import { supabase } from '../../lib/supabase';
+import { AuthContext } from '../../AuthContext';
 import { Link, Navigate } from 'react-router-dom';
 import { TrendingUp, RefreshCw, AlertCircle, Gift } from 'lucide-react';
 

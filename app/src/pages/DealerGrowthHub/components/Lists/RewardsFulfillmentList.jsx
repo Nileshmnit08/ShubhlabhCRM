@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Gift, Save, X } from 'lucide-react';
-import { supabase } from '../../../../../lib/supabase';
+import { supabase } from '../../../../lib/supabase';
 
 export default function RewardsFulfillmentList({ rewards, onBack, onRefresh }) {
   const [fulfillingId, setFulfillingId] = useState(null);

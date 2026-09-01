@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, CheckSquare } from 'lucide-react';
-import { supabase } from '../../../../../lib/supabase';
+import { supabase } from '../../../../lib/supabase';
 
 export default function EligibleRewardsList({ rewards, onBack, onRefresh }) {
   const [loadingId, setLoadingId] = useState(null);
