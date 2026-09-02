@@ -17,6 +17,7 @@ const Dashboard = () => {
   const [trendData, setTrendData] = useState([]);
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [materials, setMaterials] = useState([]);
+  const [timeRange, setTimeRange] = useState(30);
 
   useEffect(() => {
     fetchDashboardData();
@@ -38,7 +39,7 @@ const Dashboard = () => {
         setMaterials(mats);
         if (mats.length > 0 && !selectedMaterial) {
           setSelectedMaterial(mats[0].id);
-          fetchTrendData(mats[0].id);
+          fetchTrendData(mats[0].id, 30);
         }
       }
 
@@ -73,17 +74,17 @@ const Dashboard = () => {
     }
   };
 
-  const fetchTrendData = async (materialId) => {
+  const fetchTrendData = async (materialId, days = timeRange) => {
     if (!materialId) return;
     try {
-      const thirtyDaysAgo = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+      const startDate = format(subDays(new Date(), days), 'yyyy-MM-dd');
       
       const { data } = await supabase
         .from('raw_material_price_entries')
         .select('entry_date, price, brokers(broker_name)')
         .eq('raw_material_id', materialId)
         .eq('is_deleted', false)
-        .gte('entry_date', thirtyDaysAgo)
+        .gte('entry_date', startDate)
         .order('entry_date');
 
       // Group by date to average if multiple entries exist per day
@@ -110,7 +111,12 @@ const Dashboard = () => {
 
   const handleMaterialChange = (id) => {
     setSelectedMaterial(id);
-    fetchTrendData(id);
+    fetchTrendData(id, timeRange);
+  };
+
+  const handleTimeRangeChange = (days) => {
+    setTimeRange(days);
+    fetchTrendData(selectedMaterial, days);
   };
 
   return (
@@ -132,6 +138,8 @@ const Dashboard = () => {
             onMaterialChange={handleMaterialChange}
             trendData={trendData}
             loading={loading}
+            timeRange={timeRange}
+            onTimeRangeChange={handleTimeRangeChange}
           />
         </div>
       </div>
