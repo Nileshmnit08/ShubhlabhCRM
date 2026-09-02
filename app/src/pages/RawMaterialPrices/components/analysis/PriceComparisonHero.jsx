@@ -14,20 +14,20 @@ const PriceComparisonHero = ({
   const getTrendPill = () => {
     if (diff > 0) {
       return (
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap ${perc > 3 ? 'bg-emerald-50 text-emerald-700' : 'bg-emerald-50 text-emerald-700'}`}>
-          <TrendingUp size={16} /> {perc > 3 ? 'Sharp Increase' : 'Increase'} • +{perc.toFixed(2)}%
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap" style={{ background: 'var(--bg-base)', color: 'var(--success)' }}>
+          <TrendingUp size={16} /> {perc > 3 ? 'Sharp Increase' : 'Increase'} · +{perc.toFixed(2)}%
         </span>
       );
     } else if (diff < 0) {
       return (
-        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap ${perc < -3 ? 'bg-red-50 text-red-700' : 'bg-red-50 text-red-700'}`}>
-          <TrendingDown size={16} /> {perc < -3 ? 'Sharp Decrease' : 'Decrease'} • {perc.toFixed(2)}%
+        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap" style={{ background: 'var(--bg-base)', color: 'var(--danger)' }}>
+          <TrendingDown size={16} /> {perc < -3 ? 'Sharp Decrease' : 'Decrease'} · {perc.toFixed(2)}%
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold bg-slate-100 text-slate-600 whitespace-nowrap">
-        <Minus size={16} /> Stable • 0.00%
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[13px] font-semibold whitespace-nowrap" style={{ background: 'var(--bg-base)', color: 'var(--text-muted)' }}>
+        <Minus size={16} /> Stable · 0.00%
       </span>
     );
   };
@@ -39,23 +39,23 @@ const PriceComparisonHero = ({
   };
 
   return (
-    <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm p-6 sm:p-8 overflow-hidden">
+    <div className="rounded-[16px] shadow-sm p-6 sm:p-8 overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)' }}>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-slate-50 border border-[#E2E8F0] flex items-center justify-center text-[#64748B] shrink-0">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
             <PackageOpen size={24} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-[#0F172A] tracking-tight">
+            <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
               {materialNameEn} {materialNameHi && <span className="whitespace-nowrap">({materialNameHi})</span>}
             </h2>
           </div>
         </div>
         
         <div className="flex flex-col items-start md:items-end gap-3">
-          <div className="inline-flex items-center gap-2 bg-slate-50 border border-[#E2E8F0] px-4 py-1.5 rounded-full text-sm font-medium text-[#64748B] whitespace-nowrap">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap" style={{ background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
             <span>{baseDateStr}</span>
-            <ArrowRight size={14} className="text-slate-400 mx-1 shrink-0" />
+            <ArrowRight size={14} className="mx-1 shrink-0" style={{ color: 'var(--text-secondary)' }} />
             <span>{currDateStr}</span>
           </div>
           {currAvg > 0 && getTrendPill()}
@@ -63,27 +63,27 @@ const PriceComparisonHero = ({
       </div>
 
       {currAvg > 0 ? (
-        <div className="pt-6 border-t border-[#E2E8F0]">
-          <p className="text-sm font-semibold text-[#64748B] uppercase tracking-wider mb-2">Current average price</p>
+        <div className="pt-6" style={{ borderTop: '1px solid var(--border)' }}>
+          <p className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-secondary)' }}>Current average price</p>
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-3">
             <div className="flex items-baseline whitespace-nowrap">
-              <span className="text-4xl sm:text-5xl font-bold text-[#0F172A]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <span className="text-4xl sm:text-5xl font-bold" style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)' }}>
                 ₹{currAvg.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
-              <span className="text-lg text-[#64748B] font-medium ml-2">/ {unit.toLowerCase()}</span>
+              <span className="text-lg font-medium ml-2" style={{ color: 'var(--text-secondary)' }}>/ {unit.toLowerCase()}</span>
             </div>
             
             {diff !== 0 && (
-              <span className={`text-lg font-bold whitespace-nowrap ${diff > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+              <span className="text-lg font-bold whitespace-nowrap" style={{ color: diff > 0 ? 'var(--success)' : 'var(--danger)' }}>
                 {diff > 0 ? '+' : ''}₹{Math.abs(diff).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({diff > 0 ? '+' : ''}{perc.toFixed(2)}%)
               </span>
             )}
           </div>
-          <p className="text-[#64748B] text-[15px]">{trendInsight()}</p>
+          <p className="text-[15px]" style={{ color: 'var(--text-secondary)' }}>{trendInsight()}</p>
         </div>
       ) : (
-        <div className="pt-6 border-t border-[#E2E8F0]">
-          <div className="px-4 py-3 bg-slate-50 text-[#64748B] rounded-lg text-sm border border-[#E2E8F0] inline-block">
+        <div className="pt-6" style={{ borderTop: '1px solid var(--border)' }}>
+          <div className="px-4 py-3 rounded-lg text-sm inline-block" style={{ background: 'var(--bg-base)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
             Insufficient data for current date average.
           </div>
         </div>

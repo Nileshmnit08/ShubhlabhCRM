@@ -13,36 +13,36 @@ const PriceMetricCard = ({
     switch (variant) {
       case 'positive':
         return {
-          wrapper: 'bg-white border-[#15803D]/20 border',
-          title: 'text-[#0F172A]',
-          value: 'text-[#15803D]',
-          support: 'text-[#15803D]/80',
-          iconWrap: 'bg-[#F0FDF4] text-[#15803D]'
+          wrapper: { background: 'var(--bg-surface)', border: '1px solid var(--success)', borderColor: 'color-mix(in srgb, var(--success) 20%, transparent)' },
+          title: { color: 'var(--text-primary)' },
+          value: { color: 'var(--success)' },
+          support: { color: 'color-mix(in srgb, var(--success) 80%, transparent)' },
+          iconWrap: { background: 'color-mix(in srgb, var(--success) 10%, transparent)', color: 'var(--success)' }
         };
       case 'negative':
         return {
-          wrapper: 'bg-white border-red-500/20 border',
-          title: 'text-[#0F172A]',
-          value: 'text-red-600',
-          support: 'text-red-600/80',
-          iconWrap: 'bg-red-50 text-red-600'
+          wrapper: { background: 'var(--bg-surface)', border: '1px solid var(--danger)', borderColor: 'color-mix(in srgb, var(--danger) 20%, transparent)' },
+          title: { color: 'var(--text-primary)' },
+          value: { color: 'var(--danger)' },
+          support: { color: 'color-mix(in srgb, var(--danger) 80%, transparent)' },
+          iconWrap: { background: 'color-mix(in srgb, var(--danger) 10%, transparent)', color: 'var(--danger)' }
         };
       case 'highlight':
         return {
-          wrapper: 'bg-[#F0FDF4] border-[#15803D]/20 border',
-          title: 'text-[#0F172A]',
-          value: 'text-[#15803D]',
-          support: 'text-[#15803D]/80',
-          iconWrap: 'bg-white text-[#15803D] shadow-sm'
+          wrapper: { background: 'color-mix(in srgb, var(--success) 5%, transparent)', border: '1px solid var(--success)', borderColor: 'color-mix(in srgb, var(--success) 20%, transparent)' },
+          title: { color: 'var(--text-primary)' },
+          value: { color: 'var(--success)' },
+          support: { color: 'color-mix(in srgb, var(--success) 80%, transparent)' },
+          iconWrap: { background: 'var(--bg-surface)', color: 'var(--success)', boxShadow: 'var(--shadow-sm)' }
         };
       case 'neutral':
       default:
         return {
-          wrapper: 'bg-white border-[#E2E8F0] border',
-          title: 'text-[#0F172A]',
-          value: 'text-[#0F172A]',
-          support: 'text-[#64748B]',
-          iconWrap: 'bg-slate-50 border border-[#E2E8F0] text-[#64748B]'
+          wrapper: { background: 'var(--bg-surface)', border: '1px solid var(--border)' },
+          title: { color: 'var(--text-primary)' },
+          value: { color: 'var(--text-primary)' },
+          support: { color: 'var(--text-secondary)' },
+          iconWrap: { background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }
         };
     }
   };
@@ -50,28 +50,28 @@ const PriceMetricCard = ({
   const styles = getStyles();
 
   return (
-    <div className={`rounded-[14px] p-5 flex flex-col h-full shadow-sm ${styles.wrapper}`}>
+    <div className="rounded-[14px] p-5 flex flex-col h-full shadow-sm" style={styles.wrapper}>
       <div className="flex items-center justify-between mb-4">
-        <h3 className={`text-[13px] font-semibold uppercase tracking-wider ${styles.title}`}>
+        <h3 className="text-[13px] font-semibold uppercase tracking-wider" style={styles.title}>
           {title}
         </h3>
         {Icon && (
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${styles.iconWrap}`}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={styles.iconWrap}>
             <Icon size={16} />
           </div>
         )}
       </div>
       
       <div className="mt-auto">
-        <div className={`text-2xl sm:text-[26px] font-bold tracking-tight mb-1.5 flex flex-wrap items-center gap-2 ${styles.value}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <div className="text-2xl sm:text-[26px] font-bold tracking-tight mb-1.5 flex flex-wrap items-center gap-2" style={{ fontVariantNumeric: 'tabular-nums', ...styles.value }}>
           <span className="whitespace-nowrap">{value}</span>
           {badge && (
-            <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider border border-slate-200 shadow-sm whitespace-nowrap mt-0.5">
+            <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider shadow-sm whitespace-nowrap mt-0.5" style={{ background: 'var(--bg-base)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
               {badge}
             </span>
           )}
         </div>
-        <div className={`text-[13px] font-medium ${styles.support}`}>
+        <div className="text-[13px] font-medium" style={styles.support}>
           {supportText}
         </div>
       </div>
