@@ -1,47 +1,49 @@
 import React from 'react';
-import { Store, MapPin, IndianRupee } from 'lucide-react';
+import { Store, MapPin, IndianRupee, Clock, FileText, ExternalLink } from 'lucide-react';
 
 const BrokerQuotesTable = ({ quotes, currMin, currMax, unit, currDateStr }) => {
   const spread = currMax - currMin;
 
   return (
     <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden">
-      <div className="p-6 border-b border-[#E2E8F0] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="p-6 border-b border-[#E2E8F0] flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h3 className="text-lg font-bold text-[#0F172A]">Today's broker quotes</h3>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-[#64748B] border border-[#E2E8F0]">
-              {quotes.length} {quotes.length === 1 ? 'quote' : 'quotes'}
-            </span>
+            <h3 className="text-lg font-bold text-[#0F172A]">Today's Broker Quotes</h3>
           </div>
-          <p className="text-sm text-[#64748B]">Price quotes collected on {currDateStr}</p>
+          <p className="text-sm text-[#64748B]">{quotes.length} {quotes.length === 1 ? 'quote' : 'quotes'} collected on {currDateStr}</p>
         </div>
         
         {quotes.length > 0 && (
-          <div className="bg-slate-50 border border-[#E2E8F0] rounded-xl px-4 py-3 flex gap-6 shrink-0 w-full sm:w-auto">
-            <div>
-              <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mb-0.5">Market Range</p>
-              <p className="text-[15px] font-bold text-[#0F172A]" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                ₹{currMin.toFixed(2)}–₹{currMax.toFixed(2)}
-              </p>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Quotes</span>
+              <span className="text-sm font-bold text-slate-800">{quotes.length}</span>
             </div>
-            <div>
-              <p className="text-[11px] font-semibold text-[#64748B] uppercase tracking-wider mb-0.5">Spread</p>
-              <p className="text-[15px] font-bold text-[#64748B]" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                ₹{spread.toFixed(2)}
-              </p>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Low</span>
+              <span className="text-sm font-bold text-slate-800">₹{currMin.toFixed(2)}</span>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">High</span>
+              <span className="text-sm font-bold text-slate-800">₹{currMax.toFixed(2)}</span>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Spread</span>
+              <span className="text-sm font-bold text-slate-800">₹{spread.toFixed(2)}</span>
             </div>
           </div>
         )}
       </div>
 
       {quotes.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[600px]">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse hidden md:table">
             <thead className="bg-slate-50 border-b border-[#E2E8F0]">
               <tr>
-                <th className="px-6 py-3.5 text-xs font-semibold text-[#64748B] uppercase tracking-wider w-1/3">Broker</th>
+                <th className="px-6 py-3.5 text-xs font-semibold text-[#64748B] uppercase tracking-wider">Broker</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-[#64748B] uppercase tracking-wider">Location</th>
+                <th className="px-6 py-3.5 text-xs font-semibold text-[#64748B] uppercase tracking-wider">Quote Time</th>
                 <th className="px-6 py-3.5 text-xs font-semibold text-[#64748B] uppercase tracking-wider text-right">Price / {unit.toLowerCase()}</th>
               </tr>
             </thead>
@@ -62,6 +64,12 @@ const BrokerQuotesTable = ({ quotes, currMin, currMax, unit, currDateStr }) => {
                       {q.location || 'Not specified'}
                     </div>
                   </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-1.5 text-slate-400 text-sm italic">
+                      <Clock size={14} />
+                      {q.quoteTime || 'Unknown'}
+                    </div>
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <span className="text-[15px] font-bold text-[#0F172A]" style={{ fontVariantNumeric: 'tabular-nums' }}>
                       ₹{Number(q.price).toFixed(2)}
@@ -71,6 +79,32 @@ const BrokerQuotesTable = ({ quotes, currMin, currMax, unit, currDateStr }) => {
               ))}
             </tbody>
           </table>
+
+          <div className="md:hidden flex flex-col divide-y divide-slate-100">
+            {quotes.map((q, idx) => (
+              <div key={idx} className="p-4 bg-white flex justify-between items-start">
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <Store size={14} className="text-blue-500" />
+                    <span className="font-semibold text-slate-800 text-sm">{q.brokerName}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-500 text-xs">
+                    <MapPin size={12} />
+                    {q.location || 'Not specified'}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-slate-400 text-xs italic">
+                    <Clock size={12} />
+                    {q.quoteTime || 'Unknown'}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-bold text-slate-800">₹{Number(q.price).toFixed(2)}</span>
+                  <p className="text-[10px] text-slate-400 uppercase mt-0.5">/ {unit.toLowerCase()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {quotes.length === 1 && (
             <div className="bg-slate-50 p-3 text-center border-t border-[#E2E8F0]">
               <p className="text-[13px] text-[#64748B] font-medium">
@@ -86,7 +120,7 @@ const BrokerQuotesTable = ({ quotes, currMin, currMax, unit, currDateStr }) => {
           </div>
           <h4 className="text-lg font-semibold text-[#0F172A] mb-1">No quotes available</h4>
           <p className="text-[#64748B] text-sm max-w-sm">
-            There are no broker price quotes logged for {currDateStr}.
+            No broker quotes found for this date. Add a quote to begin analysis.
           </p>
         </div>
       )}

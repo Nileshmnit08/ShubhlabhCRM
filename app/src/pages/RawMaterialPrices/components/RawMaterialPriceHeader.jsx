@@ -10,6 +10,7 @@ const RawMaterialPriceHeader = () => {
   const today = format(new Date(), 'EEEE, dd MMM yyyy');
 
   const isConfiguration = location.pathname.includes('/configuration');
+  const isAnalysis = location.pathname.includes('/analysis');
   
   // Extract sub-route if inside configuration
   const pathParts = location.pathname.split('/');
@@ -39,18 +40,20 @@ const RawMaterialPriceHeader = () => {
         )}
         {!isConfiguration && (
           <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'flex', alignItems: 'center' }}>
-            <span className="text-primary">Raw Material Prices</span>
+            <span className="text-primary">RAW MATERIAL PRICES</span>
           </div>
         )}
         <h1 style={{ margin: 0, fontSize: '2rem', tracking: 'tight' }}>
-          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : 'Dashboard')}
+          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : (isAnalysis ? 'Price Analysis' : 'Dashboard'))}
         </h1>
         <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>
           {activeConfigTab 
             ? activeConfigTab.description 
             : (isConfiguration 
                ? 'Manage raw materials, quality parameters, brokers, units, price types, and operational settings.'
-               : 'Track and analyze daily cattle-feed material prices')}
+               : (isAnalysis 
+                  ? 'Compare current material prices with historical market data and broker quotes.'
+                  : 'Track and analyze daily cattle-feed material prices'))}
         </p>
       </div>
       <div className="flex items-center gap-4">
@@ -59,6 +62,14 @@ const RawMaterialPriceHeader = () => {
              <CalendarIcon size={16} className="text-muted" />
              <span className="font-medium">{today}</span>
           </div>
+        )}
+        {isAnalysis && (
+          <button 
+            className="btn btn-outline shadow-sm py-2 px-4 text-sm font-medium border-base bg-white hover:bg-slate-50 text-secondary"
+            onClick={() => navigate('/raw-material-prices/history')}
+          >
+            View Price History
+          </button>
         )}
         {!isConfiguration && (
           <button 
