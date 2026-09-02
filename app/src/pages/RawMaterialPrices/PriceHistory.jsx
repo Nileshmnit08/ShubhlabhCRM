@@ -2,8 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Search, Filter, Download, Calendar, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, subDays, startOfMonth, subMonths } from 'date-fns';
+import { useSearchParams } from 'react-router-dom';
 
 const PriceHistory = () => {
+  const [searchParams] = useSearchParams();
+  const initialMaterial = searchParams.get('material') || '';
+
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -13,7 +17,7 @@ const PriceHistory = () => {
   const [dateRange, setDateRange] = useState('30days');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
-  const [materialFilter, setMaterialFilter] = useState('');
+  const [materialFilter, setMaterialFilter] = useState(initialMaterial);
   const [brokerFilter, setBrokerFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   

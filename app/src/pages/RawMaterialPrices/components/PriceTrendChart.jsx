@@ -8,7 +8,8 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { TrendingUp, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { TrendingUp, ArrowUpRight, ArrowDownRight, Minus, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendData, loading, timeRange = 30, onTimeRangeChange }) => {
   
@@ -67,6 +68,13 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
                <div className="text-xs font-medium text-secondary mb-2 ml-1">
                  vs prior update
                </div>
+               
+               <Link 
+                 to={`/raw-material-prices/history?material=${selectedMaterial}`}
+                 className="ml-auto text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-md flex items-center gap-1 transition-colors border border-emerald-100 mb-1"
+               >
+                 Full History <ArrowRight size={12} />
+               </Link>
              </div>
           ) : (
              <div className="h-10"></div>

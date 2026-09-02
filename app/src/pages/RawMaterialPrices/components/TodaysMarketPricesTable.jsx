@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Filter, X, Search, FileText } from 'lucide-react';
+import { Filter, X, Search, FileText, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
@@ -144,6 +144,40 @@ const TodaysMarketPricesTable = ({ prices, loading }) => {
                     <div className="font-semibold text-primary text-[15px] tabular-nums tracking-tight">
                       ₹{Number(entry.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
+                    {(() => {
+                      const prevPrice = entry.previous_price ? Number(entry.previous_price) : null;
+                      const currPrice = Number(entry.price);
+                      
+                      if (!prevPrice || prevPrice === 0) {
+                        return <div className="text-[11px] text-muted mt-1 font-medium flex items-center justify-end gap-1"><Minus size={12}/> No prior data</div>;
+                      }
+
+                      const diff = currPrice - prevPrice;
+                      const pct = (Math.abs(diff) / prevPrice) * 100;
+                      
+                      if (diff > 0) {
+                        return (
+                          <div className="text-[12px] text-red-600 mt-1 font-medium flex items-center justify-end gap-1 tabular-nums" title={`Previous: ₹${prevPrice.toFixed(2)} on ${format(new Date(entry.previous_date), 'dd MMM')}`}>
+                            <TrendingUp size={12} strokeWidth={2.5}/>
+                            +₹{diff.toFixed(2)} ({pct.toFixed(1)}%)
+                          </div>
+                        );
+                      } else if (diff < 0) {
+                        return (
+                          <div className="text-[12px] text-emerald-600 mt-1 font-medium flex items-center justify-end gap-1 tabular-nums" title={`Previous: ₹${prevPrice.toFixed(2)} on ${format(new Date(entry.previous_date), 'dd MMM')}`}>
+                            <TrendingDown size={12} strokeWidth={2.5}/>
+                            -₹{Math.abs(diff).toFixed(2)} ({pct.toFixed(1)}%)
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="text-[12px] text-slate-500 mt-1 font-medium flex items-center justify-end gap-1 tabular-nums" title={`Stable since ${format(new Date(entry.previous_date), 'dd MMM')}`}>
+                            <Minus size={12} strokeWidth={2.5}/>
+                            Stable
+                          </div>
+                        );
+                      }
+                    })()}
                   </td>
                   <td className="px-6 py-4" data-label="Unit">
                     <span className="text-[13px] font-medium text-secondary tracking-wide">{entry.rm_units?.unit_name || entry.unit}</span>

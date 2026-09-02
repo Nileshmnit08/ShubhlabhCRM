@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import RawMaterialPriceHeader from './components/RawMaterialPriceHeader';
+import PriceModuleTabs from './components/PriceModuleTabs';
 
 import Dashboard from './Dashboard';
 import DailyPriceEntry from './DailyPriceEntry';
@@ -14,6 +15,7 @@ const RawMaterialPrices = () => {
   return (
     <div className="page-container animate-fade-in max-w-7xl mx-auto">
       <RawMaterialPriceHeader />
+      <PriceModuleTabs />
 
       <div className="tab-content mt-6">
         <Routes>
@@ -22,7 +24,7 @@ const RawMaterialPrices = () => {
           <Route path="history" element={<PriceHistory />} />
           <Route path="analysis" element={<PriceAnalysis />} />
           <Route path="whatsapp" element={<WhatsAppUpdate />} />
-          <Route path="configuration" element={<Configuration />} />
+          <Route path="configuration/*" element={<Configuration />} />
           <Route path="*" element={<Navigate to="/raw-material-prices" replace />} />
         </Routes>
       </div>

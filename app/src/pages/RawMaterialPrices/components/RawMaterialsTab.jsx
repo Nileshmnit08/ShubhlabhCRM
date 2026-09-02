@@ -1,12 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Search, Plus, Filter, X, Edit2, MoreVertical, AlertTriangle, PackageOpen, ChevronLeft, ChevronRight, Copy, Power, PowerOff, ArrowUp, ArrowDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Filter, X, Edit2, MoreVertical, AlertTriangle, PackageOpen, ChevronLeft, ChevronRight, Copy, Power, PowerOff, ArrowUp, ArrowDown, History } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
 
 const CATEGORIES = ['Grain', 'Bran', 'Oil Cake', 'Protein Source', 'Mineral', 'Additive', 'Other'];
 
 export default function RawMaterialsTab({ materials, units, loading, onRefresh, showMessage }) {
+  const navigate = useNavigate();
+
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -444,6 +447,12 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
                                 <Copy size={14} /> Duplicate
                               </button>
                               <button 
+                                className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 hover:text-primary flex items-center gap-2"
+                                onClick={() => navigate(`/raw-material-prices/history?material=${m.id}`)}
+                              >
+                                <History size={14} /> Price History
+                              </button>
+                              <button 
                                 className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${m.active ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
                                 onClick={() => handleToggleStatus(m)}
                               >
@@ -478,6 +487,7 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
                         {activeMenuId === m.id && (
                           <div ref={menuRef} className="absolute right-0 top-full mt-1 w-44 bg-white border border-base rounded-lg shadow-lg py-1 z-50">
                             <button className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 flex items-center gap-2" onClick={() => handleOpenModal(m, true)}><Copy size={14}/> Duplicate</button>
+                            <button className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 flex items-center gap-2" onClick={() => navigate(`/raw-material-prices/history?material=${m.id}`)}><History size={14}/> Price History</button>
                             <button className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${m.active ? 'text-red-600' : 'text-emerald-600'}`} onClick={() => handleToggleStatus(m)}>
                               {m.active ? <PowerOff size={14}/> : <Power size={14}/>} {m.active ? 'Deactivate' : 'Activate'}
                             </button>

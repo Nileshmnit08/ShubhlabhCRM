@@ -2,6 +2,7 @@ import React from 'react';
 import { Plus, Calendar as CalendarIcon, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
+import { CONFIGURATION_TABS } from './ConfigurationNav';
 
 const RawMaterialPriceHeader = () => {
   const navigate = useNavigate();
@@ -9,6 +10,11 @@ const RawMaterialPriceHeader = () => {
   const today = format(new Date(), 'EEEE, dd MMM yyyy');
 
   const isConfiguration = location.pathname.includes('/configuration');
+  
+  // Extract sub-route if inside configuration
+  const pathParts = location.pathname.split('/');
+  const subRouteId = isConfiguration ? pathParts[pathParts.indexOf('configuration') + 1] : null;
+  const activeConfigTab = subRouteId ? CONFIGURATION_TABS.find(tab => tab.id === subRouteId) : null;
 
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -17,16 +23,29 @@ const RawMaterialPriceHeader = () => {
           <div className="flex items-center text-xs font-medium text-secondary mb-2 uppercase tracking-wider">
             <span className="hover:text-primary cursor-pointer transition-colors" onClick={() => navigate('/raw-material-prices')}>Raw Material Prices</span>
             <ChevronRight size={14} className="mx-1 opacity-50" />
-            <span className="text-primary">Configuration</span>
+            <span 
+               className={activeConfigTab ? "hover:text-primary cursor-pointer transition-colors" : "text-primary"}
+               onClick={() => activeConfigTab && navigate('/raw-material-prices/configuration')}
+            >
+              Configuration
+            </span>
+            {activeConfigTab && (
+              <>
+                <ChevronRight size={14} className="mx-1 opacity-50" />
+                <span className="text-primary">{activeConfigTab.label}</span>
+              </>
+            )}
           </div>
         )}
         <h1 className="text-3xl font-bold tracking-tight text-primary mb-1">
-          {isConfiguration ? 'Configuration' : 'Raw Material Prices'}
+          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : 'Raw Material Prices')}
         </h1>
         <p className="text-sm text-secondary">
-          {isConfiguration 
-            ? 'Manage raw materials, quality parameters, brokers, units, price types, and operational settings.'
-            : 'Track and analyze daily cattle-feed material prices'}
+          {activeConfigTab 
+            ? activeConfigTab.description 
+            : (isConfiguration 
+               ? 'Manage raw materials, quality parameters, brokers, units, price types, and operational settings.'
+               : 'Track and analyze daily cattle-feed material prices')}
         </p>
       </div>
       <div className="flex items-center gap-4">

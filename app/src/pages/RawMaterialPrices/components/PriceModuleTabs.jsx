@@ -27,15 +27,12 @@ const PriceModuleTabs = () => {
         {tabs.map(tab => {
           const Icon = tab.icon;
           const fullPath = `/raw-material-prices${tab.path ? `/${tab.path}` : ''}`;
-          const isActive = location.pathname === fullPath || 
-                          (tab.path === '' && location.pathname === '/raw-material-prices/');
-
           return (
             <NavLink
               key={tab.id}
               to={fullPath}
               end={tab.path === ''}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap rounded-full ${
+              className={({ isActive }) => `flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap rounded-full ${
                 isActive 
                   ? 'bg-primary text-white shadow-sm' 
                   : 'text-secondary bg-surface border border-base hover:bg-base/50 hover:text-primary hover:border-border'
