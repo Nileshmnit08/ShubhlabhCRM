@@ -26,25 +26,9 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
   // Action Menu State
   const [activeMenuId, setActiveMenuId] = useState(null);
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Confirm Modal State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [materialToDeactivate, setMaterialToDeactivate] = useState(null);
-  
-  // Form State
-  const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [formData, setFormData] = useState({
-    id: null,
-    code: '',
-    name_en: '',
-    name_hi: '',
-    category: '',
-    default_unit_id: '',
-    daily_tracking_required: true,
-    active: true,
-    display_order: 99
-  });
 
   // Handle outside click for menus
   const menuRef = useRef(null);
@@ -152,89 +136,17 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
       : <ArrowDown size={12} className="ml-1 text-emerald-600 inline" />;
   };
 
-  const handleOpenModal = (material = null, duplicate = false) => {
-    setFormError('');
-    if (material) {
-      setFormData({
-        id: duplicate ? null : material.id,
-        code: duplicate ? '' : material.code || '',
-        name_en: material.name_en || '',
-        name_hi: material.name_hi || '',
-        category: material.category || '',
-        default_unit_id: material.default_unit_id || '',
-        daily_tracking_required: material.daily_tracking_required,
-        active: material.active,
-        display_order: material.display_order || 99
-      });
-    } else {
-      setFormData({
-        id: null,
-        code: '',
-        name_en: '',
-        name_hi: '',
-        category: '',
-        default_unit_id: '',
-        daily_tracking_required: true,
-        active: true,
-        display_order: 99
-      });
-    }
-    setIsModalOpen(true);
-    setActiveMenuId(null);
+  const handleAddMaterial = () => {
+    navigate('/raw-material-prices/configuration/raw-materials/new');
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setIsSaving(true);
-    
-    try {
-      // Basic validation
-      if (!formData.code.trim()) throw new Error("Material Code is required.");
-      if (!formData.name_en.trim()) throw new Error("English Name is required.");
-      if (!formData.category.trim()) throw new Error("Category is required.");
-      if (!formData.default_unit_id) throw new Error("Default Unit is required.");
-
-      // Check unique code
-      const { data: existing } = await supabase
-        .from('raw_materials')
-        .select('id')
-        .eq('code', formData.code.trim())
-        .neq('id', formData.id || '00000000-0000-0000-0000-000000000000')
-        .maybeSingle();
-      
-      if (existing) {
-        throw new Error("This Material Code is already in use.");
-      }
-
-      const payload = {
-        code: formData.code.trim(),
-        name_en: formData.name_en.trim(),
-        name_hi: formData.name_hi.trim(),
-        category: formData.category,
-        default_unit_id: formData.default_unit_id,
-        daily_tracking_required: formData.daily_tracking_required,
-        active: formData.active,
-        display_order: formData.display_order
-      };
-
-      if (formData.id) {
-        const { error } = await supabase.from('raw_materials').update(payload).eq('id', formData.id);
-        if (error) throw error;
-        showMessage('success', 'Material updated successfully.');
-      } else {
-        const { error } = await supabase.from('raw_materials').insert(payload);
-        if (error) throw error;
-        showMessage('success', 'New material added successfully.');
-      }
-      
-      setIsModalOpen(false);
-      onRefresh();
-    } catch (err) {
-      setFormError(err.message || 'An error occurred while saving.');
-    } finally {
-      setIsSaving(false);
+  const handleEditMaterial = (item, duplicate = false) => {
+    if (duplicate) {
+      navigate('/raw-material-prices/configuration/raw-materials/new', { state: { duplicateFrom: item } });
+    } else {
+      navigate(`/raw-material-prices/configuration/raw-materials/${item.id}/edit`, { state: { material: item } });
     }
+    setActiveMenuId(null);
   };
 
   const handleToggleStatus = (material) => {
@@ -276,7 +188,7 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
           </div>
           <button 
             className="btn btn-primary shadow-sm py-2 px-4 whitespace-nowrap w-full sm:w-auto flex items-center justify-center"
-            onClick={() => handleOpenModal()}
+            onClick={handleAddMaterial}
           >
             <Plus size={16} className="mr-1.5" />
             Add Material
@@ -355,7 +267,7 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
             {hasActiveFilters ? (
               <button className="btn btn-outline shadow-sm" onClick={resetFilters}>Clear Filters</button>
             ) : (
-              <button className="btn btn-primary shadow-sm flex items-center" onClick={() => handleOpenModal()}>
+              <button className="btn btn-primary shadow-sm flex items-center" onClick={handleAddMaterial}>
                 <Plus size={16} className="mr-1" /> Add Material
               </button>
             )}
@@ -418,7 +330,7 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
                       <div className="flex items-center justify-end gap-1 relative">
                         <button 
                           className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
-                          onClick={() => handleOpenModal(m)}
+                          onClick={() => handleEditMaterial(m)}
                           title="Edit material"
                         >
                           <Edit2 size={16}/>
@@ -442,7 +354,7 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
                             >
                               <button 
                                 className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 hover:text-primary flex items-center gap-2"
-                                onClick={() => handleOpenModal(m, true)}
+                                onClick={() => handleEditMaterial(m, true)}
                               >
                                 <Copy size={14} /> Duplicate
                               </button>
@@ -479,14 +391,14 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
                       <StatusBadge active={m.active} />
                     </div>
                     <div className="flex items-center gap-1">
-                      <button className="p-1.5 text-secondary hover:bg-slate-100 rounded text-emerald-600" onClick={() => handleOpenModal(m)}><Edit2 size={16}/></button>
+                      <button className="p-1.5 text-secondary hover:bg-slate-100 rounded text-emerald-600" onClick={() => handleEditMaterial(m)}><Edit2 size={16}/></button>
                       <div className="relative">
                         <button className="p-1.5 text-secondary hover:bg-slate-100 rounded" onClick={() => setActiveMenuId(activeMenuId === m.id ? null : m.id)}>
                           <MoreVertical size={16}/>
                         </button>
                         {activeMenuId === m.id && (
                           <div ref={menuRef} className="absolute right-0 top-full mt-1 w-44 bg-white border border-base rounded-lg shadow-lg py-1 z-50">
-                            <button className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 flex items-center gap-2" onClick={() => handleOpenModal(m, true)}><Copy size={14}/> Duplicate</button>
+                            <button className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 flex items-center gap-2" onClick={() => handleEditMaterial(m, true)}><Copy size={14}/> Duplicate</button>
                             <button className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 flex items-center gap-2" onClick={() => navigate(`/raw-material-prices/history?material=${m.id}`)}><History size={14}/> Price History</button>
                             <button className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${m.active ? 'text-red-600' : 'text-emerald-600'}`} onClick={() => handleToggleStatus(m)}>
                               {m.active ? <PowerOff size={14}/> : <Power size={14}/>} {m.active ? 'Deactivate' : 'Activate'}
@@ -570,147 +482,7 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
         </div>
       )}
 
-      {/* Add/Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between p-5 border-b border-base bg-slate-50">
-              <h3 className="font-bold text-lg text-primary">{formData.id ? 'Edit Material' : 'Add New Material'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-secondary hover:bg-slate-200 p-1.5 rounded-lg transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1">
-              {formError && (
-                <div className="mb-5 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm flex items-start gap-2">
-                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-              
-              <form id="material-form" onSubmit={handleSave} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-secondary mb-1.5">Material Code <span className="text-red-500">*</span></label>
-                  <input 
-                    type="text" 
-                    required 
-                    className="input w-full uppercase font-mono shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
-                    placeholder="e.g. RM-001"
-                    value={formData.code}
-                    onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
-                  />
-                  <p className="text-xs text-muted mt-1">Must be unique.</p>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">English Name <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
-                      required 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
-                      placeholder="e.g. Maize"
-                      value={formData.name_en}
-                      onChange={e => setFormData({...formData, name_en: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Hindi Name</label>
-                    <input 
-                      type="text" 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
-                      placeholder="e.g. मक्का"
-                      value={formData.name_hi}
-                      onChange={e => setFormData({...formData, name_hi: e.target.value})}
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Category <span className="text-red-500">*</span></label>
-                    <select 
-                      required
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                      value={formData.category}
-                      onChange={e => setFormData({...formData, category: e.target.value})}
-                    >
-                      <option value="" disabled>Select category...</option>
-                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Default Unit <span className="text-red-500">*</span></label>
-                    <select 
-                      required
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                      value={formData.default_unit_id}
-                      onChange={e => setFormData({...formData, default_unit_id: e.target.value})}
-                    >
-                      <option value="" disabled>Select unit...</option>
-                      {units.map(u => <option key={u.id} value={u.id}>{u.unit_name}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-base space-y-4">
-                  <label className="flex items-center justify-between cursor-pointer group p-2 hover:bg-slate-50 rounded-lg -mx-2 transition-colors">
-                    <div>
-                      <span className="font-semibold text-sm text-primary block">Daily Price Tracking</span>
-                      <span className="text-xs text-secondary">Require daily market price logging</span>
-                    </div>
-                    <div className="relative inline-flex items-center shrink-0 ml-4">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={formData.daily_tracking_required}
-                        onChange={e => setFormData({...formData, daily_tracking_required: e.target.checked})}
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
-                    </div>
-                  </label>
-
-                  <label className="flex items-center justify-between cursor-pointer group p-2 hover:bg-slate-50 rounded-lg -mx-2 transition-colors">
-                    <div>
-                      <span className="font-semibold text-sm text-primary block">Active Status</span>
-                      <span className="text-xs text-secondary">Material available for selection</span>
-                    </div>
-                    <div className="relative inline-flex items-center shrink-0 ml-4">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={formData.active}
-                        onChange={e => setFormData({...formData, active: e.target.checked})}
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
-                    </div>
-                  </label>
-                </div>
-              </form>
-            </div>
-            
-            <div className="p-5 border-t border-base bg-slate-50 flex justify-end gap-3 shrink-0">
-              <button 
-                type="button" 
-                className="btn btn-outline bg-white shadow-sm px-6"
-                onClick={() => setIsModalOpen(false)}
-                disabled={isSaving}
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                form="material-form" 
-                className="btn btn-primary min-w-[130px] shadow-sm flex items-center justify-center"
-                disabled={isSaving}
-              >
-                {isSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : 'Save Material'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Confirmation Modal */}
       {isConfirmOpen && (

@@ -9,9 +9,11 @@ import StatusBadge from './components/StatusBadge';
 import EmptyState from './components/EmptyState';
 import MasterDataTable from './components/MasterDataTable';
 import RawMaterialsTab from './components/RawMaterialsTab';
+import RawMaterialFormPage from './components/RawMaterialFormPage';
 
 import QualityParametersTab from './components/QualityParametersTab';
 import BrokersTab from './components/BrokersTab';
+import BrokerFormPage from './components/BrokerFormPage';
 import UnitsTab from './components/UnitsTab';
 import PriceTypesTab from './components/PriceTypesTab';
 import GeneralSettingsTab from './components/GeneralSettingsTab';
@@ -118,6 +120,24 @@ const Configuration = () => {
           />
         } />
 
+        {/* ADD RAW MATERIAL PAGE */}
+        <Route path="raw-materials/new" element={
+          <RawMaterialFormPage 
+            units={units} 
+            onRefresh={fetchData} 
+            showMessage={showMessage} 
+          />
+        } />
+
+        {/* EDIT RAW MATERIAL PAGE */}
+        <Route path="raw-materials/:id/edit" element={
+          <RawMaterialFormPage 
+            units={units} 
+            onRefresh={fetchData} 
+            showMessage={showMessage} 
+          />
+        } />
+
         {/* QUALITY PARAMETERS TAB */}
         <Route path="quality-parameters" element={
           <QualityParametersTab 
@@ -135,6 +155,24 @@ const Configuration = () => {
             brokers={brokers} 
             materials={materials} 
             loading={loading} 
+            onRefresh={fetchData} 
+            showMessage={showMessage} 
+          />
+        } />
+        
+        {/* ADD BROKER PAGE */}
+        <Route path="brokers/new" element={
+          <BrokerFormPage 
+            materials={materials} 
+            onRefresh={fetchData} 
+            showMessage={showMessage} 
+          />
+        } />
+
+        {/* EDIT BROKER PAGE */}
+        <Route path="brokers/:id/edit" element={
+          <BrokerFormPage 
+            materials={materials} 
             onRefresh={fetchData} 
             showMessage={showMessage} 
           />
