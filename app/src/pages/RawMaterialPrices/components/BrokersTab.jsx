@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 import { Search, Filter, X, Edit2, MoreVertical, AlertTriangle, Users, ChevronLeft, ChevronRight, Copy, Power, PowerOff } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
@@ -13,29 +14,14 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(15);
 
+  const navigate = useNavigate();
+
   // Action Menu State
   const [activeMenuId, setActiveMenuId] = useState(null);
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Confirm Modal State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [itemToDeactivate, setItemToDeactivate] = useState(null);
-  
-  // Form State
-  const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [formData, setFormData] = useState({
-    id: null,
-    broker_name: '',
-    firm_name: '',
-    mobile: '',
-    whatsapp_number: '',
-    market_location: '',
-    state: '',
-    notes: '',
-    active: true,
-    handled_material_ids: []
-  });
 
   const menuRef = useRef(null);
   useEffect(() => {
@@ -88,108 +74,20 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
     setCurrentPage(1);
   };
 
-  const handleOpenModal = (item = null, duplicate = false) => {
-    setFormError('');
-    if (item) {
-      // Extract materials handled if available
-      const handled = item.broker_materials?.map(bm => bm.raw_material_id) || [];
-      
-      setFormData({
-        id: duplicate ? null : item.id,
-        broker_name: duplicate ? `${item.broker_name} (Copy)` : item.broker_name || '',
-        firm_name: item.firm_name || '',
-        mobile: item.mobile || '',
-        whatsapp_number: item.whatsapp_number || '',
-        market_location: item.market_location || '',
-        state: item.state || '',
-        notes: item.notes || '',
-        active: item.active,
-        handled_material_ids: handled
-      });
+  const handleAddBroker = () => {
+    navigate('/raw-material-prices/configuration/brokers/new');
+  };
+
+  const handleEditBroker = (item, duplicate = false) => {
+    if (duplicate) {
+      navigate('/raw-material-prices/configuration/brokers/new', { state: { duplicateFrom: item } });
     } else {
-      setFormData({
-        id: null,
-        broker_name: '',
-        firm_name: '',
-        mobile: '',
-        whatsapp_number: '',
-        market_location: '',
-        state: '',
-        notes: '',
-        active: true,
-        handled_material_ids: []
-      });
+      navigate(`/raw-material-prices/configuration/brokers/${item.id}/edit`, { state: { broker: item } });
     }
-    setIsModalOpen(true);
     setActiveMenuId(null);
   };
 
-  const handleMaterialToggle = (materialId) => {
-    setFormData(prev => {
-      const current = prev.handled_material_ids;
-      if (current.includes(materialId)) {
-        return { ...prev, handled_material_ids: current.filter(id => id !== materialId) };
-      } else {
-        return { ...prev, handled_material_ids: [...current, materialId] };
-      }
-    });
-  };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setIsSaving(true);
-    
-    try {
-      if (!formData.broker_name.trim()) throw new Error("Broker Name is required.");
-
-      const payload = {
-        broker_name: formData.broker_name.trim(),
-        firm_name: formData.firm_name.trim(),
-        mobile: formData.mobile.trim(),
-        whatsapp_number: formData.whatsapp_number.trim(),
-        market_location: formData.market_location.trim(),
-        state: formData.state.trim(),
-        notes: formData.notes.trim(),
-        active: formData.active
-      };
-
-      let savedBrokerId = formData.id;
-
-      if (formData.id) {
-        const { error } = await supabase.from('brokers').update(payload).eq('id', formData.id);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.from('brokers').insert(payload).select('id').single();
-        if (error) throw error;
-        savedBrokerId = data.id;
-      }
-
-      // Sync broker_materials
-      if (savedBrokerId) {
-        // First delete existing
-        await supabase.from('broker_materials').delete().eq('broker_id', savedBrokerId);
-        
-        // Then insert new ones
-        if (formData.handled_material_ids.length > 0) {
-          const bmPayload = formData.handled_material_ids.map(rm_id => ({
-            broker_id: savedBrokerId,
-            raw_material_id: rm_id
-          }));
-          const { error: bmError } = await supabase.from('broker_materials').insert(bmPayload);
-          if (bmError) throw bmError;
-        }
-      }
-      
-      showMessage('success', `Broker ${formData.id ? 'updated' : 'added'} successfully.`);
-      setIsModalOpen(false);
-      onRefresh();
-    } catch (err) {
-      setFormError(err.message || 'An error occurred while saving.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleToggleStatus = (item) => {
     if (item.active) {
@@ -221,7 +119,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
         title="Broker Master" 
         description="Manage brokers, their contact information, and materials they handle." 
         buttonText="Add Broker" 
-        onAdd={() => handleOpenModal()}
+        onAdd={handleAddBroker}
       />
 
       {/* Toolbar */}
@@ -252,7 +150,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
             {[1,2,3,4,5].map(i => <div key={i} className="h-16 bg-slate-50 rounded-lg animate-pulse border border-base/50"></div>)}
           </div>
         ) : filteredData.length === 0 ? (
-           <EmptyState icon={Users} title="No Brokers" description={hasActiveFilters ? "Try adjusting your filters." : "Add brokers to start tracking prices from them."} actionText="Add Broker" onAction={() => handleOpenModal()} />
+           <EmptyState icon={Users} title="No Brokers" description={hasActiveFilters ? "Try adjusting your filters." : "Add brokers to start tracking prices from them."} actionText="Add Broker" onAction={handleAddBroker} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -312,7 +210,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
                       <div className="flex items-center justify-end gap-1 relative">
                         <button 
                           className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
-                          onClick={() => handleOpenModal(b)}
+                          onClick={() => handleEditBroker(b)}
                         >
                           <Edit2 size={16}/>
                         </button>
@@ -335,7 +233,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
                             >
                               <button 
                                 className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 hover:text-primary flex items-center gap-2"
-                                onClick={() => handleOpenModal(b, true)}
+                                onClick={() => handleEditBroker(b, true)}
                               >
                                 <Copy size={14} /> Duplicate
                               </button>
@@ -387,166 +285,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
         </div>
       )}
 
-      {/* Add/Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between p-5 border-b border-base bg-slate-50 shrink-0">
-              <h3 className="font-bold text-lg text-primary">{formData.id ? 'Edit Broker' : 'Add New Broker'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-secondary hover:bg-slate-200 p-1.5 rounded-lg transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1">
-              {formError && (
-                <div className="mb-5 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm flex items-start gap-2">
-                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-              
-              <form id="broker-form" onSubmit={handleSave} className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Broker Name <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
-                      required 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
-                      placeholder="e.g. Ramesh Agarwal"
-                      value={formData.broker_name}
-                      onChange={e => setFormData({...formData, broker_name: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Firm Name</label>
-                    <input 
-                      type="text" 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
-                      placeholder="e.g. Agarwal Trading Co."
-                      value={formData.firm_name}
-                      onChange={e => setFormData({...formData, firm_name: e.target.value})}
-                    />
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Mobile Number</label>
-                    <input 
-                      type="text" 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                      placeholder="e.g. 9876543210"
-                      value={formData.mobile}
-                      onChange={e => setFormData({...formData, mobile: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">WhatsApp Number</label>
-                    <input 
-                      type="text" 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                      placeholder="e.g. 9876543210"
-                      value={formData.whatsapp_number}
-                      onChange={e => setFormData({...formData, whatsapp_number: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Market Location</label>
-                    <input 
-                      type="text" 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                      placeholder="e.g. Jaipur"
-                      value={formData.market_location}
-                      onChange={e => setFormData({...formData, market_location: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">State</label>
-                    <input 
-                      type="text" 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                      placeholder="e.g. Rajasthan"
-                      value={formData.state}
-                      onChange={e => setFormData({...formData, state: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                   <label className="block text-sm font-semibold text-secondary mb-2">Materials Handled</label>
-                   <div className="p-3 border border-base/80 bg-slate-50/50 rounded-lg max-h-48 overflow-y-auto">
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                       {materials.map(m => (
-                         <label key={m.id} className="flex items-center gap-2 p-1.5 hover:bg-white rounded cursor-pointer transition-colors border border-transparent hover:border-base/50">
-                           <input 
-                             type="checkbox" 
-                             className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                             checked={formData.handled_material_ids.includes(m.id)}
-                             onChange={() => handleMaterialToggle(m.id)}
-                           />
-                           <span className="text-sm text-secondary">{m.name_en} {m.name_hi && <span className="text-muted text-xs">({m.name_hi})</span>}</span>
-                         </label>
-                       ))}
-                     </div>
-                   </div>
-                </div>
-
-                <div>
-                   <label className="block text-sm font-semibold text-secondary mb-1.5">Notes</label>
-                   <textarea 
-                     className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 min-h-[80px]"
-                     placeholder="Additional information about the broker..."
-                     value={formData.notes}
-                     onChange={e => setFormData({...formData, notes: e.target.value})}
-                   ></textarea>
-                </div>
-
-                <div className="pt-2">
-                  <label className="flex items-center justify-between cursor-pointer group p-2 hover:bg-slate-50 rounded-lg -mx-2 transition-colors">
-                    <div>
-                      <span className="font-semibold text-sm text-primary block">Active Status</span>
-                      <span className="text-xs text-secondary">Broker available for data entry</span>
-                    </div>
-                    <div className="relative inline-flex items-center shrink-0 ml-4">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={formData.active}
-                        onChange={e => setFormData({...formData, active: e.target.checked})}
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
-                    </div>
-                  </label>
-                </div>
-              </form>
-            </div>
-            
-            <div className="p-5 border-t border-base bg-slate-50 flex justify-end gap-3 shrink-0">
-              <button 
-                type="button" 
-                className="btn btn-outline bg-white shadow-sm px-6"
-                onClick={() => setIsModalOpen(false)}
-                disabled={isSaving}
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                form="broker-form" 
-                className="btn btn-primary min-w-[130px] shadow-sm flex items-center justify-center"
-                disabled={isSaving}
-              >
-                {isSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : 'Save Broker'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Confirmation Modal */}
       {isConfirmOpen && (
