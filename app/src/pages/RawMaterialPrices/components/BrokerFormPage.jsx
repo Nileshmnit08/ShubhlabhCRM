@@ -152,7 +152,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto pb-12 animate-fade-in">
+    <div className="animate-fade-in">
       {/* Breadcrumb */}
       <div className="flex items-center text-xs font-medium text-secondary mb-4 uppercase tracking-wider">
         <Link to="/raw-material-prices" className="hover:text-primary transition-colors">Raw Material Prices</Link>
@@ -164,132 +164,127 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
         <span className="text-primary">{isEdit ? 'Edit Broker' : 'Add Broker'}</span>
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
-        <button 
-          onClick={() => navigate('/raw-material-prices/configuration/brokers')}
-          className="btn-icon bg-white border border-base shadow-sm text-secondary hover:text-primary hover:bg-slate-50"
-          title="Back to Brokers"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-2xl font-bold text-primary m-0 tracking-tight">{isEdit ? 'Edit Broker' : 'Add New Broker'}</h1>
+      <div className="page-header">
+        <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+          <Link to="/raw-material-prices/configuration/brokers" className="btn-icon" title="Back to Brokers">
+            <ArrowLeft size={24} />
+          </Link>
+          <div>
+            <h1>{isEdit ? 'Edit Broker' : 'Add Broker'}</h1>
+            <p className="text-secondary" style={{marginTop: '0.25rem'}}>
+              Configure broker details and assign handled raw materials.
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="glass-panel p-6 sm:p-8">
+      <div className="glass-panel" style={{maxWidth: '800px', padding: '2rem'}}>
         {formError && (
-          <div className="mb-6 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm flex items-start gap-3">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <div style={{padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', marginBottom: '1.5rem', display: 'flex', alignItems: 'flex-start', gap: '0.75rem'}}>
+            <AlertTriangle size={18} style={{marginTop: '2px'}} />
             <span>{formError}</span>
           </div>
         )}
         
-        <form id="broker-form" onSubmit={handleSave} className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <form id="broker-form" onSubmit={handleSave}>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem'}}>
             <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">Broker Name <span className="text-red-500">*</span></label>
+              <label>Broker Name *</label>
               <input 
                 type="text" 
                 required 
-                className="input w-full shadow-sm" 
                 placeholder="e.g. Ramesh Agarwal"
                 value={formData.broker_name}
                 onChange={e => setFormData({...formData, broker_name: e.target.value})}
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">Firm Name</label>
+              <label>Firm Name</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm" 
                 placeholder="e.g. Agarwal Trading Co."
                 value={formData.firm_name}
                 onChange={e => setFormData({...formData, firm_name: e.target.value})}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">Mobile Number</label>
+              <label>Mobile Number</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm"
                 placeholder="e.g. 9876543210"
                 value={formData.mobile}
                 onChange={e => setFormData({...formData, mobile: e.target.value})}
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">WhatsApp Number</label>
+              <label>WhatsApp Number</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm"
                 placeholder="e.g. 9876543210"
                 value={formData.whatsapp_number}
                 onChange={e => setFormData({...formData, whatsapp_number: e.target.value})}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">Market Location</label>
+              <label>Market Location</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm"
                 placeholder="e.g. Jaipur"
                 value={formData.market_location}
                 onChange={e => setFormData({...formData, market_location: e.target.value})}
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">State</label>
+              <label>State</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm"
                 placeholder="e.g. Rajasthan"
                 value={formData.state}
                 onChange={e => setFormData({...formData, state: e.target.value})}
               />
             </div>
-          </div>
 
-          <div>
-              <label className="block text-sm font-semibold text-secondary mb-2">Materials Handled</label>
-              <div className="p-4 border border-base/80 bg-slate-50/50 rounded-lg max-h-60 overflow-y-auto">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div style={{gridColumn: '1 / -1'}}>
+              <label>Materials Handled</label>
+              <div style={{padding: '1rem', border: '1px solid var(--border)', background: 'var(--bg-surface-hover)', borderRadius: 'var(--radius-md)', maxHeight: '240px', overflowY: 'auto'}}>
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem'}}>
                   {materials.map(m => (
-                    <label key={m.id} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors border border-transparent hover:border-base/50 hover:shadow-sm">
+                    <label key={m.id} style={{display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', margin: 0}}>
                       <input 
                         type="checkbox" 
-                        className="rounded border-slate-300 w-4 h-4 text-primary focus:ring-primary"
                         checked={formData.handled_material_ids.includes(m.id)}
                         onChange={() => handleMaterialToggle(m.id)}
+                        style={{width: 'auto'}}
                       />
-                      <span className="text-sm font-medium text-secondary">{m.name_en} {m.name_hi && <span className="text-muted text-xs font-normal">({m.name_hi})</span>}</span>
+                      <span style={{fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-secondary)'}}>
+                        {m.name_en} {m.name_hi && <span className="text-muted" style={{fontWeight: 400}}>({m.name_hi})</span>}
+                      </span>
                     </label>
                   ))}
                 </div>
               </div>
-          </div>
+            </div>
 
-          <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">Notes</label>
+            <div style={{gridColumn: '1 / -1'}}>
+              <label>Notes</label>
               <textarea 
-                className="input w-full shadow-sm min-h-[100px]"
+                rows="3"
                 placeholder="Additional information about the broker..."
                 value={formData.notes}
                 onChange={e => setFormData({...formData, notes: e.target.value})}
               ></textarea>
+            </div>
           </div>
 
-          <div className="pt-2 border-t border-base mt-6">
-            <label className="flex items-center justify-between cursor-pointer group py-4 hover:bg-slate-50 rounded-lg -mx-4 px-4 transition-colors">
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <label style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '1rem', background: 'var(--bg-surface-hover)', borderRadius: 'var(--radius-md)'}}>
               <div>
-                <span className="font-semibold text-sm text-primary block mb-0.5">Active Status</span>
-                <span className="text-sm text-secondary block">Make this broker available for daily price data entry</span>
+                <span style={{fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.25rem'}}>Active Status</span>
+                <span style={{fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'block'}}>Make this broker available for daily price data entry.</span>
               </div>
-              <div className="relative inline-flex items-center shrink-0 ml-4">
+              <div style={{position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: '1rem', flexShrink: 0}}>
                 <input 
                   type="checkbox" 
                   className="sr-only peer" 
@@ -301,23 +296,18 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
             </label>
           </div>
 
-          <div className="pt-6 border-t border-base flex flex-col sm:flex-row justify-end gap-3 mt-6">
-            <button 
-              type="button" 
-              className="btn btn-outline bg-white shadow-sm px-6 py-2.5 order-2 sm:order-1 w-full sm:w-auto"
-              onClick={() => navigate('/raw-material-prices/configuration/brokers')}
-              disabled={isSaving}
-            >
+          <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem'}}>
+            <Link to="/raw-material-prices/configuration/brokers" className="btn btn-secondary">
               Cancel
-            </button>
+            </Link>
             <button 
               type="submit" 
-              className="btn btn-primary min-w-[140px] shadow-sm flex items-center justify-center px-6 py-2.5 order-1 sm:order-2 w-full sm:w-auto text-[15px]"
+              className="btn btn-primary"
               disabled={isSaving}
             >
               {isSaving ? (
                 <>
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" style={{marginRight: '0.5rem'}}></span>
                   Saving...
                 </>
               ) : 'Save Broker'}

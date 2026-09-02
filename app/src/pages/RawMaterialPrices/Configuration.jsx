@@ -11,10 +11,13 @@ import RawMaterialsTab from './components/RawMaterialsTab';
 import RawMaterialFormPage from './components/RawMaterialFormPage';
 
 import QualityParametersTab from './components/QualityParametersTab';
+import QualityParameterFormPage from './components/QualityParameterFormPage';
 import BrokersTab from './components/BrokersTab';
 import BrokerFormPage from './components/BrokerFormPage';
 import UnitsTab from './components/UnitsTab';
+import UnitFormPage from './components/UnitFormPage';
 import PriceTypesTab from './components/PriceTypesTab';
+import PriceTypeFormPage from './components/PriceTypeFormPage';
 import GeneralSettingsTab from './components/GeneralSettingsTab';
 
 export const CONFIGURATION_TABS = [
@@ -162,6 +165,20 @@ const Configuration = () => {
                 showMessage={showMessage} 
               />
             } />
+            <Route path="quality-parameters/new" element={
+              <QualityParameterFormPage 
+                materials={materials} 
+                onRefresh={fetchData} 
+                showMessage={showMessage} 
+              />
+            } />
+            <Route path="quality-parameters/:id/edit" element={
+              <QualityParameterFormPage 
+                materials={materials} 
+                onRefresh={fetchData} 
+                showMessage={showMessage} 
+              />
+            } />
 
             {/* BROKERS TAB */}
             <Route path="brokers" element={
@@ -197,12 +214,36 @@ const Configuration = () => {
                 showMessage={showMessage} 
               />
             } />
+            <Route path="units/new" element={
+              <UnitFormPage 
+                onRefresh={fetchData} 
+                showMessage={showMessage} 
+              />
+            } />
+            <Route path="units/:id/edit" element={
+              <UnitFormPage 
+                onRefresh={fetchData} 
+                showMessage={showMessage} 
+              />
+            } />
 
             {/* PRICE TYPES TAB */}
             <Route path="price-types" element={
               <PriceTypesTab 
                 priceTypes={priceTypes} 
                 loading={loading} 
+                onRefresh={fetchData} 
+                showMessage={showMessage} 
+              />
+            } />
+            <Route path="price-types/new" element={
+              <PriceTypeFormPage 
+                onRefresh={fetchData} 
+                showMessage={showMessage} 
+              />
+            } />
+            <Route path="price-types/:id/edit" element={
+              <PriceTypeFormPage 
                 onRefresh={fetchData} 
                 showMessage={showMessage} 
               />

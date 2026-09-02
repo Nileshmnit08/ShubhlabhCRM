@@ -96,26 +96,43 @@ export default function GeneralSettingsTab({ settings, loading, onRefresh, showM
 
   if (loading) {
     return (
-      <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col max-w-5xl mx-auto">
-        <MasterDataSectionHeader title="General Settings" description="Configure module-wide settings, default values, and operational rules." />
-        <div className="p-6 space-y-8">
-           {[1,2,3].map(i => (
-             <div key={i} className="space-y-4">
-               <div className="h-6 w-48 bg-slate-100 rounded animate-pulse"></div>
-               <div className="h-12 bg-slate-50 rounded-lg animate-pulse border border-base/50"></div>
-             </div>
-           ))}
+      <div className="animate-fade-in max-w-4xl mx-auto">
+        <div className="page-header">
+          <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+            <div>
+              <h1>General Settings</h1>
+              <p className="text-secondary" style={{marginTop: '0.25rem'}}>
+                Configure module-wide settings, default values, and operational rules.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="glass-panel" style={{padding: '2rem'}}>
+          <div className="space-y-8">
+             {[1,2,3].map(i => (
+               <div key={i} className="space-y-4">
+                 <div className="h-6 w-48 bg-slate-100 rounded animate-pulse"></div>
+                 <div className="h-12 bg-slate-50 rounded-lg animate-pulse border border-base/50"></div>
+               </div>
+             ))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col max-w-5xl mx-auto relative">
-      <MasterDataSectionHeader 
-        title="General Settings" 
-        description="Configure module-wide settings, default values, and operational rules." 
-      />
+    <div className="animate-fade-in max-w-4xl mx-auto relative">
+      <div className="page-header">
+        <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+          <div>
+            <h1>General Settings</h1>
+            <p className="text-secondary" style={{marginTop: '0.25rem'}}>
+              Configure module-wide settings, default values, and operational rules.
+            </p>
+          </div>
+        </div>
+      </div>
       
       {/* Sticky Save Bar if dirty */}
       {isDirty && (
@@ -145,8 +162,8 @@ export default function GeneralSettingsTab({ settings, loading, onRefresh, showM
         </div>
       )}
 
-      <form onSubmit={handleSave} className="flex-1 overflow-y-auto">
-        <div className="p-6 md:p-8 space-y-10">
+      <div className="glass-panel" style={{padding: '2rem'}}>
+        <form onSubmit={handleSave} className="space-y-10">
           
           {/* Price Entry Rules */}
           <section>
@@ -287,19 +304,19 @@ export default function GeneralSettingsTab({ settings, loading, onRefresh, showM
             </div>
           </section>
 
-        </div>
-        
-        <div className="p-6 border-t border-base bg-slate-50 flex justify-end">
-           <button 
-             type="submit" 
-             className="btn btn-primary px-8 shadow-sm flex items-center justify-center min-w-[150px]"
-             disabled={!isDirty || isSaving}
-           >
-             {isSaving ? <RefreshCw size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
-             {isSaving ? 'Saving...' : 'Save Settings'}
-           </button>
-        </div>
-      </form>
+          
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+             <button 
+               type="submit" 
+               className="btn btn-primary min-w-[150px] shadow-sm flex items-center justify-center"
+               disabled={!isDirty || isSaving}
+             >
+               {isSaving ? <RefreshCw size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+               {isSaving ? 'Saving...' : 'Save Settings'}
+             </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

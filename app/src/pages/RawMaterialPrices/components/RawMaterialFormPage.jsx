@@ -136,7 +136,7 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto pb-12 animate-fade-in">
+    <div className="animate-fade-in">
       {/* Breadcrumb */}
       <div className="flex items-center text-xs font-medium text-secondary mb-4 uppercase tracking-wider">
         <Link to="/raw-material-prices" className="hover:text-primary transition-colors">Raw Material Prices</Link>
@@ -145,75 +145,69 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
         <ChevronRight size={14} className="mx-1 opacity-50" />
         <Link to="/raw-material-prices/configuration/raw-materials" className="hover:text-primary transition-colors">Raw Materials</Link>
         <ChevronRight size={14} className="mx-1 opacity-50" />
-        <span className="text-primary">{isEdit ? 'Edit Material' : 'Add Material'}</span>
+        <span className="text-primary">{isEdit ? 'Edit Raw Material' : 'Add Raw Material'}</span>
       </div>
 
-      <div className="flex items-center gap-4 mb-6">
-        <button 
-          onClick={() => navigate('/raw-material-prices/configuration/raw-materials')}
-          className="btn-icon bg-white border border-base shadow-sm text-secondary hover:text-primary hover:bg-slate-50"
-          title="Back to Raw Materials"
-        >
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-2xl font-bold text-primary m-0 tracking-tight">{isEdit ? 'Edit Material' : 'Add New Material'}</h1>
-          <p className="text-sm text-secondary mt-1">Create a raw material and define its default tracking settings.</p>
+      <div className="page-header">
+        <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+          <Link to="/raw-material-prices/configuration/raw-materials" className="btn-icon" title="Back to Raw Materials">
+            <ArrowLeft size={24} />
+          </Link>
+          <div>
+            <h1>{isEdit ? 'Edit Raw Material' : 'Add Raw Material'}</h1>
+            <p className="text-secondary" style={{marginTop: '0.25rem'}}>
+              Create a raw material and define its default tracking settings.
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="glass-panel p-6 sm:p-8">
+      <div className="glass-panel" style={{maxWidth: '800px', padding: '2rem'}}>
         {formError && (
-          <div className="mb-6 p-4 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm flex items-start gap-3">
-            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+          <div style={{padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', borderRadius: 'var(--radius-sm)', marginBottom: '1.5rem', display: 'flex', alignItems: 'flex-start', gap: '0.75rem'}}>
+            <AlertTriangle size={18} style={{marginTop: '2px'}} />
             <span>{formError}</span>
           </div>
         )}
         
-        <form id="material-form" onSubmit={handleSave} className="space-y-6">
-          <div>
-            <label className="block text-sm font-semibold text-secondary mb-1.5">Material Code <span className="text-red-500">*</span></label>
-            <input 
-              type="text" 
-              required 
-              className="input w-full uppercase font-mono shadow-sm" 
-              placeholder="e.g. RM-016"
-              value={formData.code}
-              onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
-            />
-            <p className="text-xs text-muted mt-1">Must be unique.</p>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">English Name <span className="text-red-500">*</span></label>
+        <form id="material-form" onSubmit={handleSave}>
+          <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem'}}>
+            <div style={{gridColumn: '1 / -1'}}>
+              <label>Material Code *</label>
               <input 
                 type="text" 
                 required 
-                className="input w-full shadow-sm" 
+                placeholder="e.g. RM-016"
+                value={formData.code}
+                onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
+              />
+              <p className="text-muted" style={{fontSize: '0.8rem', marginTop: '0.25rem'}}>Must be unique.</p>
+            </div>
+            
+            <div>
+              <label>English Name *</label>
+              <input 
+                type="text" 
+                required 
                 placeholder="e.g. Maize"
                 value={formData.name_en}
                 onChange={e => setFormData({...formData, name_en: e.target.value})}
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">Hindi Name</label>
+              <label>Hindi Name</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm" 
                 placeholder="e.g. मक्का"
                 value={formData.name_hi}
                 onChange={e => setFormData({...formData, name_hi: e.target.value})}
               />
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">Category <span className="text-red-500">*</span></label>
+              <label>Category *</label>
               <select 
                 required
-                className="input w-full shadow-sm"
                 value={formData.category}
                 onChange={e => setFormData({...formData, category: e.target.value})}
               >
@@ -222,10 +216,9 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-secondary mb-1.5">Default Unit <span className="text-red-500">*</span></label>
+              <label>Default Unit *</label>
               <select 
                 required
-                className="input w-full shadow-sm"
                 value={formData.default_unit_id}
                 onChange={e => setFormData({...formData, default_unit_id: e.target.value})}
               >
@@ -235,29 +228,29 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
             </div>
           </div>
 
-          <div className="pt-2 border-t border-base mt-6">
-            <label className="flex items-center justify-between cursor-pointer group py-4 hover:bg-slate-50 rounded-lg -mx-4 px-4 transition-colors">
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <label style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '1rem', background: 'var(--bg-surface-hover)', borderRadius: 'var(--radius-md)'}}>
               <div>
-                <span className="font-semibold text-sm text-primary block mb-0.5">Daily Price Tracking</span>
-                <span className="text-sm text-secondary block">Require daily market price logging for this material</span>
+                <span style={{fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.25rem'}}>Daily Price Tracking</span>
+                <span style={{fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'block'}}>Require daily market price logging for this material.</span>
               </div>
-              <div className="relative inline-flex items-center shrink-0 ml-4">
+              <div style={{position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: '1rem', flexShrink: 0}}>
                 <input 
                   type="checkbox" 
                   className="sr-only peer" 
                   checked={formData.daily_tracking_required}
                   onChange={e => setFormData({...formData, daily_tracking_required: e.target.checked})}
                 />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
               </div>
             </label>
 
-            <label className="flex items-center justify-between cursor-pointer group py-4 hover:bg-slate-50 rounded-lg -mx-4 px-4 transition-colors">
+            <label style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', padding: '1rem', background: 'var(--bg-surface-hover)', borderRadius: 'var(--radius-md)'}}>
               <div>
-                <span className="font-semibold text-sm text-primary block mb-0.5">Active Status</span>
-                <span className="text-sm text-secondary block">Make this material available for selection</span>
+                <span style={{fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: '0.25rem'}}>Active Status</span>
+                <span style={{fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'block'}}>Make this material available for selection.</span>
               </div>
-              <div className="relative inline-flex items-center shrink-0 ml-4">
+              <div style={{position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: '1rem', flexShrink: 0}}>
                 <input 
                   type="checkbox" 
                   className="sr-only peer" 
@@ -269,26 +262,21 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
             </label>
           </div>
 
-          <div className="pt-6 border-t border-base flex flex-col sm:flex-row justify-end gap-3 mt-6">
-            <button 
-              type="button" 
-              className="btn btn-outline bg-white shadow-sm px-6 py-2.5 order-2 sm:order-1 w-full sm:w-auto"
-              onClick={() => navigate('/raw-material-prices/configuration/raw-materials')}
-              disabled={isSaving}
-            >
+          <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem'}}>
+            <Link to="/raw-material-prices/configuration/raw-materials" className="btn btn-secondary">
               Cancel
-            </button>
+            </Link>
             <button 
               type="submit" 
-              className="btn btn-primary min-w-[140px] shadow-sm flex items-center justify-center px-6 py-2.5 order-1 sm:order-2 w-full sm:w-auto text-[15px]"
+              className="btn btn-primary"
               disabled={isSaving}
             >
               {isSaving ? (
                 <>
-                  <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></span>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" style={{marginRight: '0.5rem'}}></span>
                   Saving...
                 </>
-              ) : 'Save Material'}
+              ) : 'Save Raw Material'}
             </button>
           </div>
         </form>

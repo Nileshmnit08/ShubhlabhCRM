@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Search, Plus, Filter, X, Edit2, MoreVertical, AlertTriangle, LayoutList, ChevronLeft, ChevronRight, Copy, Power, PowerOff } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
 import MasterDataSectionHeader from './MasterDataSectionHeader';
 
 export default function QualityParametersTab({ qualityGrades, materials, loading, onRefresh, showMessage }) {
+  const navigate = useNavigate();
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [materialFilter, setMaterialFilter] = useState('All');
@@ -17,26 +19,9 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
   // Action Menu State
   const [activeMenuId, setActiveMenuId] = useState(null);
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Confirmation Modal State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [itemToDeactivate, setItemToDeactivate] = useState(null);
-  
-  // Form State
-  const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [formData, setFormData] = useState({
-    id: null,
-    raw_material_id: '',
-    grade_name: '',
-    grade_name_hi: '',
-    parameter_type: 'Grade',
-    min_value: '',
-    max_value: '',
-    uom: '',
-    active: true,
-    display_order: 99
-  });
 
   const menuRef = useRef(null);
   useEffect(() => {
@@ -93,77 +78,17 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
     setCurrentPage(1);
   };
 
-  const handleOpenModal = (item = null, duplicate = false) => {
-    setFormError('');
+  const handleOpenForm = (item = null, duplicate = false) => {
     if (item) {
-      setFormData({
-        id: duplicate ? null : item.id,
-        raw_material_id: item.raw_material_id || '',
-        grade_name: duplicate ? `${item.grade_name} (Copy)` : item.grade_name || '',
-        grade_name_hi: item.grade_name_hi || '',
-        parameter_type: item.parameter_type || 'Grade',
-        min_value: item.min_value || '',
-        max_value: item.max_value || '',
-        uom: item.uom || '',
-        active: item.active,
-        display_order: item.display_order || 99
-      });
-    } else {
-      setFormData({
-        id: null,
-        raw_material_id: '',
-        grade_name: '',
-        grade_name_hi: '',
-        parameter_type: 'Grade',
-        min_value: '',
-        max_value: '',
-        uom: '',
-        active: true,
-        display_order: 99
-      });
-    }
-    setIsModalOpen(true);
-    setActiveMenuId(null);
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setFormError('');
-    setIsSaving(true);
-    
-    try {
-      if (!formData.raw_material_id) throw new Error("Material is required.");
-      if (!formData.grade_name.trim()) throw new Error("Parameter Name is required.");
-
-      const payload = {
-        raw_material_id: formData.raw_material_id,
-        grade_name: formData.grade_name.trim(),
-        grade_name_hi: formData.grade_name_hi.trim(),
-        parameter_type: formData.parameter_type.trim(),
-        min_value: formData.min_value === '' ? null : Number(formData.min_value),
-        max_value: formData.max_value === '' ? null : Number(formData.max_value),
-        uom: formData.uom.trim(),
-        active: formData.active,
-        display_order: Number(formData.display_order)
-      };
-
-      if (formData.id) {
-        const { error } = await supabase.from('material_quality_grades').update(payload).eq('id', formData.id);
-        if (error) throw error;
-        showMessage('success', 'Quality parameter updated successfully.');
+      if (duplicate) {
+        navigate('/raw-material-prices/configuration/quality-parameters/new', { state: { duplicateFrom: item } });
       } else {
-        const { error } = await supabase.from('material_quality_grades').insert(payload);
-        if (error) throw error;
-        showMessage('success', 'New quality parameter added successfully.');
+        navigate(`/raw-material-prices/configuration/quality-parameters/${item.id}/edit`, { state: { qualityParameter: item } });
       }
-      
-      setIsModalOpen(false);
-      onRefresh();
-    } catch (err) {
-      setFormError(err.message || 'An error occurred while saving.');
-    } finally {
-      setIsSaving(false);
+    } else {
+      navigate('/raw-material-prices/configuration/quality-parameters/new');
     }
+    setActiveMenuId(null);
   };
 
   const handleToggleStatus = (item) => {
@@ -196,7 +121,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
         title="Quality & Grade Master" 
         description="Define specific quality parameters or grades for raw materials." 
         buttonText="Add Parameter" 
-        onAdd={() => handleOpenModal()}
+        onAdd={() => handleOpenForm()}
       />
 
       {/* Toolbar */}
@@ -236,7 +161,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
             {[1,2,3,4,5].map(i => <div key={i} className="h-16 bg-slate-50 rounded-lg animate-pulse border border-base/50"></div>)}
           </div>
         ) : filteredData.length === 0 ? (
-           <EmptyState icon={LayoutList} title="No Quality Parameters" description={hasActiveFilters ? "Try adjusting your filters." : "You haven't defined any quality grades or parameters."} actionText="Add Parameter" onAction={() => handleOpenModal()} />
+           <EmptyState icon={LayoutList} title="No Parameters Found" description="Add quality parameters or adjust your filters." actionText="Add Parameter" onAction={() => handleOpenForm()} />
         ) : (
           <div className="data-table-container">
             <table className="data-table mobile-cards-table">
@@ -282,7 +207,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                       <div className="flex items-center justify-end gap-1 relative">
                         <button 
                           className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
-                          onClick={() => handleOpenModal(q)}
+                          onClick={() => handleOpenForm(q)}
                         >
                           <Edit2 size={16}/>
                         </button>
@@ -305,7 +230,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                             >
                               <button 
                                 className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 hover:text-primary flex items-center gap-2"
-                                onClick={() => handleOpenModal(q, true)}
+                                onClick={() => handleOpenForm(q, true)}
                               >
                                 <Copy size={14} /> Duplicate
                               </button>
@@ -353,151 +278,6 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                  <ChevronRight size={16} />
                </button>
              </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between p-5 border-b border-base bg-slate-50">
-              <h3 className="font-bold text-lg text-primary">{formData.id ? 'Edit Parameter' : 'Add New Parameter'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-secondary hover:bg-slate-200 p-1.5 rounded-lg transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto flex-1">
-              {formError && (
-                <div className="mb-5 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm flex items-start gap-2">
-                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-              
-              <form id="quality-form" onSubmit={handleSave} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-secondary mb-1.5">Material <span className="text-red-500">*</span></label>
-                  <select 
-                    required
-                    className="input w-full shadow-sm"
-                    value={formData.raw_material_id}
-                    onChange={e => setFormData({...formData, raw_material_id: e.target.value})}
-                  >
-                    <option value="" disabled>Select material...</option>
-                    {materials.map(m => <option key={m.id} value={m.id}>{m.name_en}</option>)}
-                  </select>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Parameter/Grade Name <span className="text-red-500">*</span></label>
-                    <input 
-                      type="text" 
-                      required 
-                      className="input w-full shadow-sm" 
-                      placeholder="e.g. Moisture"
-                      value={formData.grade_name}
-                      onChange={e => setFormData({...formData, grade_name: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Hindi Name</label>
-                    <input 
-                      type="text" 
-                      className="input w-full shadow-sm" 
-                      placeholder="e.g. नमी"
-                      value={formData.grade_name_hi}
-                      onChange={e => setFormData({...formData, grade_name_hi: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Parameter Type</label>
-                    <input 
-                      type="text" 
-                      className="input w-full shadow-sm"
-                      placeholder="e.g. Grade, Impurity, Protein"
-                      value={formData.parameter_type}
-                      onChange={e => setFormData({...formData, parameter_type: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Unit of Measure</label>
-                    <input 
-                      type="text" 
-                      className="input w-full shadow-sm"
-                      placeholder="e.g. %, mm, gm"
-                      value={formData.uom}
-                      onChange={e => setFormData({...formData, uom: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Min Value</label>
-                    <input 
-                      type="number" 
-                      step="any"
-                      className="input w-full shadow-sm"
-                      value={formData.min_value}
-                      onChange={e => setFormData({...formData, min_value: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-secondary mb-1.5">Max Value</label>
-                    <input 
-                      type="number" 
-                      step="any"
-                      className="input w-full shadow-sm"
-                      value={formData.max_value}
-                      onChange={e => setFormData({...formData, max_value: e.target.value})}
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-base space-y-4">
-                  <label className="flex items-center justify-between cursor-pointer group p-2 hover:bg-slate-50 rounded-lg -mx-2 transition-colors">
-                    <div>
-                      <span className="font-semibold text-sm text-primary block">Active Status</span>
-                      <span className="text-xs text-secondary">Parameter available for data entry</span>
-                    </div>
-                    <div className="relative inline-flex items-center shrink-0 ml-4">
-                      <input 
-                        type="checkbox" 
-                        className="sr-only peer" 
-                        checked={formData.active}
-                        onChange={e => setFormData({...formData, active: e.target.checked})}
-                      />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
-                    </div>
-                  </label>
-                </div>
-              </form>
-            </div>
-            
-            <div className="p-5 border-t border-base bg-slate-50 flex justify-end gap-3 shrink-0">
-              <button 
-                type="button" 
-                className="btn btn-outline bg-white shadow-sm px-6"
-                onClick={() => setIsModalOpen(false)}
-                disabled={isSaving}
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                form="quality-form" 
-                className="btn btn-primary min-w-[130px] shadow-sm flex items-center justify-center"
-                disabled={isSaving}
-              >
-                {isSaving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> : 'Save Parameter'}
-              </button>
-            </div>
           </div>
         </div>
       )}
