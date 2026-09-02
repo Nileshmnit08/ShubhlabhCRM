@@ -102,7 +102,7 @@ const Configuration = () => {
               return (
                 <NavLink 
                   key={tab.id}
-                  to={tab.id}
+                  to={`/raw-material-prices/configuration/${tab.id}`}
                   style={({ isActive }) => ({
                     display: 'flex', alignItems: 'center', gap: '0.75rem', 
                     padding: '1.25rem 1rem', textAlign: 'left', border: 'none',
