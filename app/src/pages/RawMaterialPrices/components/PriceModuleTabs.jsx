@@ -1,0 +1,54 @@
+import React from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { 
+  LayoutDashboard, 
+  FileEdit, 
+  History, 
+  BarChart2, 
+  MessageCircle, 
+  Settings 
+} from 'lucide-react';
+
+const PriceModuleTabs = () => {
+  const location = useLocation();
+
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '' },
+    { id: 'daily-entry', label: 'Daily Price Entry', icon: FileEdit, path: 'daily-entry' },
+    { id: 'history', label: 'Price History', icon: History, path: 'history' },
+    { id: 'analysis', label: 'Price Analysis', icon: BarChart2, path: 'analysis' },
+    { id: 'whatsapp', label: 'WhatsApp Update', icon: MessageCircle, path: 'whatsapp' },
+    { id: 'configuration', label: 'Configuration', icon: Settings, path: 'configuration' },
+  ];
+
+  return (
+    <div className="bg-surface border border-base rounded-lg shadow-sm mb-6 w-full overflow-hidden">
+      <div className="flex overflow-x-auto hide-scrollbar">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const fullPath = `/raw-material-prices${tab.path ? `/${tab.path}` : ''}`;
+          const isActive = location.pathname === fullPath || 
+                          (tab.path === '' && location.pathname === '/raw-material-prices/');
+
+          return (
+            <NavLink
+              key={tab.id}
+              to={fullPath}
+              end={tab.path === ''}
+              className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors whitespace-nowrap border-b-2 ${
+                isActive 
+                  ? 'text-primary border-primary bg-primary/5' 
+                  : 'text-secondary border-transparent hover:text-primary hover:bg-base/50 hover:border-border'
+              }`}
+            >
+              <Icon size={16} />
+              {tab.label}
+            </NavLink>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export default PriceModuleTabs;
