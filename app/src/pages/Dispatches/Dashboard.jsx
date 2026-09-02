@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
-import { Truck, Package, Users, AlertCircle, CheckCircle2, Search, ArrowRight, X, Edit2, Trash2, Save } from 'lucide-react';
+import { Truck, Package, Users, AlertCircle, CheckCircle2, Search, ArrowRight, X, Edit2, Trash2, Save, MessageCircle, Copy } from 'lucide-react';
+import { AuthContext } from '../../AuthContext';
 
 export default function DispatchDashboard() {
+  const { userProfile } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
@@ -25,6 +27,12 @@ export default function DispatchDashboard() {
 
   const [editingDispatchId, setEditingDispatchId] = useState(null);
   const [editForm, setEditForm] = useState({});
+
+  // WhatsApp Modal State
+  const [waModalOpen, setWaModalOpen] = useState(false);
+  const [waSelectedReq, setWaSelectedReq] = useState(null);
+  const [waMessage, setWaMessage] = useState('');
+  const [whatsappSentStatus, setWhatsappSentStatus] = useState({});
 
   useEffect(() => {
     fetchDashboardData();
@@ -66,8 +74,8 @@ export default function DispatchDashboard() {
         .select(`
           *,
           requirements (
-            id, quantity, product_type, expected_date,
-            crm_parties (id, display_name, city)
+            id, quantity, unit, product_type, expected_date,
+            crm_parties (id, display_name, city, mobile, whatsapp)
           )
         `)
         .not('status', 'in', '("Cancelled","Voided","Deleted","Reversed")');
@@ -134,6 +142,8 @@ export default function DispatchDashboard() {
         product: req.product_type,
         dealer: req.crm_parties?.display_name || 'Unknown',
         territory: req.crm_parties?.city || 'N/A', // fallback to city
+        mobile: req.crm_parties?.whatsapp || req.crm_parties?.mobile || '',
+        unit: req.unit || 'Bags',
         owner: 'N/A',
         requiredQty: Number(req.quantity || 0),
         cumulativeDispatched: Number(summary.total_dispatched_quantity || 0),
@@ -231,6 +241,112 @@ export default function DispatchDashboard() {
       console.error(err);
       alert('Failed to update record.');
     }
+  };
+
+  const handleOpenWhatsAppModal = async (reqRow) => {
+    setWaSelectedReq(reqRow);
+    setWaModalOpen(true);
+    setWaMessage('Loading details...');
+    
+    try {
+      const { data, error } = await supabase
+        .from('requirement_dispatches')
+        .select('*')
+        .eq('requirement_id', reqRow.id)
+        .not('status', 'in', '("Cancelled","Voided","Deleted","Reversed")')
+        .order('dispatch_date', { ascending: false });
+        
+      if (error) throw error;
+      
+      const activeDispatches = data || [];
+      
+      const invoices = [...new Set(activeDispatches.map(d => d.invoice_number).filter(Boolean))].join(', ') || 'उपलब्ध नहीं';
+      const lrs = [...new Set(activeDispatches.map(d => d.lr_bilty_number).filter(Boolean))].join(', ') || 'उपलब्ध नहीं';
+      const trucks = [...new Set(activeDispatches.map(d => d.truck_number).filter(Boolean))].join(', ') || 'उपलब्ध नहीं';
+      const transporters = [...new Set(activeDispatches.map(d => d.transporter_name).filter(Boolean))].join(', ') || 'उपलब्ध नहीं';
+      
+      const dispatchDatesArr = [...new Set(activeDispatches.map(d => d.dispatch_date ? new Date(d.dispatch_date).toLocaleDateString('en-GB') : null).filter(Boolean))];
+      const dispatchDates = dispatchDatesArr.join(', ') || 'उपलब्ध नहीं';
+      
+      const drivers = [...new Set(activeDispatches.map(d => d.driver_name).filter(Boolean))].join(', ') || 'उपलब्ध नहीं';
+      const driverPhones = [...new Set(activeDispatches.map(d => d.driver_mobile).filter(Boolean))].join(', ') || 'उपलब्ध नहीं';
+      
+      const validityDate = reqRow.date ? new Date(reqRow.date).toLocaleDateString('en-GB') : 'उपलब्ध नहीं';
+      const validityDetails = reqRow.date ? `कृपया ${validityDate} तक डिलीवरी की अपेक्षा करें।` : 'डिलीवरी जल्द ही अपेक्षित है।';
+
+      const template = `नमस्कार ${reqRow.dealer} जी,
+
+आपका ऑर्डर सफलतापूर्वक डिस्पैच कर दिया गया है।
+
+ऑर्डर विवरण:
+• उत्पाद: ${reqRow.product}
+• डिस्पैच मात्रा: ${reqRow.cumulativeDispatched} ${reqRow.unit}
+• बिल नंबर: ${invoices}
+• LR/डिस्पैच नंबर: ${lrs}
+• डिस्पैच दिनांक: ${dispatchDates}
+
+वाहन विवरण:
+• ड्राइवर का नाम: ${drivers}
+• ड्राइवर मोबाइल नंबर: ${driverPhones}
+• ट्रक/वाहन नंबर: ${trucks}
+• ट्रांसपोर्टर: ${transporters}
+
+डिलीवरी संबंधी विवरण:
+${validityDetails}
+
+कृपया वाहन/माल प्राप्त होने पर पुष्टि करें।
+
+धन्यवाद,
+Shubh Labh Team`;
+
+      setWaMessage(template);
+    } catch (err) {
+      console.error(err);
+      setWaMessage('Error loading dispatch details.');
+    }
+  };
+
+  const handleSendWhatsApp = async () => {
+    if (!waSelectedReq || !waSelectedReq.mobile) return;
+    
+    let phone = String(waSelectedReq.mobile).replace(/\D/g, '');
+    if (phone.length === 10) {
+      phone = '91' + phone;
+    }
+    
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(waMessage)}`;
+    window.open(url, '_blank');
+    
+    if (userProfile?.id) {
+      try {
+        await supabase.from('activity_logs').insert([{
+          actor_id: userProfile.id,
+          module: 'Dispatches',
+          action_type: 'WHATSAPP_SENT',
+          entity_type: 'requirements',
+          entity_id: waSelectedReq.id,
+          summary: `Dispatch WhatsApp confirmation initiated for ${waSelectedReq.product}`,
+          metadata: {
+            requirement_id: waSelectedReq.id,
+            customer: waSelectedReq.dealer,
+            mobile: phone,
+            user_email: userProfile.email
+          }
+        }]);
+      } catch (e) {
+        console.error("Failed to log activity:", e);
+      }
+    }
+    
+    setWhatsappSentStatus(prev => ({
+      ...prev,
+      [waSelectedReq.id]: {
+        time: new Date(),
+        user: userProfile?.email?.split('@')[0] || 'User'
+      }
+    }));
+    
+    setWaModalOpen(false);
   };
 
   const getStatusBadgeClass = (status) => {
@@ -394,9 +510,30 @@ export default function DispatchDashboard() {
                            )}
                         </td>
                         <td style={{ padding: '1rem', textAlign: 'center' }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => handleViewDetails(row)}>
-                            View Details <ArrowRight size={14} style={{marginLeft: '4px'}}/>
-                          </button>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleViewDetails(row)}>
+                              View Details <ArrowRight size={14} style={{marginLeft: '4px'}}/>
+                            </button>
+                            
+                            {row.dispatchProgress === 'Fully Dispatched' && (
+                              <>
+                                <button 
+                                  className="btn btn-sm" 
+                                  style={{ background: '#25D366', color: '#fff', border: 'none', width: '100%', opacity: !row.mobile ? 0.5 : 1 }}
+                                  onClick={() => handleOpenWhatsAppModal(row)}
+                                  disabled={!row.mobile}
+                                  title={!row.mobile ? "Customer WhatsApp number is not available." : "Send WhatsApp Confirmation"}
+                                >
+                                  <MessageCircle size={14} style={{marginRight: '4px'}}/> WhatsApp Confirmation
+                                </button>
+                                {whatsappSentStatus[row.id] && (
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '-4px' }}>
+                                    <CheckCircle2 size={12} /> Sent
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -515,6 +652,52 @@ export default function DispatchDashboard() {
                <div>Pending: {selectedReq.pendingQty.toLocaleString()}</div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Modal */}
+      {waModalOpen && waSelectedReq && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '90%', maxWidth: '500px', background: 'var(--bg-surface)', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: '#25D366' }}>
+                <MessageCircle size={20} /> WhatsApp Confirmation
+              </h3>
+              <button className="btn-icon" onClick={() => setWaModalOpen(false)}><X size={20} /></button>
+            </div>
+            
+            <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-base)', borderRadius: '8px', fontSize: '0.9rem' }}>
+              <div><strong>Recipient:</strong> {waSelectedReq.dealer}</div>
+              <div><strong>Number:</strong> {waSelectedReq.mobile}</div>
+            </div>
+
+            <textarea 
+              value={waMessage} 
+              onChange={e => setWaMessage(e.target.value)}
+              style={{ width: '100%', height: '300px', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-base)', fontSize: '0.9rem', resize: 'vertical', fontFamily: 'inherit', lineHeight: '1.5' }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1.5rem' }}>
+              <button className="btn btn-secondary" onClick={() => setWaModalOpen(false)}>Cancel</button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  navigator.clipboard.writeText(waMessage);
+                  alert('Message copied to clipboard!');
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Copy size={16} /> Copy Message
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleSendWhatsApp}
+                style={{ background: '#25D366', borderColor: '#25D366', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <MessageCircle size={16} /> Open WhatsApp
+              </button>
+            </div>
           </div>
         </div>
       )}
