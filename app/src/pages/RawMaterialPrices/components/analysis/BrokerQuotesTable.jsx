@@ -15,22 +15,22 @@ const BrokerQuotesTable = ({ quotes, currMin, currMax, unit, currDateStr }) => {
         </div>
         
         {quotes.length > 0 && (
-          <div className="flex flex-wrap gap-2 shrink-0">
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0 w-full lg:w-auto">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[80px]">
               <span className="text-[10px] font-bold text-slate-500 uppercase">Quotes</span>
               <span className="text-sm font-bold text-slate-800">{quotes.length}</span>
             </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[100px]">
               <span className="text-[10px] font-bold text-slate-500 uppercase">Low</span>
-              <span className="text-sm font-bold text-slate-800">₹{currMin.toFixed(2)}</span>
+              <span className="text-sm font-bold text-slate-800 whitespace-nowrap">₹{currMin.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[100px]">
               <span className="text-[10px] font-bold text-slate-500 uppercase">High</span>
-              <span className="text-sm font-bold text-slate-800">₹{currMax.toFixed(2)}</span>
+              <span className="text-sm font-bold text-slate-800 whitespace-nowrap">₹{currMax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[80px]">
               <span className="text-[10px] font-bold text-slate-500 uppercase">Spread</span>
-              <span className="text-sm font-bold text-slate-800">₹{spread.toFixed(2)}</span>
+              <span className="text-sm font-bold text-slate-800 whitespace-nowrap">₹{spread.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
         )}
@@ -59,20 +59,23 @@ const BrokerQuotesTable = ({ quotes, currMin, currMax, unit, currDateStr }) => {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 text-[#64748B] text-sm font-medium">
+                    <div className="flex items-center gap-1.5 text-[#64748B] text-sm font-medium whitespace-nowrap">
                       <MapPin size={14} />
                       {q.location || 'Not specified'}
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-1.5 text-slate-400 text-sm italic">
+                    <div className="flex items-center gap-1.5 text-slate-400 text-sm italic whitespace-nowrap">
                       <Clock size={14} />
                       {q.quoteTime || 'Unknown'}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-6 py-4 text-right whitespace-nowrap">
                     <span className="text-[15px] font-bold text-[#0F172A]" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                      ₹{Number(q.price).toFixed(2)}
+                      ₹{Number(q.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-xs text-[#64748B] font-medium ml-1">
+                      / {unit.toLowerCase()}
                     </span>
                   </td>
                 </tr>
@@ -82,24 +85,24 @@ const BrokerQuotesTable = ({ quotes, currMin, currMax, unit, currDateStr }) => {
 
           <div className="md:hidden flex flex-col divide-y divide-slate-100">
             {quotes.map((q, idx) => (
-              <div key={idx} className="p-4 bg-white flex justify-between items-start">
+              <div key={idx} className="p-4 bg-white flex justify-between items-start gap-3">
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-2">
-                    <Store size={14} className="text-blue-500" />
+                    <Store size={14} className="text-blue-500 shrink-0" />
                     <span className="font-semibold text-slate-800 text-sm">{q.brokerName}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-500 text-xs">
-                    <MapPin size={12} />
-                    {q.location || 'Not specified'}
+                    <MapPin size={12} className="shrink-0" />
+                    <span className="truncate">{q.location || 'Not specified'}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-400 text-xs italic">
-                    <Clock size={12} />
-                    {q.quoteTime || 'Unknown'}
+                    <Clock size={12} className="shrink-0" />
+                    <span>{q.quoteTime || 'Unknown'}</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-slate-800">₹{Number(q.price).toFixed(2)}</span>
-                  <p className="text-[10px] text-slate-400 uppercase mt-0.5">/ {unit.toLowerCase()}</p>
+                <div className="text-right shrink-0">
+                  <span className="text-sm font-bold text-slate-800 whitespace-nowrap">₹{Number(q.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <p className="text-[10px] text-slate-400 uppercase mt-0.5 whitespace-nowrap">/ {unit.toLowerCase()}</p>
                 </div>
               </div>
             ))}

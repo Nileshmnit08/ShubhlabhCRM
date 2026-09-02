@@ -63,10 +63,10 @@ const PriceMetricCard = ({
       </div>
       
       <div className="mt-auto">
-        <div className={`text-2xl sm:text-[26px] font-bold tracking-tight mb-1.5 flex items-center gap-2 ${styles.value}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-          {value}
+        <div className={`text-2xl sm:text-[26px] font-bold tracking-tight mb-1.5 flex flex-wrap items-center gap-2 ${styles.value}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <span className="whitespace-nowrap">{value}</span>
           {badge && (
-            <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider border border-slate-200 shadow-sm align-middle mt-1">
+            <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider border border-slate-200 shadow-sm whitespace-nowrap mt-0.5">
               {badge}
             </span>
           )}
