@@ -176,7 +176,7 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
             <input 
               type="text" 
               required 
-              className="input w-full uppercase font-mono shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
+              className="input w-full uppercase font-mono shadow-sm" 
               placeholder="e.g. RM-016"
               value={formData.code}
               onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
@@ -190,7 +190,7 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
               <input 
                 type="text" 
                 required 
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
+                className="input w-full shadow-sm" 
                 placeholder="e.g. Maize"
                 value={formData.name_en}
                 onChange={e => setFormData({...formData, name_en: e.target.value})}
@@ -200,7 +200,7 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
               <label className="block text-sm font-semibold text-secondary mb-1.5">Hindi Name</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
+                className="input w-full shadow-sm" 
                 placeholder="e.g. मक्का"
                 value={formData.name_hi}
                 onChange={e => setFormData({...formData, name_hi: e.target.value})}
@@ -213,7 +213,7 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
               <label className="block text-sm font-semibold text-secondary mb-1.5">Category <span className="text-red-500">*</span></label>
               <select 
                 required
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                className="input w-full shadow-sm"
                 value={formData.category}
                 onChange={e => setFormData({...formData, category: e.target.value})}
               >
@@ -225,7 +225,7 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
               <label className="block text-sm font-semibold text-secondary mb-1.5">Default Unit <span className="text-red-500">*</span></label>
               <select 
                 required
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                className="input w-full shadow-sm"
                 value={formData.default_unit_id}
                 onChange={e => setFormData({...formData, default_unit_id: e.target.value})}
               >
@@ -248,7 +248,7 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
                   checked={formData.daily_tracking_required}
                   onChange={e => setFormData({...formData, daily_tracking_required: e.target.checked})}
                 />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 shadow-inner"></div>
               </div>
             </label>
 
@@ -264,7 +264,7 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
                   checked={formData.active}
                   onChange={e => setFormData({...formData, active: e.target.checked})}
                 />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
               </div>
             </label>
           </div>

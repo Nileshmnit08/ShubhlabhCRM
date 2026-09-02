@@ -128,7 +128,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <input 
             type="text"
-            className="input pl-10 pr-4 py-2 w-full text-sm bg-white border-base/80 focus:border-emerald-500 rounded-lg shadow-sm"
+            className="input pl-10 pr-4 py-2 w-full text-sm bg-white border-base/80 rounded-lg shadow-sm"
             placeholder="Search by name, firm, or location..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -152,37 +152,37 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
         ) : filteredData.length === 0 ? (
            <EmptyState icon={Users} title="No Brokers" description={hasActiveFilters ? "Try adjusting your filters." : "Add brokers to start tracking prices from them."} actionText="Add Broker" onAction={handleAddBroker} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 border-b border-base sticky top-0 z-10">
+          <div className="data-table-container">
+            <table className="data-table mobile-cards-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Broker / Firm</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Contact</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Location</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Materials Handled</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right w-24">Actions</th>
+                  <th style={{minWidth: '200px'}}>Broker / Firm</th>
+                  <th style={{minWidth: '150px'}}>Contact</th>
+                  <th style={{minWidth: '150px'}}>Location</th>
+                  <th style={{minWidth: '250px'}}>Materials Handled</th>
+                  <th style={{width: '100px'}}>Status</th>
+                  <th style={{width: '100px', textAlign: 'right'}}>Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-base">
                 {paginatedData.map(b => (
                   <tr key={b.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-6 py-4">
+                    <td data-label="Broker / Firm">
                       <div className="font-semibold text-[15px] text-primary">{b.broker_name}</div>
                       {b.firm_name && <div className="text-[13px] text-secondary mt-0.5">{b.firm_name}</div>}
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Contact">
                       <div className="font-medium text-[14px] text-secondary">{b.mobile || '-'}</div>
                       {b.whatsapp_number && b.whatsapp_number !== b.mobile && (
                         <div className="text-[12px] text-emerald-600 mt-0.5 font-medium">WA: {b.whatsapp_number}</div>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-[14px] text-secondary">
+                    <td data-label="Location" className="text-[14px] text-secondary">
                       {b.market_location || '-'}
                       {b.state && b.market_location && `, `}
                       {b.state}
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Materials Handled">
                       <div className="flex flex-wrap gap-1">
                         {b.broker_materials && b.broker_materials.length > 0 ? (
                           b.broker_materials.slice(0, 3).map(bm => {
@@ -203,10 +203,10 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Status">
                       <StatusBadge active={b.active} />
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td data-label="Actions" style={{textAlign: 'right'}}>
                       <div className="flex items-center justify-end gap-1 relative">
                         <button 
                           className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 

@@ -161,7 +161,7 @@ export default function GeneralSettingsTab({ settings, loading, onRefresh, showM
                 <input 
                   type="number" 
                   step="0.01"
-                  className="input w-full md:w-64 shadow-sm focus:border-emerald-500" 
+                  className="input w-full md:w-64 shadow-sm" 
                   value={formData.alert_threshold_percentage}
                   onChange={(e) => handleChange('alert_threshold_percentage', e.target.value)}
                 />
@@ -194,7 +194,7 @@ export default function GeneralSettingsTab({ settings, loading, onRefresh, showM
                 <p className="text-xs text-muted mb-2">Default time to generate daily WhatsApp updates.</p>
                 <input 
                   type="time" 
-                  className="input w-full md:w-64 shadow-sm focus:border-emerald-500" 
+                  className="input w-full md:w-64 shadow-sm" 
                   value={formData.whatsapp_reminder_time}
                   onChange={(e) => handleChange('whatsapp_reminder_time', e.target.value)}
                 />
@@ -203,7 +203,7 @@ export default function GeneralSettingsTab({ settings, loading, onRefresh, showM
                 <label className="block text-sm font-semibold text-secondary mb-1">System Timezone</label>
                 <p className="text-xs text-muted mb-2">Timezone used for timestamps and reminders.</p>
                 <select 
-                  className="input w-full md:w-64 shadow-sm focus:border-emerald-500"
+                  className="input w-full md:w-64 shadow-sm"
                   value={formData.timezone}
                   onChange={(e) => handleChange('timezone', e.target.value)}
                 >
@@ -225,7 +225,7 @@ export default function GeneralSettingsTab({ settings, loading, onRefresh, showM
                 <label className="block text-sm font-semibold text-secondary mb-1">Default Report Selection Method</label>
                 <p className="text-xs text-muted mb-2">How prices are selected when generating daily reports.</p>
                 <select 
-                  className="input w-full md:w-64 shadow-sm focus:border-emerald-500"
+                  className="input w-full md:w-64 shadow-sm"
                   value={formData.default_selection_method}
                   onChange={(e) => handleChange('default_selection_method', e.target.value)}
                 >
@@ -245,7 +245,7 @@ export default function GeneralSettingsTab({ settings, loading, onRefresh, showM
                       checked={formData.show_broker_in_report}
                       onChange={e => handleChange('show_broker_in_report', e.target.checked)}
                     />
-                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary shadow-inner"></div>
                   </div>
                   <div>
                     <span className="font-semibold text-sm text-primary block">Show Broker Names in Reports</span>
@@ -263,7 +263,7 @@ export default function GeneralSettingsTab({ settings, loading, onRefresh, showM
                       checked={formData.show_previous_day_change}
                       onChange={e => handleChange('show_previous_day_change', e.target.checked)}
                     />
-                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
+                    <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary shadow-inner"></div>
                   </div>
                   <div>
                     <span className="font-semibold text-sm text-primary block">Show Previous Day Variance</span>

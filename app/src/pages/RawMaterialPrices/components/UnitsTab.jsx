@@ -133,35 +133,31 @@ export default function UnitsTab({ units, loading, onRefresh, showMessage }) {
         ) : (!units || units.length === 0) ? (
            <EmptyState icon={Ruler} title="No Units" description="Define standard units for your raw materials." actionText="Add Unit" onAction={() => handleOpenModal()} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 border-b border-base sticky top-0 z-10">
+          <div className="data-table-container">
+            <table className="data-table mobile-cards-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider w-24">Order</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Unit Name</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Notes</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider w-32">Status</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right w-24">Actions</th>
+                  <th style={{minWidth: '200px'}}>Unit Name</th>
+                  <th style={{minWidth: '150px'}}>Symbol</th>
+                  <th style={{minWidth: '200px'}}>Description</th>
+                  <th style={{width: '100px'}}>Status</th>
+                  <th style={{width: '100px', textAlign: 'right'}}>Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-base">
                 {units.map(u => (
                   <tr key={u.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-6 py-4 text-secondary tabular-nums">{u.display_order}</td>
-                    <td className="px-6 py-4">
-                      <div className="font-semibold text-[15px] text-primary">{u.unit_name}</div>
-                    </td>
-                    <td className="px-6 py-4 text-[14px] text-secondary truncate max-w-[200px]" title={u.notes}>
-                      {u.notes || '-'}
-                    </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Unit Name" className="font-semibold text-[15px] text-primary">{u.unit_name}</td>
+                    <td data-label="Symbol" className="font-medium text-secondary">{u.symbol}</td>
+                    <td data-label="Description" className="text-[14px] text-secondary">{u.description || '-'}</td>
+                    <td data-label="Status">
                       <StatusBadge active={u.active} />
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td data-label="Actions" style={{textAlign: 'right'}}>
                       <div className="flex items-center justify-end gap-1 relative">
                         <button 
                           className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
-                          onClick={() => handleOpenModal(u)}
+                          onClick={() => handleEditUnit(u)}
                         >
                           <Edit2 size={16}/>
                         </button>
@@ -184,7 +180,7 @@ export default function UnitsTab({ units, loading, onRefresh, showMessage }) {
                             >
                               <button 
                                 className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 hover:text-primary flex items-center gap-2"
-                                onClick={() => handleOpenModal(u, true)}
+                                onClick={() => handleEditUnit(u, true)}
                               >
                                 <Copy size={14} /> Duplicate
                               </button>
@@ -233,7 +229,7 @@ export default function UnitsTab({ units, loading, onRefresh, showMessage }) {
                   <input 
                     type="text" 
                     required 
-                    className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
+                    className="input w-full shadow-sm" 
                     placeholder="e.g. Quintal, MT, Kg"
                     value={formData.unit_name}
                     onChange={e => setFormData({...formData, unit_name: e.target.value})}
@@ -245,7 +241,7 @@ export default function UnitsTab({ units, loading, onRefresh, showMessage }) {
                   <label className="block text-sm font-semibold text-secondary mb-1.5">Display Order</label>
                   <input 
                     type="number" 
-                    className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                    className="input w-full shadow-sm"
                     placeholder="e.g. 1"
                     value={formData.display_order}
                     onChange={e => setFormData({...formData, display_order: e.target.value})}
@@ -255,7 +251,7 @@ export default function UnitsTab({ units, loading, onRefresh, showMessage }) {
                 <div>
                    <label className="block text-sm font-semibold text-secondary mb-1.5">Notes</label>
                    <textarea 
-                     className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 min-h-[60px]"
+                     className="input w-full shadow-sm min-h-[60px]"
                      placeholder="Optional notes..."
                      value={formData.notes}
                      onChange={e => setFormData({...formData, notes: e.target.value})}
@@ -275,7 +271,7 @@ export default function UnitsTab({ units, loading, onRefresh, showMessage }) {
                         checked={formData.active}
                         onChange={e => setFormData({...formData, active: e.target.checked})}
                       />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
                     </div>
                   </label>
                 </div>

@@ -332,20 +332,19 @@ const PriceHistory = () => {
       </div>
 
       {/* Table Card */}
-      <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm overflow-hidden flex flex-col">
-        <div className="overflow-x-auto min-h-[400px]">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
-            <thead className="sticky top-0 bg-[#F8FAFC] z-10 shadow-sm border-b border-[#E2E8F0]">
+      <div className="data-table-container">
+          <table className="data-table mobile-cards-table" style={{minWidth: '1000px'}}>
+            <thead>
               <tr>
-                <th className="px-5 py-4 text-[12px] font-semibold text-[#475569] uppercase tracking-wider whitespace-nowrap">Date</th>
-                <th className="px-5 py-4 text-[12px] font-semibold text-[#475569] uppercase tracking-wider">Material</th>
-                <th className="px-5 py-4 text-[12px] font-semibold text-[#475569] uppercase tracking-wider">Quality</th>
-                <th className="px-5 py-4 text-[12px] font-semibold text-[#475569] uppercase tracking-wider">Broker</th>
-                <th className="px-5 py-4 text-[12px] font-semibold text-[#475569] uppercase tracking-wider">Location</th>
-                <th className="px-5 py-4 text-[12px] font-semibold text-[#475569] uppercase tracking-wider text-right">Price</th>
-                <th className="px-5 py-4 text-[12px] font-semibold text-[#475569] uppercase tracking-wider">Unit</th>
-                <th className="px-5 py-4 text-[12px] font-semibold text-[#475569] uppercase tracking-wider">Type</th>
-                <th className="px-5 py-4 text-[12px] font-semibold text-[#475569] uppercase tracking-wider max-w-[200px]">Remarks</th>
+                <th style={{whiteSpace: 'nowrap'}}>Date</th>
+                <th>Material</th>
+                <th>Quality</th>
+                <th>Broker</th>
+                <th>Location</th>
+                <th style={{textAlign: 'right'}}>Price</th>
+                <th>Unit</th>
+                <th>Type</th>
+                <th style={{maxWidth: '200px'}}>Remarks</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0]">
@@ -389,45 +388,45 @@ const PriceHistory = () => {
                   
                   return (
                     <tr key={entry.id} className="hover:bg-[#F8FAFC] transition-colors group">
-                      <td className="px-5 py-4 whitespace-nowrap text-[14.5px] text-[#0F172A]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      <td data-label="Date" className="whitespace-nowrap" style={{ fontVariantNumeric: 'tabular-nums' }}>
                         {format(parseISO(entry.entry_date), 'dd MMM yyyy')}
                       </td>
-                      <td className="px-5 py-4">
-                        <div className="font-semibold text-[#0F172A] text-[14.5px]">{entry.raw_materials?.name_en}</div>
+                      <td data-label="Material">
+                        <div className="font-semibold text-primary text-[14.5px]">{entry.raw_materials?.name_en}</div>
                         {entry.raw_materials?.name_hi && (
-                          <div className="text-[12.5px] text-[#64748B] mt-0.5">{entry.raw_materials?.name_hi}</div>
+                          <div className="text-[12.5px] text-secondary mt-0.5">{entry.raw_materials?.name_hi}</div>
                         )}
                       </td>
-                      <td className="px-5 py-4 text-[#475569] text-[14.5px]">
+                      <td data-label="Quality" className="text-secondary text-[14.5px]">
                         <div className="truncate max-w-[120px]" title={entry.material_quality_grades?.grade_name || ''}>
-                          {entry.material_quality_grades?.grade_name || <span className="text-[#94A3B8]">-</span>}
+                          {entry.material_quality_grades?.grade_name || <span className="text-muted">-</span>}
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-[#0F172A] text-[14.5px]">{entry.brokers?.broker_name}</td>
-                      <td className="px-5 py-4 text-[#475569] text-[14.5px]">
+                      <td data-label="Broker" className="text-primary text-[14.5px]">{entry.brokers?.broker_name}</td>
+                      <td data-label="Location" className="text-secondary text-[14.5px]">
                         {entry.market_location ? (
                           <div className="flex items-center gap-1.5">
-                            <MapPin size={14} className="text-[#94A3B8] shrink-0" />
+                            <MapPin size={14} className="text-muted shrink-0" />
                             <span className="truncate max-w-[120px]" title={entry.market_location}>{entry.market_location}</span>
                           </div>
                         ) : (
-                          <span className="text-[#94A3B8]">-</span>
+                          <span className="text-muted">-</span>
                         )}
                       </td>
-                      <td className="px-5 py-4 text-right font-bold text-[#0F172A] text-[15px]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      <td data-label="Price" className="text-right font-bold text-primary text-[15px]" style={{ fontVariantNumeric: 'tabular-nums' }}>
                         ₹{Number(entry.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      <td className="px-5 py-4 text-[#64748B] text-[14.5px]">
+                      <td data-label="Unit" className="text-secondary text-[14.5px]">
                         {entry.rm_units?.unit_name || entry.unit}
                       </td>
-                      <td className="px-5 py-4">
+                      <td data-label="Type">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-semibold border ${isDelivered ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-violet-50 text-violet-700 border-violet-200'}`}>
                           {typeName}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-[#64748B] text-[14px]">
+                      <td data-label="Remarks" className="text-secondary text-[14px]">
                         <div className="truncate max-w-[180px]" title={entry.remarks || ''}>
-                          {entry.remarks || <span className="text-[#94A3B8]">-</span>}
+                          {entry.remarks || <span className="text-muted">-</span>}
                         </div>
                       </td>
                     </tr>
@@ -437,10 +436,9 @@ const PriceHistory = () => {
             </tbody>
           </table>
         </div>
-        
         {/* Pagination */}
         {!loading && totalRecords > 0 && (
-          <div className="px-5 py-4 border-t border-[#E2E8F0] bg-[#F8FAFC] flex flex-col sm:flex-row items-center justify-between gap-4 mt-auto">
+          <div className="px-5 py-4 border-t border-[#E2E8F0] bg-[#F8FAFC] flex flex-col sm:flex-row items-center justify-between gap-4 mt-auto rounded-b-lg">
             <div className="text-[14px] text-[#64748B]">
               Showing <span className="font-semibold text-[#0F172A]">{(page - 1) * pageSize + 1}</span> to <span className="font-semibold text-[#0F172A]">{Math.min(page * pageSize, totalRecords)}</span> of <span className="font-semibold text-[#0F172A]">{totalRecords}</span> records
             </div>

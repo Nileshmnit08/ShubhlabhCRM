@@ -205,7 +205,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <input 
             type="text"
-            className="input pl-10 pr-4 py-2 w-full text-sm bg-white border-base/80 focus:border-emerald-500 rounded-lg shadow-sm"
+            className="input pl-10 pr-4 py-2 w-full text-sm bg-white border-base/80 rounded-lg shadow-sm"
             placeholder="Search by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -238,32 +238,32 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
         ) : filteredData.length === 0 ? (
            <EmptyState icon={LayoutList} title="No Quality Parameters" description={hasActiveFilters ? "Try adjusting your filters." : "You haven't defined any quality grades or parameters."} actionText="Add Parameter" onAction={() => handleOpenModal()} />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 border-b border-base sticky top-0 z-10">
+          <div className="data-table-container">
+            <table className="data-table mobile-cards-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Material</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Parameter/Grade</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Limits / UOM</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right w-24">Actions</th>
+                  <th style={{minWidth: '200px'}}>Material</th>
+                  <th style={{minWidth: '200px'}}>Parameter/Grade</th>
+                  <th style={{minWidth: '150px'}}>Type</th>
+                  <th style={{minWidth: '150px'}}>Limits / UOM</th>
+                  <th style={{width: '100px'}}>Status</th>
+                  <th style={{width: '100px', textAlign: 'right'}}>Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-base">
                 {paginatedData.map(q => (
                   <tr key={q.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-6 py-4 font-medium text-primary">{q.raw_materials?.name_en}</td>
-                    <td className="px-6 py-4">
+                    <td data-label="Material" className="font-medium text-primary">{q.raw_materials?.name_en}</td>
+                    <td data-label="Parameter/Grade">
                       <div className="font-semibold text-[15px] text-primary">{q.grade_name}</div>
                       {q.grade_name_hi && <div className="text-[13px] text-secondary mt-0.5">{q.grade_name_hi}</div>}
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Type">
                       <span className="inline-flex items-center text-[13px] font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
                         {q.parameter_type || 'Grade'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-[14px] text-secondary">
+                    <td data-label="Limits / UOM" className="text-[14px] text-secondary">
                       {q.min_value !== null || q.max_value !== null ? (
                         <div className="flex items-center gap-1">
                           {q.min_value !== null && <span className="font-medium text-primary">{q.min_value}</span>}
@@ -275,10 +275,10 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                         <span className="text-muted">N/A</span>
                       )}
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Status">
                       <StatusBadge active={q.active} />
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td data-label="Actions" style={{textAlign: 'right'}}>
                       <div className="flex items-center justify-end gap-1 relative">
                         <button 
                           className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
@@ -381,7 +381,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                   <label className="block text-sm font-semibold text-secondary mb-1.5">Material <span className="text-red-500">*</span></label>
                   <select 
                     required
-                    className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                    className="input w-full shadow-sm"
                     value={formData.raw_material_id}
                     onChange={e => setFormData({...formData, raw_material_id: e.target.value})}
                   >
@@ -396,7 +396,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                     <input 
                       type="text" 
                       required 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
+                      className="input w-full shadow-sm" 
                       placeholder="e.g. Moisture"
                       value={formData.grade_name}
                       onChange={e => setFormData({...formData, grade_name: e.target.value})}
@@ -406,7 +406,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                     <label className="block text-sm font-semibold text-secondary mb-1.5">Hindi Name</label>
                     <input 
                       type="text" 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
+                      className="input w-full shadow-sm" 
                       placeholder="e.g. नमी"
                       value={formData.grade_name_hi}
                       onChange={e => setFormData({...formData, grade_name_hi: e.target.value})}
@@ -419,7 +419,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                     <label className="block text-sm font-semibold text-secondary mb-1.5">Parameter Type</label>
                     <input 
                       type="text" 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      className="input w-full shadow-sm"
                       placeholder="e.g. Grade, Impurity, Protein"
                       value={formData.parameter_type}
                       onChange={e => setFormData({...formData, parameter_type: e.target.value})}
@@ -429,7 +429,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                     <label className="block text-sm font-semibold text-secondary mb-1.5">Unit of Measure</label>
                     <input 
                       type="text" 
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      className="input w-full shadow-sm"
                       placeholder="e.g. %, mm, gm"
                       value={formData.uom}
                       onChange={e => setFormData({...formData, uom: e.target.value})}
@@ -443,7 +443,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                     <input 
                       type="number" 
                       step="any"
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      className="input w-full shadow-sm"
                       value={formData.min_value}
                       onChange={e => setFormData({...formData, min_value: e.target.value})}
                     />
@@ -453,7 +453,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                     <input 
                       type="number" 
                       step="any"
-                      className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                      className="input w-full shadow-sm"
                       value={formData.max_value}
                       onChange={e => setFormData({...formData, max_value: e.target.value})}
                     />
@@ -473,7 +473,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
                         checked={formData.active}
                         onChange={e => setFormData({...formData, active: e.target.checked})}
                       />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
                     </div>
                   </label>
                 </div>

@@ -190,7 +190,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
               <input 
                 type="text" 
                 required 
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
+                className="input w-full shadow-sm" 
                 placeholder="e.g. Ramesh Agarwal"
                 value={formData.broker_name}
                 onChange={e => setFormData({...formData, broker_name: e.target.value})}
@@ -200,7 +200,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
               <label className="block text-sm font-semibold text-secondary mb-1.5">Firm Name</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10" 
+                className="input w-full shadow-sm" 
                 placeholder="e.g. Agarwal Trading Co."
                 value={formData.firm_name}
                 onChange={e => setFormData({...formData, firm_name: e.target.value})}
@@ -213,7 +213,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
               <label className="block text-sm font-semibold text-secondary mb-1.5">Mobile Number</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                className="input w-full shadow-sm"
                 placeholder="e.g. 9876543210"
                 value={formData.mobile}
                 onChange={e => setFormData({...formData, mobile: e.target.value})}
@@ -223,7 +223,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
               <label className="block text-sm font-semibold text-secondary mb-1.5">WhatsApp Number</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                className="input w-full shadow-sm"
                 placeholder="e.g. 9876543210"
                 value={formData.whatsapp_number}
                 onChange={e => setFormData({...formData, whatsapp_number: e.target.value})}
@@ -236,7 +236,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
               <label className="block text-sm font-semibold text-secondary mb-1.5">Market Location</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                className="input w-full shadow-sm"
                 placeholder="e.g. Jaipur"
                 value={formData.market_location}
                 onChange={e => setFormData({...formData, market_location: e.target.value})}
@@ -246,7 +246,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
               <label className="block text-sm font-semibold text-secondary mb-1.5">State</label>
               <input 
                 type="text" 
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                className="input w-full shadow-sm"
                 placeholder="e.g. Rajasthan"
                 value={formData.state}
                 onChange={e => setFormData({...formData, state: e.target.value})}
@@ -262,7 +262,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
                     <label key={m.id} className="flex items-center gap-3 p-2 hover:bg-white rounded-lg cursor-pointer transition-colors border border-transparent hover:border-base/50 hover:shadow-sm">
                       <input 
                         type="checkbox" 
-                        className="rounded border-slate-300 w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                        className="rounded border-slate-300 w-4 h-4 text-primary focus:ring-primary"
                         checked={formData.handled_material_ids.includes(m.id)}
                         onChange={() => handleMaterialToggle(m.id)}
                       />
@@ -276,7 +276,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
           <div>
               <label className="block text-sm font-semibold text-secondary mb-1.5">Notes</label>
               <textarea 
-                className="input w-full shadow-sm focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 min-h-[100px]"
+                className="input w-full shadow-sm min-h-[100px]"
                 placeholder="Additional information about the broker..."
                 value={formData.notes}
                 onChange={e => setFormData({...formData, notes: e.target.value})}
@@ -296,7 +296,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
                   checked={formData.active}
                   onChange={e => setFormData({...formData, active: e.target.checked})}
                 />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
               </div>
             </label>
           </div>

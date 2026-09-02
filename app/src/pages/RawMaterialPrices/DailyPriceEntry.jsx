@@ -232,21 +232,20 @@ const DailyPriceEntry = () => {
         </div>
       )}
 
-      <div className="card bg-surface overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1200px]">
+      <div className="data-table-container">
+          <table className="data-table mobile-cards-table" style={{minWidth: '1200px'}}>
             <thead>
-              <tr className="bg-base/50 text-secondary text-sm">
-                <th className="p-3 font-medium w-12 text-center">#</th>
-                <th className="p-3 font-medium min-w-[200px]">Raw Material *</th>
-                <th className="p-3 font-medium min-w-[180px]">Quality/Grade</th>
-                <th className="p-3 font-medium min-w-[200px]">Broker *</th>
-                <th className="p-3 font-medium min-w-[150px]">Location</th>
-                <th className="p-3 font-medium w-32">Price (₹) *</th>
-                <th className="p-3 font-medium w-32">Unit *</th>
-                <th className="p-3 font-medium w-40">Price Type *</th>
-                <th className="p-3 font-medium min-w-[200px]">Remarks</th>
-                <th className="p-3 font-medium w-24 text-center">Actions</th>
+              <tr>
+                <th style={{width: '40px', textAlign: 'center'}}>#</th>
+                <th style={{minWidth: '200px'}}>Raw Material *</th>
+                <th style={{minWidth: '180px'}}>Quality/Grade</th>
+                <th style={{minWidth: '200px'}}>Broker *</th>
+                <th style={{minWidth: '150px'}}>Location</th>
+                <th style={{width: '130px'}}>Price (₹) *</th>
+                <th style={{width: '130px'}}>Unit *</th>
+                <th style={{width: '160px'}}>Price Type *</th>
+                <th style={{minWidth: '200px'}}>Remarks</th>
+                <th style={{width: '100px', textAlign: 'center'}}>Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-base">
@@ -256,10 +255,10 @@ const DailyPriceEntry = () => {
                 
                 return (
                   <tr key={entry.id} className="hover:bg-base/20 transition-colors group">
-                    <td className="p-3 text-center text-secondary text-sm">{index + 1}</td>
-                    <td className="p-2">
+                    <td data-label="#" style={{textAlign: 'center'}} className="text-secondary text-sm">{index + 1}</td>
+                    <td data-label="Raw Material">
                       <select 
-                        className={`input w-full text-sm py-2 ${!entry.raw_material_id ? 'border-red-300' : ''}`}
+                        className={`input w-full text-sm ${!entry.raw_material_id ? 'border-red-300' : ''}`}
                         value={entry.raw_material_id}
                         onChange={(e) => handleChange(entry.id, 'raw_material_id', e.target.value)}
                       >
@@ -269,9 +268,9 @@ const DailyPriceEntry = () => {
                         ))}
                       </select>
                     </td>
-                    <td className="p-2">
+                    <td data-label="Quality/Grade">
                       <select 
-                        className="input w-full text-sm py-2"
+                        className="input w-full text-sm"
                         value={entry.quality_grade_id}
                         onChange={(e) => handleChange(entry.id, 'quality_grade_id', e.target.value)}
                         disabled={!entry.raw_material_id}
@@ -282,9 +281,9 @@ const DailyPriceEntry = () => {
                         ))}
                       </select>
                     </td>
-                    <td className="p-2">
+                    <td data-label="Broker">
                       <select 
-                        className={`input w-full text-sm py-2 ${!entry.broker_id ? 'border-red-300' : ''}`}
+                        className={`input w-full text-sm ${!entry.broker_id ? 'border-red-300' : ''}`}
                         value={entry.broker_id}
                         onChange={(e) => handleChange(entry.id, 'broker_id', e.target.value)}
                       >
@@ -294,19 +293,19 @@ const DailyPriceEntry = () => {
                         ))}
                       </select>
                     </td>
-                    <td className="p-2">
+                    <td data-label="Location">
                       <input 
                         type="text" 
-                        className="input w-full text-sm py-2"
+                        className="input w-full text-sm"
                         placeholder="Location"
                         value={entry.market_location}
                         onChange={(e) => handleChange(entry.id, 'market_location', e.target.value)}
                       />
                     </td>
-                    <td className="p-2">
+                    <td data-label="Price (₹)">
                       <input 
                         type="number" 
-                        className={`input w-full text-sm py-2 text-right font-medium ${!entry.price ? 'border-red-300' : ''}`}
+                        className={`input w-full text-sm text-right font-medium ${!entry.price ? 'border-red-300' : ''}`}
                         placeholder="0.00"
                         min="0"
                         step="0.01"
@@ -314,9 +313,9 @@ const DailyPriceEntry = () => {
                         onChange={(e) => handleChange(entry.id, 'price', e.target.value)}
                       />
                     </td>
-                    <td className="p-2">
+                    <td data-label="Unit">
                       <select 
-                        className={`input w-full text-sm py-2 ${!entry.unit_id ? 'border-red-300' : ''}`}
+                        className={`input w-full text-sm ${!entry.unit_id ? 'border-red-300' : ''}`}
                         value={entry.unit_id}
                         onChange={(e) => handleChange(entry.id, 'unit_id', e.target.value)}
                       >
@@ -326,9 +325,9 @@ const DailyPriceEntry = () => {
                         ))}
                       </select>
                     </td>
-                    <td className="p-2">
+                    <td data-label="Price Type">
                       <select 
-                        className={`input w-full text-sm py-2 ${!entry.price_type_id ? 'border-red-300' : ''}`}
+                        className={`input w-full text-sm ${!entry.price_type_id ? 'border-red-300' : ''}`}
                         value={entry.price_type_id}
                         onChange={(e) => handleChange(entry.id, 'price_type_id', e.target.value)}
                       >
@@ -338,26 +337,26 @@ const DailyPriceEntry = () => {
                         ))}
                       </select>
                     </td>
-                    <td className="p-2">
+                    <td data-label="Remarks">
                       <input 
                         type="text" 
-                        className="input w-full text-sm py-2"
+                        className="input w-full text-sm"
                         placeholder="Notes..."
                         value={entry.remarks}
                         onChange={(e) => handleChange(entry.id, 'remarks', e.target.value)}
                       />
                     </td>
-                    <td className="p-2 text-center">
-                      <div className="flex items-center justify-center gap-1 opacity-50 group-hover:opacity-100 transition-opacity">
+                    <td data-label="Actions" style={{textAlign: 'center'}}>
+                      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', opacity: 0.5}} className="group-hover:opacity-100 transition-opacity">
                         <button 
-                          className="btn-icon text-secondary hover:text-primary p-1.5"
+                          className="btn-icon text-secondary hover:text-primary" style={{padding: '4px'}}
                           onClick={() => handleDuplicateRow(index)}
                           title="Duplicate Row"
                         >
                           <Copy size={16} />
                         </button>
                         <button 
-                          className="btn-icon text-secondary hover:text-danger p-1.5"
+                          className="btn-icon text-secondary hover:text-danger" style={{padding: '4px'}}
                           onClick={() => handleRemoveRow(entry.id)}
                           title="Remove Row"
                         >

@@ -202,7 +202,7 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <input 
             type="text"
-            className="input pl-10 pr-4 py-2 w-full text-sm bg-white border-base/80 focus:border-emerald-500 rounded-lg shadow-sm"
+            className="input pl-10 pr-4 py-2 w-full text-sm bg-white border-base/80 rounded-lg shadow-sm"
             placeholder="Search by code or name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -273,10 +273,10 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+            <div className="data-table-container">
             {/* Desktop Table (Hidden on Mobile) */}
-            <table className="w-full text-left hidden md:table border-collapse">
-              <thead className="bg-slate-50 border-b border-base sticky top-0 z-10">
+            <table className="data-table hidden md:table">
+              <thead>
                 <tr>
                   <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition-colors w-28 group" onClick={() => handleSort('code')}>
                     Code <SortIcon columnKey="code" />
@@ -302,31 +302,31 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
               <tbody className="divide-y divide-base">
                 {paginatedData.map(m => (
                   <tr key={m.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-6 py-4">
+                    <td data-label="Code">
                       <span className="font-mono text-[13px] font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-200">{m.code || 'N/A'}</span>
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Material Name">
                       <div className="font-semibold text-[15px] text-primary">{m.name_en}</div>
                       <div className="text-[13px] text-secondary mt-0.5">{m.name_hi || <span className="opacity-0">-</span>}</div>
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Category">
                       <span className="inline-flex items-center text-[13px] font-medium text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
                         {m.category}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-[14px] font-medium text-secondary">
+                    <td data-label="Default Unit" className="text-[14px] font-medium text-secondary">
                       {m.default_unit?.unit_name || m.default_unit_id || '-'}
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Daily Track">
                       {m.daily_tracking_required 
                         ? <span className="inline-flex items-center justify-center px-2 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded text-[11px] font-bold uppercase tracking-wide">Tracked</span>
                         : <span className="inline-flex items-center justify-center px-2 py-1 bg-slate-100 text-slate-500 border border-slate-200 rounded text-[11px] font-bold uppercase tracking-wide">No</span>
                       }
                     </td>
-                    <td className="px-6 py-4">
+                    <td data-label="Status">
                       <StatusBadge active={m.active} />
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td data-label="Actions" style={{textAlign: 'right'}}>
                       <div className="flex items-center justify-end gap-1 relative">
                         <button 
                           className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
@@ -449,7 +449,7 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
             <div className="flex items-center gap-2">
               <span className="text-xs text-secondary font-medium">Rows:</span>
               <select 
-                className="input py-1 px-2 h-8 text-xs bg-white border-base rounded shadow-sm focus:border-emerald-500" 
+                className="input py-1 px-2 h-8 text-xs bg-white border-base rounded shadow-sm" 
                 value={itemsPerPage} 
                 onChange={e => {
                   setItemsPerPage(Number(e.target.value));
