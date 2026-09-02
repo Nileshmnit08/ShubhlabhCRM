@@ -232,7 +232,8 @@ const DailyPriceEntry = () => {
         </div>
       )}
 
-      <div className="data-table-container">
+      <div className="bg-white rounded-xl border border-base shadow-sm overflow-hidden flex flex-col">
+        <div className="data-table-container">
           <table className="data-table mobile-cards-table" style={{minWidth: '1200px'}}>
             <thead>
               <tr>

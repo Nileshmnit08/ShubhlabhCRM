@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Edit2, MoreVertical, AlertTriangle, Ruler, Copy, Power, PowerOff } from 'lucide-react';
+import { Edit2, MoreVertical, AlertTriangle, Ruler, Copy, Power, PowerOff, X } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
 import MasterDataSectionHeader from './MasterDataSectionHeader';
@@ -157,7 +157,7 @@ export default function UnitsTab({ units, loading, onRefresh, showMessage }) {
                       <div className="flex items-center justify-end gap-1 relative">
                         <button 
                           className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
-                          onClick={() => handleEditUnit(u)}
+                          onClick={() => handleOpenModal(u)}
                         >
                           <Edit2 size={16}/>
                         </button>
@@ -180,7 +180,7 @@ export default function UnitsTab({ units, loading, onRefresh, showMessage }) {
                             >
                               <button 
                                 className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 hover:text-primary flex items-center gap-2"
-                                onClick={() => handleEditUnit(u, true)}
+                                onClick={() => handleOpenModal(u, true)}
                               >
                                 <Copy size={14} /> Duplicate
                               </button>

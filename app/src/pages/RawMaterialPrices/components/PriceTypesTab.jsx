@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
-import { Edit2, MoreVertical, AlertTriangle, IndianRupee, Copy, Power, PowerOff } from 'lucide-react';
+import { Edit2, MoreVertical, AlertTriangle, IndianRupee, Copy, Power, PowerOff, X } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
 import MasterDataSectionHeader from './MasterDataSectionHeader';
