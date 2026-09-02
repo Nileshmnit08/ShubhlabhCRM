@@ -2,7 +2,6 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import RawMaterialPriceHeader from './components/RawMaterialPriceHeader';
-import RawMaterialPricesTabs from './components/RawMaterialPricesTabs';
 
 import Dashboard from './Dashboard';
 import DailyPriceEntry from './DailyPriceEntry';
@@ -15,9 +14,8 @@ const RawMaterialPrices = () => {
   return (
     <div className="page-container animate-fade-in max-w-7xl mx-auto">
       <RawMaterialPriceHeader />
-      <RawMaterialPricesTabs />
 
-      <div className="tab-content mt-6">
+      <div className="tab-content">
         <Routes>
           <Route index element={<Dashboard />} />
           <Route path="daily-entry" element={<DailyPriceEntry />} />
