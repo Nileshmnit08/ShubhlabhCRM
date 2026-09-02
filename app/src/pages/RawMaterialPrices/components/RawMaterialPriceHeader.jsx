@@ -2,7 +2,7 @@ import React from 'react';
 import { Plus, Calendar as CalendarIcon, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
-import { CONFIGURATION_TABS } from './ConfigurationNav';
+import { CONFIGURATION_TABS } from '../Configuration';
 
 const RawMaterialPriceHeader = () => {
   const navigate = useNavigate();
