@@ -64,6 +64,11 @@ const menuGroups = [
     items: ['/activity', '/performance', '/control-room', '/account-control']
   },
   {
+    id: 'raw-material-prices',
+    title: 'RAW MATERIAL PRICES',
+    items: ['/raw-material-prices']
+  },
+  {
     id: 'data-automation',
     title: 'DATA & AUTOMATION',
     items: ['/data', '/data/quality', '/automation-control']
@@ -71,7 +76,7 @@ const menuGroups = [
   {
     id: 'settings',
     title: 'SETTINGS',
-    items: ['/raw-material-prices', '/settings']
+    items: ['/settings']
   }
 ];
 
@@ -122,6 +127,7 @@ export default function AppShell() {
     'customers-growth': false,
     'demand-insights': false,
     'operations': false,
+    'raw-material-prices': false,
     'data-automation': false,
     'settings': false
   });
