@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { BarChart2, TrendingUp, TrendingDown, Minus, Filter, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, CalendarDays, BarChart3, Info } from 'lucide-react';
 import { format, subDays, subMonths, subYears, parseISO } from 'date-fns';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend,
-  ResponsiveContainer 
-} from 'recharts';
+
+import PriceComparisonHero from './components/analysis/PriceComparisonHero';
+import PriceMetricCard from './components/analysis/PriceMetricCard';
+import SampleSizeNotice from './components/analysis/SampleSizeNotice';
+import BrokerQuotesTable from './components/analysis/BrokerQuotesTable';
 
 const PriceAnalysis = () => {
   const [loading, setLoading] = useState(false);
@@ -91,14 +86,16 @@ const PriceAnalysis = () => {
       const diff = currAvg - baseAvg;
       const perc = baseAvg > 0 ? (diff / baseAvg) * 100 : 0;
 
-      // Group for broker chart (comparing brokers on current date)
+      // Group for broker table (comparing brokers on current date)
       const brokerChartData = (currentData || []).map(d => ({
-        name: d.brokers?.broker_name || 'Unknown',
-        price: Number(d.price)
+        brokerName: d.brokers?.broker_name || 'Unknown',
+        price: Number(d.price),
+        location: d.market_location
       }));
 
       setAnalysisData({
-        materialName: `${matInfo?.name_en} (${matInfo?.name_hi})`,
+        materialNameEn: matInfo?.name_en || '',
+        materialNameHi: matInfo?.name_hi || '',
         unit: matInfo?.default_unit?.unit_name || 'Unit',
         baseDateStr: format(new Date(calculatedBaseDate), 'dd MMM yyyy'),
         currDateStr: format(new Date(currentDate), 'dd MMM yyyy'),
@@ -120,26 +117,7 @@ const PriceAnalysis = () => {
     }
   };
 
-  const getTrendBadge = (diff, perc) => {
-    if (diff > 0) {
-      return (
-        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${perc > 3 ? 'bg-red-500/10 text-red-600' : 'bg-orange-500/10 text-orange-600'}`}>
-          <TrendingUp size={16} /> {perc > 3 ? 'Sharp Increase' : 'Increased'} (+{perc.toFixed(2)}%)
-        </span>
-      );
-    } else if (diff < 0) {
-      return (
-        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold ${perc < -3 ? 'bg-green-500/10 text-green-600' : 'bg-teal-500/10 text-teal-600'}`}>
-          <TrendingDown size={16} /> {perc < -3 ? 'Sharp Decrease' : 'Decreased'} ({perc.toFixed(2)}%)
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold bg-gray-500/10 text-gray-600">
-        <Minus size={16} /> Stable (0.00%)
-      </span>
-    );
-  };
+
 
   return (
     <div className="space-y-6">
@@ -185,81 +163,67 @@ const PriceAnalysis = () => {
         </div>
       ) : analysisData ? (
         <>
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="card bg-surface p-6 col-span-1 md:col-span-4 border-l-4 border-primary">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-primary">{analysisData.materialName}</h2>
-                  <p className="text-secondary mt-1">Comparison: {analysisData.baseDateStr} vs {analysisData.currDateStr}</p>
-                </div>
-                <div>
-                  {analysisData.baseAvg > 0 && analysisData.currAvg > 0 
-                    ? getTrendBadge(analysisData.diff, analysisData.perc)
-                    : <span className="px-3 py-1 bg-base text-secondary rounded-full text-sm">Insufficient Data</span>
-                  }
-                </div>
-              </div>
-            </div>
+          {/* Hero Section */}
+          <PriceComparisonHero 
+            materialNameEn={analysisData.materialNameEn}
+            materialNameHi={analysisData.materialNameHi}
+            baseDateStr={analysisData.baseDateStr}
+            currDateStr={analysisData.currDateStr}
+            currAvg={analysisData.currAvg}
+            unit={analysisData.unit}
+            diff={analysisData.diff}
+            perc={analysisData.perc}
+          />
 
-            <div className="card bg-surface p-5">
-              <p className="text-sm text-secondary mb-1">Base Avg Price ({analysisData.baseDateStr})</p>
-              <h3 className="text-xl font-semibold">
-                {analysisData.baseAvg > 0 ? `₹${analysisData.baseAvg.toFixed(2)}` : 'N/A'}
-                <span className="text-sm font-normal text-secondary ml-1">/{analysisData.unit}</span>
-              </h3>
-              <p className="text-xs text-secondary mt-2">Based on {analysisData.baseCount} quotes</p>
-            </div>
+          {/* Metric Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+            <PriceMetricCard 
+              title="Previous average"
+              value={analysisData.baseAvg > 0 ? `₹${analysisData.baseAvg.toFixed(2)}` : 'N/A'}
+              supportText={`${analysisData.baseDateStr} · ${analysisData.baseCount} ${analysisData.baseCount === 1 ? 'quote' : 'quotes'}`}
+              variant="neutral"
+              icon={CalendarDays}
+            />
+            
+            <PriceMetricCard 
+              title="Current average"
+              value={analysisData.currAvg > 0 ? `₹${analysisData.currAvg.toFixed(2)}` : 'N/A'}
+              supportText={`${analysisData.currDateStr} · ${analysisData.currCount} ${analysisData.currCount === 1 ? 'quote' : 'quotes'}`}
+              variant="highlight"
+              icon={BarChart3}
+            />
 
-            <div className="card bg-surface p-5">
-              <p className="text-sm text-secondary mb-1">Current Avg Price ({analysisData.currDateStr})</p>
-              <h3 className="text-xl font-semibold">
-                {analysisData.currAvg > 0 ? `₹${analysisData.currAvg.toFixed(2)}` : 'N/A'}
-                <span className="text-sm font-normal text-secondary ml-1">/{analysisData.unit}</span>
-              </h3>
-              <p className="text-xs text-secondary mt-2">Based on {analysisData.currCount} quotes</p>
-            </div>
+            <PriceMetricCard 
+              title="Price movement"
+              value={analysisData.diff === 0 ? '₹0.00' : `${analysisData.diff > 0 ? '+' : ''}₹${analysisData.diff.toFixed(2)}`}
+              supportText={`${analysisData.diff === 0 ? '0.00' : (analysisData.diff > 0 ? '+' : '') + analysisData.perc.toFixed(2)}% in ${comparisonPeriod.replace('days', ' days')}`}
+              variant={analysisData.diff === 0 ? 'neutral' : (analysisData.diff > 0 ? 'negative' : 'positive')}
+              icon={analysisData.diff === 0 ? Minus : (analysisData.diff > 0 ? TrendingUp : TrendingDown)}
+            />
 
-            <div className="card bg-surface p-5">
-              <p className="text-sm text-secondary mb-1">Absolute Change</p>
-              <h3 className={`text-xl font-semibold ${analysisData.diff > 0 ? 'text-red-500' : analysisData.diff < 0 ? 'text-green-500' : ''}`}>
-                {analysisData.diff > 0 ? '+' : ''}{analysisData.diff ? `₹${analysisData.diff.toFixed(2)}` : '0.00'}
-              </h3>
-            </div>
-
-            <div className="card bg-surface p-5">
-              <p className="text-sm text-secondary mb-1">Current Range</p>
-              <h3 className="text-lg font-semibold">
-                {analysisData.currMin > 0 ? `₹${analysisData.currMin} - ₹${analysisData.currMax}` : 'N/A'}
-              </h3>
-            </div>
+            <PriceMetricCard 
+              title="Today's quoted range"
+              value={analysisData.currMin > 0 ? `₹${analysisData.currMin.toFixed(2)}–₹${analysisData.currMax.toFixed(2)}` : 'N/A'}
+              supportText={`${analysisData.currCount} ${analysisData.currCount === 1 ? 'quote available' : 'quotes available'}`}
+              variant="neutral"
+            />
           </div>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 gap-6">
-            <div className="card bg-surface p-5">
-              <h3 className="font-semibold mb-6">Broker Comparison (Current Date)</h3>
-              <div className="h-[300px]">
-                {analysisData.brokerChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={analysisData.brokerChartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                      <XAxis dataKey="name" tick={{fontSize: 12, fill: 'var(--text-secondary)'}} />
-                      <YAxis tick={{fontSize: 12, fill: 'var(--text-secondary)'}} tickFormatter={(val) => `₹${val}`} />
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: 'var(--bg-surface)', borderColor: 'var(--border)', borderRadius: '8px' }}
-                        cursor={{fill: 'var(--base)'}}
-                      />
-                      <Bar dataKey="price" fill="var(--primary)" radius={[4, 4, 0, 0]} name="Price" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-secondary border border-dashed border-base rounded-lg">
-                    No broker quotes available for the current date.
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="mt-4">
+            <SampleSizeNotice 
+              baseCount={analysisData.baseCount} 
+              currCount={analysisData.currCount} 
+            />
+          </div>
+
+          <div className="mt-8">
+            <BrokerQuotesTable 
+              quotes={analysisData.brokerChartData}
+              currMin={analysisData.currMin}
+              currMax={analysisData.currMax}
+              unit={analysisData.unit}
+              currDateStr={analysisData.currDateStr}
+            />
           </div>
         </>
       ) : (
