@@ -98,8 +98,9 @@ const Dashboard = () => {
 
       const chartData = Object.values(grouped).map(g => ({
         date: format(new Date(g.date), 'dd MMM'),
-        price: Math.round(g.sum / g.count)
-      }));
+        price: Math.round(g.sum / g.count),
+        rawDate: g.date
+      })).sort((a, b) => new Date(a.rawDate) - new Date(b.rawDate));
 
       setTrendData(chartData);
     } catch (error) {
@@ -112,25 +113,15 @@ const Dashboard = () => {
     fetchTrendData(id);
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col justify-center items-center h-64 text-secondary">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mr-3 mb-4"></div>
-        <p className="font-medium text-lg">Loading dashboard...</p>
-        <p className="text-sm opacity-70 mt-1">Fetching latest market prices</p>
-      </div>
-    );
-  }
-
   return (
     <div className="animate-fade-in pb-8">
       {/* KPI Cards Component */}
-      <PriceKpiCards stats={stats} />
+      <PriceKpiCards stats={stats} loading={loading} />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
         {/* Today's Market Prices */}
         <div className="xl:col-span-2 flex">
-          <TodaysMarketPricesTable prices={todayPrices} />
+          <TodaysMarketPricesTable prices={todayPrices} loading={loading} />
         </div>
 
         {/* 30-Day Trend Chart */}
@@ -140,6 +131,7 @@ const Dashboard = () => {
             selectedMaterial={selectedMaterial}
             onMaterialChange={handleMaterialChange}
             trendData={trendData}
+            loading={loading}
           />
         </div>
       </div>

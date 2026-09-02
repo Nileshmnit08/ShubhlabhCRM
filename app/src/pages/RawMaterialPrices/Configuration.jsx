@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Save, Plus, Trash2, Edit2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Save, Edit2, CheckCircle, AlertTriangle, PackageOpen, LayoutList, Users, Ruler, IndianRupee } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+
+import ConfigurationNav from './components/ConfigurationNav';
+import MasterDataSectionHeader from './components/MasterDataSectionHeader';
+import StatusBadge from './components/StatusBadge';
+import EmptyState from './components/EmptyState';
+import MasterDataTable from './components/MasterDataTable';
 
 const Configuration = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'raw-materials';
+
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('materials'); 
   
   const [materials, setMaterials] = useState([]);
   const [qualityGrades, setQualityGrades] = useState([]);
@@ -70,43 +79,39 @@ const Configuration = () => {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col justify-center items-center h-64 text-secondary">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-        Loading configuration...
-      </div>
-    );
-  }
+  const handleTabChange = (tabId) => {
+    setSearchParams({ tab: tabId });
+  };
 
-  const tabs = [
-    { id: 'materials', label: 'Raw Materials' },
-    { id: 'quality', label: 'Quality Parameters' },
-    { id: 'brokers', label: 'Brokers' },
-    { id: 'units', label: 'Units' },
-    { id: 'price_types', label: 'Price Types' },
-    { id: 'settings', label: 'General Settings' },
-  ];
+  const renderSkeleton = (columns) => (
+    <MasterDataTable>
+      <thead className="bg-slate-50 text-secondary border-b border-base">
+        <tr>
+          {Array(columns).fill(0).map((_, idx) => (
+            <th key={idx} className="p-4 font-semibold uppercase tracking-wider text-xs">Loading...</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-base">
+        {[1, 2, 3, 4, 5].map(i => (
+          <tr key={i} className="animate-pulse">
+            {Array(columns).fill(0).map((_, idx) => (
+              <td key={idx} className="p-4"><div className="h-4 bg-base/50 rounded w-full max-w-[120px]"></div></td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </MasterDataTable>
+  );
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex overflow-x-auto border-b border-base hide-scrollbar">
-        {tabs.map(tab => (
-          <button 
-            key={tab.id}
-            className={`px-6 py-3 font-medium text-sm transition-colors whitespace-nowrap ${
-              activeTab === tab.id ? 'text-primary border-b-2 border-primary bg-primary/5' : 'text-secondary hover:text-primary'
-            }`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+    <div className="space-y-6 animate-fade-in pb-12">
+      
+      <ConfigurationNav activeTab={activeTab} onTabChange={handleTabChange} />
 
       {message && (
-        <div className={`p-4 rounded-lg flex items-center gap-3 ${
-          message.type === 'success' ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'
+        <div className={`p-4 rounded-xl flex items-center gap-3 border shadow-sm ${
+          message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
         }`}>
           {message.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
           {message.text}
@@ -114,304 +119,320 @@ const Configuration = () => {
       )}
 
       {/* RAW MATERIALS TAB */}
-      {activeTab === 'materials' && (
-        <div className="card bg-surface overflow-hidden">
-          <div className="p-4 border-b border-base flex justify-between items-center bg-base/20">
-             <h3 className="font-semibold">Raw Material Master</h3>
-             <button className="btn btn-primary btn-sm flex items-center gap-2">
-               <Plus size={16} /> Add Material
-             </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-base/50 text-secondary">
+      {activeTab === 'raw-materials' && (
+        <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden">
+          <MasterDataSectionHeader 
+            title="Raw Material Master" 
+            description="Manage all cattle-feed raw materials and their default properties." 
+            buttonText="Add Material" 
+          />
+          {loading ? renderSkeleton(7) : materials.length === 0 ? (
+            <EmptyState icon={PackageOpen} title="No Raw Materials" description="You haven't defined any raw materials yet." actionText="Add Material" />
+          ) : (
+            <MasterDataTable>
+              <thead className="bg-slate-50 text-secondary border-b border-base">
                 <tr>
-                  <th className="p-3 font-medium">Code</th>
-                  <th className="p-3 font-medium">Name (EN/HI)</th>
-                  <th className="p-3 font-medium">Category</th>
-                  <th className="p-3 font-medium">Def. Unit</th>
-                  <th className="p-3 font-medium">Daily Track</th>
-                  <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 font-medium text-right">Actions</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs w-24">Code</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Name (EN/HI)</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Category</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Def. Unit</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Daily Track</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Status</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs text-right w-20">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-base">
                 {materials.map(m => (
-                  <tr key={m.id} className="hover:bg-base/30">
-                    <td className="p-3 text-secondary">{m.code || '-'}</td>
-                    <td className="p-3">
-                      <div className="font-medium">{m.name_en}</div>
-                      <div className="text-xs text-secondary">{m.name_hi}</div>
+                  <tr key={m.id} className="hover:bg-base/30 transition-colors">
+                    <td className="p-4 text-secondary font-medium" data-label="Code">{m.code || '-'}</td>
+                    <td className="p-4" data-label="Name (EN/HI)">
+                      <div className="font-semibold text-primary">{m.name_en}</div>
+                      <div className="text-xs text-secondary mt-0.5">{m.name_hi}</div>
                     </td>
-                    <td className="p-3 text-secondary">{m.category}</td>
-                    <td className="p-3 text-secondary">{m.default_unit?.unit_name || m.default_unit || '-'}</td>
-                    <td className="p-3">
+                    <td className="p-4 text-secondary" data-label="Category">{m.category}</td>
+                    <td className="p-4 text-secondary" data-label="Def. Unit">{m.default_unit?.unit_name || m.default_unit || '-'}</td>
+                    <td className="p-4" data-label="Daily Track">
                       {m.daily_tracking_required 
-                        ? <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 rounded text-xs">Yes</span>
-                        : <span className="px-2 py-0.5 bg-gray-500/10 text-gray-600 rounded text-xs">No</span>}
+                        ? <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-medium">Yes</span>
+                        : <span className="px-2 py-0.5 bg-slate-50 text-slate-600 border border-slate-200 rounded text-xs font-medium">No</span>}
                     </td>
-                    <td className="p-3">
-                      {m.active 
-                        ? <span className="px-2 py-0.5 bg-green-500/10 text-green-600 rounded text-xs">Active</span>
-                        : <span className="px-2 py-0.5 bg-red-500/10 text-red-600 rounded text-xs">Inactive</span>}
+                    <td className="p-4" data-label="Status">
+                      <StatusBadge active={m.active} />
                     </td>
-                    <td className="p-3 flex justify-end gap-2">
-                      <button className="btn-icon p-1.5 text-secondary hover:text-primary" title="Edit"><Edit2 size={16}/></button>
+                    <td className="p-4 flex justify-end gap-2" data-label="Actions">
+                      <button className="btn-icon p-1.5 text-secondary hover:text-primary bg-base/50 hover:bg-base rounded-md transition-colors"><Edit2 size={16}/></button>
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+            </MasterDataTable>
+          )}
         </div>
       )}
 
       {/* QUALITY PARAMETERS TAB */}
-      {activeTab === 'quality' && (
-        <div className="card bg-surface overflow-hidden">
-          <div className="p-4 border-b border-base flex justify-between items-center bg-base/20">
-             <h3 className="font-semibold">Quality & Grade Master</h3>
-             <button className="btn btn-primary btn-sm flex items-center gap-2">
-               <Plus size={16} /> Add Parameter
-             </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-base/50 text-secondary">
+      {activeTab === 'quality-parameters' && (
+        <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden">
+          <MasterDataSectionHeader 
+            title="Quality & Grade Master" 
+            description="Define specific quality parameters or grades for raw materials." 
+            buttonText="Add Parameter" 
+          />
+          {loading ? renderSkeleton(6) : qualityGrades.length === 0 ? (
+            <EmptyState icon={LayoutList} title="No Quality Parameters" description="You haven't defined any quality grades or parameters." actionText="Add Parameter" />
+          ) : (
+            <MasterDataTable>
+              <thead className="bg-slate-50 text-secondary border-b border-base">
                 <tr>
-                  <th className="p-3 font-medium">Material</th>
-                  <th className="p-3 font-medium">Parameter/Grade</th>
-                  <th className="p-3 font-medium">Type</th>
-                  <th className="p-3 font-medium">Limits</th>
-                  <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 font-medium text-right">Actions</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Material</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Parameter/Grade</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Type</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Limits</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Status</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs text-right w-20">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-base">
                 {qualityGrades.map(q => (
-                  <tr key={q.id} className="hover:bg-base/30">
-                    <td className="p-3 font-medium">{q.raw_materials?.name_en}</td>
-                    <td className="p-3">
-                      <div className="font-medium">{q.grade_name}</div>
-                      {q.grade_name_hi && <div className="text-xs text-secondary">{q.grade_name_hi}</div>}
+                  <tr key={q.id} className="hover:bg-base/30 transition-colors">
+                    <td className="p-4 font-medium text-primary" data-label="Material">{q.raw_materials?.name_en}</td>
+                    <td className="p-4" data-label="Parameter/Grade">
+                      <div className="font-semibold text-primary">{q.grade_name}</div>
+                      {q.grade_name_hi && <div className="text-xs text-secondary mt-0.5">{q.grade_name_hi}</div>}
                     </td>
-                    <td className="p-3 text-secondary">{q.parameter_type || 'Grade'}</td>
-                    <td className="p-3 text-secondary">
+                    <td className="p-4 text-secondary" data-label="Type">{q.parameter_type || 'Grade'}</td>
+                    <td className="p-4 text-secondary" data-label="Limits">
                       {q.min_value || q.max_value 
                         ? `${q.min_value || 'Min'} - ${q.max_value || 'Max'} ${q.uom || ''}`
                         : 'N/A'
                       }
                     </td>
-                    <td className="p-3">
-                      {q.active 
-                        ? <span className="px-2 py-0.5 bg-green-500/10 text-green-600 rounded text-xs">Active</span>
-                        : <span className="px-2 py-0.5 bg-red-500/10 text-red-600 rounded text-xs">Inactive</span>}
+                    <td className="p-4" data-label="Status">
+                      <StatusBadge active={q.active} />
                     </td>
-                    <td className="p-3 flex justify-end gap-2">
-                      <button className="btn-icon p-1.5 text-secondary hover:text-primary"><Edit2 size={16}/></button>
+                    <td className="p-4 flex justify-end gap-2" data-label="Actions">
+                      <button className="btn-icon p-1.5 text-secondary hover:text-primary bg-base/50 hover:bg-base rounded-md transition-colors"><Edit2 size={16}/></button>
                     </td>
                   </tr>
                 ))}
-                {qualityGrades.length === 0 && (
-                  <tr><td colSpan="6" className="p-4 text-center text-secondary">No quality parameters defined.</td></tr>
-                )}
               </tbody>
-            </table>
-          </div>
+            </MasterDataTable>
+          )}
         </div>
       )}
 
       {/* BROKERS TAB */}
       {activeTab === 'brokers' && (
-        <div className="card bg-surface overflow-hidden">
-          <div className="p-4 border-b border-base flex justify-between items-center bg-base/20">
-             <h3 className="font-semibold">Broker Master</h3>
-             <button className="btn btn-primary btn-sm flex items-center gap-2">
-               <Plus size={16} /> Add Broker
-             </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-base/50 text-secondary">
+        <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden">
+          <MasterDataSectionHeader 
+            title="Broker Master" 
+            description="Manage brokers and their contact information." 
+            buttonText="Add Broker" 
+          />
+          {loading ? renderSkeleton(6) : brokers.length === 0 ? (
+            <EmptyState icon={Users} title="No Brokers" description="Add brokers to start tracking prices from them." actionText="Add Broker" />
+          ) : (
+            <MasterDataTable>
+              <thead className="bg-slate-50 text-secondary border-b border-base">
                 <tr>
-                  <th className="p-3 font-medium">Broker Name</th>
-                  <th className="p-3 font-medium">Firm Name</th>
-                  <th className="p-3 font-medium">Mobile / WhatsApp</th>
-                  <th className="p-3 font-medium">Location</th>
-                  <th className="p-3 font-medium">Status</th>
-                  <th className="p-3 font-medium text-right">Actions</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Broker Name</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Firm Name</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Mobile / WhatsApp</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Location</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Status</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs text-right w-20">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-base">
                 {brokers.map(b => (
-                  <tr key={b.id} className="hover:bg-base/30">
-                    <td className="p-3 font-medium">{b.broker_name}</td>
-                    <td className="p-3 text-secondary">{b.firm_name || '-'}</td>
-                    <td className="p-3 text-secondary">
-                      <div>{b.mobile}</div>
-                      {b.whatsapp_number && b.whatsapp_number !== b.mobile && <div className="text-xs">WA: {b.whatsapp_number}</div>}
+                  <tr key={b.id} className="hover:bg-base/30 transition-colors">
+                    <td className="p-4 font-semibold text-primary" data-label="Broker Name">{b.broker_name}</td>
+                    <td className="p-4 text-secondary" data-label="Firm Name">{b.firm_name || '-'}</td>
+                    <td className="p-4" data-label="Contact">
+                      <div className="font-medium text-secondary">{b.mobile}</div>
+                      {b.whatsapp_number && b.whatsapp_number !== b.mobile && <div className="text-xs text-muted mt-0.5 flex items-center gap-1">WA: {b.whatsapp_number}</div>}
                     </td>
-                    <td className="p-3 text-secondary">{b.market_location}</td>
-                    <td className="p-3">
-                      {b.active 
-                        ? <span className="px-2 py-0.5 bg-green-500/10 text-green-600 rounded text-xs">Active</span>
-                        : <span className="px-2 py-0.5 bg-red-500/10 text-red-600 rounded text-xs">Inactive</span>}
+                    <td className="p-4 text-secondary" data-label="Location">{b.market_location}</td>
+                    <td className="p-4" data-label="Status">
+                      <StatusBadge active={b.active} />
                     </td>
-                    <td className="p-3 flex justify-end gap-2">
-                      <button className="btn-icon p-1.5 text-secondary hover:text-primary"><Edit2 size={16}/></button>
+                    <td className="p-4 flex justify-end gap-2" data-label="Actions">
+                      <button className="btn-icon p-1.5 text-secondary hover:text-primary bg-base/50 hover:bg-base rounded-md transition-colors"><Edit2 size={16}/></button>
                     </td>
                   </tr>
                 ))}
               </tbody>
-            </table>
-          </div>
+            </MasterDataTable>
+          )}
         </div>
       )}
 
       {/* UNITS TAB */}
       {activeTab === 'units' && (
-        <div className="card bg-surface overflow-hidden max-w-4xl">
-          <div className="p-4 border-b border-base flex justify-between items-center bg-base/20">
-             <h3 className="font-semibold">Units Master</h3>
-             <button className="btn btn-primary btn-sm flex items-center gap-2">
-               <Plus size={16} /> Add Unit
-             </button>
-          </div>
-          <table className="w-full text-left text-sm">
-            <thead className="bg-base/50 text-secondary">
-              <tr>
-                <th className="p-3 font-medium">Order</th>
-                <th className="p-3 font-medium">Unit Name</th>
-                <th className="p-3 font-medium">Status</th>
-                <th className="p-3 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-base">
-              {units.map(u => (
-                <tr key={u.id} className="hover:bg-base/30">
-                  <td className="p-3 text-secondary">{u.display_order}</td>
-                  <td className="p-3 font-medium">{u.unit_name}</td>
-                  <td className="p-3">
-                    {u.active ? <span className="text-success">Active</span> : <span className="text-danger">Inactive</span>}
-                  </td>
-                  <td className="p-3 flex justify-end gap-2">
-                    <button className="btn-icon p-1.5 text-secondary hover:text-primary"><Edit2 size={16}/></button>
-                  </td>
+        <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden max-w-4xl">
+          <MasterDataSectionHeader 
+            title="Units Master" 
+            description="Manage units of measurement (e.g., Kg, Quintal, Ton)." 
+            buttonText="Add Unit" 
+          />
+          {loading ? renderSkeleton(4) : units.length === 0 ? (
+            <EmptyState icon={Ruler} title="No Units" description="Define standard units for your raw materials." actionText="Add Unit" />
+          ) : (
+            <MasterDataTable>
+              <thead className="bg-slate-50 text-secondary border-b border-base">
+                <tr>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs w-24">Order</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Unit Name</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs w-32">Status</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs text-right w-20">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-base">
+                {units.map(u => (
+                  <tr key={u.id} className="hover:bg-base/30 transition-colors">
+                    <td className="p-4 text-secondary tabular-nums" data-label="Order">{u.display_order}</td>
+                    <td className="p-4 font-semibold text-primary" data-label="Unit Name">{u.unit_name}</td>
+                    <td className="p-4" data-label="Status">
+                      <StatusBadge active={u.active} />
+                    </td>
+                    <td className="p-4 flex justify-end gap-2" data-label="Actions">
+                      <button className="btn-icon p-1.5 text-secondary hover:text-primary bg-base/50 hover:bg-base rounded-md transition-colors"><Edit2 size={16}/></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </MasterDataTable>
+          )}
         </div>
       )}
 
       {/* PRICE TYPES TAB */}
-      {activeTab === 'price_types' && (
-        <div className="card bg-surface overflow-hidden max-w-4xl">
-          <div className="p-4 border-b border-base flex justify-between items-center bg-base/20">
-             <h3 className="font-semibold">Price Types Master</h3>
-             <button className="btn btn-primary btn-sm flex items-center gap-2">
-               <Plus size={16} /> Add Price Type
-             </button>
-          </div>
-          <table className="w-full text-left text-sm">
-            <thead className="bg-base/50 text-secondary">
-              <tr>
-                <th className="p-3 font-medium">Order</th>
-                <th className="p-3 font-medium">Type Name</th>
-                <th className="p-3 font-medium">Status</th>
-                <th className="p-3 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-base">
-              {priceTypes.map(pt => (
-                <tr key={pt.id} className="hover:bg-base/30">
-                  <td className="p-3 text-secondary">{pt.display_order}</td>
-                  <td className="p-3 font-medium">{pt.type_name}</td>
-                  <td className="p-3">
-                    {pt.active ? <span className="text-success">Active</span> : <span className="text-danger">Inactive</span>}
-                  </td>
-                  <td className="p-3 flex justify-end gap-2">
-                    <button className="btn-icon p-1.5 text-secondary hover:text-primary"><Edit2 size={16}/></button>
-                  </td>
+      {activeTab === 'price-types' && (
+        <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden max-w-4xl">
+          <MasterDataSectionHeader 
+            title="Price Types Master" 
+            description="Create and manage price classifications used in daily market entries." 
+            buttonText="Add Price Type" 
+          />
+          {loading ? renderSkeleton(4) : priceTypes.length === 0 ? (
+            <EmptyState icon={IndianRupee} title="No Price Types" description="Define types of prices you receive from brokers (e.g., Factory Delivery, Ex-Mill)." actionText="Add Price Type" />
+          ) : (
+            <MasterDataTable>
+              <thead className="bg-slate-50 text-secondary border-b border-base">
+                <tr>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs w-24">Order</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Type Name</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs w-32">Status</th>
+                  <th className="p-4 font-semibold uppercase tracking-wider text-xs text-right w-20">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-base">
+                {priceTypes.map(pt => (
+                  <tr key={pt.id} className="hover:bg-base/30 transition-colors">
+                    <td className="p-4 text-secondary tabular-nums" data-label="Order">{pt.display_order}</td>
+                    <td className="p-4 font-semibold text-primary" data-label="Type Name">{pt.type_name}</td>
+                    <td className="p-4" data-label="Status">
+                      <StatusBadge active={pt.active} />
+                    </td>
+                    <td className="p-4 flex justify-end gap-2" data-label="Actions">
+                      <button className="btn-icon p-1.5 text-secondary hover:text-primary bg-base/50 hover:bg-base rounded-md transition-colors"><Edit2 size={16}/></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </MasterDataTable>
+          )}
         </div>
       )}
 
       {/* GENERAL SETTINGS TAB */}
-      {activeTab === 'settings' && (
-        <div className="card bg-surface max-w-2xl">
-           <div className="p-4 border-b border-base bg-base/20">
-             <h3 className="font-semibold">General Settings</h3>
-           </div>
-           <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-b border-base pb-6">
-                <div>
-                  <label className="text-sm font-medium text-secondary mb-1 block">Default Report Selection Method</label>
-                  <select 
-                    className="input w-full"
-                    value={settings.default_selection_method || 'latest'}
-                    onChange={e => setSettings({...settings, default_selection_method: e.target.value})}
-                  >
-                    <option value="latest">Latest Entered Price</option>
-                    <option value="lowest">Lowest Quoted Price</option>
-                    <option value="average">Average Price</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-secondary mb-1 block">Alert Threshold (%)</label>
-                  <input 
-                    type="number" 
-                    className="input w-full" 
-                    step="0.1"
-                    value={settings.alert_threshold_percentage || 3}
-                    onChange={e => setSettings({...settings, alert_threshold_percentage: e.target.value})}
-                  />
-                  <p className="text-xs text-secondary mt-1">Triggers 'Sharp' increase/decrease warning</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <h4 className="font-medium text-sm text-secondary uppercase tracking-wider">WhatsApp Report Defaults</h4>
+      {activeTab === 'general' && (
+        <div className="card bg-white border border-base rounded-xl shadow-sm max-w-2xl overflow-hidden">
+           <MasterDataSectionHeader 
+             title="General Settings" 
+             description="Manage reporting defaults and operational thresholds." 
+           />
+           {loading ? (
+             <div className="p-6 animate-pulse space-y-6">
+                <div className="h-10 bg-base/50 rounded w-full"></div>
+                <div className="h-10 bg-base/50 rounded w-full"></div>
+             </div>
+           ) : (
+             <div className="p-6 space-y-8">
                 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="font-medium">Show Broker Name</label>
-                    <p className="text-xs text-secondary">Include broker details in the final message</p>
+                {/* Group 1 */}
+                <div>
+                  <h4 className="font-semibold text-sm text-primary uppercase tracking-wider mb-4 pb-2 border-b border-base">Report Preferences</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <label className="text-sm font-medium text-secondary mb-1.5 block">Default Report Selection Method</label>
+                      <select 
+                        className="input w-full bg-surface border-base/80 rounded-lg focus:border-emerald-500 transition-colors"
+                        value={settings.default_selection_method || 'latest'}
+                        onChange={e => setSettings({...settings, default_selection_method: e.target.value})}
+                      >
+                        <option value="latest">Latest Entered Price</option>
+                        <option value="lowest">Lowest Quoted Price</option>
+                        <option value="average">Average Price</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-secondary mb-1.5 block">Alert Threshold (%)</label>
+                      <input 
+                        type="number" 
+                        className="input w-full bg-surface border-base/80 rounded-lg focus:border-emerald-500 transition-colors" 
+                        step="0.1"
+                        value={settings.alert_threshold_percentage || 3}
+                        onChange={e => setSettings({...settings, alert_threshold_percentage: e.target.value})}
+                      />
+                      <p className="text-xs text-muted mt-1.5">Triggers 'Sharp' increase/decrease warning</p>
+                    </div>
                   </div>
-                  <input 
-                    type="checkbox" 
-                    className="w-5 h-5 rounded border-base text-primary focus:ring-primary"
-                    checked={settings.show_broker_in_report || false}
-                    onChange={e => setSettings({...settings, show_broker_in_report: e.target.checked})}
-                  />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="font-medium">Compare with Previous Day</label>
-                    <p className="text-xs text-secondary">Show price difference versus yesterday</p>
-                  </div>
-                  <input 
-                    type="checkbox" 
-                    className="w-5 h-5 rounded border-base text-primary focus:ring-primary"
-                    checked={settings.show_previous_day_change || false}
-                    onChange={e => setSettings({...settings, show_previous_day_change: e.target.checked})}
-                  />
-                </div>
-              </div>
+                {/* Group 2 */}
+                <div>
+                  <h4 className="font-semibold text-sm text-primary uppercase tracking-wider mb-4 pb-2 border-b border-base">WhatsApp Defaults</h4>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-base/10 rounded-lg border border-base/50">
+                      <div>
+                        <label className="font-medium text-sm text-primary">Show Broker Name</label>
+                        <p className="text-xs text-secondary mt-0.5">Include broker details in the final message</p>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 rounded border-base/80 text-emerald-600 focus:ring-emerald-500 bg-surface"
+                        checked={settings.show_broker_in_report || false}
+                        onChange={e => setSettings({...settings, show_broker_in_report: e.target.checked})}
+                      />
+                    </div>
 
-              <div className="pt-4 flex justify-end">
-                <button 
-                  className="btn btn-primary flex items-center gap-2"
-                  onClick={handleSettingsSave}
-                >
-                  <Save size={16} /> Save Settings
-                </button>
-              </div>
-           </div>
+                    <div className="flex items-center justify-between p-3 bg-base/10 rounded-lg border border-base/50">
+                      <div>
+                        <label className="font-medium text-sm text-primary">Compare with Previous Day</label>
+                        <p className="text-xs text-secondary mt-0.5">Show price difference versus yesterday</p>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 rounded border-base/80 text-emerald-600 focus:ring-emerald-500 bg-surface"
+                        checked={settings.show_previous_day_change || false}
+                        onChange={e => setSettings({...settings, show_previous_day_change: e.target.checked})}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="pt-4 flex justify-end border-t border-base">
+                  <button 
+                    className="btn btn-primary flex items-center gap-2 px-6 py-2.5 shadow-sm"
+                    onClick={handleSettingsSave}
+                  >
+                    <Save size={16} /> Save Changes
+                  </button>
+                </div>
+             </div>
+           )}
         </div>
       )}
 
