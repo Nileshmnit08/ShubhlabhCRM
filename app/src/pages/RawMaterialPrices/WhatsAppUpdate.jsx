@@ -30,10 +30,12 @@ const WhatsAppUpdate = () => {
       const { data: currentData } = await supabase
         .from('raw_material_price_entries')
         .select(`
-          price, unit, market_location, price_type,
+          price, market_location, unit, price_type,
           raw_materials(id, name_en, name_hi, daily_tracking_required),
           brokers(broker_name),
-          material_quality_grades(grade_name_hi, grade_name)
+          material_quality_grades(grade_name_hi, grade_name),
+          rm_units(unit_name),
+          rm_price_types(type_name)
         `)
         .eq('entry_date', reportDate)
         .eq('is_deleted', false);
@@ -105,7 +107,7 @@ const WhatsAppUpdate = () => {
           matName: mat.name_hi || mat.name_en,
           quality,
           price,
-          unit: selectedEntry.unit === 'Quintal' ? 'क्विंटल' : selectedEntry.unit,
+          unit: (selectedEntry.rm_units?.unit_name || selectedEntry.unit) === 'Quintal' ? 'क्विंटल' : (selectedEntry.rm_units?.unit_name || selectedEntry.unit),
           location: selectedEntry.market_location,
           broker: selectedEntry.brokers?.broker_name,
           diff: Math.abs(diff),

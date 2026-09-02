@@ -48,7 +48,9 @@ const PriceHistory = () => {
           *,
           raw_materials(name_en, name_hi),
           brokers(broker_name),
-          material_quality_grades(grade_name)
+          material_quality_grades(grade_name),
+          rm_units(unit_name),
+          rm_price_types(type_name)
         `, { count: 'exact' })
         .eq('is_deleted', false);
 
@@ -118,9 +120,9 @@ const PriceHistory = () => {
         `"${e.material_quality_grades?.grade_name || ''}"`,
         `"${e.brokers?.broker_name || ''}"`,
         `"${e.market_location || ''}"`,
-        e.price,
-        e.unit,
-        e.price_type,
+        entry.price,
+        `"${entry.rm_units?.unit_name || entry.unit || ''}"`,
+        `"${entry.rm_price_types?.type_name || entry.price_type || ''}"`,
         `"${e.remarks || ''}"`
       ].join(','))
     ].join('\n');
@@ -253,9 +255,9 @@ const PriceHistory = () => {
                     <td className="p-4">{entry.brokers?.broker_name}</td>
                     <td className="p-4 text-secondary">{entry.market_location || '-'}</td>
                     <td className="p-4 text-right font-semibold">₹{Number(entry.price).toLocaleString('en-IN')}</td>
-                    <td className="p-4 text-secondary">{entry.unit}</td>
+                    <td className="p-4 text-secondary">{entry.rm_units?.unit_name || entry.unit}</td>
                     <td className="p-4 text-secondary">
-                      <span className="px-2 py-0.5 bg-base rounded-md text-xs">{entry.price_type}</span>
+                      <span className="px-2 py-0.5 bg-base rounded-md text-xs">{entry.rm_price_types?.type_name || entry.price_type}</span>
                     </td>
                     <td className="p-4 text-secondary truncate max-w-[200px]" title={entry.remarks}>{entry.remarks || '-'}</td>
                   </tr>

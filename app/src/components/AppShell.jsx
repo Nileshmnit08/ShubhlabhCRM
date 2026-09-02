@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map, Zap, AlertTriangle, ChevronDown, ChevronRight, Pin, PinOff } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
@@ -31,7 +31,19 @@ const allNavItems = [
   { path: '/dispatches', label: 'Dispatch Dashboard', icon: Map },
   { path: '/coverage', label: 'Coverage Gaps', icon: Map },
   { path: '/automation-control', label: 'Automation Control', icon: Zap },
-  { path: '/raw-material-prices', label: 'Raw Material Prices', icon: TrendingUp },
+  { 
+    path: '/raw-material-prices', 
+    label: 'Raw Material Prices', 
+    icon: TrendingUp,
+    subItems: [
+      { label: "Dashboard", path: "/raw-material-prices" },
+      { label: "Daily Price Entry", path: "/raw-material-prices/daily-entry" },
+      { label: "Price History", path: "/raw-material-prices/history" },
+      { label: "Price Analysis", path: "/raw-material-prices/analysis" },
+      { label: "WhatsApp Update", path: "/raw-material-prices/whatsapp" },
+      { label: "Configuration", path: "/raw-material-prices/configuration" },
+    ]
+  },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -77,6 +89,20 @@ export default function AppShell() {
   const { userProfile, crmSettings } = useContext(AuthContext);
   const { language, setLanguage, t } = useContext(LanguageContext);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const location = useLocation();
+  const pathname = location.pathname;
+
+  const isRawMaterialPricesRoute = pathname === '/raw-material-prices' || pathname.startsWith('/raw-material-prices/');
+
+  const [expandedSubmenus, setExpandedSubmenus] = React.useState({
+    '/raw-material-prices': isRawMaterialPricesRoute
+  });
+
+  React.useEffect(() => {
+    if (isRawMaterialPricesRoute) {
+      setExpandedSubmenus(prev => ({ ...prev, '/raw-material-prices': true }));
+    }
+  }, [pathname, isRawMaterialPricesRoute]);
 
   const [pinnedItems, setPinnedItems] = React.useState(() => {
     try {
@@ -131,6 +157,12 @@ export default function AppShell() {
     await supabase.auth.signOut();
   };
 
+  const toggleSubmenu = (e, path) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setExpandedSubmenus(prev => ({ ...prev, [path]: !prev[path] }));
+  };
+
   const renderNavItem = (path) => {
     if (['/data', '/data/quality', '/control-room', '/account-control', '/dealer-control', '/automation-control'].includes(path) && userProfile?.role !== 'Admin') return null;
     
@@ -140,6 +172,53 @@ export default function AppShell() {
     const Icon = itemInfo.icon;
     const isPinned = pinnedItems.includes(path);
     const badge = getBadge(path);
+    
+    if (itemInfo.subItems) {
+       const isExpanded = expandedSubmenus[path];
+       const isActive = pathname === path || pathname.startsWith(path + '/');
+       
+       return (
+         <div key={itemInfo.path}>
+           <div
+             className={`nav-item ${isActive ? 'active' : ''}`}
+             onClick={(e) => toggleSubmenu(e, path)}
+             style={{ cursor: 'pointer' }}
+             title={sidebarOpen ? '' : itemInfo.label}
+             aria-expanded={isExpanded}
+           >
+             <div className="nav-item-content">
+               <Icon size={20} className="nav-icon" />
+               <span className="nav-label">{itemInfo.label}</span>
+             </div>
+             <button className="pin-btn" style={{ opacity: 1, padding: 0 }} aria-hidden="true">
+               {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+             </button>
+           </div>
+           
+           {isExpanded && (
+             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '2.5rem', marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+               {itemInfo.subItems.map(sub => {
+                 const isSubActive = pathname === sub.path;
+                 return (
+                   <NavLink
+                     key={sub.path}
+                     to={sub.path}
+                     className={`nav-item ${isSubActive ? 'active' : ''}`}
+                     style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       setSidebarOpen(false);
+                     }}
+                   >
+                     {sub.label}
+                   </NavLink>
+                 );
+               })}
+             </div>
+           )}
+         </div>
+       );
+    }
     
     return (
       <NavLink

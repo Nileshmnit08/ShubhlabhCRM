@@ -49,7 +49,9 @@ const Dashboard = () => {
           *,
           raw_materials (name_en, name_hi, category),
           brokers (broker_name),
-          material_quality_grades (grade_name)
+          material_quality_grades (grade_name),
+          rm_units (unit_name),
+          rm_price_types (type_name)
         `)
         .eq('entry_date', today)
         .eq('is_deleted', false);

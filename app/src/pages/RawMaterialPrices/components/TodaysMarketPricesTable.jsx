@@ -99,7 +99,7 @@ const TodaysMarketPricesTable = ({ prices }) => {
                     ₹{Number(entry.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                   <td>
-                    <span className="text-xs text-secondary uppercase tracking-wider">{entry.unit}</span>
+                    <span className="text-xs text-secondary uppercase tracking-wider">{entry.rm_units?.unit_name || entry.unit}</span>
                   </td>
                 </tr>
               ))

@@ -36,7 +36,7 @@ const PriceAnalysis = () => {
   }, [selectedMaterial, comparisonPeriod, baseDate, currentDate]);
 
   const fetchMaterials = async () => {
-    const { data } = await supabase.from('raw_materials').select('id, name_en, name_hi, default_unit').eq('active', true);
+    const { data } = await supabase.from('raw_materials').select('id, name_en, name_hi, default_unit:rm_units(unit_name)').eq('active', true);
     setMaterials(data || []);
     if (data && data.length > 0) {
       setSelectedMaterial(data[0].id);
@@ -99,7 +99,7 @@ const PriceAnalysis = () => {
 
       setAnalysisData({
         materialName: `${matInfo?.name_en} (${matInfo?.name_hi})`,
-        unit: matInfo?.default_unit,
+        unit: matInfo?.default_unit?.unit_name || 'Unit',
         baseDateStr: format(new Date(calculatedBaseDate), 'dd MMM yyyy'),
         currDateStr: format(new Date(currentDate), 'dd MMM yyyy'),
         baseAvg,
