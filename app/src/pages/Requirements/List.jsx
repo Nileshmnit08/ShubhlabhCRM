@@ -219,7 +219,25 @@ export default function RequirementList() {
       const { error } = await supabase.from('requirements').delete().eq('id', reqToDelete.id);
       if (error) throw error;
       
-      setToast({ type: 'success', message: 'Requirement deleted. Other customer requirements are unchanged.' });
+      if (userProfile?.id) {
+        await supabase.from('activity_logs').insert([{
+          actor_id: userProfile.id,
+          module: 'Requirements',
+          action_type: 'DELETED',
+          entity_type: 'requirements',
+          entity_id: reqToDelete.id,
+          summary: `Deleted requirement for ${reqToDelete.product_type}`,
+          metadata: {
+            requirement_id: reqToDelete.id,
+            product: reqToDelete.product_type,
+            customer: reqToDelete.customer_name,
+            party_id: reqToDelete.party_id,
+            deleted_by_email: userProfile.email || 'Unknown'
+          }
+        }]);
+      }
+      
+      setToast({ type: 'success', message: 'Requirement deleted successfully.' });
       setRequirements(prev => prev.filter(r => r.id !== reqToDelete.id));
       closeDeleteModal();
     } catch (err) {
@@ -607,6 +625,9 @@ export default function RequirementList() {
                                     <button onClick={() => navigate(`/requirements/${req.id}/edit`)} className="btn-icon" title="Edit requirement" style={{padding: '6px', color: 'var(--text-muted)'}}>
                                       <Edit size={16}/>
                                     </button>
+                                    <button onClick={(e) => openDeleteModal(e, req)} className="btn-icon" title="Delete requirement" style={{padding: '6px', color: 'var(--danger)'}}>
+                                      <Trash2 size={16}/>
+                                    </button>
                                     
                                     {/* Action Dropdown Menu */}
                                     <div style={{position: 'relative'}}>
@@ -674,6 +695,9 @@ export default function RequirementList() {
                   </div>
                   <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                     <span className={getStatusBadge(req.status)} style={{whiteSpace: 'nowrap'}}>{req.status}</span>
+                    <button type="button" onClick={(e) => openDeleteModal(e, req)} className="btn-icon" title="Delete requirement" style={{padding: '4px', color: 'var(--danger)'}}>
+                      <Trash2 size={18} />
+                    </button>
                     <div style={{position: 'relative'}}>
                       <button type="button" onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === req.id ? null : req.id); }} className="btn-icon" style={{padding: '4px', color: 'var(--text-muted)'}}>
                         <MoreVertical size={18} />
@@ -785,23 +809,23 @@ export default function RequirementList() {
         </div>
       )}
 
-      {/* Permanently Delete Modal */}
+      {/* Delete Modal */}
       {deleteModalOpen && reqToDelete && (
         <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={closeDeleteModal}>
           <div style={{ background: 'var(--bg-card)', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') closeDeleteModal(); }} tabIndex={-1} ref={el => el && el.focus()}>
-            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--danger)', fontSize: '1.25rem' }}>Permanently delete this requirement?</h3>
+            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--danger)', fontSize: '1.25rem' }}>Delete requirement?</h3>
             <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
               <div><strong>Customer:</strong> {reqToDelete.customer_name}</div>
               <div><strong>Product:</strong> {reqToDelete.product_type}</div>
               <div><strong>Quantity:</strong> {reqToDelete.required_quantity} {reqToDelete.unit}</div>
             </div>
             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
-              This permanently removes <strong>only this requirement</strong>. The customer and their other active requirement(s) will remain unchanged.
+              This action cannot be undone.
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
               <button type="button" className="btn btn-secondary" onClick={closeDeleteModal} disabled={isDeleting}>Cancel</button>
               <button type="button" className="btn btn-primary" style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={executeDelete} disabled={isDeleting}>
-                {isDeleting ? 'Deleting...' : 'Delete permanently'}
+                {isDeleting ? 'Deleting...' : 'Delete requirement'}
               </button>
             </div>
           </div>
