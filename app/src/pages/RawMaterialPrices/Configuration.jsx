@@ -3,7 +3,6 @@ import { supabase } from '../../lib/supabase';
 import { Save, Edit2, CheckCircle, AlertTriangle, PackageOpen, LayoutList, Users, Ruler, IndianRupee } from 'lucide-react';
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
 
-import ConfigurationNav from './components/ConfigurationNav';
 import ConfigurationLanding from './components/ConfigurationLanding';
 import MasterDataSectionHeader from './components/MasterDataSectionHeader';
 import StatusBadge from './components/StatusBadge';
@@ -18,13 +17,8 @@ import PriceTypesTab from './components/PriceTypesTab';
 import GeneralSettingsTab from './components/GeneralSettingsTab';
 
 const ConfigurationLayout = () => (
-  <div className="flex flex-col md:flex-row gap-6 items-start w-full">
-    <div className="w-full md:w-64 shrink-0">
-      <ConfigurationNav />
-    </div>
-    <div className="flex-1 min-w-0">
-      <Outlet />
-    </div>
+  <div className="w-full max-w-6xl mx-auto">
+    <Outlet />
   </div>
 );
 

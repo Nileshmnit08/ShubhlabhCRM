@@ -17,10 +17,10 @@ const RawMaterialPriceHeader = () => {
   const activeConfigTab = subRouteId ? CONFIGURATION_TABS.find(tab => tab.id === subRouteId) : null;
 
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div className="page-header" style={{ marginBottom: '2rem' }}>
       <div>
         {isConfiguration && (
-          <div className="flex items-center text-xs font-medium text-secondary mb-2 uppercase tracking-wider">
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'flex', alignItems: 'center' }}>
             <span className="hover:text-primary cursor-pointer transition-colors" onClick={() => navigate('/raw-material-prices')}>Raw Material Prices</span>
             <ChevronRight size={14} className="mx-1 opacity-50" />
             <span 
@@ -37,10 +37,15 @@ const RawMaterialPriceHeader = () => {
             )}
           </div>
         )}
-        <h1 className="text-3xl font-bold tracking-tight text-primary mb-1">
-          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : 'Raw Material Prices')}
+        {!isConfiguration && (
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'flex', alignItems: 'center' }}>
+            <span className="text-primary">Raw Material Prices</span>
+          </div>
+        )}
+        <h1 style={{ margin: 0, fontSize: '2rem', tracking: 'tight' }}>
+          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : 'Dashboard')}
         </h1>
-        <p className="text-sm text-secondary">
+        <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>
           {activeConfigTab 
             ? activeConfigTab.description 
             : (isConfiguration 

@@ -22,8 +22,8 @@ const PriceModuleTabs = () => {
   ];
 
   return (
-    <div className="mb-6 w-full overflow-hidden">
-      <div className="flex overflow-x-auto hide-scrollbar gap-2 pb-2">
+    <div className="mb-8 w-full overflow-hidden" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="flex overflow-x-auto hide-scrollbar gap-2">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const fullPath = `/raw-material-prices${tab.path ? `/${tab.path}` : ''}`;
@@ -32,11 +32,12 @@ const PriceModuleTabs = () => {
               key={tab.id}
               to={fullPath}
               end={tab.path === ''}
-              className={({ isActive }) => `flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors whitespace-nowrap rounded-full ${
+              className={({ isActive }) => `flex items-center gap-2 px-4 py-3 text-sm transition-colors whitespace-nowrap ${
                 isActive 
-                  ? 'bg-primary text-white shadow-sm' 
-                  : 'text-secondary bg-surface border border-base hover:bg-base/50 hover:text-primary hover:border-border'
+                  ? 'text-primary font-semibold border-b-4 border-primary' 
+                  : 'text-secondary font-medium hover:bg-base/50 hover:text-primary border-b-4 border-transparent'
               }`}
+              style={{ marginBottom: '-1px' }}
             >
               <Icon size={16} />
               {tab.label}
