@@ -8,6 +8,7 @@ import MasterDataSectionHeader from './components/MasterDataSectionHeader';
 import StatusBadge from './components/StatusBadge';
 import EmptyState from './components/EmptyState';
 import MasterDataTable from './components/MasterDataTable';
+import RawMaterialsTab from './components/RawMaterialsTab';
 
 const Configuration = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -131,54 +132,13 @@ const Configuration = () => {
 
       {/* RAW MATERIALS TAB */}
       {activeTab === 'raw-materials' && (
-        <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden">
-          <MasterDataSectionHeader 
-            title="Raw Material Master" 
-            description="Manage all cattle-feed raw materials and their default properties." 
-            buttonText="Add Material" 
-          />
-          {loading ? renderSkeleton(7) : materials.length === 0 ? (
-            <EmptyState icon={PackageOpen} title="No Raw Materials" description="You haven't defined any raw materials yet." actionText="Add Material" />
-          ) : (
-            <MasterDataTable>
-              <thead className="bg-slate-50 text-secondary border-b border-base">
-                <tr>
-                  <th className="p-4 font-semibold uppercase tracking-wider text-xs w-24">Code</th>
-                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Name (EN/HI)</th>
-                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Category</th>
-                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Def. Unit</th>
-                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Daily Track</th>
-                  <th className="p-4 font-semibold uppercase tracking-wider text-xs">Status</th>
-                  <th className="p-4 font-semibold uppercase tracking-wider text-xs text-right w-20">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-base">
-                {materials.map(m => (
-                  <tr key={m.id} className="hover:bg-base/30 transition-colors">
-                    <td className="p-4 text-secondary font-medium" data-label="Code">{m.code || '-'}</td>
-                    <td className="p-4" data-label="Name (EN/HI)">
-                      <div className="font-semibold text-primary">{m.name_en}</div>
-                      <div className="text-xs text-secondary mt-0.5">{m.name_hi}</div>
-                    </td>
-                    <td className="p-4 text-secondary" data-label="Category">{m.category}</td>
-                    <td className="p-4 text-secondary" data-label="Def. Unit">{m.default_unit?.unit_name || m.default_unit || '-'}</td>
-                    <td className="p-4" data-label="Daily Track">
-                      {m.daily_tracking_required 
-                        ? <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded text-xs font-medium">Yes</span>
-                        : <span className="px-2 py-0.5 bg-slate-50 text-slate-600 border border-slate-200 rounded text-xs font-medium">No</span>}
-                    </td>
-                    <td className="p-4" data-label="Status">
-                      <StatusBadge active={m.active} />
-                    </td>
-                    <td className="p-4 flex justify-end gap-2" data-label="Actions">
-                      <button className="btn-icon p-1.5 text-secondary hover:text-primary bg-base/50 hover:bg-base rounded-md transition-colors"><Edit2 size={16}/></button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </MasterDataTable>
-          )}
-        </div>
+        <RawMaterialsTab 
+          materials={materials} 
+          units={units} 
+          loading={loading} 
+          onRefresh={fetchData} 
+          showMessage={showMessage} 
+        />
       )}
 
       {/* QUALITY PARAMETERS TAB */}

@@ -25,7 +25,7 @@ const RawMaterialPriceHeader = () => {
         </h1>
         <p className="text-sm text-secondary">
           {isConfiguration 
-            ? 'Manage raw materials, brokers, pricing masters, and operational settings.'
+            ? 'Manage raw materials, quality parameters, brokers, units, price types, and operational settings.'
             : 'Track and analyze daily cattle-feed material prices'}
         </p>
       </div>
