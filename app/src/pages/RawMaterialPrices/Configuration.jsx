@@ -21,6 +21,8 @@ const Configuration = () => {
   const [units, setUnits] = useState([]);
   const [priceTypes, setPriceTypes] = useState([]);
   const [settings, setSettings] = useState({});
+  const [originalSettings, setOriginalSettings] = useState({});
+  const [isSaving, setIsSaving] = useState(false);
   
   const [message, setMessage] = useState(null);
 
@@ -45,7 +47,10 @@ const Configuration = () => {
       setBrokers(brks.data || []);
       setUnits(un.data || []);
       setPriceTypes(pt.data || []);
-      if (sets.data) setSettings(sets.data);
+      if (sets.data) {
+        setSettings(sets.data);
+        setOriginalSettings(sets.data);
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -54,6 +59,7 @@ const Configuration = () => {
   };
 
   const handleSettingsSave = async () => {
+    setIsSaving(true);
     try {
       const { error } = await supabase
         .from('raw_material_price_settings')
@@ -68,9 +74,12 @@ const Configuration = () => {
         
       if (error) throw error;
       
-      showMessage('success', 'Settings saved successfully.');
+      setOriginalSettings(settings);
+      showMessage('success', 'General settings saved successfully.');
     } catch (error) {
       showMessage('error', 'Failed to save settings.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -82,6 +91,8 @@ const Configuration = () => {
   const handleTabChange = (tabId) => {
     setSearchParams({ tab: tabId });
   };
+
+  const isDirty = JSON.stringify(settings) !== JSON.stringify(originalSettings);
 
   const renderSkeleton = (columns) => (
     <MasterDataTable>
@@ -347,88 +358,111 @@ const Configuration = () => {
 
       {/* GENERAL SETTINGS TAB */}
       {activeTab === 'general' && (
-        <div className="card bg-white border border-base rounded-xl shadow-sm max-w-2xl overflow-hidden">
-           <MasterDataSectionHeader 
-             title="General Settings" 
-             description="Manage reporting defaults and operational thresholds." 
-           />
+        <div className="max-w-[1100px] w-full mx-auto">
            {loading ? (
-             <div className="p-6 animate-pulse space-y-6">
+             <div className="p-6 animate-pulse space-y-6 card bg-white border border-base rounded-xl shadow-sm">
                 <div className="h-10 bg-base/50 rounded w-full"></div>
                 <div className="h-10 bg-base/50 rounded w-full"></div>
              </div>
            ) : (
-             <div className="p-6 space-y-8">
-                
-                {/* Group 1 */}
-                <div>
-                  <h4 className="font-semibold text-sm text-primary uppercase tracking-wider mb-4 pb-2 border-b border-base">Report Preferences</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <label className="text-sm font-medium text-secondary mb-1.5 block">Default Report Selection Method</label>
-                      <select 
-                        className="input w-full bg-surface border-base/80 rounded-lg focus:border-emerald-500 transition-colors"
-                        value={settings.default_selection_method || 'latest'}
-                        onChange={e => setSettings({...settings, default_selection_method: e.target.value})}
-                      >
-                        <option value="latest">Latest Entered Price</option>
-                        <option value="lowest">Lowest Quoted Price</option>
-                        <option value="average">Average Price</option>
-                      </select>
+             <div className="bg-transparent space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                  
+                  {/* Card 1: Report Preferences */}
+                  <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
+                    <div className="p-6 border-b border-base bg-white">
+                      <h4 className="font-semibold text-lg text-primary tracking-tight">Report Preferences</h4>
+                      <p className="text-sm text-secondary mt-1">Choose how prices are selected and monitored in reports.</p>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-secondary mb-1.5 block">Alert Threshold (%)</label>
-                      <input 
-                        type="number" 
-                        className="input w-full bg-surface border-base/80 rounded-lg focus:border-emerald-500 transition-colors" 
-                        step="0.1"
-                        value={settings.alert_threshold_percentage || 3}
-                        onChange={e => setSettings({...settings, alert_threshold_percentage: e.target.value})}
-                      />
-                      <p className="text-xs text-muted mt-1.5">Triggers 'Sharp' increase/decrease warning</p>
+                    <div className="p-6 space-y-6 flex-1">
+                      <div>
+                        <label className="text-sm font-medium text-primary mb-1 block">Default report price</label>
+                        <p className="text-sm text-secondary mb-3">Choose the price used by default when generating reports.</p>
+                        <select 
+                          className="input w-full bg-surface border-base/80 rounded-lg focus:border-emerald-500 transition-colors h-[42px]"
+                          value={settings.default_selection_method || 'latest'}
+                          onChange={e => setSettings({...settings, default_selection_method: e.target.value})}
+                        >
+                          <option value="latest">Latest Entered Price</option>
+                          <option value="lowest">Lowest Quoted Price</option>
+                          <option value="average">Average Price</option>
+                        </select>
+                      </div>
+                      <div className="pt-2">
+                        <label className="text-sm font-medium text-primary mb-1 block">Sharp movement alert threshold</label>
+                        <p className="text-sm text-secondary mb-3">Show a warning when the price changes by this percentage or more from the previous entry.</p>
+                        <div className="relative">
+                          <input 
+                            type="number" 
+                            className="input w-full bg-surface border-base/80 rounded-lg focus:border-emerald-500 transition-colors h-[42px] pr-10" 
+                            step="0.1"
+                            min="0.1"
+                            value={settings.alert_threshold_percentage || ''}
+                            onChange={e => setSettings({...settings, alert_threshold_percentage: e.target.value})}
+                          />
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary font-medium pointer-events-none">%</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Group 2 */}
-                <div>
-                  <h4 className="font-semibold text-sm text-primary uppercase tracking-wider mb-4 pb-2 border-b border-base">WhatsApp Defaults</h4>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-base/10 rounded-lg border border-base/50">
-                      <div>
-                        <label className="font-medium text-sm text-primary">Show Broker Name</label>
-                        <p className="text-xs text-secondary mt-0.5">Include broker details in the final message</p>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        className="w-5 h-5 rounded border-base/80 text-emerald-600 focus:ring-emerald-500 bg-surface"
-                        checked={settings.show_broker_in_report || false}
-                        onChange={e => setSettings({...settings, show_broker_in_report: e.target.checked})}
-                      />
+                  {/* Card 2: WhatsApp Defaults */}
+                  <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
+                    <div className="p-6 border-b border-base bg-white">
+                      <h4 className="font-semibold text-lg text-primary tracking-tight">WhatsApp Defaults</h4>
+                      <p className="text-sm text-secondary mt-1">Control the information included in generated price updates.</p>
                     </div>
+                    <div className="flex-1 flex flex-col divide-y divide-base bg-white">
+                      {/* Toggle 1 */}
+                      <label className="flex items-start sm:items-center justify-between p-6 cursor-pointer hover:bg-base/30 transition-colors group">
+                        <div className="pr-4">
+                          <span className="font-medium text-[15px] text-primary block mb-1">Show Broker Name</span>
+                          <span className="text-sm text-secondary">Include the broker name alongside each quoted price in WhatsApp updates.</span>
+                        </div>
+                        <div className="relative inline-flex items-center cursor-pointer shrink-0 mt-1 sm:mt-0">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={settings.show_broker_in_report || false}
+                            onChange={e => setSettings({...settings, show_broker_in_report: e.target.checked})}
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
+                        </div>
+                      </label>
 
-                    <div className="flex items-center justify-between p-3 bg-base/10 rounded-lg border border-base/50">
-                      <div>
-                        <label className="font-medium text-sm text-primary">Compare with Previous Day</label>
-                        <p className="text-xs text-secondary mt-0.5">Show price difference versus yesterday</p>
-                      </div>
-                      <input 
-                        type="checkbox" 
-                        className="w-5 h-5 rounded border-base/80 text-emerald-600 focus:ring-emerald-500 bg-surface"
-                        checked={settings.show_previous_day_change || false}
-                        onChange={e => setSettings({...settings, show_previous_day_change: e.target.checked})}
-                      />
+                      {/* Toggle 2 */}
+                      <label className="flex items-start sm:items-center justify-between p-6 cursor-pointer hover:bg-base/30 transition-colors group">
+                        <div className="pr-4">
+                          <span className="font-medium text-[15px] text-primary block mb-1">Compare with Previous Day</span>
+                          <span className="text-sm text-secondary">Show the increase or decrease compared with the previous day’s price.</span>
+                        </div>
+                        <div className="relative inline-flex items-center cursor-pointer shrink-0 mt-1 sm:mt-0">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={settings.show_previous_day_change || false}
+                            onChange={e => setSettings({...settings, show_previous_day_change: e.target.checked})}
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-emerald-500/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600 shadow-inner"></div>
+                        </div>
+                      </label>
                     </div>
                   </div>
+
                 </div>
 
-                {/* Actions */}
-                <div className="pt-4 flex justify-end border-t border-base">
+                {/* Sticky Action Bar */}
+                <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 p-4 sm:p-5 mt-6 bg-white/95 backdrop-blur-sm border-t border-base shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] sm:rounded-xl sm:border flex justify-end">
                   <button 
-                    className="btn btn-primary flex items-center gap-2 px-6 py-2.5 shadow-sm"
+                    className="btn btn-primary flex items-center gap-2 px-6 py-2.5 shadow-sm min-w-[140px] justify-center w-full sm:w-auto"
                     onClick={handleSettingsSave}
+                    disabled={!isDirty || isSaving}
                   >
-                    <Save size={16} /> Save Changes
+                    {isSaving ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    ) : (
+                      <><Save size={16} /> Save Changes</>
+                    )}
                   </button>
                 </div>
              </div>
