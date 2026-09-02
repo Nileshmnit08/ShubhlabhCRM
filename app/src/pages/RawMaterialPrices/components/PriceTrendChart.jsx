@@ -32,8 +32,8 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
       <div className="p-5" style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0' }}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div>
-            <h3 className="font-bold text-[17px] tracking-tight" style={{ color: 'var(--text-primary)' }}>Price Trend</h3>
-            <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>Average daily market price</p>
+            <h3 className="font-bold text-[17px] tracking-tight text-primary">Price Trend</h3>
+            <p className="text-[13px] mt-0.5 text-secondary">Average daily market price</p>
           </div>
           
           <select 
@@ -52,7 +52,7 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
         <div className="flex flex-wrap items-end justify-between gap-4 mt-2">
           {selectedMatInfo && !loading && trendData.length > 0 ? (
              <div className="flex items-end gap-3">
-               <div className="text-[28px] font-bold tracking-tight tabular-nums leading-none" style={{ color: 'var(--text-primary)' }}>
+               <div className="text-[28px] font-bold tracking-tight tabular-nums leading-none text-primary">
                  ₹{currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                </div>
                {diff !== 0 ? (
@@ -66,7 +66,7 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
                    0.00%
                  </div>
                )}
-               <div className="text-[12px] font-medium mb-1.5 ml-1" style={{ color: 'var(--text-muted)' }}>
+               <div className="text-[12px] font-medium mb-1.5 ml-1 text-muted">
                  vs prior update
                </div>
                
@@ -83,7 +83,7 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
           )}
           
           {onTimeRangeChange && (
-            <div className="flex p-1 rounded-lg shrink-0" style={{ background: 'var(--bg-base)', border: '1px solid var(--border)' }}>
+            <div className="flex p-1 rounded-lg shrink-0 bg-base border border-base">
               {ranges.map(range => (
                 <button
                   key={range.value}
@@ -105,17 +105,17 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
         </div>
       </div>
       
-      <div className="p-6 flex-1 min-h-[300px]" style={{ background: 'var(--bg-surface)' }}>
+      <div className="p-6 flex-1 min-h-[300px] bg-surface">
         {loading ? (
           <div className="h-full w-full animate-pulse flex flex-col justify-end gap-2 px-4 pb-4">
-             <div className="flex items-end gap-2 h-full pb-2" style={{ borderBottom: '1px solid var(--border)' }}>
+             <div className="flex items-end gap-2 h-full pb-2 border-b border-base">
                {[40, 60, 45, 70, 50, 80, 65, 90].map((h, i) => (
                  <div key={i} className="flex-1 rounded-t-sm" style={{ height: `${h}%`, background: 'var(--bg-base)', borderTop: '1px solid var(--border)' }}></div>
                ))}
              </div>
              <div className="flex justify-between w-full h-4">
-               <div className="w-12 h-3 rounded" style={{ background: 'var(--bg-base)' }}></div>
-               <div className="w-12 h-3 rounded" style={{ background: 'var(--bg-base)' }}></div>
+               <div className="w-12 h-3 rounded bg-base"></div>
+               <div className="w-12 h-3 rounded bg-base"></div>
              </div>
           </div>
         ) : trendData.length > 0 ? (
@@ -175,9 +175,9 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
           </ResponsiveContainer>
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-[14px] rounded-xl border border-dashed" style={{ background: 'var(--bg-base)', color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
-            <TrendingUp size={36} className="mb-4" style={{ color: 'var(--text-muted)' }} />
-            <h4 className="font-semibold mb-1.5 text-[16px]" style={{ color: 'var(--text-primary)' }}>No Trend Data</h4>
-            <p className="text-[14px] text-center max-w-[240px]" style={{ color: 'var(--text-secondary)' }}>Select a different material or start logging data to view the trend.</p>
+            <TrendingUp size={36} className="mb-4 text-muted" />
+            <h4 className="font-semibold mb-1.5 text-[16px] text-primary">No Trend Data</h4>
+            <p className="text-[14px] text-center max-w-[240px] text-secondary">Select a different material or start logging data to view the trend.</p>
           </div>
         )}
       </div>

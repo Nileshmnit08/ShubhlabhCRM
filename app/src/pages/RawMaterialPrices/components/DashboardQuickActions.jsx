@@ -13,7 +13,7 @@ const QUICK_ACTIONS = [
 const DashboardQuickActions = () => {
   return (
     <div className="mb-6">
-      <h3 className="text-[12px] font-semibold uppercase tracking-wider mb-3 px-1" style={{ color: 'var(--text-secondary)' }}>Quick Actions</h3>
+      <h3 className="text-[12px] font-semibold uppercase tracking-wider mb-3 px-1 text-secondary">Quick Actions</h3>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {QUICK_ACTIONS.map((action, idx) => {
           const Icon = action.icon;
@@ -21,13 +21,12 @@ const DashboardQuickActions = () => {
             <Link 
               key={idx} 
               to={action.path}
-              className="action-card flex flex-col items-center justify-center gap-3"
-              style={{ padding: '1.25rem' }}
+              className="action-card flex flex-col items-center justify-center gap-3 p-5"
             >
-              <div className="w-12 h-12 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm" style={{ background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--primary)' }}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-sm bg-base border border-base text-primary">
                 <Icon size={20} />
               </div>
-              <span className="text-[14px] font-semibold" style={{ color: 'var(--text-primary)' }}>{action.label}</span>
+              <span className="text-[14px] font-semibold text-primary">{action.label}</span>
             </Link>
           );
         })}

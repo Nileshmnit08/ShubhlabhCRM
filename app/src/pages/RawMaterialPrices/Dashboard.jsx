@@ -140,8 +140,8 @@ const Dashboard = () => {
           title: `${pendingCount} Tracked Material${pendingCount > 1 ? 's' : ''} Missing Today's Price`,
           description: `Missing updates for: ${missingMatNames}${remainder}. These materials are configured to require mandatory daily tracking.`,
           icon: Clock,
-          iconBg: 'bg-amber-100',
-          iconColor: 'text-amber-600',
+          iconBg: 'badge-dormant',
+          iconColor: 'text-warning',
           actionText: 'Add Prices',
           actionLink: '/raw-material-prices/daily-entry'
         });
@@ -160,8 +160,8 @@ const Dashboard = () => {
               const matName = entry.raw_materials?.name_en || 'Material';
               const direction = diff > 0 ? 'jumped' : 'dropped';
               const Icon = diff > 0 ? TrendingUp : TrendingDown;
-              const color = diff > 0 ? 'text-red-600' : 'text-emerald-600';
-              const bg = diff > 0 ? 'bg-red-100' : 'bg-emerald-100';
+              const color = diff > 0 ? 'text-danger' : 'text-success';
+              const bg = diff > 0 ? 'badge-at-risk' : 'badge-active';
 
               newAlerts.push({
                 title: `Sharp Price Movement: ${matName}`,

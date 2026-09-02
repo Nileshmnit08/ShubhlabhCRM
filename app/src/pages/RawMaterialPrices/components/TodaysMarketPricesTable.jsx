@@ -23,15 +23,15 @@ const TodaysMarketPricesTable = ({ prices, loading }) => {
     <div className="glass-panel flex flex-col h-full overflow-hidden w-full">
       <div className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0' }}>
         <div>
-          <h3 className="font-bold text-[17px] tracking-tight" style={{ color: 'var(--text-primary)' }}>Today's Market Prices</h3>
-          <p className="text-[13px] mt-0.5 flex items-center gap-2" style={{ color: 'var(--text-secondary)' }}>
-            <span className="w-2 h-2 rounded-full inline-block" style={{ background: 'var(--success)' }}></span>
+          <h3 className="font-bold text-[17px] tracking-tight text-primary">Today's Market Prices</h3>
+          <p className="text-[13px] mt-0.5 flex items-center gap-2 text-secondary">
+            <span className="w-2 h-2 rounded-full inline-block bg-success"></span>
             Updated {format(new Date(), 'dd MMM yyyy')}
           </p>
         </div>
         
         <div className="relative w-full sm:w-auto">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
           <input 
             type="text"
             placeholder="Search material or broker..."
@@ -41,8 +41,7 @@ const TodaysMarketPricesTable = ({ prices, loading }) => {
           />
           {searchQuery && (
             <button 
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full transition-colors"
-              style={{ color: 'var(--text-muted)' }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full transition-colors text-muted"
               onMouseOver={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; e.currentTarget.style.background = 'var(--bg-base)'; }}
               onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
               onClick={() => setSearchQuery('')}
@@ -70,41 +69,41 @@ const TodaysMarketPricesTable = ({ prices, loading }) => {
                 <tr key={i} className="animate-pulse">
                   <td>
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full shrink-0" style={{ background: 'var(--border)' }}></div>
+                      <div className="w-9 h-9 rounded-full shrink-0 bg-slate-200"></div>
                       <div className="flex-1">
-                        <div className="h-4 w-28 rounded mb-1.5" style={{ background: 'var(--border)' }}></div>
-                        <div className="h-3 w-20 rounded" style={{ background: 'var(--bg-base)' }}></div>
+                        <div className="h-4 w-28 rounded mb-1.5 bg-slate-200"></div>
+                        <div className="h-3 w-20 rounded bg-base"></div>
                       </div>
                     </div>
                   </td>
-                  <td><div className="h-6 w-24 rounded-md" style={{ background: 'var(--border)' }}></div></td>
+                  <td><div className="h-6 w-24 rounded-md bg-slate-200"></div></td>
                   <td>
-                    <div className="h-4 w-28 rounded mb-1.5" style={{ background: 'var(--border)' }}></div>
-                    <div className="h-3 w-24 rounded" style={{ background: 'var(--bg-base)' }}></div>
+                    <div className="h-4 w-28 rounded mb-1.5 bg-slate-200"></div>
+                    <div className="h-3 w-24 rounded bg-base"></div>
                   </td>
-                  <td className="flex justify-end"><div className="h-5 w-24 rounded" style={{ background: 'var(--border)' }}></div></td>
-                  <td><div className="h-4 w-12 rounded" style={{ background: 'var(--border)' }}></div></td>
+                  <td className="flex justify-end"><div className="h-5 w-24 rounded bg-slate-200"></div></td>
+                  <td><div className="h-4 w-12 rounded bg-slate-200"></div></td>
                 </tr>
               ))
             ) : filteredPrices.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-5 py-16 text-center h-[350px]" style={{ color: 'var(--text-secondary)' }}>
+                <td colSpan={5} className="px-5 py-16 text-center h-[350px] text-secondary">
                   {searchQuery ? (
                     <div className="flex flex-col items-center max-w-sm mx-auto">
-                      <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                      <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4 bg-base border border-base text-muted">
                         <Search size={24} />
                       </div>
-                      <h4 className="font-semibold mb-1 text-[16px]" style={{ color: 'var(--text-primary)' }}>No results found</h4>
-                      <p className="text-[14px]" style={{ color: 'var(--text-secondary)' }}>We couldn't find anything matching "{searchQuery}"</p>
+                      <h4 className="font-semibold mb-1 text-[16px] text-primary">No results found</h4>
+                      <p className="text-[14px] text-secondary">We couldn't find anything matching "{searchQuery}"</p>
                       <button className="btn btn-secondary mt-5" onClick={() => setSearchQuery('')}>Clear search</button>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center max-w-sm mx-auto">
-                      <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4 shadow-sm" style={{ background: 'var(--bg-base)', color: 'var(--primary)', border: '1px solid var(--border)' }}>
+                      <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4 shadow-sm bg-base text-primary border border-base">
                         <FileText size={24} />
                       </div>
-                      <h4 className="font-semibold mb-1 text-[16px]" style={{ color: 'var(--text-primary)' }}>No prices recorded yet</h4>
-                      <p className="text-[14px] mb-5" style={{ color: 'var(--text-secondary)' }}>Start logging today's raw material prices from your brokers to populate this table.</p>
+                      <h4 className="font-semibold mb-1 text-[16px] text-primary">No prices recorded yet</h4>
+                      <p className="text-[14px] mb-5 text-secondary">Start logging today's raw material prices from your brokers to populate this table.</p>
                       <button className="btn btn-primary" onClick={() => navigate('/raw-material-prices/daily-entry')}>
                         Add Daily Price
                       </button>
@@ -121,12 +120,12 @@ const TodaysMarketPricesTable = ({ prices, loading }) => {
                 <tr key={entry.id} className="group">
                   <td data-label="Material">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] shrink-0 shadow-sm transition-colors" style={{ background: 'var(--bg-base)', color: 'var(--primary)', border: '1px solid var(--border)' }}>
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-[13px] shrink-0 shadow-sm transition-colors bg-base text-primary border border-base">
                         {initial}
                       </div>
                       <div>
-                        <div className="font-semibold text-[14.5px]" style={{ color: 'var(--text-primary)' }}>{enName}</div>
-                        <div className="text-[12.5px] mt-0.5" style={{ color: 'var(--text-secondary)' }}>{entry.raw_materials?.name_hi}</div>
+                        <div className="font-semibold text-[14.5px] text-primary">{enName}</div>
+                        <div className="text-[12.5px] mt-0.5 text-secondary">{entry.raw_materials?.name_hi}</div>
                       </div>
                     </div>
                   </td>
@@ -136,15 +135,15 @@ const TodaysMarketPricesTable = ({ prices, loading }) => {
                     </div>
                   </td>
                   <td data-label="Broker">
-                    <div className="text-[14.5px] font-medium" style={{ color: 'var(--text-primary)' }}>{entry.brokers?.broker_name}</div>
+                    <div className="text-[14.5px] font-medium text-primary">{entry.brokers?.broker_name}</div>
                     {entry.market_location && (
-                      <div className="text-[13px] mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+                      <div className="text-[13px] mt-0.5 flex items-center gap-1 text-secondary">
                         {entry.market_location}
                       </div>
                     )}
                   </td>
                   <td className="text-right" data-label="Price (₹)">
-                    <div className="font-bold text-[15px] tabular-nums tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                    <div className="font-bold text-[15px] tabular-nums tracking-tight text-primary">
                       ₹{Number(entry.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     {(() => {
@@ -152,7 +151,7 @@ const TodaysMarketPricesTable = ({ prices, loading }) => {
                       const currPrice = Number(entry.price);
                       
                       if (!prevPrice || prevPrice === 0) {
-                        return <div className="text-[11px] mt-1 font-medium flex items-center justify-end gap-1" style={{ color: 'var(--text-muted)' }}><Minus size={12}/> No prior data</div>;
+                        return <div className="text-[11px] mt-1 font-medium flex items-center justify-end gap-1 text-muted"><Minus size={12}/> No prior data</div>;
                       }
 
                       const diff = currPrice - prevPrice;
@@ -160,21 +159,21 @@ const TodaysMarketPricesTable = ({ prices, loading }) => {
                       
                       if (diff > 0) {
                         return (
-                          <div className="text-[12px] mt-1 font-medium flex items-center justify-end gap-1 tabular-nums" style={{ color: 'var(--danger)' }} title={`Previous: ₹${prevPrice.toFixed(2)} on ${format(new Date(entry.previous_date), 'dd MMM')}`}>
+                          <div className="text-[12px] mt-1 font-medium flex items-center justify-end gap-1 tabular-nums text-danger" title={`Previous: ₹${prevPrice.toFixed(2)} on ${format(new Date(entry.previous_date), 'dd MMM')}`}>
                             <TrendingUp size={12} strokeWidth={2.5}/>
                             +₹{diff.toFixed(2)} ({pct.toFixed(1)}%)
                           </div>
                         );
                       } else if (diff < 0) {
                         return (
-                          <div className="text-[12px] mt-1 font-medium flex items-center justify-end gap-1 tabular-nums" style={{ color: 'var(--success)' }} title={`Previous: ₹${prevPrice.toFixed(2)} on ${format(new Date(entry.previous_date), 'dd MMM')}`}>
+                          <div className="text-[12px] mt-1 font-medium flex items-center justify-end gap-1 tabular-nums text-success" title={`Previous: ₹${prevPrice.toFixed(2)} on ${format(new Date(entry.previous_date), 'dd MMM')}`}>
                             <TrendingDown size={12} strokeWidth={2.5}/>
                             -₹{Math.abs(diff).toFixed(2)} ({pct.toFixed(1)}%)
                           </div>
                         );
                       } else {
                         return (
-                          <div className="text-[12px] mt-1 font-medium flex items-center justify-end gap-1 tabular-nums" style={{ color: 'var(--text-muted)' }} title={`Stable since ${format(new Date(entry.previous_date), 'dd MMM')}`}>
+                          <div className="text-[12px] mt-1 font-medium flex items-center justify-end gap-1 tabular-nums text-muted" title={`Stable since ${format(new Date(entry.previous_date), 'dd MMM')}`}>
                             <Minus size={12} strokeWidth={2.5}/>
                             Stable
                           </div>
@@ -183,7 +182,7 @@ const TodaysMarketPricesTable = ({ prices, loading }) => {
                     })()}
                   </td>
                   <td data-label="Unit">
-                    <span className="text-[13.5px] font-medium tracking-wide" style={{ color: 'var(--text-secondary)' }}>{entry.rm_units?.unit_name || entry.unit}</span>
+                    <span className="text-[13.5px] font-medium tracking-wide text-secondary">{entry.rm_units?.unit_name || entry.unit}</span>
                   </td>
                 </tr>
               )})
