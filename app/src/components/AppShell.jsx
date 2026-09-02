@@ -31,6 +31,7 @@ const allNavItems = [
   { path: '/dispatches', label: 'Dispatch Dashboard', icon: Map },
   { path: '/coverage', label: 'Coverage Gaps', icon: Map },
   { path: '/automation-control', label: 'Automation Control', icon: Zap },
+  { path: '/raw-material-prices', label: 'Raw Material Prices', icon: TrendingUp },
   { path: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -58,7 +59,7 @@ const menuGroups = [
   {
     id: 'settings',
     title: 'SETTINGS',
-    items: ['/settings']
+    items: ['/raw-material-prices', '/settings']
   }
 ];
 

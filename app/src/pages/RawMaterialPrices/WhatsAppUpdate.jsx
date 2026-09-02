@@ -1,0 +1,287 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../../lib/supabase';
+import { MessageCircle, Copy, Check, Save, Download, Printer, RefreshCw } from 'lucide-react';
+import { format } from 'date-fns';
+
+const WhatsAppUpdate = () => {
+  const [loading, setLoading] = useState(true);
+  const [reportDate, setReportDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [settings, setSettings] = useState({
+    showBroker: false,
+    showPreviousDayChange: true,
+    selectionMethod: 'latest' // 'latest', 'lowest', 'average'
+  });
+  
+  const [reportData, setReportData] = useState(null);
+  const [generatedMessage, setGeneratedMessage] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [directors, setDirectors] = useState([
+    { id: '1', name: 'Director Sir', phone: '919876543210' }
+  ]); // In reality, fetch from master
+
+  useEffect(() => {
+    generateReport();
+  }, [reportDate, settings]);
+
+  const generateReport = async () => {
+    setLoading(true);
+    try {
+      // Fetch today's entries
+      const { data: currentData } = await supabase
+        .from('raw_material_price_entries')
+        .select(`
+          price, unit, market_location, price_type,
+          raw_materials(id, name_en, name_hi, daily_tracking_required),
+          brokers(broker_name),
+          material_quality_grades(grade_name_hi, grade_name)
+        `)
+        .eq('entry_date', reportDate)
+        .eq('is_deleted', false);
+
+      // Group by material for selection logic
+      const grouped = (currentData || []).reduce((acc, curr) => {
+        const matId = curr.raw_materials.id;
+        if (!acc[matId]) acc[matId] = [];
+        acc[matId].push(curr);
+        return acc;
+      }, {});
+
+      // For previous day comparison
+      const prevDate = format(new Date(new Date(reportDate).getTime() - 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
+      const { data: prevData } = await supabase
+        .from('raw_material_price_entries')
+        .select('price, raw_material_id')
+        .eq('entry_date', prevDate)
+        .eq('is_deleted', false);
+        
+      const prevGrouped = (prevData || []).reduce((acc, curr) => {
+        if (!acc[curr.raw_material_id]) acc[curr.raw_material_id] = [];
+        acc[curr.raw_material_id].push(curr);
+        return acc;
+      }, {});
+
+      // Process materials
+      const processed = [];
+      let increased = 0;
+      let decreased = 0;
+      let stable = 0;
+
+      Object.keys(grouped).forEach((matId, index) => {
+        const entries = grouped[matId];
+        let selectedEntry = entries[0];
+        
+        if (settings.selectionMethod === 'lowest') {
+          selectedEntry = entries.reduce((min, e) => Number(e.price) < Number(min.price) ? e : min, entries[0]);
+        }
+        
+        const mat = selectedEntry.raw_materials;
+        const quality = selectedEntry.material_quality_grades?.grade_name_hi || selectedEntry.material_quality_grades?.grade_name || 'साफ माल';
+        const price = Number(selectedEntry.price);
+        
+        // Find prev price
+        let prevPrice = null;
+        let diff = 0;
+        let perc = 0;
+        let direction = '';
+        
+        if (prevGrouped[matId] && prevGrouped[matId].length > 0) {
+          const prevEntries = prevGrouped[matId];
+          let pEntry = prevEntries[0];
+          if (settings.selectionMethod === 'lowest') {
+            pEntry = prevEntries.reduce((min, e) => Number(e.price) < Number(min.price) ? e : min, prevEntries[0]);
+          }
+          prevPrice = Number(pEntry.price);
+          diff = price - prevPrice;
+          perc = (diff / prevPrice) * 100;
+          
+          if (diff > 0) { direction = 'तेजी'; increased++; }
+          else if (diff < 0) { direction = 'मंदी'; decreased++; }
+          else { direction = 'स्थिर'; stable++; }
+        } else {
+          stable++;
+        }
+
+        processed.push({
+          matName: mat.name_hi || mat.name_en,
+          quality,
+          price,
+          unit: selectedEntry.unit === 'Quintal' ? 'क्विंटल' : selectedEntry.unit,
+          location: selectedEntry.market_location,
+          broker: selectedEntry.brokers?.broker_name,
+          diff: Math.abs(diff),
+          perc: Math.abs(perc),
+          direction
+        });
+      });
+
+      // Construct Text Message
+      const displayDate = format(new Date(reportDate), 'dd-MM-yyyy');
+      let msg = `नमस्कार सर,\n\nदिनांक: ${displayDate}\n\nआज के पशु आहार कच्चे माल के भाव निम्नानुसार हैं:\n\n`;
+
+      if (processed.length === 0) {
+        msg += "आज के लिए कोई भाव उपलब्ध नहीं हैं।\n\n";
+      } else {
+        processed.forEach((item, idx) => {
+          msg += `${idx + 1}. ${item.matName} (${item.quality})\n`;
+          msg += `भाव: ₹${item.price.toLocaleString('en-IN')} प्रति ${item.unit}\n`;
+          if (item.location) msg += `बाजार: ${item.location}\n`;
+          if (settings.showBroker && item.broker) msg += `स्रोत: ${item.broker}\n`;
+          
+          if (settings.showPreviousDayChange && item.direction && item.diff > 0) {
+            msg += `कल के मुकाबले: ${item.direction} ₹${item.diff.toFixed(2)} (${item.perc.toFixed(2)}%)\n`;
+          }
+          msg += '\n';
+        });
+
+        // Summary
+        msg += `कुल स्थिति:\n`;
+        
+        const incNames = processed.filter(p => p.direction === 'तेजी').map(p => p.matName).join(', ') || 'कोई नहीं';
+        const decNames = processed.filter(p => p.direction === 'मंदी').map(p => p.matName).join(', ') || 'कोई नहीं';
+        const staNames = processed.filter(p => !p.direction || p.direction === 'स्थिर').map(p => p.matName).join(', ') || 'कोई नहीं';
+        
+        msg += `- तेजी वाले माल: ${incNames}\n`;
+        msg += `- मंदी वाले माल: ${decNames}\n`;
+        msg += `- स्थिर माल: ${staNames}\n\n`;
+      }
+
+      msg += `धन्यवाद।\nShubh Labh CRM`;
+
+      setGeneratedMessage(msg);
+      setReportData({ processed, increased, decreased, stable });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedMessage);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleWhatsAppSend = (phone) => {
+    const encoded = encodeURIComponent(generatedMessage);
+    window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank');
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Settings Panel */}
+      <div className="lg:col-span-1 space-y-6">
+        <div className="card bg-surface p-5">
+          <h3 className="font-semibold mb-4 border-b border-base pb-2">Report Settings</h3>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-secondary mb-1 block">Report Date</label>
+              <input 
+                type="date" 
+                className="input w-full"
+                value={reportDate}
+                onChange={e => setReportDate(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-secondary mb-1 block">Price Selection</label>
+              <select 
+                className="input w-full"
+                value={settings.selectionMethod}
+                onChange={e => setSettings({...settings, selectionMethod: e.target.value})}
+              >
+                <option value="latest">Latest Entered</option>
+                <option value="lowest">Lowest Quoted</option>
+              </select>
+            </div>
+
+            <div className="flex items-center justify-between py-2 border-b border-base/50">
+              <label className="text-sm font-medium">Show Broker Name</label>
+              <input 
+                type="checkbox" 
+                checked={settings.showBroker}
+                onChange={e => setSettings({...settings, showBroker: e.target.checked})}
+                className="w-4 h-4 rounded border-base text-primary focus:ring-primary"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between py-2 border-b border-base/50">
+              <label className="text-sm font-medium">Include vs Yesterday Change</label>
+              <input 
+                type="checkbox" 
+                checked={settings.showPreviousDayChange}
+                onChange={e => setSettings({...settings, showPreviousDayChange: e.target.checked})}
+                className="w-4 h-4 rounded border-base text-primary focus:ring-primary"
+              />
+            </div>
+
+            <button 
+              className="btn btn-secondary w-full flex items-center justify-center gap-2"
+              onClick={generateReport}
+            >
+              <RefreshCw size={16} /> Regenerate Report
+            </button>
+          </div>
+        </div>
+
+        <div className="card bg-surface p-5">
+          <h3 className="font-semibold mb-4 border-b border-base pb-2">Recipients</h3>
+          <div className="space-y-3">
+            {directors.map(dir => (
+              <div key={dir.id} className="flex justify-between items-center bg-base/30 p-3 rounded-lg border border-base">
+                <div>
+                  <div className="font-medium text-sm">{dir.name}</div>
+                  <div className="text-xs text-secondary">+{dir.phone}</div>
+                </div>
+                <button 
+                  className="btn btn-primary btn-sm flex items-center gap-1"
+                  onClick={() => handleWhatsAppSend(dir.phone)}
+                >
+                  <MessageCircle size={14} /> Send
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Preview Panel */}
+      <div className="lg:col-span-2">
+        <div className="card bg-surface flex flex-col h-full border border-base">
+          <div className="p-4 border-b border-base bg-base/20 flex justify-between items-center">
+            <h3 className="font-semibold">Message Preview (Hindi)</h3>
+            <div className="flex gap-2">
+              <button 
+                className={`btn btn-sm flex items-center gap-1 ${copied ? 'bg-green-500/20 text-green-600' : 'btn-outline'}`}
+                onClick={copyToClipboard}
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />} 
+                {copied ? 'Copied!' : 'Copy Text'}
+              </button>
+            </div>
+          </div>
+          
+          <div className="p-6 flex-1 bg-[url('https://raw.githubusercontent.com/stripe/stripe-terminal-ios/master/Example/Images.xcassets/stripe-logo.imageset/stripe-logo.png')] bg-opacity-5">
+            {loading ? (
+              <div className="flex justify-center items-center h-full text-secondary">Generating message...</div>
+            ) : (
+              <div className="bg-[#e1f3db] dark:bg-[#0b141a] p-4 rounded-xl rounded-tl-none max-w-2xl mx-auto shadow-sm border border-black/5 dark:border-white/10 relative">
+                 <div className="absolute top-0 left-[-8px] w-0 h-0 border-t-[8px] border-t-[#e1f3db] dark:border-t-[#0b141a] border-l-[8px] border-l-transparent"></div>
+                 <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-[#111b21] dark:text-[#e9edef]" style={{fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'}}>
+                   {generatedMessage}
+                 </pre>
+                 <div className="text-[11px] text-[#667781] dark:text-[#8696a0] text-right mt-2 flex justify-end items-center gap-1">
+                   {format(new Date(), 'HH:mm')} <Check size={12} />
+                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default WhatsAppUpdate;

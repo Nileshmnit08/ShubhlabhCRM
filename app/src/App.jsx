@@ -39,6 +39,7 @@ import DemandControlTower from './pages/DemandControlTower';
 import Performance from './pages/Performance';
 import Settings from './pages/Settings';
 import FollowUpActivityReport from './pages/Activity/FollowUpActivityReport';
+import RawMaterialPrices from './pages/RawMaterialPrices';
 
 import DispatchDashboard from './pages/Dispatches/Dashboard';
 import DispatchList from './pages/Dispatches/List';
@@ -254,6 +255,7 @@ function App() {
               <Route path="demand-control-tower" element={<DemandControlTower />} />
               <Route path="coverage" element={<CoverageIntelligence />} />
               <Route path="automation-control" element={<AutomationControl />} />
+              <Route path="raw-material-prices/*" element={<RawMaterialPrices />} />
               <Route path="settings" element={<Settings />} />
 
               <Route path="dispatches">
