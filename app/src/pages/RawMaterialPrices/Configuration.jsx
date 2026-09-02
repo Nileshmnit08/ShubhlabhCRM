@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { Save, Plus, Trash2, Edit2, CheckCircle } from 'lucide-react';
 
 const Configuration = () => {

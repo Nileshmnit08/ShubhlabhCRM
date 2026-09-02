@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { Search, Filter, Download, Calendar, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, subDays, startOfMonth, subMonths } from 'date-fns';
 
