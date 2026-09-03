@@ -107,10 +107,8 @@ export default function DormantList() {
         query = query.ilike('display_name', `%${filters.search}%`);
       }
 
-      // RLS safety check if needed, but the view should handle it or standard policies apply
-      if (userProfile?.role !== 'Admin') {
-         query = query.eq('assigned_owner_id', userProfile?.id);
-      }
+      // RLS or standard policies will handle data access security natively
+      // allowing the UI filter to function for all permitted staff members.
 
       query = query.order('days_inactive', { ascending: false, nullsFirst: false });
         
@@ -210,16 +208,14 @@ export default function DormantList() {
           </select>
         </div>
         
-        {userProfile?.role === 'Admin' && (
-          <div style={{flex: '1 1 200px'}}>
-            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Assigned Staff</label>
-            <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.owner_id} onChange={e => setFilters(p => ({...p, owner_id: e.target.value}))}>
-              <option value="ALL">All Staff</option>
-              <option value="UNASSIGNED">Unassigned</option>
-              {teamMembers.map(t => <option key={t.id} value={t.id}>{t.display_name}</option>)}
-            </select>
-          </div>
-        )}
+        <div style={{flex: '1 1 200px'}}>
+          <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Assigned Staff</label>
+          <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.owner_id} onChange={e => setFilters(p => ({...p, owner_id: e.target.value}))}>
+            <option value="ALL">All Staff</option>
+            <option value="UNASSIGNED">Unassigned</option>
+            {teamMembers.map(t => <option key={t.id} value={t.id}>{t.display_name}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Bulk Action Bar */}
