@@ -164,6 +164,28 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
       </td>
       <td data-label="Actions" className="px-6 py-4 text-right">
         <div className="flex items-center justify-end gap-1 relative">
+          {b.mobile && (
+            <>
+              <a 
+                href={`tel:${normalizeMobile(b.mobile)}`} 
+                className="btn-icon p-1.5 text-secondary hover:text-blue-600 hover:bg-blue-50 rounded transition-colors hidden sm:flex"
+                title="Call Broker"
+              >
+                <Phone size={16} />
+              </a>
+              <a 
+                href={`https://wa.me/91${normalizeMobile(b.whatsapp_number || b.mobile)}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors hidden sm:flex"
+                title="WhatsApp Broker"
+              >
+                <MessageCircle size={16} />
+              </a>
+              <div className="w-px h-4 bg-slate-200 mx-1 hidden sm:block"></div>
+            </>
+          )}
+
           <button 
             className="btn-icon p-1.5 text-secondary hover:text-primary hover:bg-slate-100 rounded transition-colors tooltip-trigger" 
             onClick={() => handleEditBroker(b)}
@@ -205,28 +227,6 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
               </div>
             )}
           </div>
-
-          {b.mobile && (
-            <>
-              <div className="w-px h-4 bg-slate-200 mx-1 hidden sm:block"></div>
-              <a 
-                href={`tel:${normalizeMobile(b.mobile)}`} 
-                className="btn-icon p-1.5 text-secondary hover:text-blue-600 hover:bg-blue-50 rounded transition-colors hidden sm:flex"
-                title="Call Broker"
-              >
-                <Phone size={16} />
-              </a>
-              <a 
-                href={`https://wa.me/91${normalizeMobile(b.whatsapp_number || b.mobile)}`}
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors hidden sm:flex"
-                title="WhatsApp Broker"
-              >
-                <MessageCircle size={16} />
-              </a>
-            </>
-          )}
         </div>
       </td>
     </tr>
@@ -290,7 +290,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
                         <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Location</th>
                         <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Materials Handled</th>
                         <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Actions</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right w-36">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-base">
@@ -317,7 +317,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
                         <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Location</th>
                         <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Materials Handled</th>
                         <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right w-36">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-base bg-slate-50/50">
