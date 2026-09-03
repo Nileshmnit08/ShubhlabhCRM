@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map, Zap, AlertTriangle, ChevronDown, ChevronRight, Pin, PinOff } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map, Zap, AlertTriangle, ChevronDown, ChevronRight, Pin, PinOff, Truck } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -45,6 +45,7 @@ const allNavItems = [
     ]
   },
   { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/logistics', label: 'Logistics', icon: Truck },
 ];
 
 const menuGroups = [
@@ -76,7 +77,7 @@ const menuGroups = [
   {
     id: 'settings',
     title: 'SETTINGS',
-    items: ['/settings']
+    items: ['/settings', '/logistics']
   }
 ];
 
