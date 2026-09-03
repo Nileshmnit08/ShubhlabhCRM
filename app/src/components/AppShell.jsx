@@ -52,7 +52,7 @@ const menuGroups = [
   {
     id: 'customers-growth',
     title: 'CUSTOMERS & GROWTH',
-    items: ['/customers', '/dealer-control', '/dormant', '/reactivation', '/leads', '/opportunities']
+    items: ['/dealer-control', '/dormant', '/reactivation', '/leads', '/opportunities']
   },
   {
     id: 'demand-insights',
