@@ -3,8 +3,9 @@ import { supabase } from '../../lib/supabase';
 import { format, parseISO } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { 
-  Search, X, Plus, Activity, Package, Calendar, Filter, AlertCircle
+  Search, X, Plus, Activity, Package, Calendar, Filter, AlertCircle, Phone, MessageCircle
 } from 'lucide-react';
+import { normalizeMobile } from '../../utils/phoneUtils';
 
 const Dashboard = () => {
   const [tableLoading, setTableLoading] = useState(false);
@@ -71,7 +72,7 @@ const Dashboard = () => {
         .select(`
           *,
           raw_materials (name_en, name_hi, category),
-          brokers (broker_name),
+          brokers (broker_name, mobile, whatsapp_number),
           material_quality_grades (grade_name),
           rm_units (unit_name),
           rm_price_types (type_name)
@@ -283,7 +284,33 @@ const Dashboard = () => {
                           {entry.raw_materials?.name_hi && <span className="text-secondary text-xs ml-1">({entry.raw_materials?.name_hi})</span>}
                         </td>
                         <td className="px-6 py-4 text-secondary" data-label="Quality/Grade">{entry.material_quality_grades?.grade_name || 'Standard'}</td>
-                        <td className="px-6 py-4 text-secondary" data-label="Broker">{entry.brokers?.broker_name || '-'}</td>
+                        <td className="px-6 py-4" data-label="Broker">
+                          <div className="font-medium text-secondary mb-1.5">{entry.brokers?.broker_name || '-'}</div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {entry.brokers?.mobile ? (
+                              <>
+                                <a 
+                                  href={`tel:${normalizeMobile(entry.brokers.mobile)}`}
+                                  className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-secondary bg-white border border-base hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-md transition-colors"
+                                  title={`Call ${entry.brokers.broker_name}`}
+                                >
+                                  <Phone size={13} /> <span className="hidden sm:inline">Call</span>
+                                </a>
+                                <a 
+                                  href={`https://wa.me/91${normalizeMobile(entry.brokers.whatsapp_number || entry.brokers.mobile)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-secondary bg-white border border-base hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 rounded-md transition-colors"
+                                  title={`Message ${entry.brokers.broker_name} on WhatsApp`}
+                                >
+                                  <MessageCircle size={13} className="text-emerald-500" /> <span className="hidden sm:inline">WhatsApp</span>
+                                </a>
+                              </>
+                            ) : (
+                              <span className="inline-flex items-center text-[11px] text-muted h-[26px]">No valid phone number</span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-right" data-label="Price (₹)">
                           <div className="font-semibold text-primary">
                             {formattedPrice}

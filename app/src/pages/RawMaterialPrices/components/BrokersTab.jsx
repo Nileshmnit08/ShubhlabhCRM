@@ -6,6 +6,7 @@ import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
 import MasterDataSectionHeader from './MasterDataSectionHeader';
 import { normalizeMobile } from '../../../utils/phoneUtils';
+import { generateBrokerEnquiryMessage } from '../../../utils/whatsappUtils';
 
 export default function BrokersTab({ brokers, materials, loading, onRefresh, showMessage }) {
   // Filters
@@ -23,6 +24,11 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
   // Confirm Modal State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [itemToDeactivate, setItemToDeactivate] = useState(null);
+
+  // WhatsApp Modal State
+  const [isWaModalOpen, setIsWaModalOpen] = useState(false);
+  const [waBrokerSelected, setWaBrokerSelected] = useState(null);
+  const [waSelectedMatId, setWaSelectedMatId] = useState('');
 
   const menuRef = useRef(null);
   useEffect(() => {
@@ -119,6 +125,24 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
     }
   };
 
+  const sendWhatsApp = (broker, material) => {
+    const msg = generateBrokerEnquiryMessage(broker.broker_name, material?.name_en, material?.name_hi);
+    const phone = normalizeMobile(broker.whatsapp_number || broker.mobile);
+    const url = `https://wa.me/91${phone}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleWhatsAppClick = (e, broker) => {
+    e.preventDefault();
+    if (broker.broker_materials && broker.broker_materials.length === 1) {
+      const mat = materials.find(m => m.id === broker.broker_materials[0].raw_material_id);
+      sendWhatsApp(broker, mat);
+    } else {
+      setWaBrokerSelected(broker);
+      setIsWaModalOpen(true);
+    }
+  };
+
   const renderBrokerRow = (b) => (
     <tr key={b.id} className={`hover:bg-slate-50/80 transition-colors group ${!b.active ? 'opacity-70' : ''}`}>
       <td data-label="Broker / Firm" className="px-6 py-4">
@@ -173,15 +197,13 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
               >
                 <Phone size={16} />
               </a>
-              <a 
-                href={`https://wa.me/91${normalizeMobile(b.whatsapp_number || b.mobile)}`}
-                target="_blank" 
-                rel="noopener noreferrer"
+              <button 
+                onClick={(e) => handleWhatsAppClick(e, b)}
                 className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors hidden sm:flex"
                 title="WhatsApp Broker"
               >
                 <MessageCircle size={16} />
-              </a>
+              </button>
               <div className="w-px h-4 bg-slate-200 mx-1 hidden sm:block"></div>
             </>
           )}
@@ -373,6 +395,56 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
             <div className="flex gap-3 w-full">
               <button className="btn btn-outline flex-1 shadow-sm" onClick={() => { setIsConfirmOpen(false); setItemToDeactivate(null); }}>Cancel</button>
               <button className="btn bg-red-600 hover:bg-red-700 text-white flex-1 shadow-sm" onClick={() => performStatusUpdate(itemToDeactivate.id, false)}>Yes, Deactivate</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WhatsApp Material Selection Modal */}
+      {isWaModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in p-6 text-center">
+            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+              <MessageCircle size={28} />
+            </div>
+            <h3 className="font-bold text-xl text-primary mb-2">Select Material</h3>
+            <p className="text-sm text-secondary mb-6 leading-relaxed">
+              For which material do you want to enquire today's rate from <span className="font-semibold text-primary">"{waBrokerSelected?.broker_name}"</span>?
+            </p>
+            
+            <div className="mb-6 text-left">
+               <label className="block text-sm font-medium text-secondary mb-1">Material</label>
+               <select 
+                 className="input w-full"
+                 value={waSelectedMatId}
+                 onChange={(e) => setWaSelectedMatId(e.target.value)}
+               >
+                 <option value="">-- Select Material --</option>
+                 {(waBrokerSelected?.broker_materials && waBrokerSelected.broker_materials.length > 0
+                   ? waBrokerSelected.broker_materials
+                   : materials.map(m => ({ raw_material_id: m.id }))
+                 ).map(bm => {
+                   const mat = materials.find(m => m.id === bm.raw_material_id);
+                   return mat ? <option key={mat.id} value={mat.id}>{mat.name_en} {mat.name_hi ? `(${mat.name_hi})` : ''}</option> : null;
+                 })}
+               </select>
+            </div>
+
+            <div className="flex gap-3 w-full">
+              <button className="btn btn-outline flex-1 shadow-sm" onClick={() => { setIsWaModalOpen(false); setWaBrokerSelected(null); }}>Cancel</button>
+              <button 
+                className="btn bg-emerald-600 hover:bg-emerald-700 text-white flex-1 shadow-sm" 
+                disabled={!waSelectedMatId}
+                onClick={() => {
+                  const mat = materials.find(m => m.id === waSelectedMatId);
+                  sendWhatsApp(waBrokerSelected, mat);
+                  setIsWaModalOpen(false);
+                  setWaBrokerSelected(null);
+                  setWaSelectedMatId('');
+                }}
+              >
+                Send Message
+              </button>
             </div>
           </div>
         </div>

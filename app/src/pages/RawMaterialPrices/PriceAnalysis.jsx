@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { TrendingUp, TrendingDown, Minus, CalendarDays, BarChart3, Info, Filter } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, CalendarDays, BarChart3, Info, Filter, Phone, MessageCircle } from 'lucide-react';
 import { format, subDays, subMonths, subYears, parseISO, differenceInDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts';
+import { normalizeMobile } from '../../utils/phoneUtils';
 
 import PriceTrendChart from './components/PriceTrendChart';
 
@@ -117,7 +118,7 @@ const PriceAnalysis = () => {
       // Fetch current date prices
       const { data: currentData } = await supabase
         .from('raw_material_price_entries')
-        .select('price, brokers(broker_name), market_location, created_at')
+        .select('price, brokers(broker_name, mobile, whatsapp_number), market_location, created_at')
         .eq('raw_material_id', selectedMaterial)
         .eq('entry_date', currentDate)
         .eq('is_deleted', false);
@@ -136,6 +137,8 @@ const PriceAnalysis = () => {
 
       const brokerChartData = (currentData || []).map(d => ({
         brokerName: d.brokers?.broker_name || 'Unknown',
+        mobile: d.brokers?.mobile,
+        whatsapp_number: d.brokers?.whatsapp_number,
         price: Number(d.price),
         location: d.market_location,
         quoteTime: d.created_at ? format(new Date(d.created_at), 'h:mm a') : 'Unknown'
@@ -332,7 +335,31 @@ const PriceAnalysis = () => {
                     {analysisData.brokerChartData.map((q, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
                         <td className="px-6 py-4" data-label="Broker">
-                          <span className="font-medium text-primary">{q.brokerName}</span>
+                          <div className="font-medium text-primary mb-1.5">{q.brokerName}</div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {q.mobile ? (
+                              <>
+                                <a 
+                                  href={`tel:${normalizeMobile(q.mobile)}`}
+                                  className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-secondary bg-white border border-base hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-md transition-colors"
+                                  title={`Call ${q.brokerName}`}
+                                >
+                                  <Phone size={13} /> <span className="hidden sm:inline">Call</span>
+                                </a>
+                                <a 
+                                  href={`https://wa.me/91${normalizeMobile(q.whatsapp_number || q.mobile)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-secondary bg-white border border-base hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 rounded-md transition-colors"
+                                  title={`Message ${q.brokerName} on WhatsApp`}
+                                >
+                                  <MessageCircle size={13} className="text-emerald-500" /> <span className="hidden sm:inline">WhatsApp</span>
+                                </a>
+                              </>
+                            ) : (
+                              <span className="inline-flex items-center text-[11px] text-muted h-[26px]">No valid phone number</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-secondary" data-label="Location">
                           {q.location || '-'}
