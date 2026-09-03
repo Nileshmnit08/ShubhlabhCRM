@@ -1,10 +1,11 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Search, Filter, X, Edit2, MoreVertical, AlertTriangle, Users, ChevronLeft, ChevronRight, Copy, Power, PowerOff } from 'lucide-react';
+import { Search, Filter, X, Edit2, MoreVertical, AlertTriangle, Users, ChevronLeft, ChevronRight, Copy, Power, PowerOff, Phone, MessageCircle } from 'lucide-react';
 import StatusBadge from './StatusBadge';
 import EmptyState from './EmptyState';
 import MasterDataSectionHeader from './MasterDataSectionHeader';
+import { normalizeMobile } from '../../../utils/phoneUtils';
 
 export default function BrokersTab({ brokers, materials, loading, onRefresh, showMessage }) {
   // Filters
@@ -50,7 +51,11 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
     return result;
   }, [brokers, searchQuery]);
 
-  // Pagination logic
+  // Split data into active and deactivated
+  const activeBrokers = useMemo(() => filteredData.filter(b => b.active), [filteredData]);
+  const deactivatedBrokers = useMemo(() => filteredData.filter(b => !b.active), [filteredData]);
+
+  // Pagination logic (applied to active brokers primarily, or a combined view? Let's just paginate the combined filteredData but render active first, then deactivated).
   const totalRecords = filteredData.length;
   const totalPages = Math.ceil(totalRecords / itemsPerPage);
   
@@ -66,6 +71,9 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredData.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredData, currentPage, itemsPerPage]);
+
+  const paginatedActiveBrokers = paginatedData.filter(b => b.active);
+  const paginatedDeactivatedBrokers = paginatedData.filter(b => !b.active);
 
   const hasActiveFilters = searchQuery !== '';
 
@@ -86,8 +94,6 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
     }
     setActiveMenuId(null);
   };
-
-
 
   const handleToggleStatus = (item) => {
     if (item.active) {
@@ -112,6 +118,115 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
       setItemToDeactivate(null);
     }
   };
+
+  const renderBrokerRow = (b) => (
+    <tr key={b.id} className={`hover:bg-slate-50/80 transition-colors group ${!b.active ? 'opacity-70' : ''}`}>
+      <td data-label="Broker / Firm">
+        <div className="font-semibold text-[15px] text-primary">{b.broker_name}</div>
+        {b.firm_name && <div className="text-[13px] text-secondary mt-0.5">{b.firm_name}</div>}
+      </td>
+      <td data-label="Contact">
+        <div className="font-medium text-[14px] text-secondary flex items-center gap-2">
+          {b.mobile || '-'}
+          {b.mobile && (
+            <div className="flex gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+               <a 
+                 href={`tel:${normalizeMobile(b.mobile)}`} 
+                 className="p-1 rounded-full bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-600 transition-colors"
+                 title="Call Broker"
+               >
+                 <Phone size={14} />
+               </a>
+               <a 
+                 href={`https://wa.me/91${normalizeMobile(b.whatsapp_number || b.mobile)}`}
+                 target="_blank" 
+                 rel="noopener noreferrer"
+                 className="p-1 rounded-full bg-slate-100 hover:bg-emerald-100 text-slate-500 hover:text-emerald-600 transition-colors"
+                 title="WhatsApp Broker"
+               >
+                 <MessageCircle size={14} />
+               </a>
+            </div>
+          )}
+        </div>
+        {b.whatsapp_number && b.whatsapp_number !== b.mobile && (
+          <div className="text-[12px] text-emerald-600 mt-0.5 font-medium">WA: {b.whatsapp_number}</div>
+        )}
+      </td>
+      <td data-label="Location" className="text-[14px] text-secondary">
+        {b.market_location || '-'}
+        {b.state && b.market_location && `, `}
+        {b.state}
+      </td>
+      <td data-label="Materials Handled">
+        <div className="flex flex-wrap gap-1">
+          {b.broker_materials && b.broker_materials.length > 0 ? (
+            b.broker_materials.slice(0, 3).map(bm => {
+              const mat = materials.find(m => m.id === bm.raw_material_id);
+              return mat ? (
+                <span key={bm.raw_material_id} className="inline-block px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 text-[11px] rounded font-medium truncate max-w-[120px]" title={mat.name_en}>
+                  {mat.name_en}
+                </span>
+              ) : null;
+            })
+          ) : (
+            <span className="text-muted text-sm">-</span>
+          )}
+          {b.broker_materials && b.broker_materials.length > 3 && (
+            <span className="inline-block px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-500 text-[11px] rounded font-medium">
+              +{b.broker_materials.length - 3} more
+            </span>
+          )}
+        </div>
+      </td>
+      <td data-label="Status">
+        <StatusBadge active={b.active} />
+      </td>
+      <td data-label="Actions" style={{textAlign: 'right'}}>
+        <div className="flex items-center justify-end gap-1 relative">
+          <button 
+            className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
+            onClick={() => handleEditBroker(b)}
+          >
+            <Edit2 size={16}/>
+          </button>
+          
+          <div className="relative">
+            <button 
+              className={`btn-icon p-1.5 rounded transition-colors ${activeMenuId === b.id ? 'bg-slate-200 text-primary' : 'text-secondary hover:bg-slate-100 hover:text-primary'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveMenuId(activeMenuId === b.id ? null : b.id);
+              }}
+            >
+              <MoreVertical size={16}/>
+            </button>
+            
+            {activeMenuId === b.id && (
+              <div 
+                ref={menuRef}
+                className="absolute right-0 top-full mt-1 w-48 bg-white border border-base rounded-lg shadow-lg py-1 z-50 animate-fade-in"
+              >
+                <button 
+                  className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 hover:text-primary flex items-center gap-2"
+                  onClick={() => handleEditBroker(b, true)}
+                >
+                  <Copy size={14} /> Duplicate
+                </button>
+                <button 
+                  className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${b.active ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                  onClick={() => handleToggleStatus(b)}
+                >
+                  {b.active ? <PowerOff size={14} /> : <Power size={14} />} 
+                  {b.active ? 'Deactivate' : 'Activate'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
 
   return (
     <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col">
@@ -144,7 +259,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
         </div>
       </div>
 
-      <div className="flex-1 bg-white min-h-[400px]">
+      <div className="flex-1 bg-white min-h-[400px] flex flex-col">
         {loading ? (
           <div className="p-6 space-y-4">
             {[1,2,3,4,5].map(i => <div key={i} className="h-16 bg-slate-50 rounded-lg animate-pulse border border-base/50"></div>)}
@@ -152,114 +267,63 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
         ) : filteredData.length === 0 ? (
            <EmptyState icon={Users} title="No Brokers" description={hasActiveFilters ? "Try adjusting your filters." : "Add brokers to start tracking prices from them."} actionText="Add Broker" onAction={handleAddBroker} />
         ) : (
-          <div className="data-table-container">
-            <table className="data-table mobile-cards-table">
-              <thead>
-                <tr>
-                  <th style={{minWidth: '200px'}}>Broker / Firm</th>
-                  <th style={{minWidth: '150px'}}>Contact</th>
-                  <th style={{minWidth: '150px'}}>Location</th>
-                  <th style={{minWidth: '250px'}}>Materials Handled</th>
-                  <th style={{width: '100px'}}>Status</th>
-                  <th style={{width: '100px', textAlign: 'right'}}>Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-base">
-                {paginatedData.map(b => (
-                  <tr key={b.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td data-label="Broker / Firm">
-                      <div className="font-semibold text-[15px] text-primary">{b.broker_name}</div>
-                      {b.firm_name && <div className="text-[13px] text-secondary mt-0.5">{b.firm_name}</div>}
-                    </td>
-                    <td data-label="Contact">
-                      <div className="font-medium text-[14px] text-secondary">{b.mobile || '-'}</div>
-                      {b.whatsapp_number && b.whatsapp_number !== b.mobile && (
-                        <div className="text-[12px] text-emerald-600 mt-0.5 font-medium">WA: {b.whatsapp_number}</div>
-                      )}
-                    </td>
-                    <td data-label="Location" className="text-[14px] text-secondary">
-                      {b.market_location || '-'}
-                      {b.state && b.market_location && `, `}
-                      {b.state}
-                    </td>
-                    <td data-label="Materials Handled">
-                      <div className="flex flex-wrap gap-1">
-                        {b.broker_materials && b.broker_materials.length > 0 ? (
-                          b.broker_materials.slice(0, 3).map(bm => {
-                            const mat = materials.find(m => m.id === bm.raw_material_id);
-                            return mat ? (
-                              <span key={bm.raw_material_id} className="inline-block px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 text-[11px] rounded font-medium truncate max-w-[120px]" title={mat.name_en}>
-                                {mat.name_en}
-                              </span>
-                            ) : null;
-                          })
-                        ) : (
-                          <span className="text-muted text-sm">-</span>
-                        )}
-                        {b.broker_materials && b.broker_materials.length > 3 && (
-                          <span className="inline-block px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-500 text-[11px] rounded font-medium">
-                            +{b.broker_materials.length - 3} more
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td data-label="Status">
-                      <StatusBadge active={b.active} />
-                    </td>
-                    <td data-label="Actions" style={{textAlign: 'right'}}>
-                      <div className="flex items-center justify-end gap-1 relative">
-                        <button 
-                          className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
-                          onClick={() => handleEditBroker(b)}
-                        >
-                          <Edit2 size={16}/>
-                        </button>
-                        
-                        <div className="relative">
-                          <button 
-                            className={`btn-icon p-1.5 rounded transition-colors ${activeMenuId === b.id ? 'bg-slate-200 text-primary' : 'text-secondary hover:bg-slate-100 hover:text-primary'}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId(activeMenuId === b.id ? null : b.id);
-                            }}
-                          >
-                            <MoreVertical size={16}/>
-                          </button>
-                          
-                          {activeMenuId === b.id && (
-                            <div 
-                              ref={menuRef}
-                              className="absolute right-0 top-full mt-1 w-48 bg-white border border-base rounded-lg shadow-lg py-1 z-50 animate-fade-in"
-                            >
-                              <button 
-                                className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 hover:text-primary flex items-center gap-2"
-                                onClick={() => handleEditBroker(b, true)}
-                              >
-                                <Copy size={14} /> Duplicate
-                              </button>
-                              <button 
-                                className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${b.active ? 'text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
-                                onClick={() => handleToggleStatus(b)}
-                              >
-                                {b.active ? <PowerOff size={14} /> : <Power size={14} />} 
-                                {b.active ? 'Deactivate' : 'Activate'}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex flex-col">
+            {/* Active Brokers Section */}
+            {paginatedActiveBrokers.length > 0 && (
+              <div className="data-table-container border-0 rounded-none border-b border-base">
+                <div className="px-5 py-3 bg-white border-b border-base flex items-center justify-between">
+                  <h3 className="font-semibold text-primary">Active Brokers</h3>
+                  <span className="text-xs font-medium bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">{activeBrokers.length} Total</span>
+                </div>
+                <table className="data-table mobile-cards-table w-full">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      <th style={{minWidth: '200px'}}>Broker / Firm</th>
+                      <th style={{minWidth: '150px'}}>Contact</th>
+                      <th style={{minWidth: '150px'}}>Location</th>
+                      <th style={{minWidth: '250px'}}>Materials Handled</th>
+                      <th style={{width: '100px'}}>Status</th>
+                      <th style={{width: '100px', textAlign: 'right'}}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-base">
+                    {paginatedActiveBrokers.map(renderBrokerRow)}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            
+            {/* Deactivated Brokers Section */}
+            {paginatedDeactivatedBrokers.length > 0 && (
+              <div className="data-table-container border-0 rounded-none">
+                <div className="px-5 py-3 bg-slate-50 border-b border-base flex items-center justify-between">
+                  <h3 className="font-semibold text-slate-500">Deactivated Brokers</h3>
+                  <span className="text-xs font-medium bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full">{deactivatedBrokers.length} Total</span>
+                </div>
+                <table className="data-table mobile-cards-table w-full">
+                  <thead className="hidden sm:table-header-group bg-white">
+                    <tr>
+                      <th style={{minWidth: '200px'}}>Broker / Firm</th>
+                      <th style={{minWidth: '150px'}}>Contact</th>
+                      <th style={{minWidth: '150px'}}>Location</th>
+                      <th style={{minWidth: '250px'}}>Materials Handled</th>
+                      <th style={{width: '100px'}}>Status</th>
+                      <th style={{width: '100px', textAlign: 'right'}}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-base bg-slate-50/30">
+                    {paginatedDeactivatedBrokers.map(renderBrokerRow)}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
 
       {/* Pagination Footer */}
       {filteredData.length > 0 && (
-        <div className="p-4 border-t border-base bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="p-4 border-t border-base bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4 mt-auto">
           <div className="text-sm text-secondary font-medium w-full sm:w-auto text-center sm:text-left">
             Showing <span className="text-primary font-semibold">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="text-primary font-semibold">{Math.min(currentPage * itemsPerPage, totalRecords)}</span> of <span className="text-primary font-semibold">{totalRecords}</span> brokers
           </div>
@@ -296,7 +360,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
             </div>
             <h3 className="font-bold text-xl text-primary mb-2">Deactivate Broker?</h3>
             <p className="text-sm text-secondary mb-8 leading-relaxed">
-              Are you sure you want to deactivate <span className="font-semibold text-primary">"{itemToDeactivate?.broker_name}"</span>?<br/> They will no longer be available in the system.
+              Are you sure you want to deactivate <span className="font-semibold text-primary">"{itemToDeactivate?.broker_name}"</span>?<br/> They will be moved to the deactivated list.
             </p>
             <div className="flex gap-3 w-full">
               <button className="btn btn-outline flex-1 shadow-sm" onClick={() => { setIsConfirmOpen(false); setItemToDeactivate(null); }}>Cancel</button>
