@@ -126,31 +126,11 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
         {b.firm_name && <div className="text-[13px] text-secondary mt-0.5">{b.firm_name}</div>}
       </td>
       <td data-label="Contact" className="px-6 py-4">
-        <div className="font-medium text-[14px] text-secondary flex items-center gap-3">
-          <span>{b.mobile || '-'}</span>
-          {b.mobile && (
-            <div className="flex gap-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-               <a 
-                 href={`tel:${normalizeMobile(b.mobile)}`} 
-                 className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 hover:bg-blue-50 text-slate-500 hover:text-blue-600 transition-all flex items-center justify-center shadow-sm"
-                 title="Call Broker"
-               >
-                 <Phone size={14} />
-               </a>
-               <a 
-                 href={`https://wa.me/91${normalizeMobile(b.whatsapp_number || b.mobile)}`}
-                 target="_blank" 
-                 rel="noopener noreferrer"
-                 className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 transition-all flex items-center justify-center shadow-sm"
-                 title="WhatsApp Broker"
-               >
-                 <MessageCircle size={14} />
-               </a>
-            </div>
-          )}
+        <div className="font-medium text-[14px] text-secondary">
+          {b.mobile || '-'}
         </div>
         {b.whatsapp_number && b.whatsapp_number !== b.mobile && (
-          <div className="text-[12px] text-emerald-600 mt-1 font-medium">WA: {b.whatsapp_number}</div>
+          <div className="text-[12px] text-emerald-600 mt-0.5 font-medium">WA: {b.whatsapp_number}</div>
         )}
       </td>
       <td data-label="Location" className="px-6 py-4 text-[14px] text-secondary">
@@ -185,8 +165,9 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
       <td data-label="Actions" className="px-6 py-4 text-right">
         <div className="flex items-center justify-end gap-1 relative">
           <button 
-            className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors tooltip-trigger" 
+            className="btn-icon p-1.5 text-secondary hover:text-primary hover:bg-slate-100 rounded transition-colors tooltip-trigger" 
             onClick={() => handleEditBroker(b)}
+            title="Edit Broker"
           >
             <Edit2 size={16}/>
           </button>
@@ -198,6 +179,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
                 e.stopPropagation();
                 setActiveMenuId(activeMenuId === b.id ? null : b.id);
               }}
+              title="More Options"
             >
               <MoreVertical size={16}/>
             </button>
@@ -223,6 +205,28 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
               </div>
             )}
           </div>
+
+          {b.mobile && (
+            <>
+              <div className="w-px h-4 bg-slate-200 mx-1 hidden sm:block"></div>
+              <a 
+                href={`tel:${normalizeMobile(b.mobile)}`} 
+                className="btn-icon p-1.5 text-secondary hover:text-blue-600 hover:bg-blue-50 rounded transition-colors hidden sm:flex"
+                title="Call Broker"
+              >
+                <Phone size={16} />
+              </a>
+              <a 
+                href={`https://wa.me/91${normalizeMobile(b.whatsapp_number || b.mobile)}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="btn-icon p-1.5 text-secondary hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors hidden sm:flex"
+                title="WhatsApp Broker"
+              >
+                <MessageCircle size={16} />
+              </a>
+            </>
+          )}
         </div>
       </td>
     </tr>
