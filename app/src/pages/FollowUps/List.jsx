@@ -385,7 +385,7 @@ export default function FollowUpList() {
             style={{borderRadius: 0, padding: '0.75rem 1rem', whiteSpace: 'nowrap'}} 
             onClick={() => { setActiveTab(tab); setFilterType('All'); setFilterPriority('All'); }}
           >
-            {t(`nav.${tab.toLowerCase()}`)}
+            {tab === 'Report' ? 'Follow-Up Report' : t(`nav.${tab.toLowerCase()}`)}
           </button>
         ))}
       </div>

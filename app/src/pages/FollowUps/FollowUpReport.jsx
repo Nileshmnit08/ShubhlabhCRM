@@ -92,46 +92,12 @@ export default function FollowUpReport({ searchQuery }) {
       )
     },
     {
-      id: 'type',
-      header: 'Type & Priority',
-      renderCell: (item) => (
-        <div className="flex flex-col gap-1.5 items-start">
-          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-xs rounded-md font-medium border border-slate-200">
-            {item.follow_up_type}
-          </span>
-          <span className={`text-[11px] font-bold ${item.priority === 'High' ? 'text-red-600' : 'text-slate-500'}`}>
-            {item.priority?.toUpperCase()}
-          </span>
-        </div>
-      )
-    },
-    {
       id: 'comment',
       header: 'Reason / Comment',
       renderCell: (item) => (
-        <div className="max-w-xs">
+        <div className="max-w-md whitespace-normal">
           <div className="text-[14px] font-medium text-primary mb-0.5">{item.reason}</div>
-          {item.notes && <div className="text-[13px] text-secondary line-clamp-2" title={item.notes}>{item.notes}</div>}
-        </div>
-      )
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      renderCell: (item) => (
-        <div className="flex flex-col items-start gap-1">
-            <span className={`px-2.5 py-1 rounded-full text-[12px] font-semibold tracking-wide ${
-            item.status === 'Completed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-            item.status === 'Cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
-            'bg-amber-50 text-amber-700 border border-amber-200'
-            }`}>
-            {item.status}
-            </span>
-            {item.status === 'Completed' && item.completed_at && (
-               <span className="text-[11px] text-emerald-600 font-medium">
-                 {new Date(item.completed_at).toLocaleDateString('en-GB', {day: 'numeric', month: 'short'})}
-               </span>
-            )}
+          {item.notes && <div className="text-[13px] text-secondary leading-relaxed">{item.notes}</div>}
         </div>
       )
     }
