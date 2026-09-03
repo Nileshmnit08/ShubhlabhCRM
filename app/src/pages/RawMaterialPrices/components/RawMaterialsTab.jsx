@@ -274,8 +274,7 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
           </div>
         ) : (
             <div className="data-table-container">
-            {/* Desktop Table (Hidden on Mobile) */}
-            <table className="data-table hidden md:table">
+            <table className="data-table mobile-cards-table w-full">
               <thead>
                 <tr>
                   <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition-colors w-28 group" onClick={() => handleSort('code')}>
@@ -380,60 +379,6 @@ export default function RawMaterialsTab({ materials, units, loading, onRefresh, 
                 ))}
               </tbody>
             </table>
-
-            {/* Mobile Cards (Visible only on small screens) */}
-            <div className="md:hidden flex flex-col divide-y divide-base bg-slate-50/30">
-              {paginatedData.map(m => (
-                <div key={m.id} className="p-5 bg-white relative">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex flex-wrap gap-2 items-center">
-                      <span className="font-mono text-[12px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{m.code}</span>
-                      <StatusBadge active={m.active} />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button className="p-1.5 text-secondary hover:bg-slate-100 rounded text-emerald-600" onClick={() => handleEditMaterial(m)}><Edit2 size={16}/></button>
-                      <div className="relative">
-                        <button className="p-1.5 text-secondary hover:bg-slate-100 rounded" onClick={() => setActiveMenuId(activeMenuId === m.id ? null : m.id)}>
-                          <MoreVertical size={16}/>
-                        </button>
-                        {activeMenuId === m.id && (
-                          <div ref={menuRef} className="absolute right-0 top-full mt-1 w-44 bg-white border border-base rounded-lg shadow-lg py-1 z-50">
-                            <button className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 flex items-center gap-2" onClick={() => handleEditMaterial(m, true)}><Copy size={14}/> Duplicate</button>
-                            <button className="w-full text-left px-4 py-2 text-sm text-secondary hover:bg-slate-50 flex items-center gap-2" onClick={() => navigate(`/raw-material-prices/history?material=${m.id}`)}><History size={14}/> Price History</button>
-                            <button className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 ${m.active ? 'text-red-600' : 'text-emerald-600'}`} onClick={() => handleToggleStatus(m)}>
-                              {m.active ? <PowerOff size={14}/> : <Power size={14}/>} {m.active ? 'Deactivate' : 'Activate'}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <div className="font-bold text-primary text-[17px]">{m.name_en}</div>
-                    {m.name_hi && <div className="text-sm text-secondary mt-0.5">{m.name_hi}</div>}
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-0.5">Category</span>
-                      <span className="font-medium text-secondary">{m.category}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-0.5">Unit</span>
-                      <span className="font-medium text-secondary">{m.default_unit?.unit_name || m.default_unit_id}</span>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-0.5">Daily Track</span>
-                      {m.daily_tracking_required 
-                        ? <span className="font-semibold text-blue-600">Yes</span>
-                        : <span className="font-medium text-secondary">No</span>
-                      }
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         )}
       </div>
