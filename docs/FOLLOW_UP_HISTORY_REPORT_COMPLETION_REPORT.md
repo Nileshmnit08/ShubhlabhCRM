@@ -11,11 +11,12 @@ The objective of this micro-sprint was to refine the UI of the newly added Follo
 - **Navigation**:
   - Replaced the broken `nav.report` translation with a hardcoded `Follow-Up Report` label in the tab list.
 - **Report Table UI**:
-  - Reduced the data table to exactly 3 essential columns to improve readability.
-  - **Customer**: Displays the customer name with their muted mobile number below it.
-  - **Follow-Up Date**: Displays the date with the exact time muted below.
-  - **Follow-Up Comment**: Removed line clamping to allow the notes to wrap naturally (`whitespace-normal`, `leading-relaxed`), making long comments fully readable without clipping.
-  - Safely removed the redundant Type, Priority, and Status columns.
+  - Expanded the data table to exactly 5 dedicated columns to match the requested flat format.
+  - **Customer**: Displays the customer name with a direct link to their profile.
+  - **Phone**: Displays the customer's mobile number.
+  - **Follow-Up Date**: Displays the date and time of the follow-up.
+  - **Type**: Displays the follow-up reason (Type).
+  - **Comment**: Displays the notes/comments wrapping naturally without line clamping for full readability.
 - **Responsive & Standard UI**:
   - Kept the standard CRM `card` wrapping elements.
   - Verified that the underlying `DataTable` automatically converts rows to stacked cards on mobile devices.

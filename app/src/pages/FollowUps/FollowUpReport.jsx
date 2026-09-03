@@ -64,24 +64,28 @@ export default function FollowUpReport({ searchQuery }) {
       id: 'customer',
       header: 'Customer',
       renderCell: (item) => (
-        <div className="flex flex-col gap-1">
-          <Link 
-            to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.party_id}` : `/customers/${item.party_id}`} 
-            className="font-semibold text-[15px] text-primary flex items-center gap-1.5 hover:underline"
-          >
-            <User size={14} /> {item.crm_parties?.display_name || 'Unknown'}
-          </Link>
-          {item.crm_parties?.mobile && (
-             <span className="text-xs text-secondary">{item.crm_parties.mobile}</span>
-          )}
-        </div>
+        <Link 
+          to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.party_id}` : `/customers/${item.party_id}`} 
+          className="font-semibold text-[14px] text-primary hover:underline"
+        >
+          {item.crm_parties?.display_name || 'Unknown'}
+        </Link>
+      )
+    },
+    {
+      id: 'phone',
+      header: 'Phone',
+      renderCell: (item) => (
+        <span className="text-[14px] text-secondary">
+          {item.crm_parties?.mobile || '-'}
+        </span>
       )
     },
     {
       id: 'date',
       header: 'Follow-Up Date',
       renderCell: (item) => (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-0.5">
           <span className="text-[14px] font-medium text-secondary">
             {item.due_at ? new Date(item.due_at).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'}) : '-'}
           </span>
@@ -92,12 +96,20 @@ export default function FollowUpReport({ searchQuery }) {
       )
     },
     {
-      id: 'comment',
-      header: 'Reason / Comment',
+      id: 'type',
+      header: 'Type',
       renderCell: (item) => (
-        <div className="max-w-md whitespace-normal">
-          <div className="text-[14px] font-medium text-primary mb-0.5">{item.reason}</div>
-          {item.notes && <div className="text-[13px] text-secondary leading-relaxed">{item.notes}</div>}
+        <span className="text-[14px] font-medium text-primary">
+          {item.reason || '-'}
+        </span>
+      )
+    },
+    {
+      id: 'comment',
+      header: 'Comment',
+      renderCell: (item) => (
+        <div className="max-w-md whitespace-normal text-[13px] text-secondary leading-relaxed">
+          {item.notes || '-'}
         </div>
       )
     }
