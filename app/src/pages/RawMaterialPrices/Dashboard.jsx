@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { format, subDays } from 'date-fns';
-
-import PriceKpiCards from './components/PriceKpiCards';
-import TodaysMarketPricesTable from './components/TodaysMarketPricesTable';
-import PriceTrendChart from './components/PriceTrendChart';
-import DashboardQuickActions from './components/DashboardQuickActions';
-import AttentionCenter from './components/AttentionCenter';
-import { AlertTriangle, TrendingUp, TrendingDown, Clock } from 'lucide-react';
+import { format } from 'date-fns';
+import { Link, useNavigate } from 'react-router-dom';
+import { 
+  AlertTriangle, TrendingUp, TrendingDown, Clock, Search, X, 
+  FileText, Plus, Database, Activity, Package, AlertCircle, RefreshCw
+} from 'lucide-react';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     activeMaterials: 0,
@@ -20,12 +19,9 @@ const Dashboard = () => {
     latestPriceDate: null,
   });
   const [todayPrices, setTodayPrices] = useState([]);
-  const [trendData, setTrendData] = useState([]);
   const [alerts, setAlerts] = useState([]);
-  const [selectedMaterial, setSelectedMaterial] = useState(null);
-  const [materials, setMaterials] = useState([]);
-  const [timeRange, setTimeRange] = useState(30);
-
+  const [searchQuery, setSearchQuery] = useState('');
+  
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -42,14 +38,6 @@ const Dashboard = () => {
         .eq('active', true)
         .order('display_order');
       
-      if (mats) {
-        setMaterials(mats);
-        if (mats.length > 0 && !selectedMaterial) {
-          setSelectedMaterial(mats[0].id);
-          fetchTrendData(mats[0].id, 30);
-        }
-      }
-
       // Fetch today's entries
       const { data: entries } = await supabase
         .from('raw_material_price_entries')
@@ -87,10 +75,9 @@ const Dashboard = () => {
       const previousPricesMap = {};
       if (pastEntries) {
         for (const p of pastEntries) {
-          // Using quality_grade_id or 'null' to ensure safe mapping
           const key = `${p.raw_material_id}-${p.broker_id}-${p.quality_grade_id || 'null'}`;
           if (!previousPricesMap[key]) {
-             previousPricesMap[key] = p; // since it's ordered by desc, the first we see is the latest
+             previousPricesMap[key] = p;
           }
         }
       }
@@ -138,10 +125,10 @@ const Dashboard = () => {
         
         newAlerts.push({
           title: `${pendingCount} Tracked Material${pendingCount > 1 ? 's' : ''} Missing Today's Price`,
-          description: `Missing updates for: ${missingMatNames}${remainder}. These materials are configured to require mandatory daily tracking.`,
+          description: `Missing updates for: ${missingMatNames}${remainder}.`,
           icon: Clock,
-          iconBg: 'badge-dormant',
-          iconColor: 'text-warning',
+          iconBg: 'bg-amber-100',
+          iconColor: 'text-amber-600',
           actionText: 'Add Prices',
           actionLink: '/raw-material-prices/daily-entry'
         });
@@ -161,11 +148,11 @@ const Dashboard = () => {
               const direction = diff > 0 ? 'jumped' : 'dropped';
               const Icon = diff > 0 ? TrendingUp : TrendingDown;
               const color = diff > 0 ? 'text-danger' : 'text-success';
-              const bg = diff > 0 ? 'badge-at-risk' : 'badge-active';
+              const bg = diff > 0 ? 'bg-red-50' : 'bg-green-50';
 
               newAlerts.push({
                 title: `Sharp Price Movement: ${matName}`,
-                description: `The price quoted by ${entry.brokers?.broker_name || 'Broker'} has ${direction} by ${pct.toFixed(1)}% (₹${Math.abs(diff).toFixed(2)}) compared to the last available price. This exceeds the ${threshold}% alert threshold.`,
+                description: `The price quoted by ${entry.brokers?.broker_name || 'Broker'} has ${direction} by ${pct.toFixed(1)}% (₹${Math.abs(diff).toFixed(2)}) compared to the last available price.`,
                 icon: Icon,
                 iconBg: bg,
                 iconColor: color,
@@ -186,80 +173,187 @@ const Dashboard = () => {
     }
   };
 
-  const fetchTrendData = async (materialId, days = timeRange) => {
-    if (!materialId) return;
-    try {
-      const startDate = format(subDays(new Date(), days), 'yyyy-MM-dd');
-      
-      const { data } = await supabase
-        .from('raw_material_price_entries')
-        .select('entry_date, price, brokers(broker_name)')
-        .eq('raw_material_id', materialId)
-        .eq('is_deleted', false)
-        .gte('entry_date', startDate)
-        .order('entry_date');
-
-      // Group by date to average if multiple entries exist per day
-      const grouped = (data || []).reduce((acc, curr) => {
-        if (!acc[curr.entry_date]) {
-          acc[curr.entry_date] = { date: curr.entry_date, sum: 0, count: 0 };
-        }
-        acc[curr.entry_date].sum += Number(curr.price);
-        acc[curr.entry_date].count += 1;
-        return acc;
-      }, {});
-
-      const chartData = Object.values(grouped).map(g => ({
-        date: format(new Date(g.date), 'dd MMM'),
-        price: Math.round(g.sum / g.count),
-        rawDate: g.date
-      })).sort((a, b) => new Date(a.rawDate) - new Date(b.rawDate));
-
-      setTrendData(chartData);
-    } catch (error) {
-      console.error('Error fetching trend data', error);
-    }
-  };
-
-  const handleMaterialChange = (id) => {
-    setSelectedMaterial(id);
-    fetchTrendData(id, timeRange);
-  };
-
-  const handleTimeRangeChange = (days) => {
-    setTimeRange(days);
-    fetchTrendData(selectedMaterial, days);
-  };
+  const filteredPrices = todayPrices.filter(entry => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      entry.raw_materials?.name_en?.toLowerCase().includes(q) ||
+      entry.raw_materials?.name_hi?.toLowerCase().includes(q) ||
+      entry.brokers?.broker_name?.toLowerCase().includes(q) ||
+      entry.market_location?.toLowerCase().includes(q)
+    );
+  });
 
   return (
-    <div className="animate-fade-in pb-8">
-      {/* Quick Actions Component */}
-      <DashboardQuickActions />
-
-      {/* KPI Cards Component */}
-      <PriceKpiCards stats={stats} loading={loading} />
-
-      {/* Attention Center */}
-      <AttentionCenter alerts={alerts} loading={loading} />
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
-        {/* Today's Market Prices */}
-        <div className="xl:col-span-2 flex">
-          <TodaysMarketPricesTable prices={todayPrices} loading={loading} />
+    <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col mb-8 animate-fade-in">
+      {/* 1. Header */}
+      <div className="p-6 border-b border-base bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-primary">Raw Material Prices Dashboard</h2>
+          <p className="text-sm text-secondary mt-1">Overview of today's market prices and active alerts.</p>
         </div>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Link to="/raw-material-prices/analysis" className="btn btn-secondary shadow-sm py-2 px-4 whitespace-nowrap flex items-center justify-center">
+            <Activity size={16} className="mr-1.5" />
+            Analysis
+          </Link>
+          <Link to="/raw-material-prices/daily-entry" className="btn btn-primary shadow-sm py-2 px-4 whitespace-nowrap flex items-center justify-center">
+            <Plus size={16} className="mr-1.5" />
+            Daily Entry
+          </Link>
+        </div>
+      </div>
 
-        {/* 30-Day Trend Chart */}
-        <div className="xl:col-span-1 flex">
-          <PriceTrendChart 
-            materials={materials} 
-            selectedMaterial={selectedMaterial}
-            onMaterialChange={handleMaterialChange}
-            trendData={trendData}
-            loading={loading}
-            timeRange={timeRange}
-            onTimeRangeChange={handleTimeRangeChange}
+      {/* 2. Compact Statistics Ribbon */}
+      <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-base border-b border-base bg-slate-50">
+        <div className="p-4 flex flex-col">
+          <span className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Active Materials</span>
+          <div className="flex items-end gap-2">
+            <span className="text-2xl font-bold text-primary leading-none">{stats.activeMaterials}</span>
+            <span className="text-sm text-muted font-medium mb-0.5">Tracking {stats.trackedMaterials} daily</span>
+          </div>
+        </div>
+        <div className="p-4 flex flex-col">
+          <span className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Updated Today</span>
+          <div className="flex items-end gap-2">
+            <span className="text-2xl font-bold text-primary leading-none">{stats.updatedToday}</span>
+            <span className="text-sm text-muted font-medium mb-0.5">/ {stats.trackedMaterials} required</span>
+          </div>
+        </div>
+        <div className="p-4 flex flex-col">
+          <span className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Total Entries</span>
+          <div className="flex items-end gap-2">
+            <span className="text-2xl font-bold text-primary leading-none">{stats.totalEntriesToday}</span>
+            <span className="text-sm text-muted font-medium mb-0.5">Recorded today</span>
+          </div>
+        </div>
+        <div className="p-4 flex flex-col">
+          <span className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Pending Updates</span>
+          <div className="flex items-end gap-2">
+            <span className={`text-2xl font-bold leading-none ${stats.pendingToday > 0 ? 'text-warning' : 'text-success'}`}>{stats.pendingToday}</span>
+            <span className="text-sm text-muted font-medium mb-0.5">{stats.pendingToday === 0 ? 'All updated' : 'Missing prices'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Collapsible / Compact Alert Banner */}
+      {!loading && alerts.length > 0 && (
+        <div className="bg-amber-50/50 border-b border-amber-100 p-4">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 text-amber-600">
+              <AlertTriangle size={18} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-amber-800">Action Required ({alerts.length})</h3>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                {alerts.map((alert, idx) => (
+                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-white rounded-lg border border-amber-100/50 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${alert.iconBg || 'bg-amber-100'} ${alert.iconColor || 'text-amber-600'}`}>
+                        <alert.icon size={14} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-primary line-clamp-1">{alert.title}</p>
+                        <p className="text-[13px] text-secondary mt-0.5 line-clamp-1">{alert.description}</p>
+                      </div>
+                    </div>
+                    <Link to={alert.actionLink} className="text-[13px] font-semibold text-primary whitespace-nowrap hover:underline pl-11 sm:pl-0 shrink-0">
+                      {alert.actionText} &rarr;
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Toolbar (Search) */}
+      <div className="p-4 bg-white border-b border-base flex flex-col sm:flex-row gap-4 justify-between items-center">
+        <h3 className="font-semibold text-primary">Today's Market Prices</h3>
+        <div className="relative w-full sm:w-[300px]">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input 
+            type="text"
+            className="input w-full pl-9"
+            placeholder="Search material or broker..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {searchQuery && (
+            <button 
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-primary"
+              onClick={() => setSearchQuery('')}
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* 5. Full Width Data Table */}
+      <div className="data-table-container border-0 rounded-none flex-1">
+        <table className="data-table mobile-cards-table w-full">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="px-6 py-4">Material</th>
+              <th className="px-6 py-4">Quality/Grade</th>
+              <th className="px-6 py-4">Broker</th>
+              <th className="px-6 py-4">Location</th>
+              <th className="px-6 py-4 text-right">Price (₹)</th>
+              <th className="px-6 py-4">Unit</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-base">
+            {loading ? (
+              [1, 2, 3, 4, 5].map(i => (
+                <tr key={i} className="animate-pulse">
+                  <td className="px-6 py-4"><div className="h-4 w-32 bg-slate-200 rounded"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 w-24 bg-slate-200 rounded"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 w-28 bg-slate-200 rounded"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 w-24 bg-slate-200 rounded"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 w-20 bg-slate-200 rounded ml-auto"></div></td>
+                  <td className="px-6 py-4"><div className="h-4 w-12 bg-slate-200 rounded"></div></td>
+                </tr>
+              ))
+            ) : filteredPrices.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center text-secondary">
+                  {searchQuery ? `No results found for "${searchQuery}"` : "No prices recorded today."}
+                </td>
+              </tr>
+            ) : (
+              filteredPrices.map((entry, idx) => {
+                const diff = entry.previous_price ? Number(entry.price) - Number(entry.previous_price) : null;
+                const perc = diff && entry.previous_price ? (Math.abs(diff) / entry.previous_price) * 100 : null;
+                
+                return (
+                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4" data-label="Material">
+                      <span className="font-medium text-primary">{entry.raw_materials?.name_en || '-'}</span>
+                      {entry.raw_materials?.name_hi && <span className="text-secondary font-normal ml-1">({entry.raw_materials?.name_hi})</span>}
+                    </td>
+                    <td className="px-6 py-4 text-secondary" data-label="Quality/Grade">{entry.material_quality_grades?.grade_name || 'Standard'}</td>
+                    <td className="px-6 py-4 text-secondary" data-label="Broker">{entry.brokers?.broker_name || '-'}</td>
+                    <td className="px-6 py-4 text-secondary" data-label="Location">{entry.market_location || '-'}</td>
+                    <td className="px-6 py-4 text-right" data-label="Price (₹)">
+                      <div className="font-semibold text-primary flex items-center justify-end sm:justify-end gap-2">
+                        {diff !== null && diff !== 0 && (
+                          <span className={`flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md ${diff > 0 ? 'bg-red-50 text-danger' : 'bg-green-50 text-success'}`}>
+                            {diff > 0 ? <TrendingUp size={12} className="mr-0.5"/> : <TrendingDown size={12} className="mr-0.5"/>}
+                            {perc.toFixed(1)}%
+                          </span>
+                        )}
+                        ₹{Number(entry.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-secondary text-sm" data-label="Unit">{entry.rm_units?.unit_name || '-'}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
