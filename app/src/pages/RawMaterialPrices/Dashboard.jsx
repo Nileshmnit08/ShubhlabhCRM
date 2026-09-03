@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { format, subDays, startOfDay, endOfDay, isWithinInterval, startOfMonth, subMonths, parseISO, isSameDay } from 'date-fns';
-import { Link, useNavigate } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import { Link } from 'react-router-dom';
 import { 
-  AlertTriangle, TrendingUp, TrendingDown, Clock, Search, X, 
-  FileText, Plus, Database, Activity, Package, AlertCircle, RefreshCw, Calendar, Filter
+  Search, X, Plus, Activity, Package, Calendar, Filter
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   
   // Master Data for Selects
@@ -27,6 +24,15 @@ const Dashboard = () => {
   useEffect(() => {
     fetchMaterialsList();
   }, []);
+
+  useEffect(() => {
+    fetchTableData();
+  }, [dateRange, customStartDate, customEndDate, materialFilter]);
+
+  const fetchMaterialsList = async () => {
+    const { data } = await supabase.from('raw_materials').select('id, name_en').eq('active', true).order('name_en');
+    setMaterialsList(data || []);
+  };
 
   const fetchTableData = async () => {
     // Determine date boundaries
@@ -78,10 +84,6 @@ const Dashboard = () => {
       if (materialFilter) query = query.eq('raw_material_id', materialFilter);
 
       const { data } = await query;
-
-      // We still want previous price movement, but it requires fetching previous prices.
-      // For simplicity in this view, we can just show the fetched data directly without movement, 
-      // or we can fetch movement if dateRange === 'today'.
       setTableData(data || []);
     } catch (error) {
       console.error('Error fetching table data:', error);
@@ -109,7 +111,7 @@ const Dashboard = () => {
       <div className="p-6 border-b border-base bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-primary">Raw Material Prices Dashboard</h2>
-          <p className="text-sm text-secondary mt-1">Overview of today's market status and price queries.</p>
+          <p className="text-sm text-secondary mt-1">Overview of market prices based on selected filters.</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Link to="/raw-material-prices/analysis" className="btn btn-secondary shadow-sm py-2 px-4 whitespace-nowrap flex items-center justify-center">
