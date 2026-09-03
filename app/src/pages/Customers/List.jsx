@@ -244,6 +244,11 @@ export default function CustomerList({ isLeadMode = false }) {
       return;
     }
 
+    const targetName = bulkAssignTarget === 'UNASSIGNED' ? 'Unassigned' : teamMembers.find(t => t.id === bulkAssignTarget)?.display_name || 'selected staff';
+    if (!window.confirm(`Are you sure you want to assign ${selectedRows.size} selected customers to ${targetName}?`)) {
+      return;
+    }
+
     setBulkActionLoading(true);
     try {
       const ownerVal = bulkAssignTarget === 'UNASSIGNED' ? null : bulkAssignTarget;
