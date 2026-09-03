@@ -181,22 +181,30 @@ export default function AppShell() {
     
     if (itemInfo.subItems) {
        const isExpanded = expandedSubmenus[path];
-       const isActive = pathname === path || pathname.startsWith(path + '/');
        
        return (
          <div key={itemInfo.path}>
            <div
-             className={`nav-item ${isActive ? 'active' : ''}`}
-             onClick={(e) => toggleSubmenu(e, path)}
-             style={{ cursor: 'pointer' }}
+             className="nav-item"
+             style={{ padding: 0 }}
              title={sidebarOpen ? '' : itemInfo.label}
              aria-expanded={isExpanded}
            >
-             <div className="nav-item-content">
+             <NavLink
+               to={path}
+               className="nav-item-content"
+               style={{ padding: '0.65rem 0.75rem', textDecoration: 'none', color: 'inherit' }}
+               onClick={() => setSidebarOpen(false)}
+             >
                <Icon size={20} className="nav-icon" />
                <span className="nav-label">{itemInfo.label}</span>
-             </div>
-             <button className="pin-btn" style={{ opacity: 1, padding: 0 }} aria-hidden="true">
+             </NavLink>
+             <button
+               className="pin-btn"
+               style={{ opacity: 1, padding: '0.65rem 0.75rem', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center' }}
+               onClick={(e) => toggleSubmenu(e, path)}
+               aria-label="Toggle submenu"
+             >
                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
              </button>
            </div>
@@ -204,12 +212,12 @@ export default function AppShell() {
            {isExpanded && (
              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '2.5rem', marginTop: '0.25rem', marginBottom: '0.5rem' }}>
                {itemInfo.subItems.map(sub => {
-                 const isSubActive = pathname === sub.path;
                  return (
                    <NavLink
                      key={sub.path}
                      to={sub.path}
-                     className={`nav-item ${isSubActive ? 'active' : ''}`}
+                     end
+                     className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                      style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
                      onClick={(e) => {
                        e.stopPropagation();
