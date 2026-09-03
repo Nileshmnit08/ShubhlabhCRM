@@ -3,11 +3,12 @@ import { supabase } from '../../lib/supabase';
 import { format, parseISO } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { 
-  Search, X, Plus, Activity, Package, Calendar, Filter
+  Search, X, Plus, Activity, Package, Calendar, Filter, AlertCircle
 } from 'lucide-react';
 
 const Dashboard = () => {
   const [tableLoading, setTableLoading] = useState(false);
+  const [tableError, setTableError] = useState(null);
   
   // Master Data for Selects
   const [materialsList, setMaterialsList] = useState([]);
@@ -63,6 +64,7 @@ const Dashboard = () => {
     } // if 'all', both remain null
 
     setTableLoading(true);
+    setTableError(null);
     try {
       let query = supabase
         .from('raw_material_price_entries')
@@ -83,10 +85,13 @@ const Dashboard = () => {
       if (endDateStr) query = query.lte('entry_date', endDateStr);
       if (materialFilter) query = query.eq('raw_material_id', materialFilter);
 
-      const { data } = await query;
+      const { data, error } = await query;
+      if (error) throw error;
       setTableData(data || []);
     } catch (error) {
       console.error('Error fetching table data:', error);
+      setTableError(error.message || 'Failed to fetch market prices.');
+      setTableData([]);
     } finally {
       setTableLoading(false);
     }
@@ -231,6 +236,17 @@ const Dashboard = () => {
                       <td className="px-6 py-4"><div className="h-4 w-12 bg-slate-200 rounded"></div></td>
                     </tr>
                   ))
+                ) : tableError ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center">
+                      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-50 border border-red-100 mb-3 text-red-500">
+                        <AlertCircle size={24} />
+                      </div>
+                      <h3 className="text-sm font-medium text-danger">Error Loading Data</h3>
+                      <p className="text-xs text-secondary mt-1 max-w-sm mx-auto">{tableError}</p>
+                      <button onClick={fetchTableData} className="mt-4 btn btn-secondary btn-sm">Try Again</button>
+                    </td>
+                  </tr>
                 ) : filteredPrices.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">
@@ -242,25 +258,41 @@ const Dashboard = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredPrices.map((entry, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4" data-label="Date">
-                        <span className="font-medium text-slate-700">{format(parseISO(entry.entry_date), 'dd MMM yyyy')}</span>
-                      </td>
-                      <td className="px-6 py-4" data-label="Material">
-                        <span className="font-medium text-primary">{entry.raw_materials?.name_en || '-'}</span>
-                        {entry.raw_materials?.name_hi && <span className="text-secondary text-xs ml-1">({entry.raw_materials?.name_hi})</span>}
-                      </td>
-                      <td className="px-6 py-4 text-secondary" data-label="Quality/Grade">{entry.material_quality_grades?.grade_name || 'Standard'}</td>
-                      <td className="px-6 py-4 text-secondary" data-label="Broker">{entry.brokers?.broker_name || '-'}</td>
-                      <td className="px-6 py-4 text-right" data-label="Price (₹)">
-                        <div className="font-semibold text-primary">
-                          ₹{Number(entry.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-secondary text-sm" data-label="Unit">{entry.rm_units?.unit_name || '-'}</td>
-                    </tr>
-                  ))
+                  filteredPrices.map((entry, idx) => {
+                    let formattedDate = '-';
+                    if (entry.entry_date) {
+                      try {
+                        formattedDate = format(parseISO(entry.entry_date), 'dd MMM yyyy');
+                      } catch (e) {
+                        formattedDate = 'Invalid Date';
+                      }
+                    }
+
+                    const numPrice = Number(entry.price);
+                    const formattedPrice = !isNaN(numPrice) && entry.price !== null 
+                      ? `₹${numPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` 
+                      : '-';
+
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4" data-label="Date">
+                          <span className="font-medium text-slate-700">{formattedDate}</span>
+                        </td>
+                        <td className="px-6 py-4" data-label="Material">
+                          <span className="font-medium text-primary">{entry.raw_materials?.name_en || '-'}</span>
+                          {entry.raw_materials?.name_hi && <span className="text-secondary text-xs ml-1">({entry.raw_materials?.name_hi})</span>}
+                        </td>
+                        <td className="px-6 py-4 text-secondary" data-label="Quality/Grade">{entry.material_quality_grades?.grade_name || 'Standard'}</td>
+                        <td className="px-6 py-4 text-secondary" data-label="Broker">{entry.brokers?.broker_name || '-'}</td>
+                        <td className="px-6 py-4 text-right" data-label="Price (₹)">
+                          <div className="font-semibold text-primary">
+                            {formattedPrice}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-secondary text-sm" data-label="Unit">{entry.rm_units?.unit_name || '-'}</td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
