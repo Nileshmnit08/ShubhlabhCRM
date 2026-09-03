@@ -12,17 +12,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   
-  // KPI Stats
-  const [stats, setStats] = useState({
-    activeMaterials: 0,
-    trackedMaterials: 0,
-    updatedToday: 0,
-    totalEntriesToday: 0,
-    pendingToday: 0,
-    latestPriceDate: null,
-  });
-  const [alerts, setAlerts] = useState([]);
-  
   // Master Data for Selects
   const [materialsList, setMaterialsList] = useState([]);
 
@@ -36,71 +25,8 @@ const Dashboard = () => {
   const [tableData, setTableData] = useState([]);
   
   useEffect(() => {
-    fetchDashboardStats();
     fetchMaterialsList();
   }, []);
-
-  useEffect(() => {
-    fetchTableData();
-  }, [dateRange, customStartDate, customEndDate, materialFilter]);
-
-  const fetchMaterialsList = async () => {
-    const { data } = await supabase.from('raw_materials').select('id, name_en').eq('active', true).order('name_en');
-    setMaterialsList(data || []);
-  };
-
-  const fetchDashboardStats = async () => {
-    setLoading(true);
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      
-      const { data: mats } = await supabase.from('raw_materials').select('*').eq('active', true);
-      const { data: entriesToday } = await supabase
-        .from('raw_material_price_entries')
-        .select('raw_material_id, broker_id, quality_grade_id, price, entry_date, brokers(broker_name), raw_materials(name_en)')
-        .eq('entry_date', today)
-        .eq('is_deleted', false);
-
-      const updatedMats = new Set((entriesToday || []).map(e => e.raw_material_id));
-      const trackingMats = (mats || []).filter(m => m.daily_tracking_required);
-      const pendingCount = Math.max(0, trackingMats.length - updatedMats.size);
-      
-      setStats({
-        activeMaterials: (mats || []).length,
-        trackedMaterials: trackingMats.length,
-        updatedToday: updatedMats.size,
-        totalEntriesToday: entriesToday?.length || 0,
-        pendingToday: pendingCount,
-        latestPriceDate: today
-      });
-
-      // Alerts logic (Pending updates)
-      const newAlerts = [];
-      if (pendingCount > 0) {
-        const missingMatNames = trackingMats
-          .filter(m => !updatedMats.has(m.id))
-          .map(m => m.name_en)
-          .slice(0, 3)
-          .join(', ');
-        const remainder = pendingCount > 3 ? ` and ${pendingCount - 3} others` : '';
-        newAlerts.push({
-          title: `${pendingCount} Tracked Material${pendingCount > 1 ? 's' : ''} Missing Today's Price`,
-          description: `Missing updates for: ${missingMatNames}${remainder}.`,
-          icon: Clock,
-          iconBg: 'bg-amber-100',
-          iconColor: 'text-amber-600',
-          actionText: 'Add Prices',
-          actionLink: '/raw-material-prices/daily-entry'
-        });
-      }
-      setAlerts(newAlerts);
-
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchTableData = async () => {
     // Determine date boundaries
@@ -197,71 +123,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* 2. Compact Statistics Ribbon */}
-      <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-base border-b border-base bg-white shadow-sm z-10 relative">
-        <div className="p-4 flex flex-col">
-          <span className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Active Materials</span>
-          <div className="flex items-end gap-2">
-            <span className="text-2xl font-bold text-primary leading-none">{stats.activeMaterials}</span>
-            <span className="text-sm text-muted font-medium mb-0.5">Tracking {stats.trackedMaterials}</span>
-          </div>
-        </div>
-        <div className="p-4 flex flex-col">
-          <span className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Updated Today</span>
-          <div className="flex items-end gap-2">
-            <span className="text-2xl font-bold text-primary leading-none">{stats.updatedToday}</span>
-            <span className="text-sm text-muted font-medium mb-0.5">/ {stats.trackedMaterials} required</span>
-          </div>
-        </div>
-        <div className="p-4 flex flex-col">
-          <span className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Total Entries</span>
-          <div className="flex items-end gap-2">
-            <span className="text-2xl font-bold text-primary leading-none">{stats.totalEntriesToday}</span>
-            <span className="text-sm text-muted font-medium mb-0.5">Recorded today</span>
-          </div>
-        </div>
-        <div className="p-4 flex flex-col">
-          <span className="text-xs font-semibold text-secondary uppercase tracking-wider mb-1">Pending Updates</span>
-          <div className="flex items-end gap-2">
-            <span className={`text-2xl font-bold leading-none ${stats.pendingToday > 0 ? 'text-warning' : 'text-success'}`}>{stats.pendingToday}</span>
-            <span className="text-sm text-muted font-medium mb-0.5">{stats.pendingToday === 0 ? 'All updated' : 'Missing prices'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Collapsible / Compact Alert Banner */}
-      {!loading && alerts.length > 0 && (
-        <div className="bg-amber-50/50 border-b border-amber-100 p-4">
-          <div className="flex items-start gap-3">
-            <div className="mt-0.5 text-amber-600">
-              <AlertTriangle size={18} />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-amber-800">Action Required</h3>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                {alerts.map((alert, idx) => (
-                  <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-white rounded-lg border border-amber-100/50 shadow-sm">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${alert.iconBg || 'bg-amber-100'} ${alert.iconColor || 'text-amber-600'}`}>
-                        <alert.icon size={14} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-primary line-clamp-1">{alert.title}</p>
-                        <p className="text-[13px] text-secondary mt-0.5 line-clamp-1">{alert.description}</p>
-                      </div>
-                    </div>
-                    <Link to={alert.actionLink} className="text-[13px] font-semibold text-primary whitespace-nowrap hover:underline pl-11 sm:pl-0 shrink-0">
-                      {alert.actionText} &rarr;
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. Filter Toolbar & Table Container */}
+      {/* Filter Toolbar & Table Container */}
       <div className="p-4 sm:p-6 flex-1 flex flex-col min-h-[500px]">
         <div className="bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col flex-1">
           
