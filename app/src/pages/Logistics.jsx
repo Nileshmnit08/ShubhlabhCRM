@@ -1,15 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import DataTable from '../components/DataTable';
-import { Truck, Search, AlertCircle, Phone, MapPin } from 'lucide-react';
+import { Truck, Search, AlertCircle, Phone, MapPin, Edit2, ShieldAlert, X, Plus, Trash2, ShieldOff, CheckCircle2 } from 'lucide-react';
 
 export default function Logistics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [transporters, setTransporters] = useState([]);
   
+  // Tab State
+  const [activeTab, setActiveTab] = useState('Active'); // 'Active' or 'Fraud'
+  
+  // Data State
+  const [activeTransporters, setActiveTransporters] = useState([]);
+  const [fraudTransporters, setFraudTransporters] = useState([]);
+  
+  // Search State
   const [searchName, setSearchName] = useState('');
   const [searchLocation, setSearchLocation] = useState('');
+
+  // Edit Locations Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedTransporter, setSelectedTransporter] = useState(null);
+  const [newLocation, setNewLocation] = useState('');
+  const [tempLocations, setTempLocations] = useState([]); // Array of strings currently visible
+  const [addedLocations, setAddedLocations] = useState([]);
+  const [removedLocations, setRemovedLocations] = useState([]);
 
   useEffect(() => {
     fetchTransporters();
@@ -19,6 +34,24 @@ export default function Logistics() {
     setLoading(true);
     setError(null);
     try {
+      // 1. Fetch metadata first
+      const { data: metaData, error: metaErr } = await supabase
+        .from('transporter_metadata')
+        .select('*');
+        
+      if (metaErr && metaErr.code !== '42P01') { 
+        // 42P01 means table doesn't exist yet, we can gracefully degrade if the user hasn't run the SQL
+        console.error("Metadata fetch error:", metaErr);
+      }
+      
+      const metaMap = {};
+      if (metaData) {
+        metaData.forEach(m => {
+          metaMap[m.transporter_name] = m;
+        });
+      }
+
+      // 2. Fetch dispatch data
       const { data, error: fetchErr } = await supabase
         .from('requirement_dispatches')
         .select(`
@@ -45,9 +78,9 @@ export default function Logistics() {
         
         if (!map[name]) {
           map[name] = {
-            id: name, // Using name as unique key
+            id: name,
             name: name,
-            cities: new Set(),
+            dynamicCities: new Set(),
             mobiles: new Set(),
             trucks: new Set(),
             dispatchCount: 0
@@ -55,7 +88,7 @@ export default function Logistics() {
         }
         
         if (d.requirements?.crm_parties?.city) {
-          map[name].cities.add(d.requirements.crm_parties.city);
+          map[name].dynamicCities.add(d.requirements.crm_parties.city);
         }
         
         if (d.driver_mobile) {
@@ -69,23 +102,127 @@ export default function Logistics() {
         map[name].dispatchCount += 1;
       });
       
-      const aggregated = Object.values(map).map(t => ({
-        ...t,
-        citiesList: Array.from(t.cities).filter(Boolean).sort(),
-        mobilesList: Array.from(t.mobiles).filter(Boolean).sort(),
-        trucksList: Array.from(t.trucks).filter(Boolean).sort()
-      })).sort((a, b) => a.name.localeCompare(b.name));
+      // 3. Merge metadata and dispatch data
+      const activeList = [];
+      const fraudList = [];
       
-      setTransporters(aggregated);
+      Object.values(map).forEach(t => {
+        const meta = metaMap[t.name] || {};
+        
+        const added = meta.added_locations || [];
+        const removed = meta.removed_locations || [];
+        
+        // Final cities = (Dynamic + Added) - Removed
+        const finalCitiesSet = new Set(t.dynamicCities);
+        added.forEach(loc => finalCitiesSet.add(loc));
+        removed.forEach(loc => finalCitiesSet.delete(loc));
+        
+        const mergedObj = {
+          ...t,
+          citiesList: Array.from(finalCitiesSet).filter(Boolean).sort(),
+          mobilesList: Array.from(t.mobiles).filter(Boolean).sort(),
+          trucksList: Array.from(t.trucks).filter(Boolean).sort(),
+          isFraud: meta.is_fraud === true,
+          addedLocations: added,
+          removedLocations: removed
+        };
+        
+        if (mergedObj.isFraud) {
+          fraudList.push(mergedObj);
+        } else {
+          activeList.push(mergedObj);
+        }
+      });
+      
+      activeList.sort((a, b) => a.name.localeCompare(b.name));
+      fraudList.sort((a, b) => a.name.localeCompare(b.name));
+      
+      setActiveTransporters(activeList);
+      setFraudTransporters(fraudList);
+      
     } catch (err) {
       console.error(err);
-      setError("Failed to load transporters data.");
+      setError("Failed to load transporters data. If you just deployed, make sure you run the SQL migration for transporter_metadata.");
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredTransporters = transporters.filter(t => {
+  // --- Handlers ---
+
+  const handleMarkFraud = async (transporter, fraudStatus) => {
+    const actionText = fraudStatus ? 'mark as Fraud' : 'restore as Active';
+    if (!window.confirm(`Are you sure you want to ${actionText} transporter "${transporter.name}"?`)) return;
+    
+    try {
+      const { error } = await supabase
+        .from('transporter_metadata')
+        .upsert({ 
+          transporter_name: transporter.name, 
+          is_fraud: fraudStatus 
+        }, { onConflict: 'transporter_name' });
+        
+      if (error) throw error;
+      await fetchTransporters();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update status. Please make sure the SQL migration has been applied.");
+    }
+  };
+
+  const handleOpenEditLocations = (transporter) => {
+    setSelectedTransporter(transporter);
+    setTempLocations([...transporter.citiesList]);
+    setAddedLocations([...transporter.addedLocations]);
+    setRemovedLocations([...transporter.removedLocations]);
+    setNewLocation('');
+    setEditModalOpen(true);
+  };
+
+  const handleAddLocation = () => {
+    const loc = newLocation.trim();
+    if (!loc) return;
+    if (tempLocations.includes(loc)) return; // Already there
+    
+    setTempLocations([...tempLocations, loc].sort());
+    setAddedLocations([...addedLocations, loc]);
+    // If it was previously removed, we should probably take it out of removed array
+    setRemovedLocations(removedLocations.filter(r => r !== loc));
+    
+    setNewLocation('');
+  };
+
+  const handleRemoveLocation = (loc) => {
+    setTempLocations(tempLocations.filter(l => l !== loc));
+    setRemovedLocations([...removedLocations, loc]);
+    // If it was in added, remove it from added
+    setAddedLocations(addedLocations.filter(a => a !== loc));
+  };
+
+  const handleSaveLocations = async () => {
+    try {
+      const { error } = await supabase
+        .from('transporter_metadata')
+        .upsert({ 
+          transporter_name: selectedTransporter.name, 
+          added_locations: addedLocations,
+          removed_locations: removedLocations
+        }, { onConflict: 'transporter_name' });
+        
+      if (error) throw error;
+      setEditModalOpen(false);
+      await fetchTransporters();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save locations. Please make sure the SQL migration has been applied.");
+    }
+  };
+
+  // --- Filtering ---
+  
+  const currentList = activeTab === 'Active' ? activeTransporters : fraudTransporters;
+  
+  const filteredTransporters = currentList.filter(t => {
     const matchName = t.name.toLowerCase().includes(searchName.toLowerCase());
     const matchLoc = searchLocation 
       ? t.citiesList.some(c => c.toLowerCase().includes(searchLocation.toLowerCase()))
@@ -93,7 +230,9 @@ export default function Logistics() {
     return matchName && matchLoc;
   });
 
-  const columns = [
+  // --- Columns ---
+
+  const baseColumns = [
     {
       id: 'name',
       header: 'Transporter Name',
@@ -157,6 +296,42 @@ export default function Logistics() {
     }
   ];
 
+  const activeColumns = [
+    ...baseColumns,
+    {
+      id: 'actions',
+      header: 'Actions',
+      renderCell: (item) => (
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn-icon" style={{color: 'var(--primary)'}} onClick={() => handleOpenEditLocations(item)} title="Edit Locations">
+            <Edit2 size={16} />
+          </button>
+          <button className="btn-icon" style={{color: 'var(--danger)'}} onClick={() => handleMarkFraud(item, true)} title="Mark as Fraud">
+            <ShieldAlert size={16} />
+          </button>
+        </div>
+      )
+    }
+  ];
+  
+  const fraudColumns = [
+    ...baseColumns,
+    {
+      id: 'status',
+      header: 'Status',
+      renderCell: (item) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <span className="badge badge-danger" style={{display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+            <ShieldAlert size={12}/> Fraud
+          </span>
+          <button className="btn btn-sm btn-secondary" onClick={() => handleMarkFraud(item, false)} style={{fontSize: '0.7rem', padding: '2px 6px'}}>
+            <CheckCircle2 size={12} style={{marginRight: '2px'}}/> Restore
+          </button>
+        </div>
+      )
+    }
+  ];
+
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
       <div className="page-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem'}}>
@@ -167,6 +342,35 @@ export default function Logistics() {
           </h1>
           <p className="text-secondary">Logistics and transporter directory based on dispatch history.</p>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display: 'flex', gap: '2rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', overflowX: 'auto'}}>
+        {['Active', 'Fraud'].map(tab => (
+          <button 
+            key={tab}
+            className={`nav-item ${activeTab === tab ? 'active' : ''}`} 
+            style={{
+              borderRadius: 0, 
+              padding: '0.75rem 1rem', 
+              whiteSpace: 'nowrap', 
+              border: 'none', 
+              background: 'transparent', 
+              cursor: 'pointer', 
+              fontWeight: activeTab === tab ? 600 : 500, 
+              color: activeTab === tab ? (tab === 'Fraud' ? 'var(--danger)' : 'var(--primary)') : 'var(--text-secondary)', 
+              borderBottom: activeTab === tab ? `2px solid ${tab === 'Fraud' ? 'var(--danger)' : 'var(--primary)'}` : '2px solid transparent',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }} 
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab === 'Fraud' ? <ShieldAlert size={16} /> : <CheckCircle2 size={16} />}
+            {tab} Transporters
+            <span className="badge badge-secondary" style={{marginLeft: '4px', fontSize: '0.7rem'}}>{tab === 'Active' ? activeTransporters.length : fraudTransporters.length}</span>
+          </button>
+        ))}
       </div>
 
       <div className="glass-panel" style={{ padding: '1.5rem' }}>
@@ -203,18 +407,85 @@ export default function Logistics() {
           <div style={{textAlign: 'center', padding: '3rem'}} className="text-muted">Loading transporters...</div>
         ) : filteredTransporters.length === 0 ? (
           <div style={{ padding: '4rem 2rem', textAlign: 'center' }} className="text-muted">
-            <Truck size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
-            <p>No transporters found matching your search.</p>
+            {activeTab === 'Fraud' ? (
+              <>
+                <ShieldOff size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
+                <p>No fraud transporters found.</p>
+              </>
+            ) : (
+              <>
+                <Truck size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
+                <p>No transporters found matching your search.</p>
+              </>
+            )}
           </div>
         ) : (
           <DataTable 
-            columns={columns} 
+            columns={activeTab === 'Active' ? activeColumns : fraudColumns} 
             data={filteredTransporters} 
             theadClassName="bg-slate-50 border-b border-base"
             tbodyClassName="divide-y divide-base"
           />
         )}
       </div>
+
+      {/* Edit Locations Modal */}
+      {editModalOpen && selectedTransporter && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '90%', maxWidth: '500px', background: 'var(--bg-surface)', padding: '1.5rem', borderRadius: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Edit Service Locations</h3>
+              <button className="btn-icon" onClick={() => setEditModalOpen(false)}><X size={20} /></button>
+            </div>
+            
+            <div style={{ marginBottom: '1rem' }}>
+              <span className="text-secondary" style={{fontSize: '0.85rem'}}>Transporter:</span>
+              <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{selectedTransporter.name}</div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }} className="text-muted">Current Locations</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-base)', minHeight: '80px' }}>
+                {tempLocations.length === 0 ? (
+                  <span className="text-muted" style={{fontSize: '0.85rem'}}>No locations associated yet.</span>
+                ) : (
+                  tempLocations.map((loc, i) => (
+                    <div key={i} className="badge badge-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px' }}>
+                      <MapPin size={12} /> {loc}
+                      <button onClick={() => handleRemoveLocation(loc)} style={{background: 'none', border: 'none', padding: 0, margin: 0, cursor: 'pointer', color: 'var(--text-muted)'}} title="Remove">
+                        <X size={14} className="hover:text-danger transition-colors"/>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '2rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }} className="text-muted">Add New Location</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input 
+                  type="text" 
+                  value={newLocation} 
+                  onChange={e => setNewLocation(e.target.value)} 
+                  onKeyDown={e => e.key === 'Enter' && handleAddLocation()}
+                  placeholder="Enter city or location name..."
+                  style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}
+                />
+                <button className="btn btn-secondary" onClick={handleAddLocation}>
+                  <Plus size={16} /> Add
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button className="btn btn-secondary" onClick={() => setEditModalOpen(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveLocations}>Save Locations</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
