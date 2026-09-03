@@ -312,15 +312,6 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
         </div>
         
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <button 
-            onClick={() => {
-              setShowDeactivated(!showDeactivated);
-              setCurrentPage(1);
-            }}
-            className={`text-sm font-medium px-3 py-1.5 rounded-md transition-colors border ${showDeactivated ? 'bg-slate-100 text-slate-700 border-slate-300 shadow-inner' : 'bg-white text-secondary hover:bg-slate-50 border-base/80 shadow-sm'}`}
-          >
-            {showDeactivated ? 'Hide Deactivated' : 'Show Deactivated'}
-          </button>
           
           {hasActiveFilters && (
             <button onClick={resetFilters} className="text-sm font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-1.5 rounded-md transition-colors">
@@ -382,6 +373,21 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
                 </div>
               )
             ))}
+
+            {/* Show/Hide Deactivated Button at the bottom */}
+            {brokers && brokers.some(b => !b.active) && (
+              <div className="flex justify-center mt-4">
+                <button 
+                  className="btn btn-outline bg-white shadow-sm flex items-center px-6"
+                  onClick={() => {
+                    setShowDeactivated(!showDeactivated);
+                    setCurrentPage(1);
+                  }}
+                >
+                  {showDeactivated ? 'Hide Deactivated Brokers' : 'Show Deactivated Brokers'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
