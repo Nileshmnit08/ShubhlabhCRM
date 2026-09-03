@@ -3,10 +3,6 @@ import { supabase } from '../../lib/supabase';
 import { TrendingUp, TrendingDown, Minus, CalendarDays, BarChart3, Info, Filter } from 'lucide-react';
 import { format, subDays, subMonths, subYears, parseISO, differenceInDays } from 'date-fns';
 
-import PriceComparisonHero from './components/analysis/PriceComparisonHero';
-import PriceMetricCard from './components/analysis/PriceMetricCard';
-import SampleSizeNotice from './components/analysis/SampleSizeNotice';
-import BrokerQuotesTable from './components/analysis/BrokerQuotesTable';
 import PriceTrendChart from './components/PriceTrendChart';
 
 const PriceAnalysis = () => {
@@ -173,30 +169,28 @@ const PriceAnalysis = () => {
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Filter Card */}
-      <div className="bg-white rounded-[16px] border border-slate-200 shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter size={18} className="text-slate-500" />
-          <h3 className="font-semibold text-slate-800">Analysis Filters</h3>
-        </div>
-        
+    <div className="animate-fade-in pb-12">
+      <div className="page-header mb-6">
+        <h1 className="text-2xl font-bold text-primary">Price Analysis</h1>
+      </div>
+
+      <div className="card p-5 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
           <div className="w-full">
-            <label className="block text-[13px] font-medium text-slate-600 mb-1.5">Raw Material</label>
-            <select className="input w-full bg-slate-50 border-slate-200" value={selectedMaterial} onChange={e => setSelectedMaterial(e.target.value)}>
+            <label className="block text-[13px] font-medium text-secondary mb-1.5">Material</label>
+            <select className="input w-full" value={selectedMaterial} onChange={e => setSelectedMaterial(e.target.value)}>
               {materials.map(m => <option key={m.id} value={m.id}>{m.name_en} {m.name_hi && `(${m.name_hi})`}</option>)}
             </select>
           </div>
           
           <div className="w-full">
-            <label className="block text-[13px] font-medium text-slate-600 mb-1.5">Current Date</label>
-            <input type="date" className="input w-full bg-slate-50 border-slate-200" value={currentDate} onChange={e => setCurrentDate(e.target.value)} />
+            <label className="block text-[13px] font-medium text-secondary mb-1.5">Analysis Date</label>
+            <input type="date" className="input w-full" value={currentDate} onChange={e => setCurrentDate(e.target.value)} />
           </div>
 
           <div className="w-full">
-            <label className="block text-[13px] font-medium text-slate-600 mb-1.5">Compare With</label>
-            <select className="input w-full bg-slate-50 border-slate-200" value={comparisonPeriod} onChange={e => setComparisonPeriod(e.target.value)}>
+            <label className="block text-[13px] font-medium text-secondary mb-1.5">Compare With</label>
+            <select className="input w-full" value={comparisonPeriod} onChange={e => setComparisonPeriod(e.target.value)}>
               <option value="yesterday">Yesterday</option>
               <option value="7days">7 Days Ago</option>
               <option value="30days">30 Days Ago</option>
@@ -209,93 +203,118 @@ const PriceAnalysis = () => {
 
           {comparisonPeriod === 'custom' && (
             <div className="w-full">
-              <label className="block text-[13px] font-medium text-slate-600 mb-1.5">Base Date</label>
-              <input type="date" className="input w-full bg-slate-50 border-slate-200" value={baseDate} onChange={e => setBaseDate(e.target.value)} />
+              <label className="block text-[13px] font-medium text-secondary mb-1.5">Base Date</label>
+              <input type="date" className="input w-full" value={baseDate} onChange={e => setBaseDate(e.target.value)} />
             </div>
           )}
         </div>
-        
-        {analysisData && (
-          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-            <p className="text-sm text-slate-600">
-              Comparing <span className="font-semibold text-slate-800">{analysisData.currDateStr}</span> with <span className="font-semibold text-slate-800">{analysisData.baseDateStr}</span> 
-              <span className="text-slate-500 ml-1">({analysisData.daysDiff} days ago)</span>
-            </p>
-          </div>
-        )}
       </div>
 
       {loading ? (
-        <div className="h-64 flex flex-col items-center justify-center text-slate-500 bg-white rounded-[16px] border border-slate-200">
+        <div className="card p-12 flex flex-col items-center justify-center text-secondary">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
           <p className="text-sm font-medium">Analyzing market data...</p>
         </div>
       ) : analysisData ? (
-        <div className="flex flex-col gap-6">
-          <PriceComparisonHero 
-            materialNameEn={analysisData.materialNameEn}
-            materialNameHi={analysisData.materialNameHi}
-            baseDateStr={analysisData.baseDateStr}
-            currDateStr={analysisData.currDateStr}
-            currAvg={analysisData.currAvg}
-            unit={analysisData.unit}
-            diff={analysisData.diff}
-            perc={analysisData.perc}
-          />
+        <div className="space-y-6">
+          <div className="card p-6">
+            <div className="mb-6 pb-6 border-b border-base">
+              <h2 className="text-xl font-bold text-primary">{analysisData.materialNameEn} {analysisData.materialNameHi && <span className="text-secondary font-medium">({analysisData.materialNameHi})</span>}</h2>
+              <div className="flex items-center gap-2 text-sm text-secondary mt-1">
+                <span className="font-medium text-primary">{analysisData.currDateStr}</span>
+                <span className="text-muted">compared with</span>
+                <span className="font-medium text-primary">{analysisData.baseDateStr}</span>
+              </div>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <PriceMetricCard 
-              title="Previous average"
-              value={analysisData.baseAvg > 0 ? `₹${analysisData.baseAvg.toFixed(2)}` : 'N/A'}
-              supportText={`${analysisData.baseDateStr} • ${analysisData.baseCount} ${analysisData.baseCount === 1 ? 'quote' : 'quotes'}`}
-              variant="neutral"
-              icon={CalendarDays}
-            />
-            
-            <PriceMetricCard 
-              title="Current average"
-              value={analysisData.currAvg > 0 ? `₹${analysisData.currAvg.toFixed(2)}` : 'N/A'}
-              supportText={`${analysisData.currDateStr} • ${analysisData.currCount} ${analysisData.currCount === 1 ? 'quote' : 'quotes'}`}
-              variant="highlight"
-              icon={BarChart3}
-            />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">Current Avg</p>
+                <div className="text-2xl font-bold text-primary">
+                  {analysisData.currAvg > 0 ? `₹${analysisData.currAvg.toFixed(2)}` : 'N/A'}
+                </div>
+                {analysisData.currAvg > 0 && <p className="text-xs text-secondary mt-1">/ {analysisData.unit.toLowerCase()}</p>}
+              </div>
 
-            <PriceMetricCard 
-              title="Price movement"
-              value={analysisData.diff === 0 ? '₹0.00' : `${analysisData.diff > 0 ? '+' : ''}₹${analysisData.diff.toFixed(2)}`}
-              supportText={`${analysisData.diff === 0 ? '0.00' : (analysisData.diff > 0 ? '+' : '') + analysisData.perc.toFixed(2)}% in ${analysisData.daysDiff} days`}
-              variant={analysisData.diff === 0 ? 'neutral' : (analysisData.diff > 0 ? 'positive' : 'negative')}
-              icon={analysisData.diff === 0 ? Minus : (analysisData.diff > 0 ? TrendingUp : TrendingDown)}
-            />
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">Previous Avg</p>
+                <div className="text-xl font-semibold text-secondary">
+                  {analysisData.baseAvg > 0 ? `₹${analysisData.baseAvg.toFixed(2)}` : 'N/A'}
+                </div>
+                {analysisData.baseAvg > 0 && <p className="text-xs text-muted mt-1">/ {analysisData.unit.toLowerCase()}</p>}
+              </div>
 
-            <PriceMetricCard 
-              title="Today's quoted range"
-              value={analysisData.currMin > 0 ? (analysisData.currCount === 1 ? `₹${analysisData.currAvg.toFixed(2)}` : `₹${analysisData.currMin.toFixed(2)}–₹${analysisData.currMax.toFixed(2)}`) : 'N/A'}
-              supportText={`${analysisData.currCount} ${analysisData.currCount === 1 ? 'quote available' : 'quotes available'}`}
-              variant="neutral"
-              badge={analysisData.currCount === 1 ? 'Single Quote' : null}
-            />
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">Movement</p>
+                {analysisData.currAvg > 0 && analysisData.baseAvg > 0 ? (
+                  <div className={`text-xl font-bold flex items-center gap-1 ${analysisData.diff > 0 ? 'text-danger' : analysisData.diff < 0 ? 'text-success' : 'text-secondary'}`}>
+                    {analysisData.diff > 0 ? '+' : ''}₹{Math.abs(analysisData.diff).toFixed(2)}
+                  </div>
+                ) : (
+                  <div className="text-xl font-semibold text-secondary">N/A</div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">% Change</p>
+                {analysisData.currAvg > 0 && analysisData.baseAvg > 0 ? (
+                  <div className={`text-xl font-bold flex items-center gap-1 ${analysisData.diff > 0 ? 'text-danger' : analysisData.diff < 0 ? 'text-success' : 'text-secondary'}`}>
+                    {analysisData.diff > 0 ? <TrendingUp size={20}/> : analysisData.diff < 0 ? <TrendingDown size={20}/> : <Minus size={20}/>}
+                    {analysisData.diff > 0 ? '+' : ''}{analysisData.perc.toFixed(2)}%
+                  </div>
+                ) : (
+                  <div className="text-xl font-semibold text-secondary">N/A</div>
+                )}
+              </div>
+            </div>
           </div>
 
-          <SampleSizeNotice 
-            baseCount={analysisData.baseCount} 
-            currCount={analysisData.currCount} 
-          />
-
-          <BrokerQuotesTable 
-            quotes={analysisData.brokerChartData}
-            currMin={analysisData.currMin}
-            currMax={analysisData.currMax}
-            unit={analysisData.unit}
-            currDateStr={analysisData.currDateStr}
-          />
-          
-          <div className="mt-8">
-            <div className="mb-4">
-              <h2 className="text-xl font-bold text-slate-800 tracking-tight">Historical Context</h2>
-              <p className="text-sm text-slate-500 mt-1">Review the average price trend for {analysisData.materialNameEn} over time.</p>
+          {analysisData.brokerChartData && analysisData.brokerChartData.length > 0 && (
+            <div className="card">
+              <div className="p-5 border-b border-base flex justify-between items-center flex-wrap gap-3">
+                <h3 className="font-semibold text-primary">Broker Quotes ({analysisData.currCount})</h3>
+                {analysisData.currMin > 0 && analysisData.currMax > 0 && analysisData.currMin !== analysisData.currMax && (
+                  <div className="text-sm text-secondary">
+                    Market Range: <span className="font-semibold text-primary">₹{analysisData.currMin.toFixed(2)} - ₹{analysisData.currMax.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+              <div className="data-table-container border-0 rounded-none">
+                <table className="data-table mobile-cards-table w-full">
+                  <thead>
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Broker</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Location</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Time</th>
+                      <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right">Price / {analysisData.unit.toLowerCase()}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-base">
+                    {analysisData.brokerChartData.map((q, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-6 py-4" data-label="Broker">
+                          <span className="font-medium text-primary">{q.brokerName}</span>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-secondary" data-label="Location">
+                          {q.location || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-muted" data-label="Time">
+                          {q.quoteTime || '-'}
+                        </td>
+                        <td className="px-6 py-4 text-right" data-label="Price">
+                          <span className="font-semibold text-primary">₹{Number(q.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="h-[400px]">
+          )}
+
+          <div className="card p-5">
+            <h3 className="font-semibold text-primary mb-4">Historical Trend</h3>
+            <div className="h-[350px]">
               <PriceTrendChart 
                 materials={materials}
                 selectedMaterial={selectedMaterial}
@@ -304,14 +323,15 @@ const PriceAnalysis = () => {
                 loading={loadingTrend}
                 timeRange={trendTimeRange}
                 onTimeRangeChange={setTrendTimeRange}
+                hideTitle={true}
               />
             </div>
           </div>
+
         </div>
       ) : (
-        <div className="bg-white rounded-[16px] border border-slate-200 p-12 text-center text-slate-500 shadow-sm flex flex-col items-center justify-center">
-          <Filter size={32} className="text-slate-300 mb-3" />
-          <p className="text-lg font-medium text-slate-700 mb-1">No analysis ready</p>
+        <div className="card p-12 text-center text-secondary flex flex-col items-center justify-center">
+          <p className="text-lg font-medium text-primary mb-1">No analysis ready</p>
           <p className="text-sm">Select a material and date range to view analysis.</p>
         </div>
       )}
