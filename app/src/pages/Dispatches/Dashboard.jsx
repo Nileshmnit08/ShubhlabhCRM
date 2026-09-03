@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
 import { Truck, Package, Users, AlertCircle, CheckCircle2, Search, ArrowRight, X, Edit2, Trash2, Save, MessageCircle, Copy } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
+import DataTable from '../../components/DataTable';
 
 export default function DispatchDashboard() {
   const { userProfile } = useContext(AuthContext);
@@ -27,6 +28,9 @@ export default function DispatchDashboard() {
 
   const [editingDispatchId, setEditingDispatchId] = useState(null);
   const [editForm, setEditForm] = useState({});
+
+  // Tab State
+  const [activeTab, setActiveTab] = useState('Requirement-wise');
 
   // WhatsApp Modal State
   const [waModalOpen, setWaModalOpen] = useState(false);
@@ -357,6 +361,99 @@ Shubh Labh Team`;
     return 'badge-primary';
   };
 
+  // --- Dispatch Report (Flat Data) Logic ---
+  const flatReportData = React.useMemo(() => {
+    let data = [...dispatches];
+    
+    // Sort newest first
+    data.sort((a, b) => new Date(b.dispatch_date) - new Date(a.dispatch_date));
+
+    // Filter by search query
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      data = data.filter(d => {
+        const dealer = d.requirements?.crm_parties?.display_name?.toLowerCase() || '';
+        const product = d.requirements?.product_type?.toLowerCase() || '';
+        const inv = d.invoice_number?.toLowerCase() || '';
+        return dealer.includes(q) || product.includes(q) || inv.includes(q);
+      });
+    }
+    
+    return data;
+  }, [dispatches, searchQuery]);
+
+  const reportTotalQty = flatReportData.reduce((sum, d) => sum + Number(d.quantity || 0), 0);
+
+  const reportColumns = [
+    {
+      id: 'customer',
+      header: 'Customer',
+      renderCell: (item) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-semibold text-[14px] text-primary">{item.requirements?.crm_parties?.display_name || 'Unknown'}</span>
+          <span className="text-xs text-secondary">{item.requirements?.crm_parties?.city || 'No Location'}</span>
+        </div>
+      )
+    },
+    {
+      id: 'date',
+      header: 'Dispatch Date',
+      renderCell: (item) => (
+        <span className="text-[14px] font-medium text-secondary">
+          {item.dispatch_date ? new Date(item.dispatch_date).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'}) : '-'}
+        </span>
+      )
+    },
+    {
+      id: 'product',
+      header: 'Product',
+      renderCell: (item) => (
+        <span className="text-[14px] text-secondary">
+          {item.requirements?.product_type || '-'}
+        </span>
+      )
+    },
+    {
+      id: 'quantity',
+      header: 'Quantity',
+      renderCell: (item) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[14px] font-bold text-primary">{Number(item.quantity).toLocaleString()}</span>
+          <span className="text-[11px] text-muted">{item.requirements?.unit || 'Bags'}</span>
+        </div>
+      )
+    },
+    {
+      id: 'bill',
+      header: 'Bill / LR',
+      renderCell: (item) => (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[13px]"><span className="text-muted">Inv:</span> {item.invoice_number || '-'}</span>
+          <span className="text-[13px]"><span className="text-muted">LR:</span> {item.lr_bilty_number || '-'}</span>
+        </div>
+      )
+    },
+    {
+      id: 'transport',
+      header: 'Transport',
+      renderCell: (item) => (
+        <div className="flex flex-col gap-0.5 max-w-[150px] truncate" title={item.transporter_name}>
+          <span className="text-[13px] font-medium">{item.transporter_name || '-'}</span>
+          <span className="text-[12px] text-secondary">{item.truck_number || '-'}</span>
+        </div>
+      )
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      renderCell: (item) => (
+        <span className={`badge ${getStatusBadgeClass(item.status)}`} style={{fontSize: '0.75rem', padding: '2px 6px'}}>
+          {item.status}
+        </span>
+      )
+    }
+  ];
+
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '4rem' }}>
       <div className="page-header" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem'}}>
@@ -444,10 +541,51 @@ Shubh Labh Team`;
             </div>
           </div>
 
-          {/* Table */}
+          {/* Tabs */}
+          <div style={{display: 'flex', gap: '2rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', overflowX: 'auto'}}>
+            {['Requirement-wise', 'Dispatch Report'].map(tab => (
+              <button 
+                key={tab}
+                className={`nav-item ${activeTab === tab ? 'active' : ''}`} 
+                style={{
+                  borderRadius: 0, 
+                  padding: '0.75rem 1rem', 
+                  whiteSpace: 'nowrap', 
+                  border: 'none', 
+                  background: 'transparent', 
+                  cursor: 'pointer', 
+                  fontWeight: activeTab === tab ? 600 : 500, 
+                  color: activeTab === tab ? 'var(--primary)' : 'var(--text-secondary)', 
+                  borderBottom: activeTab === tab ? '2px solid var(--primary)' : '2px solid transparent'
+                }} 
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab === 'Requirement-wise' ? 'Requirement-wise Dispatches' : 'Dispatch Report'}
+              </button>
+            ))}
+          </div>
+
+          {/* Table Container */}
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <h3 style={{ margin: 0 }}>Requirement-wise Dispatches</h3>
+              <h3 style={{ margin: 0 }}>
+                {activeTab === 'Requirement-wise' ? 'Requirement-wise Dispatches' : 'Dispatch Report'}
+              </h3>
+              
+              {activeTab === 'Dispatch Report' && (
+                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', background: 'var(--bg-base)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <div className="text-right">
+                    <div className="text-xs text-muted uppercase font-bold tracking-wide">Total Dispatches</div>
+                    <div className="text-lg font-bold text-primary">{flatReportData.length}</div>
+                  </div>
+                  <div style={{ width: '1px', height: '32px', background: 'var(--border)' }}></div>
+                  <div className="text-right">
+                    <div className="text-xs text-muted uppercase font-bold tracking-wide">Total Quantity</div>
+                    <div className="text-lg font-bold" style={{color: 'var(--success)'}}>{reportTotalQty.toLocaleString()}</div>
+                  </div>
+                </div>
+              )}
+
               <div style={{ position: 'relative', width: '250px' }}>
                 <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
                 <input 
@@ -460,7 +598,20 @@ Shubh Labh Team`;
               </div>
             </div>
 
-            {tableData.length === 0 ? (
+            {activeTab === 'Dispatch Report' ? (
+              flatReportData.length === 0 ? (
+                 <div style={{ padding: '4rem 2rem', textAlign: 'center' }} className="text-muted">
+                   No dispatches match your search or date filter.
+                 </div>
+              ) : (
+                <DataTable 
+                  columns={reportColumns} 
+                  data={flatReportData} 
+                  theadClassName="bg-slate-50 border-b border-base"
+                  tbodyClassName="divide-y divide-base"
+                />
+              )
+            ) : tableData.length === 0 ? (
                <div style={{ padding: '4rem 2rem', textAlign: 'center' }} className="text-muted">
                  {dispatches.length === 0 ? "No dispatches found for the selected date range." : "No requirements match your search."}
                </div>
