@@ -378,13 +378,13 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
             {brokers && brokers.some(b => !b.active) && (
               <div className="flex justify-center mt-4">
                 <button 
-                  className="btn btn-outline bg-white shadow-sm flex items-center px-6"
+                  className="btn btn-primary btn-sm flex items-center gap-2 px-4 whitespace-nowrap w-full sm:w-auto justify-center"
                   onClick={() => {
                     setShowDeactivated(!showDeactivated);
                     setCurrentPage(1);
                   }}
                 >
-                  {showDeactivated ? 'Hide Deactivated Brokers' : 'Show Deactivated Brokers'}
+                  <Power size={16} /> {showDeactivated ? 'Hide Deactivated Brokers' : 'Show Deactivated Brokers'}
                 </button>
               </div>
             )}
