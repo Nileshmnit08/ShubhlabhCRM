@@ -22,6 +22,53 @@ export default function DormantList() {
   const [reviewNote, setReviewNote] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
 
+  // Bulk Selection
+  const [selectedRows, setSelectedRows] = useState(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+  const toggleAllSelection = (e) => {
+    if (e.target.checked) {
+      setSelectedRows(new Set(candidates.map(c => c.party_id)));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
+  const toggleRowSelection = (id) => {
+    const next = new Set(selectedRows);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedRows(next);
+  };
+
+  const handleBulkExclude = async () => {
+    if (!userProfile) return;
+    if (!window.confirm(`Are you sure you want to exclude ${selectedRows.size} customers from the Dormant list?`)) return;
+    
+    setBulkActionLoading(true);
+    try {
+      const inserts = Array.from(selectedRows).map(id => ({
+        party_id: id,
+        user_id: userProfile.id,
+        channel: 'System',
+        interaction_type: 'Dormant Review',
+        outcome: 'EXCLUDED',
+        note: 'Bulk excluded from dormant candidates'
+      }));
+
+      const { error: insertErr } = await supabase.from('interactions').insert(inserts);
+      if (insertErr) throw insertErr;
+      
+      setSelectedRows(new Set());
+      fetchDormantCandidates();
+    } catch (err) {
+      console.error('Bulk exclude failed', err);
+      alert('Failed to exclude customers.');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchTeamMembers();
     fetchDormantCandidates();
@@ -106,6 +153,7 @@ export default function DormantList() {
       case 'NOT_DORMANT': return <span className="badge badge-success">Not Dormant</span>;
       case 'REVIEW_LATER': return <span className="badge badge-neutral">Review Later</span>;
       case 'APPROVED_FOR_REACTIVATION': return <span className="badge badge-primary">Reactivation Approved</span>;
+      case 'EXCLUDED': return <span className="badge badge-danger">Excluded</span>;
       default: return <span className="badge badge-neutral">{state}</span>;
     }
   };
@@ -130,6 +178,7 @@ export default function DormantList() {
             <option value="NOT_DORMANT">Not Dormant</option>
             <option value="REVIEW_LATER">Review Later</option>
             <option value="APPROVED_FOR_REACTIVATION">Approved for Reactivation</option>
+            <option value="EXCLUDED">Excluded</option>
             <option value="ALL">All States</option>
           </select>
         </div>
@@ -146,6 +195,20 @@ export default function DormantList() {
         )}
       </div>
 
+      {/* Bulk Action Bar */}
+      {selectedRows.size > 0 && (
+        <div className="glass-panel slide-up" style={{padding: '0.75rem 1.5rem', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--primary-light)', border: '1px solid var(--primary)'}}>
+          <div style={{fontWeight: 600, color: 'var(--text-primary)'}}>
+            {selectedRows.size} customers selected
+          </div>
+          <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
+            <button className="btn btn-secondary" onClick={handleBulkExclude} disabled={bulkActionLoading}>
+              {bulkActionLoading ? 'Excluding...' : 'Exclude from Dormant Candidates'}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="data-table-container" style={{marginTop: '1rem'}}>
         {error ? (
           <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}><p>{error}</p><button className="btn btn-secondary" onClick={fetchDormantCandidates}>Try Again</button></div>
@@ -161,6 +224,9 @@ export default function DormantList() {
           <table className="data-table mobile-cards-table">
             <thead>
               <tr>
+                <th style={{width: '40px', textAlign: 'center'}}>
+                  <input type="checkbox" checked={selectedRows.size === candidates.length && candidates.length > 0} onChange={toggleAllSelection} />
+                </th>
                 <th style={{width: '25%'}}>Customer</th>
                 <th style={{width: '20%'}}>Last Sale Date</th>
                 <th style={{width: '15%'}}>Days Inactive</th>
@@ -170,7 +236,10 @@ export default function DormantList() {
             </thead>
             <tbody>
               {candidates.map((c) => (
-                <tr key={c.party_id}>
+                <tr key={c.party_id} style={{background: selectedRows.has(c.party_id) ? 'rgba(255,255,255,0.05)' : 'transparent', transition: 'background 0.2s'}}>
+                  <td data-label="Select" style={{textAlign: 'center'}}>
+                    <input type="checkbox" checked={selectedRows.has(c.party_id)} onChange={() => toggleRowSelection(c.party_id)} />
+                  </td>
                   <td data-label="Customer">
                     <button 
                       onClick={() => setExpandedRow(c.party_id)}
