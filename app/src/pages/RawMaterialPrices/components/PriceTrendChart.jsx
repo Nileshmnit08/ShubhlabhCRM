@@ -11,7 +11,7 @@ import {
 import { TrendingUp, ArrowUpRight, ArrowDownRight, Minus, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendData, loading, timeRange = 30, onTimeRangeChange }) => {
+const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendData, loading, timeRange = 30, onTimeRangeChange, hideTitle }) => {
   
   const selectedMatInfo = materials.find(m => m.id === selectedMaterial);
   
@@ -30,6 +30,7 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
   return (
     <div className="glass-panel flex flex-col h-full overflow-hidden w-full relative">
       <div className="p-5" style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0' }}>
+      {!hideTitle && (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div>
             <h3 className="font-bold text-[17px] tracking-tight text-primary">Price Trend</h3>
@@ -48,6 +49,7 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
             ))}
           </select>
         </div>
+      )}
         
         <div className="flex flex-wrap items-end justify-between gap-4 mt-2">
           {selectedMatInfo && !loading && trendData.length > 0 ? (

@@ -227,44 +227,69 @@ const PriceAnalysis = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div>
-                <p className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">Current Avg</p>
-                <div className="text-2xl font-bold text-primary">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="glass-panel p-5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full -mr-12 -mt-12 transition-transform duration-500 group-hover:scale-110" style={{ background: 'var(--primary)', opacity: 0.05 }}></div>
+                <div className="flex items-center gap-2 mb-3 relative">
+                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center shadow-sm bg-base border border-base text-primary">
+                    <BarChart3 size={16} />
+                  </div>
+                  <h3 className="text-[12px] font-semibold tracking-wider uppercase text-secondary">Current Avg</h3>
+                </div>
+                <div className="text-[28px] font-bold tracking-tight tabular-nums leading-none text-primary relative mt-1">
                   {analysisData.currAvg > 0 ? `₹${analysisData.currAvg.toFixed(2)}` : 'N/A'}
                 </div>
-                {analysisData.currAvg > 0 && <p className="text-xs text-secondary mt-1">/ {analysisData.unit.toLowerCase()}</p>}
+                {analysisData.currAvg > 0 && <p className="text-[12px] mt-2 relative font-medium text-muted">/ {analysisData.unit.toLowerCase()}</p>}
               </div>
 
-              <div>
-                <p className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">Previous Avg</p>
-                <div className="text-xl font-semibold text-secondary">
+              <div className="glass-panel p-5 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full -mr-12 -mt-12 transition-transform duration-500 group-hover:scale-110" style={{ background: 'var(--text-muted)', opacity: 0.05 }}></div>
+                <div className="flex items-center gap-2 mb-3 relative">
+                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center shadow-sm bg-base border border-base text-secondary">
+                    <CalendarDays size={16} />
+                  </div>
+                  <h3 className="text-[12px] font-semibold tracking-wider uppercase text-secondary">Previous Avg</h3>
+                </div>
+                <div className="text-[28px] font-bold tracking-tight tabular-nums leading-none text-primary relative mt-1">
                   {analysisData.baseAvg > 0 ? `₹${analysisData.baseAvg.toFixed(2)}` : 'N/A'}
                 </div>
-                {analysisData.baseAvg > 0 && <p className="text-xs text-muted mt-1">/ {analysisData.unit.toLowerCase()}</p>}
+                {analysisData.baseAvg > 0 && <p className="text-[12px] mt-2 relative font-medium text-muted">/ {analysisData.unit.toLowerCase()}</p>}
               </div>
 
-              <div>
-                <p className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">Movement</p>
+              <div className="glass-panel p-5 relative overflow-hidden group">
+                <div className={`absolute top-0 right-0 w-24 h-24 rounded-bl-full -mr-12 -mt-12 transition-transform duration-500 group-hover:scale-110`} style={{ background: analysisData.diff > 0 ? 'var(--danger)' : analysisData.diff < 0 ? 'var(--success)' : 'var(--text-muted)', opacity: 0.05 }}></div>
+                <div className="flex items-center gap-2 mb-3 relative">
+                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center shadow-sm bg-base border border-base" style={{ color: analysisData.diff > 0 ? 'var(--danger)' : analysisData.diff < 0 ? 'var(--success)' : 'var(--text-secondary)' }}>
+                    {analysisData.diff === 0 ? <Minus size={16} /> : (analysisData.diff > 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />)}
+                  </div>
+                  <h3 className="text-[12px] font-semibold tracking-wider uppercase text-secondary">Movement</h3>
+                </div>
                 {analysisData.currAvg > 0 && analysisData.baseAvg > 0 ? (
-                  <div className={`text-xl font-bold flex items-center gap-1 ${analysisData.diff > 0 ? 'text-danger' : analysisData.diff < 0 ? 'text-success' : 'text-secondary'}`}>
+                  <div className={`text-[28px] font-bold tracking-tight tabular-nums leading-none relative mt-1 ${analysisData.diff > 0 ? 'text-danger' : analysisData.diff < 0 ? 'text-success' : 'text-primary'}`}>
                     {analysisData.diff > 0 ? '+' : ''}₹{Math.abs(analysisData.diff).toFixed(2)}
                   </div>
                 ) : (
-                  <div className="text-xl font-semibold text-secondary">N/A</div>
+                  <div className="text-[28px] font-bold tracking-tight tabular-nums leading-none text-primary relative mt-1">N/A</div>
                 )}
+                <p className="text-[12px] mt-2 relative font-medium text-muted">Change in value</p>
               </div>
 
-              <div>
-                <p className="text-xs uppercase tracking-wider text-muted font-semibold mb-1">% Change</p>
+              <div className="glass-panel p-5 relative overflow-hidden group">
+                <div className={`absolute top-0 right-0 w-24 h-24 rounded-bl-full -mr-12 -mt-12 transition-transform duration-500 group-hover:scale-110`} style={{ background: analysisData.diff > 0 ? 'var(--danger)' : analysisData.diff < 0 ? 'var(--success)' : 'var(--text-muted)', opacity: 0.05 }}></div>
+                <div className="flex items-center gap-2 mb-3 relative">
+                  <div className="w-8 h-8 rounded-[10px] flex items-center justify-center shadow-sm bg-base border border-base" style={{ color: analysisData.diff > 0 ? 'var(--danger)' : analysisData.diff < 0 ? 'var(--success)' : 'var(--text-secondary)' }}>
+                    {analysisData.diff === 0 ? <Minus size={16} /> : (analysisData.diff > 0 ? <TrendingUp size={16} /> : <TrendingDown size={16} />)}
+                  </div>
+                  <h3 className="text-[12px] font-semibold tracking-wider uppercase text-secondary">% Change</h3>
+                </div>
                 {analysisData.currAvg > 0 && analysisData.baseAvg > 0 ? (
-                  <div className={`text-xl font-bold flex items-center gap-1 ${analysisData.diff > 0 ? 'text-danger' : analysisData.diff < 0 ? 'text-success' : 'text-secondary'}`}>
-                    {analysisData.diff > 0 ? <TrendingUp size={20}/> : analysisData.diff < 0 ? <TrendingDown size={20}/> : <Minus size={20}/>}
+                  <div className={`text-[28px] font-bold tracking-tight tabular-nums leading-none relative mt-1 flex items-center gap-1 ${analysisData.diff > 0 ? 'text-danger' : analysisData.diff < 0 ? 'text-success' : 'text-primary'}`}>
                     {analysisData.diff > 0 ? '+' : ''}{analysisData.perc.toFixed(2)}%
                   </div>
                 ) : (
-                  <div className="text-xl font-semibold text-secondary">N/A</div>
+                  <div className="text-[28px] font-bold tracking-tight tabular-nums leading-none text-primary relative mt-1">N/A</div>
                 )}
+                <p className="text-[12px] mt-2 relative font-medium text-muted">Percentage shift</p>
               </div>
             </div>
           </div>
