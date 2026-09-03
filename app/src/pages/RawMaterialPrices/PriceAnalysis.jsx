@@ -219,20 +219,12 @@ const PriceAnalysis = () => {
       ) : analysisData ? (
         <div className="space-y-6">
           <div className="card p-6">
-            <div className="mb-6 pb-6 border-b border-base">
-              <h2 className="text-xl font-bold text-primary">{analysisData.materialNameEn} {analysisData.materialNameHi && <span className="text-secondary font-medium">({analysisData.materialNameHi})</span>}</h2>
-              <div className="flex items-center gap-2 text-sm text-secondary mt-1">
-                <span className="font-medium text-primary">{analysisData.currDateStr}</span>
-                <span className="text-muted">compared with</span>
-                <span className="font-medium text-primary">{analysisData.baseDateStr}</span>
-              </div>
-            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
               {/* Graphical Format */}
               <div className="card p-5">
-                <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider mb-4">Price Comparison Graph</h3>
+
                 <div className="h-[250px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart 
@@ -267,9 +259,7 @@ const PriceAnalysis = () => {
 
               {/* Table Format */}
               <div className="card p-0 overflow-hidden flex flex-col justify-center">
-                <div className="p-5 border-b border-base">
-                  <h3 className="text-sm font-semibold text-secondary uppercase tracking-wider">Comparison Table</h3>
-                </div>
+
                 <div className="data-table-container border-0 rounded-none h-full">
                   <table className="data-table w-full h-full">
                     <thead>
