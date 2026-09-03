@@ -7,6 +7,7 @@ import EmptyState from './EmptyState';
 import MasterDataSectionHeader from './MasterDataSectionHeader';
 import { normalizeMobile } from '../../../utils/phoneUtils';
 import { generateBrokerEnquiryMessage } from '../../../utils/whatsappUtils';
+import DataTable from '../../../components/DataTable';
 
 export default function BrokersTab({ brokers, materials, loading, onRefresh, showMessage }) {
   // Filters
@@ -143,26 +144,46 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
     }
   };
 
-  const renderBrokerRow = (b) => (
-    <tr key={b.id} className={`hover:bg-slate-50/80 transition-colors group ${!b.active ? 'opacity-70' : ''}`}>
-      <td data-label="Broker / Firm" className="px-6 py-4">
-        <div className="font-semibold text-[15px] text-primary">{b.broker_name}</div>
-        {b.firm_name && <div className="text-[13px] text-secondary mt-0.5">{b.firm_name}</div>}
-      </td>
-      <td data-label="Contact" className="px-6 py-4">
-        <div className="font-medium text-[14px] text-secondary">
-          {b.mobile || '-'}
-        </div>
-        {b.whatsapp_number && b.whatsapp_number !== b.mobile && (
-          <div className="text-[12px] text-emerald-600 mt-0.5 font-medium">WA: {b.whatsapp_number}</div>
-        )}
-      </td>
-      <td data-label="Location" className="px-6 py-4 text-[14px] text-secondary">
-        {b.market_location || '-'}
-        {b.state && b.market_location && `, `}
-        {b.state}
-      </td>
-      <td data-label="Materials Handled" className="px-6 py-4">
+  const brokerColumns = [
+    {
+      id: 'broker',
+      header: 'Broker / Firm',
+      renderCell: (b) => (
+        <>
+          <div className="font-semibold text-[15px] text-primary">{b.broker_name}</div>
+          {b.firm_name && <div className="text-[13px] text-secondary mt-0.5">{b.firm_name}</div>}
+        </>
+      )
+    },
+    {
+      id: 'contact',
+      header: 'Contact',
+      renderCell: (b) => (
+        <>
+          <div className="font-medium text-[14px] text-secondary">
+            {b.mobile || '-'}
+          </div>
+          {b.whatsapp_number && b.whatsapp_number !== b.mobile && (
+            <div className="text-[12px] text-emerald-600 mt-0.5 font-medium">WA: {b.whatsapp_number}</div>
+          )}
+        </>
+      )
+    },
+    {
+      id: 'location',
+      header: 'Location',
+      renderCell: (b) => (
+        <span className="text-[14px] text-secondary">
+          {b.market_location || '-'}
+          {b.state && b.market_location && `, `}
+          {b.state}
+        </span>
+      )
+    },
+    {
+      id: 'materials',
+      header: 'Materials Handled',
+      renderCell: (b) => (
         <div className="flex flex-wrap gap-1.5">
           {b.broker_materials && b.broker_materials.length > 0 ? (
             b.broker_materials.slice(0, 3).map(bm => {
@@ -182,11 +203,19 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
             </span>
           )}
         </div>
-      </td>
-      <td data-label="Status" className="px-6 py-4">
-        <StatusBadge active={b.active} />
-      </td>
-      <td data-label="Actions" className="px-6 py-4 text-right">
+      )
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      renderCell: (b) => <StatusBadge active={b.active} />
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      align: 'right',
+      width: 'w-36',
+      renderCell: (b) => (
         <div className="flex items-center justify-end gap-1 relative">
           {b.mobile && (
             <>
@@ -250,9 +279,9 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
             )}
           </div>
         </div>
-      </td>
-    </tr>
-  );
+      )
+    }
+  ];
 
   return (
     <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col mb-8">
@@ -294,61 +323,51 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
            <EmptyState icon={Users} title="No Brokers" description={hasActiveFilters ? "Try adjusting your filters." : "Add brokers to start tracking prices from them."} actionText="Add Broker" onAction={handleAddBroker} />
         ) : (
           <>
-            {/* Active Brokers Section */}
-            {paginatedActiveBrokers.length > 0 && (
-              <div className="bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col">
-                <div className="px-6 py-4 bg-white border-b border-base flex items-center justify-between">
-                  <h3 className="text-[16px] font-bold text-primary flex items-center gap-2">
-                    Active Brokers
-                  </h3>
-                  <span className="text-xs font-bold tracking-wide bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-full">{activeBrokers.length} Total</span>
+            {/* Dynamically Rendered Sections */}
+            {[
+              {
+                title: 'Active Brokers',
+                data: paginatedActiveBrokers,
+                totalCount: activeBrokers.length,
+                headerClasses: 'bg-white border-b border-base',
+                titleClasses: 'text-primary',
+                badgeClasses: 'bg-emerald-50 border border-emerald-200 text-emerald-700',
+                tableHeadClasses: 'bg-slate-50',
+                wrapperOpacity: '',
+                tbodyClass: 'divide-y divide-base'
+              },
+              {
+                title: 'Deactivated Brokers',
+                data: paginatedDeactivatedBrokers,
+                totalCount: deactivatedBrokers.length,
+                headerClasses: 'bg-slate-50 border-b border-base',
+                titleClasses: 'text-slate-500',
+                badgeClasses: 'bg-slate-200 border border-slate-300 text-slate-700',
+                tableHeadClasses: 'hidden sm:table-header-group bg-slate-100',
+                wrapperOpacity: 'opacity-90',
+                tbodyClass: 'divide-y divide-base bg-slate-50/50'
+              }
+            ].map(section => (
+              section.data.length > 0 && (
+                <div key={section.title} className={`bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col ${section.wrapperOpacity}`}>
+                  <div className={`px-6 py-4 flex items-center justify-between ${section.headerClasses}`}>
+                    <h3 className={`text-[16px] font-bold flex items-center gap-2 ${section.titleClasses}`}>
+                      {section.title}
+                    </h3>
+                    <span className={`text-xs font-bold tracking-wide px-2.5 py-1 rounded-full ${section.badgeClasses}`}>
+                      {section.totalCount} Total
+                    </span>
+                  </div>
+                  <DataTable 
+                    columns={brokerColumns} 
+                    data={section.data} 
+                    theadClassName={section.tableHeadClasses}
+                    tbodyClassName={section.tbodyClass}
+                    rowClassName={(row) => !row.active ? 'opacity-70' : ''}
+                  />
                 </div>
-                <div className="data-table-container border-0 rounded-none w-full overflow-x-auto">
-                  <table className="data-table mobile-cards-table w-full min-w-[900px]">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Broker / Firm</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Contact</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Location</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Materials Handled</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right w-36">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-base">
-                      {paginatedActiveBrokers.map(renderBrokerRow)}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-            
-            {/* Deactivated Brokers Section */}
-            {paginatedDeactivatedBrokers.length > 0 && (
-              <div className="bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col opacity-90">
-                <div className="px-6 py-4 bg-slate-50 border-b border-base flex items-center justify-between">
-                  <h3 className="text-[16px] font-bold text-slate-500">Deactivated Brokers</h3>
-                  <span className="text-xs font-bold tracking-wide bg-slate-200 border border-slate-300 text-slate-700 px-2.5 py-1 rounded-full">{deactivatedBrokers.length} Total</span>
-                </div>
-                <div className="data-table-container border-0 rounded-none w-full overflow-x-auto">
-                  <table className="data-table mobile-cards-table w-full min-w-[900px]">
-                    <thead className="hidden sm:table-header-group bg-slate-100">
-                      <tr>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Broker / Firm</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Contact</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Location</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Materials Handled</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right w-36">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-base bg-slate-50/50">
-                      {paginatedDeactivatedBrokers.map(renderBrokerRow)}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+              )
+            ))}
           </>
         )}
       </div>
