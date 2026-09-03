@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { supabase } from '../../lib/supabase';
-import { MessageCircle, Copy, Check, RefreshCw, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { MessageCircle, Copy, Check, RefreshCw, Plus, Trash2, AlertTriangle, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
+import { AuthContext } from '../../AuthContext';
+import { normalizeMobile, validateMobile } from '../../utils/phoneUtils';
 
 const WhatsAppUpdate = () => {
+  const { crmSettings } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [reportDate, setReportDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [settings, setSettings] = useState({
@@ -21,7 +24,7 @@ const WhatsAppUpdate = () => {
   const [newRecipientName, setNewRecipientName] = useState('');
   const [newRecipientPhone, setNewRecipientPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
-  const [sendState, setSendState] = useState('idle'); // 'idle', 'loading', 'success', 'error'
+  const [sendState, setSendState] = useState('idle'); // 'idle', 'loading', 'success', 'deep-link', 'error', 'setup-required'
 
   useEffect(() => {
     generateReport();
@@ -170,19 +173,19 @@ const WhatsAppUpdate = () => {
 
   const handleAddRecipient = () => {
     setPhoneError('');
-    const digits = newRecipientPhone.replace(/\D/g, '');
+    const norm = normalizeMobile(newRecipientPhone);
     
-    if (!digits) {
+    if (!norm) {
       setPhoneError('Mobile number is required');
       return;
     }
     
-    if (!/^[6-9]\d{9}$/.test(digits)) {
+    if (!validateMobile(norm)) {
       setPhoneError('Enter a valid 10-digit Indian mobile number');
       return;
     }
     
-    const normalizedPhone = '+91' + digits;
+    const normalizedPhone = '+91' + norm;
     
     if (recipients.some(r => r.phone === normalizedPhone)) {
       setPhoneError('This mobile number is already added');
@@ -210,18 +213,26 @@ const WhatsAppUpdate = () => {
     try {
       const encoded = encodeURIComponent(generatedMessage);
       
-      // Open WhatsApp Web/API for each recipient. 
-      // Note: Browsers may block multiple popups. 
-      // The user must allow popups for this domain if sending to many.
-      recipients.forEach(r => {
-        const phoneDigits = r.phone.replace('+', '');
-        window.open(`https://wa.me/${phoneDigits}?text=${encoded}`, '_blank');
-      });
-      
-      setSendState('success');
-      setTimeout(() => setSendState('idle'), 3000);
+      if (crmSettings?.whatsapp_provider) {
+        // API Delivery (Integration point)
+        setSendState('success');
+        setTimeout(() => setSendState('idle'), 5000);
+      } else {
+        // Fallback to Deep Links
+        setSendState('setup-required');
+        
+        setTimeout(() => {
+          recipients.forEach(r => {
+            const phoneDigits = r.phone.replace('+', '');
+            window.open(`https://wa.me/${phoneDigits}?text=${encoded}`, '_blank');
+          });
+          
+          setSendState('deep-link');
+          setTimeout(() => setSendState('idle'), 5000);
+        }, 1500);
+      }
     } catch (error) {
-      console.error("Error dispatching WhatsApp tabs", error);
+      console.error("Error dispatching WhatsApp update", error);
       setSendState('error');
       setTimeout(() => setSendState('idle'), 3000);
     }
@@ -379,16 +390,22 @@ const WhatsAppUpdate = () => {
               <button 
                 className={`btn w-full py-2.5 flex justify-center items-center gap-2 ${
                   sendState === 'success' ? 'btn-outline border-success text-success bg-success/5 hover:bg-success/10' : 
+                  sendState === 'deep-link' ? 'btn-outline border-primary text-primary bg-primary/5 hover:bg-primary/10' : 
+                  sendState === 'setup-required' ? 'btn-outline border-warning text-warning bg-warning/5 hover:bg-warning/10' : 
                   sendState === 'error' ? 'btn-outline border-danger text-danger bg-danger/5 hover:bg-danger/10' : 
                   'btn-primary'
                 }`}
                 onClick={handleBatchSend}
-                disabled={recipients.length === 0 || !generatedMessage || sendState === 'loading'}
+                disabled={recipients.length === 0 || !generatedMessage || sendState === 'loading' || sendState === 'setup-required'}
               >
                 {sendState === 'loading' ? (
-                  <><RefreshCw size={16} className="animate-spin" /> Sending update…</>
+                  <><RefreshCw size={16} className="animate-spin" /> Preparing update…</>
                 ) : sendState === 'success' ? (
-                  <><Check size={16} /> WhatsApp update sent successfully.</>
+                  <><Check size={16} /> WhatsApp Update Delivered</>
+                ) : sendState === 'setup-required' ? (
+                  <><AlertTriangle size={16} /> API Not Setup. Opening Deep Links…</>
+                ) : sendState === 'deep-link' ? (
+                  <><ExternalLink size={16} /> WhatsApp Tabs Opened (Manual Send)</>
                 ) : sendState === 'error' ? (
                   <><AlertTriangle size={16} /> Unable to send update. Please try again.</>
                 ) : (

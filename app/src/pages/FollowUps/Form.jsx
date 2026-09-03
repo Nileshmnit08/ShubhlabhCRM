@@ -5,6 +5,7 @@ import { useNavigate, useParams, Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Save, X, Search } from 'lucide-react';
 import { LanguageContext } from '../../LanguageContext';
 import { AuthContext } from '../../AuthContext';
+import { normalizeMobile, validateMobile } from '../../utils/phoneUtils';
 
 export default function FollowUpForm() {
   const { id } = useParams();
@@ -30,22 +31,6 @@ export default function FollowUpForm() {
   const [mobileInput, setMobileInput] = useState('');
   const [customerMobileFromDb, setCustomerMobileFromDb] = useState('');
   const [mobileValidationError, setMobileValidationError] = useState('');
-
-  const normalizeMobile = (val) => {
-    if (!val) return '';
-    let cleaned = val.replace(/[^0-9]/g, '');
-    if (cleaned.length === 12 && cleaned.startsWith('91')) {
-      cleaned = cleaned.substring(2);
-    } else if (cleaned.length === 11 && cleaned.startsWith('0')) {
-      cleaned = cleaned.substring(1);
-    }
-    return cleaned;
-  };
-
-  const validateMobile = (val) => {
-    const norm = normalizeMobile(val);
-    return /^[6-9]\d{9}$/.test(norm);
-  };
   
   const getNextActionConfig = (outcome, followUpType) => {
     if (followUpType === 'Lead' || followUpType === 'Reactivation') {
