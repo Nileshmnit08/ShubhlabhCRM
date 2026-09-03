@@ -214,9 +214,9 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
       id: 'actions',
       header: 'Actions',
       align: 'right',
-      width: 'w-36',
+      width: 'w-40', // slightly wider to accommodate nowrapped content securely
       renderCell: (b) => (
-        <div className="flex items-center justify-end gap-1 relative">
+        <div className="flex items-center justify-end gap-1 relative flex-nowrap whitespace-nowrap">
           {b.mobile && (
             <>
               <a 
