@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Search, Calendar, Clock, AlertCircle, CheckCircle2, Phone, MessageSquare, RefreshCw, User, X } from 'lucide-react';
 import { LanguageContext } from '../../LanguageContext';
 import { logActivity } from '../../lib/activityLogger';
+import FollowUpReport from './FollowUpReport';
 
 export default function FollowUpList() {
   const [followUps, setFollowUps] = useState([]);
@@ -84,6 +85,9 @@ export default function FollowUpList() {
 
       if (activeTab === 'Completed') {
         query = query.eq('status', 'Completed').order('completed_at', { ascending: false });
+      } else if (activeTab === 'Report') {
+        setLoading(false);
+        return;
       } else {
         query = query.neq('status', 'Completed').neq('status', 'Cancelled');
         
@@ -339,27 +343,31 @@ export default function FollowUpList() {
           <Search size={18} className="text-secondary" style={{position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)'}} />
           <input 
             type="text" 
-            placeholder={t('list.searchPlaceholder')}
+            placeholder={t('list.searchPlaceholder') || 'Search...'}
             style={{paddingLeft: '2.5rem', width: '100%', background: 'var(--bg-surface)'}}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         
-        <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{background: 'var(--bg-surface)'}}>
-            <option value="All">All Types</option>
-            <option value="Payment">Payment</option>
-            <option value="Lead">Lead</option>
-            <option value="Commercial">Commercial</option>
-            <option value="General">General</option>
-        </select>
-        
-        <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{background: 'var(--bg-surface)'}}>
-            <option value="All">All Priorities</option>
-            <option value="High">High</option>
-            <option value="Normal">Normal</option>
-            <option value="Low">Low</option>
-        </select>
+        {activeTab !== 'Report' && (
+          <>
+            <select value={filterType} onChange={e => setFilterType(e.target.value)} style={{background: 'var(--bg-surface)'}}>
+                <option value="All">All Types</option>
+                <option value="Payment">Payment</option>
+                <option value="Lead">Lead</option>
+                <option value="Commercial">Commercial</option>
+                <option value="General">General</option>
+            </select>
+            
+            <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{background: 'var(--bg-surface)'}}>
+                <option value="All">All Priorities</option>
+                <option value="High">High</option>
+                <option value="Normal">Normal</option>
+                <option value="Low">Low</option>
+            </select>
+          </>
+        )}
         
         {activeTab === 'Today' && (
             <button className="btn btn-primary" onClick={startCalling} disabled={filteredItems.length === 0}>
@@ -370,7 +378,7 @@ export default function FollowUpList() {
 
       {/* Tabs */}
       <div style={{display: 'flex', gap: '2rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', overflowX: 'auto'}}>
-        {['Today', 'Overdue', 'Upcoming', 'Completed'].map(tab => (
+        {['Today', 'Overdue', 'Upcoming', 'Completed', 'Report'].map(tab => (
           <button 
             key={tab}
             className={`nav-item ${activeTab === tab ? 'active' : ''}`} 
@@ -383,7 +391,9 @@ export default function FollowUpList() {
       </div>
 
       {/* List */}
-      {loading ? (
+      {activeTab === 'Report' ? (
+        <FollowUpReport searchQuery={searchQuery} />
+      ) : loading ? (
         <div style={{padding: '3rem', textAlign: 'center'}}>Loading...</div>
       ) : filteredItems.length === 0 ? (
         <div className="glass-panel" style={{padding: '4rem 2rem', textAlign: 'center'}}>
