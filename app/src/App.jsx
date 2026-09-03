@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import { AuthContext } from './AuthContext';
 import { LanguageContext } from './LanguageContext';
@@ -54,6 +54,13 @@ const Placeholder = ({ title }) => (
     <p className="text-secondary" style={{marginTop: '1rem'}}>This module will be built in a future sprint.</p>
   </div>
 );
+
+const AdminRoute = () => {
+  const { userProfile } = React.useContext(AuthContext);
+  if (!userProfile) return null;
+  if (userProfile.role !== 'Admin') return <Navigate to="/" replace />;
+  return <Outlet />;
+};
 
 function App() {
   const [session, setSession] = React.useState(null);
@@ -207,30 +214,12 @@ function App() {
             <Route path="/" element={<AppShell />}>
               <Route index element={<Today />} />
               
+              {/* Operational Areas (Daily Work) - Available to all Users */}
               <Route path="customers">
                 <Route index element={<CustomerList />} />
                 <Route path="new" element={<CustomerForm />} />
                 <Route path=":id" element={<CustomerView />} />
                 <Route path=":id/edit" element={<CustomerForm />} />
-              </Route>
-              
-              <Route path="leads">
-                <Route index element={<CustomerList isLeadMode />} />
-                <Route path="new" element={<CustomerForm isLeadMode />} />
-                <Route path=":id" element={<CustomerView isLeadMode />} />
-                <Route path=":id/edit" element={<CustomerForm isLeadMode />} />
-              </Route>
-              
-              <Route path="opportunities" element={<Opportunities />} />
-              
-              <Route path="dormant" element={<DormantList />} />
-              <Route path="reactivation" element={<ReactivationQueue />} />
-              
-              <Route path="data">
-                <Route index element={<Navigate to="import" replace />} />
-                <Route path="import" element={<DataImport />} />
-                <Route path="review" element={<ReviewQueue />} />
-                <Route path="quality" element={<DataQuality />} />
               </Route>
               <Route path="requirements">
                 <Route index element={<RequirementList />} />
@@ -244,27 +233,46 @@ function App() {
                 <Route path=":id/edit" element={<FollowUpForm />} />
               </Route>
               <Route path="payments" element={<PaymentWorkspace />} />
-              
-              <Route path="activity" element={<ActivityTimeline />} />
-              <Route path="reports/follow-up-activity" element={<FollowUpActivityReport />} />
-              <Route path="performance" element={<Performance />} />
-              <Route path="control-room" element={<ControlRoom />} />
-              <Route path="account-control" element={<AccountControl />} />
-              <Route path="dealer-control" element={<DealerControlTower />} />
-              <Route path="demand-signals" element={<DemandSignals />} />
-              <Route path="product-demand" element={<ProductDemand />} />
-              <Route path="territory-demand" element={<TerritoryDemand />} />
-              <Route path="demand-control-tower" element={<DemandControlTower />} />
-              <Route path="coverage" element={<CoverageIntelligence />} />
-              <Route path="automation-control" element={<AutomationControl />} />
-              <Route path="raw-material-prices/*" element={<RawMaterialPrices />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="logistics" element={<Logistics />} />
-
               <Route path="dispatches">
                 <Route index element={<DispatchDashboard />} />
                 <Route path="list" element={<DispatchList />} />
                 <Route path=":id" element={<DispatchDetail />} />
+              </Route>
+
+              {/* Admin-Only Routes */}
+              <Route element={<AdminRoute />}>
+                <Route path="leads">
+                  <Route index element={<CustomerList isLeadMode />} />
+                  <Route path="new" element={<CustomerForm isLeadMode />} />
+                  <Route path=":id" element={<CustomerView isLeadMode />} />
+                  <Route path=":id/edit" element={<CustomerForm isLeadMode />} />
+                </Route>
+                <Route path="opportunities" element={<Opportunities />} />
+                <Route path="dormant" element={<DormantList />} />
+                <Route path="reactivation" element={<ReactivationQueue />} />
+                
+                <Route path="data">
+                  <Route index element={<Navigate to="import" replace />} />
+                  <Route path="import" element={<DataImport />} />
+                  <Route path="review" element={<ReviewQueue />} />
+                  <Route path="quality" element={<DataQuality />} />
+                </Route>
+                
+                <Route path="activity" element={<ActivityTimeline />} />
+                <Route path="reports/follow-up-activity" element={<FollowUpActivityReport />} />
+                <Route path="performance" element={<Performance />} />
+                <Route path="control-room" element={<ControlRoom />} />
+                <Route path="account-control" element={<AccountControl />} />
+                <Route path="dealer-control" element={<DealerControlTower />} />
+                <Route path="demand-signals" element={<DemandSignals />} />
+                <Route path="product-demand" element={<ProductDemand />} />
+                <Route path="territory-demand" element={<TerritoryDemand />} />
+                <Route path="demand-control-tower" element={<DemandControlTower />} />
+                <Route path="coverage" element={<CoverageIntelligence />} />
+                <Route path="automation-control" element={<AutomationControl />} />
+                <Route path="raw-material-prices/*" element={<RawMaterialPrices />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="logistics" element={<Logistics />} />
               </Route>
               
               <Route path="*" element={<Navigate to="/" replace />} />

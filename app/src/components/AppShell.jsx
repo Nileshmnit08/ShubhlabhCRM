@@ -171,6 +171,10 @@ export default function AppShell() {
   };
 
   const renderNavItem = (path) => {
+    // Only allow specific operational areas for non-Admins
+    if (userProfile?.role !== 'Admin' && !defaultPinned.includes(path)) return null;
+    
+    // Existing admin-specific hiding (redundant now but safe to keep)
     if (['/data', '/data/quality', '/control-room', '/account-control', '/dealer-control', '/automation-control'].includes(path) && userProfile?.role !== 'Admin') return null;
     
     const itemInfo = allNavItems.find(item => item.path === path);
@@ -299,7 +303,7 @@ export default function AppShell() {
             )}
           </div>
 
-          {menuGroups.map(group => (
+          {userProfile?.role === 'Admin' && menuGroups.map(group => (
             <div key={group.id} className="nav-group">
               <button 
                 className="nav-section-header" 
