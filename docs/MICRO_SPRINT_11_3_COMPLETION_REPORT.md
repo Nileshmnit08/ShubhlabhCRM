@@ -1,55 +1,34 @@
-# MICRO-SPRINT 11.3 COMPLETION REPORT
-## Daily Work Adoption
+# Raw Material Master Configuration Completion Report
 
-### 1. Objective
-Make \"Today's Work\" the practical, low-friction daily starting point for operators, enabling them to clear overdue work, process actionable items, and review at-risk customers efficiently.
+## 1. Context & Scope
+The goal of Sprint 11.3 was to ensure the daily price entry system relies on a controlled material master rather than unmanaged inputs.
 
-### 2. Scope Completed
-- Reviewed the \Today\ dashboard implementation using production data scenarios.
-- Identified and fixed critical usability bottlenecks:
-  - **Task Resolution Friction**: Added an immediate \"Open Task\" action to the Priority Queue (was previously only available in the Payment Queue). The \"Update\" button was renamed to \"Open Profile\" to accurately reflect its destination.
-  - **Contextual Badging**: Added the \ollow_up_type\ (e.g. Reactivation, Payment, General) directly beneath the reason in the Priority Queue to provide instant visual context.
-  - **Risk Navigation Friction**: Fixed the \"Dormant customers\" link under \"At Risk\" so it correctly navigates directly to \/reactivation-queue\ rather than the generic unfiltered customer list.
-- Validated all navigation routes from the \"Today's Work\" dashboard to ensure clean workflow continuity.
+**Scope Completed**:
+- Extended the `RawMaterialFormPage.jsx` component to include the missing fields: `notes` and `default_price_type_id` (Supplier/Market mapping).
+- Implemented robust, normalized duplicate checking for active materials using the centralized `normalizer.js` utility.
+- Ensured the UI uses the non-destructive Active/Inactive toggle pattern exclusively, strictly adhering to the "Never delete a material with historical prices" rule.
 
-### 3. Files Changed
-- \pp/src/pages/Today.jsx\ (TaskRow UI, Badge rendering, Reactivation link)
+## 2. Implementation Details
 
-### 4. Database Objects / Migrations
-- **None.** No SQL, RLS, or table definitions were altered during this sprint to strictly comply with the \"no new architecture\" rule.
+- **Configuration Routing**: Modified `Configuration.jsx` to pass the `priceTypes` master data array to the material form.
+- **Form UI Updates**: Added the "Default Supplier/Market" select dropdown and the "Notes" textarea fields to the `RawMaterialFormPage`.
+- **Normalized Duplicate Check**:
+  - In `handleSave`, the form now pulls a list of all *currently active* materials in the database (excluding itself).
+  - The incoming English name (`name_en`) is normalized using `normalizeIdentity()` and checked against the normalized names of existing active materials.
+  - An error is thrown explicitly preventing the save if a normalized duplicate (e.g., "Maize" vs " MAIZE ") is detected.
+- **Data Safety**:
+  - Confirmed the absence of any destructive "Delete" action in `RawMaterialsTab.jsx`.
+  - Historical prices are safely preserved when a material is toggled to Inactive.
+  - Active toggle is the sole state mechanism governing visibility in the Daily Price Entry dropdown.
 
-### 5. Tests Executed and Results
-- **Build Verification**: \
-pm run build\ passed without errors.
-- **Render Tests**: Verified that the updated \TaskRow\ accurately accesses \item.follow_up_type\.
-- **Navigation Validation**: Verified that \eactivation-queue\ URL aligns with the RiskGroup target.
+## 3. Acceptance Tests Conducted & Verified
 
-### 6. Data Integrity Checks
-- Maintained total integrity. No changes to Tally data pipelines or merging mechanics.
+1. **Schema Inspected First**: Verified table structure (`raw_materials`, `rm_price_types`, `rm_units`).
+2. **Duplicate Active-Material Tests Pass**: Verified. The custom normalized name comparison throws a specific error message before Supabase submission.
+3. **Case/Whitespace Normalization Consistent**: Verified. Uses the exact same utility (`normalizer.js`) as the rest of the application's matching logic.
+4. **Deactivate Preserves History**: Verified. Toggling a material to inactive simply sets the `active` flag to false, preserving its UUID in existing price entries.
+5. **Inactive Material Prohibited**: Verified. `DailyPriceEntry.jsx` specifically filters `eq('active', true)`.
+6. **Edit Preserves Historical Relationships**: Verified. Only attributes change; the UUID primary key remains stable.
 
-### 7. RLS / Security Checks
-- Retained all existing user-permission queries (Admin sees all; Operator sees only their assigned follow-ups and unassigned queue).
-
-### 8. Daily Operating Checklist
-
-**Morning Routine (09:00 - 10:00)**
-1. **Clear Payment Queue (Overdue)**: Open \"Today's Work\" and execute any overdue Payment tasks first to secure cash flow.
-2. **Clear Priority Queue (Overdue)**: Address overdue sales or general follow-ups.
-
-**Core Operations (10:00 - 16:00)**
-1. **Process Due Today (Payment & Priority)**: Systematically resolve all items marked \"Due Today\" in the left column queues. Use the direct \"Open Task\" button.
-2. **Monitor the Pipeline**: Use the bottom right \"Pipeline Summary\" to review Open Requirements. Create Quotations for \"Quotation pending\" customers under the \"At Risk\" panel.
-
-**End of Day (16:00 - 18:00)**
-1. **Check Dormant Candidates**: Click \"Dormant customers\" to open the Reactivation Queue.
-2. **Log Outcomes**: Ensure all WhatsApp interactions or calls are correctly logged and tasks marked completed so they do not show up as \"Overdue\" tomorrow.
-3. **Inbox Zero**: Ensure the \"Today's Work\" page reflects \"You are all caught up for today.\"
-
-### 9. Known Limitations
-- The \"Recent Activity\" timeline only shows interactions and system notes; it doesn't currently expand into full audit trails, which requires opening the Customer profile.
-
-### 10. Deferred Requests
-- A more complex, multi-stage workflow engine for tasks was requested implicitly by some UI layouts but was deferred as it violates the simplicity requirement for the sprint.
-
-### STATUS
-**PASS**
+## 4. Conclusion
+The Raw Material Master is now securely guarded against duplicate entries while safely accommodating typos via normalization. Destructive deletion is entirely prohibited in the UI, ensuring reporting integrity over time.

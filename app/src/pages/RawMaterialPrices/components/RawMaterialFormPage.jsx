@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
 import { ChevronRight, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { normalizeIdentity } from '../../../utils/normalizer';
 
 const CATEGORIES = ['Grain', 'Bran', 'Oil Cake', 'Protein Source', 'Mineral', 'Additive', 'Other'];
 
-export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
+export default function RawMaterialFormPage({ units, priceTypes, onRefresh, showMessage }) {
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
@@ -19,6 +20,8 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
     name_hi: '',
     category: '',
     default_unit_id: '',
+    default_price_type_id: '',
+    notes: '',
     daily_tracking_required: true,
     active: true,
     display_order: 99
@@ -34,6 +37,8 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
           name_hi: material.name_hi || '',
           category: material.category || '',
           default_unit_id: material.default_unit_id || '',
+          default_price_type_id: material.default_price_type_id || '',
+          notes: material.notes || '',
           daily_tracking_required: material.daily_tracking_required,
           active: material.active,
           display_order: material.display_order || 99
@@ -49,6 +54,8 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
         name_hi: material.name_hi || '',
         category: material.category || '',
         default_unit_id: material.default_unit_id || '',
+        default_price_type_id: material.default_price_type_id || '',
+        notes: material.notes || '',
         daily_tracking_required: material.daily_tracking_required,
         active: material.active,
         display_order: material.display_order || 99
@@ -71,6 +78,8 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
           name_hi: data.name_hi || '',
           category: data.category || '',
           default_unit_id: data.default_unit_id || '',
+          default_price_type_id: data.default_price_type_id || '',
+          notes: data.notes || '',
           daily_tracking_required: data.daily_tracking_required,
           active: data.active,
           display_order: data.display_order || 99
@@ -94,15 +103,30 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
       if (!formData.default_unit_id) throw new Error("Default Unit is required.");
 
       // Check unique code
-      const { data: existing } = await supabase
+      const { data: existingCode } = await supabase
         .from('raw_materials')
         .select('id')
         .eq('code', formData.code.trim())
         .neq('id', id || '00000000-0000-0000-0000-000000000000')
         .maybeSingle();
       
-      if (existing) {
+      if (existingCode) {
         throw new Error("This Material Code is already in use.");
+      }
+
+      // Check unique normalized name among active materials
+      const incomingNorm = normalizeIdentity(formData.name_en);
+      const { data: activeMaterials } = await supabase
+        .from('raw_materials')
+        .select('id, name_en')
+        .eq('active', true)
+        .neq('id', id || '00000000-0000-0000-0000-000000000000');
+        
+      if (activeMaterials) {
+        const isDuplicate = activeMaterials.some(m => normalizeIdentity(m.name_en) === incomingNorm);
+        if (isDuplicate) {
+          throw new Error("An active material with this name already exists.");
+        }
       }
 
       const payload = {
@@ -111,6 +135,8 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
         name_hi: formData.name_hi.trim(),
         category: formData.category,
         default_unit_id: formData.default_unit_id,
+        default_price_type_id: formData.default_price_type_id || null,
+        notes: formData.notes || null,
         daily_tracking_required: formData.daily_tracking_required,
         active: formData.active,
         display_order: formData.display_order
@@ -225,6 +251,27 @@ export default function RawMaterialFormPage({ units, onRefresh, showMessage }) {
                 <option value="" disabled>Select unit...</option>
                 {units.map(u => <option key={u.id} value={u.id}>{u.unit_name}</option>)}
               </select>
+            </div>
+            <div>
+              <label>Default Supplier/Market</label>
+              <select 
+                value={formData.default_price_type_id}
+                onChange={e => setFormData({...formData, default_price_type_id: e.target.value})}
+              >
+                <option value="">None</option>
+                {priceTypes?.map(pt => <option key={pt.id} value={pt.id}>{pt.type_name}</option>)}
+              </select>
+            </div>
+            
+            <div style={{gridColumn: '1 / -1'}}>
+              <label>Notes</label>
+              <textarea 
+                placeholder="Optional notes or context about this material..."
+                value={formData.notes}
+                onChange={e => setFormData({...formData, notes: e.target.value})}
+                rows={2}
+                className="w-full p-2 border border-base rounded-md text-sm"
+              />
             </div>
           </div>
 

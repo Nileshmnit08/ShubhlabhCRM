@@ -142,14 +142,16 @@ const Configuration = () => {
             } />
             <Route path="raw-materials/new" element={
               <RawMaterialFormPage 
-                units={units} 
+                units={units}
+                priceTypes={priceTypes} 
                 onRefresh={fetchData} 
                 showMessage={showMessage} 
               />
             } />
             <Route path="raw-materials/:id/edit" element={
               <RawMaterialFormPage 
-                units={units} 
+                units={units}
+                priceTypes={priceTypes} 
                 onRefresh={fetchData} 
                 showMessage={showMessage} 
               />
