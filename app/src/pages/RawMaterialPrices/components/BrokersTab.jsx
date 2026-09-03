@@ -12,6 +12,7 @@ import DataTable from '../../../components/DataTable';
 export default function BrokersTab({ brokers, materials, loading, onRefresh, showMessage }) {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [showDeactivated, setShowDeactivated] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,6 +47,10 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
   const filteredData = useMemo(() => {
     let result = brokers || [];
 
+    if (!showDeactivated) {
+      result = result.filter(b => b.active);
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(b => 
@@ -56,7 +61,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
     }
 
     return result;
-  }, [brokers, searchQuery]);
+  }, [brokers, searchQuery, showDeactivated]);
 
   // Split data into active and deactivated
   const activeBrokers = useMemo(() => filteredData.filter(b => b.active), [filteredData]);
@@ -82,10 +87,11 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
   const paginatedActiveBrokers = paginatedData.filter(b => b.active);
   const paginatedDeactivatedBrokers = paginatedData.filter(b => !b.active);
 
-  const hasActiveFilters = searchQuery !== '';
+  const hasActiveFilters = searchQuery !== '' || showDeactivated;
 
   const resetFilters = () => {
     setSearchQuery('');
+    setShowDeactivated(false);
     setCurrentPage(1);
   };
 
@@ -306,6 +312,16 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
         </div>
         
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          <button 
+            onClick={() => {
+              setShowDeactivated(!showDeactivated);
+              setCurrentPage(1);
+            }}
+            className={`text-sm font-medium px-3 py-1.5 rounded-md transition-colors border ${showDeactivated ? 'bg-slate-100 text-slate-700 border-slate-300 shadow-inner' : 'bg-white text-secondary hover:bg-slate-50 border-base/80 shadow-sm'}`}
+          >
+            {showDeactivated ? 'Hide Deactivated' : 'Show Deactivated'}
+          </button>
+          
           {hasActiveFilters && (
             <button onClick={resetFilters} className="text-sm font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-1.5 rounded-md transition-colors">
               <X size={14} /> Clear
