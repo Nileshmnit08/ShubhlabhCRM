@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Users, AlertTriangle, Building2, MapPin, Phone, X, CheckCircle2 } from 'lucide-react';
+import { Users, AlertTriangle, Building2, MapPin, Phone, X, CheckCircle2, Search } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
 
 export default function DormantList() {
@@ -14,7 +14,8 @@ export default function DormantList() {
   // Filters
   const [filters, setFilters] = useState({
     review_state: 'PENDING', // PENDING, NOT_DORMANT, REVIEW_LATER, APPROVED_FOR_REACTIVATION, ALL
-    owner_id: 'ALL'
+    owner_id: 'ALL',
+    search: ''
   });
 
   // Slide-over drawer state
@@ -102,6 +103,10 @@ export default function DormantList() {
         query = query.eq('assigned_owner_id', filters.owner_id);
       }
 
+      if (filters.search) {
+        query = query.ilike('display_name', `%${filters.search}%`);
+      }
+
       // RLS safety check if needed, but the view should handle it or standard policies apply
       if (userProfile?.role !== 'Admin') {
          query = query.eq('assigned_owner_id', userProfile?.id);
@@ -171,6 +176,28 @@ export default function DormantList() {
       </div>
 
       <div className="glass-panel" style={{margin: '1.5rem 0', display: 'flex', flexWrap: 'wrap', gap: '1rem', padding: '1.25rem', backgroundColor: 'var(--bg-surface)'}}>
+        <div style={{flex: '1 1 200px'}}>
+          <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Search Customer</label>
+          <div style={{position: 'relative'}}>
+            <Search size={16} style={{position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)'}} />
+            <input 
+              type="text" 
+              placeholder="Search by name..." 
+              value={filters.search} 
+              onChange={e => setFilters(p => ({...p, search: e.target.value}))}
+              style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem 0 2rem', fontSize: '0.85rem', color: 'var(--text-primary)'}}
+            />
+            {filters.search && (
+              <button 
+                onClick={() => setFilters(p => ({...p, search: ''}))}
+                style={{position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', color: 'var(--text-muted)'}}
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
+
         <div style={{flex: '1 1 200px'}}>
           <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Review State</label>
           <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={filters.review_state} onChange={e => setFilters(p => ({...p, review_state: e.target.value}))}>
