@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import DataTable from '../components/DataTable';
-import { Truck, Search, AlertCircle, Phone, MapPin, Edit2, ShieldAlert, X, Plus, Trash2, ShieldOff, CheckCircle2 } from 'lucide-react';
+import { Truck, Search, AlertCircle, Phone, MapPin, Edit2, ShieldAlert, X, Plus, Trash2, ShieldOff, CheckCircle2, UserPlus } from 'lucide-react';
 
 export default function Logistics() {
   const [loading, setLoading] = useState(true);
@@ -18,9 +18,11 @@ export default function Logistics() {
   const [searchName, setSearchName] = useState('');
   const [searchLocation, setSearchLocation] = useState('');
 
-  // Edit Locations Modal State
-  const [editModalOpen, setEditModalOpen] = useState(false);
+  // Add / Edit Modal State
+  const [modalMode, setModalMode] = useState(null); // 'ADD' or 'EDIT'
   const [selectedTransporter, setSelectedTransporter] = useState(null);
+  const [formName, setFormName] = useState('');
+  const [formContact, setFormContact] = useState('');
   const [newLocation, setNewLocation] = useState('');
   const [tempLocations, setTempLocations] = useState([]); // Array of strings currently visible
   const [addedLocations, setAddedLocations] = useState([]);
@@ -40,7 +42,6 @@ export default function Logistics() {
         .select('*');
         
       if (metaErr && metaErr.code !== '42P01') { 
-        // 42P01 means table doesn't exist yet, we can gracefully degrade if the user hasn't run the SQL
         console.error("Metadata fetch error:", metaErr);
       }
       
@@ -101,6 +102,20 @@ export default function Logistics() {
         
         map[name].dispatchCount += 1;
       });
+
+      // Include purely manual transporters from metadata
+      Object.keys(metaMap).forEach(name => {
+        if (!map[name]) {
+          map[name] = {
+            id: name,
+            name: name,
+            dynamicCities: new Set(),
+            mobiles: new Set(),
+            trucks: new Set(),
+            dispatchCount: 0
+          };
+        }
+      });
       
       // 3. Merge metadata and dispatch data
       const activeList = [];
@@ -124,7 +139,8 @@ export default function Logistics() {
           trucksList: Array.from(t.trucks).filter(Boolean).sort(),
           isFraud: meta.is_fraud === true,
           addedLocations: added,
-          removedLocations: removed
+          removedLocations: removed,
+          contactNumber: meta.contact_number || ''
         };
         
         if (mergedObj.isFraud) {
@@ -142,7 +158,7 @@ export default function Logistics() {
       
     } catch (err) {
       console.error(err);
-      setError("Failed to load transporters data. If you just deployed, make sure you run the SQL migration for transporter_metadata.");
+      setError("Failed to load transporters data. Ensure SQL migrations are applied.");
     } finally {
       setLoading(false);
     }
@@ -166,17 +182,34 @@ export default function Logistics() {
       await fetchTransporters();
     } catch (err) {
       console.error(err);
-      alert("Failed to update status. Please make sure the SQL migration has been applied.");
+      alert("Failed to update status.");
     }
   };
 
-  const handleOpenEditLocations = (transporter) => {
+  const openAddModal = () => {
+    setModalMode('ADD');
+    setFormName('');
+    setFormContact('');
+    setTempLocations([]);
+    setAddedLocations([]);
+    setRemovedLocations([]);
+    setNewLocation('');
+  };
+
+  const openEditModal = (transporter) => {
     setSelectedTransporter(transporter);
+    setModalMode('EDIT');
+    setFormName(transporter.name);
+    setFormContact(transporter.contactNumber || '');
     setTempLocations([...transporter.citiesList]);
     setAddedLocations([...transporter.addedLocations]);
     setRemovedLocations([...transporter.removedLocations]);
     setNewLocation('');
-    setEditModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setModalMode(null);
+    setSelectedTransporter(null);
   };
 
   const handleAddLocation = () => {
@@ -186,7 +219,6 @@ export default function Logistics() {
     
     setTempLocations([...tempLocations, loc].sort());
     setAddedLocations([...addedLocations, loc]);
-    // If it was previously removed, we should probably take it out of removed array
     setRemovedLocations(removedLocations.filter(r => r !== loc));
     
     setNewLocation('');
@@ -195,26 +227,33 @@ export default function Logistics() {
   const handleRemoveLocation = (loc) => {
     setTempLocations(tempLocations.filter(l => l !== loc));
     setRemovedLocations([...removedLocations, loc]);
-    // If it was in added, remove it from added
     setAddedLocations(addedLocations.filter(a => a !== loc));
   };
 
-  const handleSaveLocations = async () => {
+  const handleSaveTransporter = async () => {
+    if (!formName.trim()) {
+      alert("Transporter Name is required.");
+      return;
+    }
+
     try {
+      const payload = {
+        transporter_name: formName.trim(),
+        contact_number: formContact.trim() || null,
+        added_locations: addedLocations,
+        removed_locations: removedLocations
+      };
+
       const { error } = await supabase
         .from('transporter_metadata')
-        .upsert({ 
-          transporter_name: selectedTransporter.name, 
-          added_locations: addedLocations,
-          removed_locations: removedLocations
-        }, { onConflict: 'transporter_name' });
+        .upsert(payload, { onConflict: 'transporter_name' });
         
       if (error) throw error;
-      setEditModalOpen(false);
+      closeModal();
       await fetchTransporters();
     } catch (err) {
       console.error(err);
-      alert("Failed to save locations. Please make sure the SQL migration has been applied.");
+      alert("Failed to save transporter. Ensure the DB migration was run.");
     }
   };
 
@@ -244,18 +283,23 @@ export default function Logistics() {
     },
     {
       id: 'contact',
-      header: 'Contact Numbers',
+      header: 'Contact Info',
       renderCell: (item) => (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {item.contactNumber && (
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)' }} title="Primary Contact">
+              <Phone size={12} /> {item.contactNumber}
+            </span>
+          )}
           {item.mobilesList.length > 0 ? (
             item.mobilesList.map((m, i) => (
-              <span key={i} style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Phone size={12} className="text-secondary" /> {m}
+              <span key={i} style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)' }} title="Driver Mobile from Dispatch">
+                <Truck size={10} /> {m}
               </span>
             ))
-          ) : (
+          ) : !item.contactNumber ? (
              <span className="text-muted" style={{fontSize: '0.85rem'}}>N/A</span>
-          )}
+          ) : null}
         </div>
       )
     },
@@ -303,7 +347,7 @@ export default function Logistics() {
       header: 'Actions',
       renderCell: (item) => (
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn-icon" style={{color: 'var(--primary)'}} onClick={() => handleOpenEditLocations(item)} title="Edit Locations">
+          <button className="btn-icon" style={{color: 'var(--primary)'}} onClick={() => openEditModal(item)} title="Edit Transporter Details">
             <Edit2 size={16} />
           </button>
           <button className="btn-icon" style={{color: 'var(--danger)'}} onClick={() => handleMarkFraud(item, true)} title="Mark as Fraud">
@@ -340,8 +384,15 @@ export default function Logistics() {
             <Truck size={24} className="text-primary" />
             Transporter Master
           </h1>
-          <p className="text-secondary">Logistics and transporter directory based on dispatch history.</p>
+          <p className="text-secondary">Manage logistics, contact details, service locations, and fraud flags.</p>
         </div>
+        
+        {activeTab === 'Active' && (
+          <button className="btn btn-primary" onClick={openAddModal}>
+            <UserPlus size={18} style={{marginRight: '8px'}}/>
+            Add Transporter
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -429,23 +480,54 @@ export default function Logistics() {
         )}
       </div>
 
-      {/* Edit Locations Modal */}
-      {editModalOpen && selectedTransporter && (
+      {/* Add / Edit Modal */}
+      {modalMode && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <div className="glass-panel animate-fade-in" style={{ width: '90%', maxWidth: '500px', background: 'var(--bg-surface)', padding: '1.5rem', borderRadius: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0 }}>Edit Service Locations</h3>
-              <button className="btn-icon" onClick={() => setEditModalOpen(false)}><X size={20} /></button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {modalMode === 'ADD' ? <UserPlus size={20} className="text-primary"/> : <Edit2 size={20} className="text-primary"/>}
+                {modalMode === 'ADD' ? 'Add New Transporter' : 'Edit Transporter Details'}
+              </h3>
+              <button className="btn-icon" onClick={closeModal}><X size={20} /></button>
             </div>
             
             <div style={{ marginBottom: '1rem' }}>
-              <span className="text-secondary" style={{fontSize: '0.85rem'}}>Transporter:</span>
-              <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{selectedTransporter.name}</div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }} className="text-muted">
+                Transporter Name <span className="text-danger">*</span>
+              </label>
+              <input 
+                type="text" 
+                value={formName} 
+                onChange={e => setFormName(e.target.value)} 
+                placeholder="E.g., Reliable Transport Co."
+                disabled={modalMode === 'EDIT'}
+                style={{ 
+                  width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', 
+                  background: modalMode === 'EDIT' ? 'var(--bg-base)' : 'var(--bg-surface)',
+                  color: modalMode === 'EDIT' ? 'var(--text-muted)' : 'inherit',
+                  cursor: modalMode === 'EDIT' ? 'not-allowed' : 'text'
+                }}
+              />
+              {modalMode === 'EDIT' && <div style={{fontSize: '0.75rem', marginTop: '4px'}} className="text-muted">Name cannot be changed for existing records to preserve history.</div>}
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }} className="text-muted">Current Locations</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-base)', minHeight: '80px' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }} className="text-muted">
+                Primary Contact Number
+              </label>
+              <input 
+                type="text" 
+                value={formContact} 
+                onChange={e => setFormContact(e.target.value)} 
+                placeholder="10-digit mobile number"
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 500 }} className="text-muted">Service Locations</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg-base)', minHeight: '80px', marginBottom: '0.5rem' }}>
                 {tempLocations.length === 0 ? (
                   <span className="text-muted" style={{fontSize: '0.85rem'}}>No locations associated yet.</span>
                 ) : (
@@ -459,10 +541,6 @@ export default function Logistics() {
                   ))
                 )}
               </div>
-            </div>
-
-            <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem' }} className="text-muted">Add New Location</label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input 
                   type="text" 
@@ -470,17 +548,17 @@ export default function Logistics() {
                   onChange={e => setNewLocation(e.target.value)} 
                   onKeyDown={e => e.key === 'Enter' && handleAddLocation()}
                   placeholder="Enter city or location name..."
-                  style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)' }}
+                  style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)' }}
                 />
                 <button className="btn btn-secondary" onClick={handleAddLocation}>
-                  <Plus size={16} /> Add
+                  <Plus size={16} /> Add Location
                 </button>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button className="btn btn-secondary" onClick={() => setEditModalOpen(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSaveLocations}>Save Locations</button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem' }}>
+              <button className="btn btn-secondary" onClick={closeModal}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveTransporter}>Save Transporter</button>
             </div>
           </div>
         </div>
