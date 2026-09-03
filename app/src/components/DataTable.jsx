@@ -8,8 +8,8 @@ export default function DataTable({
   rowClassName = "" 
 }) {
   return (
-    <div className="data-table-container border-0 rounded-none w-full overflow-x-auto">
-      <table className="data-table mobile-cards-table w-full min-w-[900px]">
+    <div className="data-table-container overflow-x-auto">
+      <table className="data-table mobile-cards-table w-full">
         <thead className={theadClassName}>
           <tr>
             {columns.map((col) => (

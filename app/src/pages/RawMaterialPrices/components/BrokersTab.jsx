@@ -329,7 +329,6 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
                 title: 'Active Brokers',
                 data: paginatedActiveBrokers,
                 totalCount: activeBrokers.length,
-                headerClasses: 'bg-white border-b border-base',
                 titleClasses: 'text-primary',
                 badgeClasses: 'bg-emerald-50 border border-emerald-200 text-emerald-700',
                 tableHeadClasses: 'bg-slate-50',
@@ -340,7 +339,6 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
                 title: 'Deactivated Brokers',
                 data: paginatedDeactivatedBrokers,
                 totalCount: deactivatedBrokers.length,
-                headerClasses: 'bg-slate-50 border-b border-base',
                 titleClasses: 'text-slate-500',
                 badgeClasses: 'bg-slate-200 border border-slate-300 text-slate-700',
                 tableHeadClasses: 'hidden sm:table-header-group bg-slate-100',
@@ -349,9 +347,9 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
               }
             ].map(section => (
               section.data.length > 0 && (
-                <div key={section.title} className={`bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col ${section.wrapperOpacity}`}>
-                  <div className={`px-6 py-4 flex items-center justify-between ${section.headerClasses}`}>
-                    <h3 className={`text-[16px] font-bold flex items-center gap-2 ${section.titleClasses}`}>
+                <div key={section.title} className={`flex flex-col mb-6 last:mb-0 ${section.wrapperOpacity}`}>
+                  <div className={`px-1 py-3 flex items-center justify-between`}>
+                    <h3 className={`text-base font-bold flex items-center gap-2 ${section.titleClasses}`}>
                       {section.title}
                     </h3>
                     <span className={`text-xs font-bold tracking-wide px-2.5 py-1 rounded-full ${section.badgeClasses}`}>
