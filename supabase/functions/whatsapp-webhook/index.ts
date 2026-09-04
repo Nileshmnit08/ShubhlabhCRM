@@ -63,6 +63,10 @@ serve(async (req: Request) => {
                 mediaUrl = message[mediaType]?.id; // Storing the media ID as reference for now
               }
 
+              // Capture conversation context if this is a reply
+              const context = message.context;
+              const conversationId = context?.id || null;
+
               // Normalizing sender phone to 10 digits for matching
               const normalizedPhone = normalizePhone(senderPhone);
 
@@ -91,14 +95,14 @@ serve(async (req: Request) => {
                   relatedMaterialId = brokerMaterials[0].raw_material_id;
                 } else if (brokerMaterials && brokerMaterials.length > 1) {
                   // Broker handles multiple materials, cannot deterministically know without NLP parsing
-                  processingStatus = 'Manual Review';
+                  processingStatus = 'Needs Review';
                 }
               } else {
-                processingStatus = 'Ignored'; // Unknown sender
+                processingStatus = 'Needs Review'; // Unknown sender
               }
 
               if (mediaType !== 'text') {
-                processingStatus = 'Manual Review'; // Audio/Image requires human eye
+                processingStatus = 'Needs Review'; // Audio/Image requires human eye
               }
 
               // Insert raw message
@@ -112,6 +116,7 @@ serve(async (req: Request) => {
                   raw_message: rawMessage,
                   media_url: mediaUrl,
                   media_type: mediaType,
+                  conversation_id: conversationId,
                   received_at: receivedAt,
                   processing_status: processingStatus,
                   related_material_id: relatedMaterialId

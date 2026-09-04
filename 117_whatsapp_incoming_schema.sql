@@ -12,13 +12,14 @@ CREATE TABLE IF NOT EXISTS public.whatsapp_incoming_messages (
     media_type VARCHAR(100),
     conversation_id VARCHAR(255),
     received_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    processing_status VARCHAR(50) DEFAULT 'Pending', -- 'Pending', 'Manual Review', 'Processed', 'Ignored'
+    processing_status VARCHAR(50) DEFAULT 'Pending', -- 'Pending', 'Needs Review', 'Processed'
     related_material_id UUID REFERENCES public.raw_materials(id),
     error_log TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+DROP TRIGGER IF EXISTS update_whatsapp_incoming_messages_modtime ON public.whatsapp_incoming_messages;
 CREATE TRIGGER update_whatsapp_incoming_messages_modtime 
 BEFORE UPDATE ON public.whatsapp_incoming_messages 
 FOR EACH ROW EXECUTE FUNCTION update_modified_column();
@@ -27,10 +28,12 @@ FOR EACH ROW EXECUTE FUNCTION update_modified_column();
 ALTER TABLE public.whatsapp_incoming_messages ENABLE ROW LEVEL SECURITY;
 
 -- Allow authenticated users to view and update processing status
+DROP POLICY IF EXISTS "Auth users can view incoming messages" ON public.whatsapp_incoming_messages;
 CREATE POLICY "Auth users can view incoming messages" 
 ON public.whatsapp_incoming_messages FOR SELECT 
 USING (auth.role() = 'authenticated');
 
+DROP POLICY IF EXISTS "Auth users can update incoming messages" ON public.whatsapp_incoming_messages;
 CREATE POLICY "Auth users can update incoming messages" 
 ON public.whatsapp_incoming_messages FOR UPDATE 
 USING (auth.role() = 'authenticated') 
