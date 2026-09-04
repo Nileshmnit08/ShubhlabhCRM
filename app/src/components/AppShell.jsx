@@ -189,30 +189,25 @@ export default function AppShell() {
        
        return (
          <div key={itemInfo.path}>
-           <div
-             className="nav-item"
-             style={{ padding: 0 }}
+           <NavLink
+             to={path}
+             className={({ isActive }) => `nav-item ${isActive || pathname.startsWith(path + '/') ? 'active' : ''}`}
+             onClick={() => setSidebarOpen(false)}
              title={sidebarOpen ? '' : itemInfo.label}
-             aria-expanded={isExpanded}
            >
-             <NavLink
-               to={path}
-               className="nav-item-content"
-               style={{ padding: '0.65rem 0.75rem', textDecoration: 'none', color: 'inherit' }}
-               onClick={() => setSidebarOpen(false)}
-             >
+             <div className="nav-item-content">
                <Icon size={20} className="nav-icon" />
                <span className="nav-label">{itemInfo.label}</span>
-             </NavLink>
+             </div>
              <button
                className="pin-btn"
-               style={{ opacity: 1, padding: '0.65rem 0.75rem', background: 'transparent', border: 'none', display: 'flex', alignItems: 'center' }}
+               style={{ opacity: 1 }}
                onClick={(e) => toggleSubmenu(e, path)}
                aria-label="Toggle submenu"
              >
                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
              </button>
-           </div>
+           </NavLink>
            
            {isExpanded && (
              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '2.5rem', marginTop: '0.25rem', marginBottom: '0.5rem' }}>
