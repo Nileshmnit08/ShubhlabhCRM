@@ -62,7 +62,7 @@ const menuGroups = [
   {
     id: 'operations',
     title: 'OPERATIONS',
-    items: ['/activity', '/performance', '/control-room', '/account-control', '/raw-material-prices']
+    items: ['/activity', '/performance', '/control-room', '/account-control']
   },
   {
     id: 'data-automation',
@@ -308,6 +308,14 @@ export default function AppShell() {
               )}
             </div>
           ))}
+
+          {userProfile?.role === 'Admin' && (
+            <div className="nav-group">
+              <div className="nav-group-items">
+                {renderNavItem('/raw-material-prices')}
+              </div>
+            </div>
+          )}
         </nav>
       </aside>
 
