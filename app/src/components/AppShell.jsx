@@ -31,19 +31,12 @@ const allNavItems = [
   { path: '/dispatches', label: 'Dispatch Dashboard', icon: Map },
   { path: '/coverage', label: 'Coverage Gaps', icon: Map },
   { path: '/automation-control', label: 'Automation Control', icon: Zap },
-  { 
-    path: '/raw-material-prices', 
-    label: 'Raw Material Prices', 
-    icon: TrendingUp,
-    subItems: [
-      { label: "Dashboard", path: "/raw-material-prices" },
-      { label: "Daily Price Entry", path: "/raw-material-prices/daily-entry" },
-      { label: "Price History", path: "/raw-material-prices/history" },
-      { label: "Price Analysis", path: "/raw-material-prices/analysis" },
-      { label: "WhatsApp Update", path: "/raw-material-prices/whatsapp" },
-      { label: "Configuration", path: "/raw-material-prices/configuration" },
-    ]
-  },
+  { path: '/raw-material-prices', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/raw-material-prices/daily-entry', label: 'Daily Price Entry', icon: TrendingUp },
+  { path: '/raw-material-prices/history', label: 'Price History', icon: Activity },
+  { path: '/raw-material-prices/analysis', label: 'Price Analysis', icon: BarChart },
+  { path: '/raw-material-prices/whatsapp', label: 'WhatsApp Update', icon: Zap },
+  { path: '/raw-material-prices/configuration', label: 'Configuration', icon: Settings },
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/logistics', label: 'Logistics', icon: Truck },
 ];
@@ -73,6 +66,18 @@ const menuGroups = [
     id: 'settings',
     title: 'SETTINGS',
     items: ['/settings', '/logistics']
+  },
+  {
+    id: 'raw-material-prices',
+    title: 'RAW MATERIAL PRICES',
+    items: [
+      '/raw-material-prices',
+      '/raw-material-prices/daily-entry',
+      '/raw-material-prices/history',
+      '/raw-material-prices/analysis',
+      '/raw-material-prices/whatsapp',
+      '/raw-material-prices/configuration'
+    ]
   }
 ];
 
@@ -95,15 +100,7 @@ export default function AppShell() {
 
   const isRawMaterialPricesRoute = pathname === '/raw-material-prices' || pathname.startsWith('/raw-material-prices/');
 
-  const [expandedSubmenus, setExpandedSubmenus] = React.useState({
-    '/raw-material-prices': isRawMaterialPricesRoute
-  });
 
-  React.useEffect(() => {
-    if (isRawMaterialPricesRoute) {
-      setExpandedSubmenus(prev => ({ ...prev, '/raw-material-prices': true }));
-    }
-  }, [pathname, isRawMaterialPricesRoute]);
 
   const [pinnedItems, setPinnedItems] = React.useState(() => {
     try {
@@ -124,8 +121,15 @@ export default function AppShell() {
     'demand-insights': false,
     'operations': false,
     'data-automation': false,
-    'settings': false
+    'settings': false,
+    'raw-material-prices': isRawMaterialPricesRoute
   });
+
+  React.useEffect(() => {
+    if (isRawMaterialPricesRoute) {
+      setExpandedGroups(prev => ({ ...prev, 'raw-material-prices': true }));
+    }
+  }, [pathname, isRawMaterialPricesRoute]);
 
   React.useEffect(() => {
     localStorage.setItem('shublabh_pinned_nav', JSON.stringify(pinnedItems));
@@ -158,11 +162,7 @@ export default function AppShell() {
     await supabase.auth.signOut();
   };
 
-  const toggleSubmenu = (e, path) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setExpandedSubmenus(prev => ({ ...prev, [path]: !prev[path] }));
-  };
+
 
   const renderNavItem = (path) => {
     // Only allow specific operational areas for non-Admins
@@ -178,56 +178,7 @@ export default function AppShell() {
     const isPinned = pinnedItems.includes(path);
     const badge = getBadge(path);
     
-    if (itemInfo.subItems) {
-       const isExpanded = expandedSubmenus[path];
-       
-       return (
-         <div key={itemInfo.path}>
-           <NavLink
-             to={path}
-             className={() => "nav-item"}
-             onClick={() => setSidebarOpen(false)}
-             title={sidebarOpen ? '' : itemInfo.label}
-           >
-             <div className="nav-item-content">
-               <Icon size={20} className="nav-icon" />
-               <span className="nav-label">{itemInfo.label}</span>
-             </div>
-             <button
-               className="pin-btn"
-               style={{ opacity: 1 }}
-               onClick={(e) => toggleSubmenu(e, path)}
-               aria-label="Toggle submenu"
-             >
-               {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-             </button>
-           </NavLink>
-           
-           {isExpanded && (
-             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', paddingLeft: '2.5rem', marginTop: '0.25rem', marginBottom: '0.5rem' }}>
-               {itemInfo.subItems.map(sub => {
-                 return (
-                   <NavLink
-                     key={sub.path}
-                     to={sub.path}
-                     end
-                     className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                     style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
-                     onClick={(e) => {
-                       e.stopPropagation();
-                       setSidebarOpen(false);
-                     }}
-                   >
-                     {sub.label}
-                   </NavLink>
-                 );
-               })}
-             </div>
-           )}
-         </div>
-       );
-    }
-    
+
     return (
       <NavLink
         key={itemInfo.path}
@@ -309,13 +260,6 @@ export default function AppShell() {
             </div>
           ))}
 
-          {userProfile?.role === 'Admin' && (
-            <div className="nav-group">
-              <div className="nav-group-items">
-                {renderNavItem('/raw-material-prices')}
-              </div>
-            </div>
-          )}
         </nav>
       </aside>
 
