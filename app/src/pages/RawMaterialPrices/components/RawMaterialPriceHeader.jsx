@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Calendar as CalendarIcon, ChevronRight } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, ChevronRight, AlertCircle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import { CONFIGURATION_TABS } from '../Configuration';
@@ -11,6 +11,7 @@ const RawMaterialPriceHeader = () => {
 
   const isConfiguration = location.pathname.includes('/configuration');
   const isAnalysis = location.pathname.includes('/analysis');
+  const isAttention = location.pathname.includes('/attention');
   
   // Extract sub-route if inside configuration
   const pathParts = location.pathname.split('/');
@@ -44,7 +45,7 @@ const RawMaterialPriceHeader = () => {
           </div>
         )}
         <h1 style={{ margin: 0, fontSize: '2rem', tracking: 'tight' }}>
-          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : (isAnalysis ? 'Price Analysis' : 'Dashboard'))}
+          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : (isAnalysis ? 'Price Analysis' : (isAttention ? 'Attention Center' : 'Dashboard')))}
         </h1>
         <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>
           {activeConfigTab 
@@ -53,7 +54,7 @@ const RawMaterialPriceHeader = () => {
                ? 'Manage raw materials, quality parameters, brokers, units, price types, and operational settings.'
                : (isAnalysis 
                   ? 'Compare current material prices with historical market data and broker quotes.'
-                  : 'Track and analyze daily cattle-feed material prices'))}
+                  : (isAttention ? 'Actionable workflow for pending prices and unreviewed broker responses.' : 'Track and analyze daily cattle-feed material prices')))}
         </p>
       </div>
       <div className="flex items-center gap-4">
@@ -62,6 +63,15 @@ const RawMaterialPriceHeader = () => {
              <CalendarIcon size={16} className="text-muted" />
              <span className="font-medium">{today}</span>
           </div>
+        )}
+        {!isConfiguration && !isAttention && (
+          <button 
+            className="btn btn-outline shadow-sm py-2 px-4 text-sm font-medium border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700"
+            onClick={() => navigate('/raw-material-prices/attention')}
+          >
+            <AlertCircle size={16} className="mr-1.5" />
+            Attention Center
+          </button>
         )}
         {isAnalysis && (
           <button 

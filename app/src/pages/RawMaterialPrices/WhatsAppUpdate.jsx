@@ -33,11 +33,19 @@ const WhatsAppUpdate = () => {
   const generateReport = async () => {
     setLoading(true);
     try {
+      // Fetch all daily tracked materials
+      const { data: trackedMaterials } = await supabase
+        .from('raw_materials')
+        .select('id, name_en, name_hi, daily_tracking_required')
+        .eq('active', true)
+        .eq('daily_tracking_required', true);
+
       // Fetch today's entries
       const { data: currentData } = await supabase
         .from('raw_material_price_entries')
         .select(`
-          price, market_location, unit, price_type,
+          price, market_location, unit, price_type, status,
+          raw_material_id,
           raw_materials(id, name_en, name_hi, daily_tracking_required),
           brokers(broker_name),
           material_quality_grades(grade_name_hi, grade_name),
@@ -55,12 +63,13 @@ const WhatsAppUpdate = () => {
         return acc;
       }, {});
 
-      // For previous day comparison
+      // For previous day comparison (strictly Official)
       const prevDate = format(new Date(new Date(reportDate).getTime() - 24 * 60 * 60 * 1000), 'yyyy-MM-dd');
       const { data: prevData } = await supabase
         .from('raw_material_price_entries')
         .select('price, raw_material_id')
         .eq('entry_date', prevDate)
+        .eq('status', 'Official')
         .eq('is_deleted', false);
         
       const prevGrouped = (prevData || []).reduce((acc, curr) => {
@@ -71,19 +80,35 @@ const WhatsAppUpdate = () => {
 
       // Process materials
       const processed = [];
+      const missing = [];
+      const unverified = [];
+      
       let increased = 0;
       let decreased = 0;
       let stable = 0;
 
-      Object.keys(grouped).forEach((matId, index) => {
-        const entries = grouped[matId];
-        let selectedEntry = entries[0];
+      (trackedMaterials || []).forEach(mat => {
+        const matId = mat.id;
+        const entries = grouped[matId] || [];
+        
+        const officialEntries = entries.filter(e => e.status === 'Official');
+        const pendingEntries = entries.filter(e => e.status === 'Pending');
+
+        if (officialEntries.length === 0) {
+          if (pendingEntries.length > 0) {
+            unverified.push(mat.name_hi || mat.name_en);
+          } else {
+            missing.push(mat.name_hi || mat.name_en);
+          }
+          return;
+        }
+
+        let selectedEntry = officialEntries[0];
         
         if (settings.selectionMethod === 'lowest') {
-          selectedEntry = entries.reduce((min, e) => Number(e.price) < Number(min.price) ? e : min, entries[0]);
+          selectedEntry = officialEntries.reduce((min, e) => Number(e.price) < Number(min.price) ? e : min, officialEntries[0]);
         }
         
-        const mat = selectedEntry.raw_materials;
         const quality = selectedEntry.material_quality_grades?.grade_name_hi || selectedEntry.material_quality_grades?.grade_name || 'साफ माल';
         const price = Number(selectedEntry.price);
         
@@ -125,10 +150,10 @@ const WhatsAppUpdate = () => {
 
       // Construct Text Message
       const displayDate = format(new Date(reportDate), 'dd-MM-yyyy');
-      let msg = `नमस्कार सर,\n\nदिनांक: ${displayDate}\n\nआज के पशु आहार कच्चे माल के भाव निम्नानुसार हैं:\n\n`;
+      let msg = `नमस्कार सर,\n\nदिनांक: ${displayDate}\n\nआज के प्रमाणित (Verified) पशु आहार कच्चे माल के भाव निम्नानुसार हैं:\n\n`;
 
       if (processed.length === 0) {
-        msg += "आज के लिए कोई भाव उपलब्ध नहीं हैं।\n\n";
+        msg += "आज के लिए कोई प्रमाणित भाव उपलब्ध नहीं हैं।\n\n";
       } else {
         processed.forEach((item, idx) => {
           msg += `${idx + 1}. ${item.matName} (${item.quality})\n`;
@@ -152,6 +177,17 @@ const WhatsAppUpdate = () => {
         msg += `- तेजी वाले माल: ${incNames}\n`;
         msg += `- मंदी वाले माल: ${decNames}\n`;
         msg += `- स्थिर माल: ${staNames}\n\n`;
+      }
+
+      if (missing.length > 0 || unverified.length > 0) {
+        msg += `⚠️ ध्यान दें (Missing / Unverified):\n`;
+        if (unverified.length > 0) {
+          msg += `- अप्रमाणित (Pending Verification): ${unverified.join(', ')}\n`;
+        }
+        if (missing.length > 0) {
+          msg += `- अप्राप्त (No Data Today): ${missing.join(', ')}\n`;
+        }
+        msg += `\n`;
       }
 
       msg += `धन्यवाद।\nShubh Labh CRM`;
@@ -432,18 +468,18 @@ const WhatsAppUpdate = () => {
               </div>
             </div>
             
-            <div className="p-6 flex-1 bg-[url('https://raw.githubusercontent.com/stripe/stripe-terminal-ios/master/Example/Images.xcassets/stripe-logo.imageset/stripe-logo.png')] bg-opacity-5">
+            <div className="p-6 flex-1 bg-[url('https://raw.githubusercontent.com/stripe/stripe-terminal-ios/master/Example/Images.xcassets/stripe-logo.imageset/stripe-logo.png')] bg-opacity-5 relative flex flex-col">
               {loading ? (
                 <div className="flex justify-center items-center h-full text-secondary">Generating message...</div>
               ) : (
-                <div className="bg-[#e1f3db] dark:bg-[#0b141a] p-4 rounded-xl rounded-tl-none max-w-2xl mx-auto shadow-sm border border-black/5 dark:border-white/10 relative">
-                   <div className="absolute top-0 left-[-8px] w-0 h-0 border-t-[8px] border-t-[#e1f3db] dark:border-t-[#0b141a] border-l-[8px] border-l-transparent"></div>
-                   <pre className="whitespace-pre-wrap font-sans text-[15px] leading-relaxed text-[#111b21] dark:text-[#e9edef]" style={{fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'}}>
-                     {generatedMessage}
-                   </pre>
-                   <div className="text-[11px] text-[#667781] dark:text-[#8696a0] text-right mt-2 flex justify-end items-center gap-1">
-                     {format(new Date(), 'HH:mm')} <Check size={12} />
-                   </div>
+                <div className="flex-1 flex flex-col">
+                   <p className="text-sm text-secondary mb-2 flex items-center gap-1.5"><AlertTriangle size={14}/> You can edit the text below before sending.</p>
+                   <textarea
+                     value={generatedMessage}
+                     onChange={(e) => setGeneratedMessage(e.target.value)}
+                     className="w-full flex-1 min-h-[300px] p-4 bg-[#e1f3db] dark:bg-[#0b141a] text-[#111b21] dark:text-[#e9edef] rounded-xl border border-black/10 dark:border-white/10 focus:ring-2 focus:ring-emerald-500/50 resize-none"
+                     style={{fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'}}
+                   />
                 </div>
               )}
             </div>

@@ -14,12 +14,18 @@ const PriceHistory = () => {
   const [materials, setMaterials] = useState([]);
   const [brokers, setBrokers] = useState([]);
   
+  const [qualityGrades, setQualityGrades] = useState([]);
+  const [priceTypes, setPriceTypes] = useState([]);
+  
   // Filters
   const [dateRange, setDateRange] = useState('30days');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [materialFilter, setMaterialFilter] = useState(initialMaterial);
   const [brokerFilter, setBrokerFilter] = useState('');
+  const [qualityFilter, setQualityFilter] = useState('');
+  const [priceTypeFilter, setPriceTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
   
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -37,7 +43,7 @@ const PriceHistory = () => {
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
-  }, [dateRange, customStartDate, customEndDate, materialFilter, brokerFilter, debouncedSearch]);
+  }, [dateRange, customStartDate, customEndDate, materialFilter, brokerFilter, qualityFilter, priceTypeFilter, statusFilter, debouncedSearch]);
 
   useEffect(() => {
     fetchInitialData();
@@ -46,9 +52,11 @@ const PriceHistory = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [mats, brks, history] = await Promise.all([
+      const [mats, brks, grades, pTypes, history] = await Promise.all([
         supabase.from('raw_materials').select('id, name_en, name_hi').eq('active', true),
         supabase.from('brokers').select('id, broker_name').eq('active', true),
+        supabase.from('material_quality_grades').select('id, grade_name').eq('active', true),
+        supabase.from('rm_price_types').select('id, type_name').eq('active', true),
         supabase.from('raw_material_price_entries')
           .select(`
             *,
@@ -59,7 +67,6 @@ const PriceHistory = () => {
             rm_price_types(type_name)
           `)
           .eq('is_deleted', false)
-          .eq('status', 'Official')
           .order('entry_date', { ascending: false })
           .order('created_at', { ascending: false })
           .limit(5000) // fetch a large dataset for client-side filtering
@@ -67,6 +74,8 @@ const PriceHistory = () => {
       
       setMaterials(mats.data || []);
       setBrokers(brks.data || []);
+      setQualityGrades(grades.data || []);
+      setPriceTypes(pTypes.data || []);
       setEntries(history.data || []);
     } catch (error) {
       console.error("Error fetching initial data", error);
@@ -119,12 +128,28 @@ const PriceHistory = () => {
       result = result.filter(e => e.broker_id === brokerFilter);
     }
 
-    // 4. Search Filter
+    // 4. Quality Filter
+    if (qualityFilter) {
+      result = result.filter(e => e.quality_grade_id === qualityFilter);
+    }
+
+    // 5. Price Type Filter
+    if (priceTypeFilter) {
+      result = result.filter(e => e.price_type_id === priceTypeFilter);
+    }
+
+    // 6. Status Filter
+    if (statusFilter !== 'All') {
+      result = result.filter(e => e.status === statusFilter);
+    }
+
+    // 7. Search Filter
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase().replace(/\s+/g, ' ').trim();
       result = result.filter(e => 
         e.market_location?.toLowerCase().includes(q) ||
         e.remarks?.toLowerCase().includes(q) ||
+        e.source?.toLowerCase().includes(q) ||
         e.raw_materials?.name_en?.toLowerCase().includes(q) ||
         e.raw_materials?.name_hi?.toLowerCase().includes(q) ||
         e.brokers?.broker_name?.toLowerCase().includes(q) ||
@@ -134,7 +159,7 @@ const PriceHistory = () => {
     }
 
     return result;
-  }, [entries, dateRange, customStartDate, customEndDate, materialFilter, brokerFilter, debouncedSearch]);
+  }, [entries, dateRange, customStartDate, customEndDate, materialFilter, brokerFilter, qualityFilter, priceTypeFilter, statusFilter, debouncedSearch]);
 
   const totalRecords = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
@@ -152,7 +177,7 @@ const PriceHistory = () => {
   }, [filteredRows, page]);
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Material', 'Quality', 'Broker', 'Location', 'Price', 'Unit', 'Type', 'Remarks'];
+    const headers = ['Date', 'Material', 'Quality', 'Broker', 'Location', 'Price', 'Unit', 'Type', 'Status', 'Source', 'Remarks'];
     const csvContent = [
       headers.join(','),
       ...filteredRows.map(e => [
@@ -164,6 +189,8 @@ const PriceHistory = () => {
         e.price,
         `"${e.rm_units?.unit_name || e.unit || ''}"`,
         `"${e.rm_price_types?.type_name || e.price_type || ''}"`,
+        `"${e.status || ''}"`,
+        `"${e.source || ''}"`,
         `"${e.remarks || ''}"`
       ].join(','))
     ].join('\n');
@@ -178,17 +205,20 @@ const PriceHistory = () => {
   };
 
   const clearFilters = () => {
-    setDateRange('all');
+    setDateRange('30days');
     setCustomStartDate('');
     setCustomEndDate('');
     setMaterialFilter('');
     setBrokerFilter('');
+    setQualityFilter('');
+    setPriceTypeFilter('');
+    setStatusFilter('All');
     setSearchInput('');
     setPage(1);
   };
 
   const isCustomDateInvalid = dateRange === 'custom' && customStartDate && customEndDate && parseISO(customStartDate) > parseISO(customEndDate);
-  const hasActiveFilters = dateRange !== 'all' || materialFilter || brokerFilter || searchInput;
+  const hasActiveFilters = dateRange !== 'all' || materialFilter || brokerFilter || qualityFilter || priceTypeFilter || statusFilter !== 'All' || searchInput;
 
   return (
     <div className="space-y-6">
@@ -260,6 +290,31 @@ const PriceHistory = () => {
             </select>
           </div>
           
+          <div className="flex-1 w-full lg:min-w-[180px]">
+            <label className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1.5 block">Quality</label>
+            <select 
+              className="w-full h-[42px] px-3 border border-[#E2E8F0] rounded-lg text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow bg-white text-[#0F172A]" 
+              value={qualityFilter} 
+              onChange={e => setQualityFilter(e.target.value)}
+            >
+              <option value="">All Qualities</option>
+              {qualityGrades.map(q => <option key={q.id} value={q.id}>{q.grade_name}</option>)}
+            </select>
+          </div>
+
+          <div className="flex-1 w-full lg:min-w-[150px]">
+            <label className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1.5 block">Status</label>
+            <select 
+              className="w-full h-[42px] px-3 border border-[#E2E8F0] rounded-lg text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow bg-white text-[#0F172A]" 
+              value={statusFilter} 
+              onChange={e => setStatusFilter(e.target.value)}
+            >
+              <option value="All">All Statuses</option>
+              <option value="Official">Official</option>
+              <option value="Pending">Pending Validation</option>
+            </select>
+          </div>
+          
           <div className="flex-[1.5] w-full lg:min-w-[220px]">
              <label className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1.5 block">Search</label>
              <div className="relative">
@@ -320,6 +375,18 @@ const PriceHistory = () => {
                 <button onClick={() => setBrokerFilter('')} className="text-[#64748B] hover:text-[#0F172A] transition-colors"><X size={14}/></button>
               </span>
             )}
+            {qualityFilter && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A]">
+                Quality: {qualityGrades.find(q => q.id === qualityFilter)?.grade_name}
+                <button onClick={() => setQualityFilter('')} className="text-[#64748B] hover:text-[#0F172A] transition-colors"><X size={14}/></button>
+              </span>
+            )}
+            {statusFilter !== 'All' && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A]">
+                Status: {statusFilter}
+                <button onClick={() => setStatusFilter('All')} className="text-[#64748B] hover:text-[#0F172A] transition-colors"><X size={14}/></button>
+              </span>
+            )}
             {searchInput && (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A]">
                 Search: "{searchInput}"
@@ -347,13 +414,14 @@ const PriceHistory = () => {
                 <th style={{textAlign: 'right'}}>Price</th>
                 <th>Unit</th>
                 <th>Type</th>
-                <th style={{maxWidth: '200px'}}>Remarks</th>
+                <th>Status / Source</th>
+                <th style={{maxWidth: '180px'}}>Remarks</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0]">
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="p-16 text-center">
+                  <td colSpan="10" className="p-16 text-center">
                     <div className="flex flex-col items-center justify-center text-[#64748B]">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
                       <p className="text-[15px] font-medium">Loading history...</p>
@@ -362,7 +430,7 @@ const PriceHistory = () => {
                 </tr>
               ) : paginatedRows.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="p-0">
+                  <td colSpan="10" className="p-0">
                     <div className="py-20 flex flex-col items-center justify-center text-center">
                       <div className="w-16 h-16 rounded-full bg-slate-50 border border-[#E2E8F0] flex items-center justify-center text-[#64748B] mb-5">
                         <Filter size={28} />
@@ -452,6 +520,18 @@ const PriceHistory = () => {
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-semibold border ${isDelivered ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-violet-50 text-violet-700 border-violet-200'}`}>
                           {typeName}
                         </span>
+                      </td>
+                      <td data-label="Status / Source" className="text-secondary text-[13px]">
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold border ${entry.status === 'Official' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                            {entry.status}
+                          </span>
+                          {entry.source && (
+                            <span className="text-[11px] text-muted truncate max-w-[120px]" title={entry.source}>
+                              {entry.source}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td data-label="Remarks" className="text-secondary text-[14px]">
                         <div className="truncate max-w-[180px]" title={entry.remarks || ''}>

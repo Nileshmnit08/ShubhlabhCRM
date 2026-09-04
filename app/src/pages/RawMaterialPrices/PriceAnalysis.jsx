@@ -10,14 +10,22 @@ import PriceTrendChart from './components/PriceTrendChart';
 const PriceAnalysis = () => {
   const [loading, setLoading] = useState(false);
   const [materials, setMaterials] = useState([]);
+  const [qualityGrades, setQualityGrades] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [priceTypes, setPriceTypes] = useState([]);
   
   // Filters
   const [selectedMaterial, setSelectedMaterial] = useState('');
+  const [selectedQuality, setSelectedQuality] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState('');
+  const [selectedPriceType, setSelectedPriceType] = useState('');
+
   const [comparisonPeriod, setComparisonPeriod] = useState('7days');
   const [baseDate, setBaseDate] = useState('');
   const [currentDate, setCurrentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   
   const [analysisData, setAnalysisData] = useState(null);
+  const [insufficientDataMsg, setInsufficientDataMsg] = useState(null);
 
   // Trend Chart State
   const [trendData, setTrendData] = useState([]);
@@ -33,7 +41,7 @@ const PriceAnalysis = () => {
       calculateAnalysis();
       fetchTrendData();
     }
-  }, [selectedMaterial, comparisonPeriod, baseDate, currentDate]);
+  }, [selectedMaterial, selectedQuality, selectedUnit, selectedPriceType, comparisonPeriod, baseDate, currentDate]);
 
   useEffect(() => {
     if (selectedMaterial) {
@@ -42,10 +50,23 @@ const PriceAnalysis = () => {
   }, [trendTimeRange]);
 
   const fetchMaterials = async () => {
-    const { data } = await supabase.from('raw_materials').select('id, name_en, name_hi, default_unit:rm_units(unit_name)').eq('active', true);
-    setMaterials(data || []);
-    if (data && data.length > 0) {
-      setSelectedMaterial(data[0].id);
+    const [mats, grades, unitRes, types] = await Promise.all([
+      supabase.from('raw_materials').select('id, name_en, name_hi, default_unit:rm_units(unit_name), default_unit_id, default_price_type_id').eq('active', true),
+      supabase.from('material_quality_grades').select('id, grade_name, raw_material_id').eq('active', true),
+      supabase.from('rm_units').select('id, unit_name').eq('active', true),
+      supabase.from('rm_price_types').select('id, type_name').eq('active', true)
+    ]);
+    
+    setMaterials(mats.data || []);
+    setQualityGrades(grades.data || []);
+    setUnits(unitRes.data || []);
+    setPriceTypes(types.data || []);
+
+    if (mats.data && mats.data.length > 0) {
+      const firstMat = mats.data[0];
+      setSelectedMaterial(firstMat.id);
+      setSelectedUnit(firstMat.default_unit_id || '');
+      setSelectedPriceType(firstMat.default_price_type_id || '');
     }
   };
 
@@ -54,7 +75,7 @@ const PriceAnalysis = () => {
     setLoadingTrend(true);
     try {
       const startDate = format(subDays(new Date(), trendTimeRange), 'yyyy-MM-dd');
-      const { data } = await supabase
+      let query = supabase
         .from('raw_material_price_entries')
         .select('entry_date, price')
         .eq('raw_material_id', selectedMaterial)
@@ -62,6 +83,14 @@ const PriceAnalysis = () => {
         .eq('is_deleted', false)
         .eq('status', 'Official')
         .order('entry_date', { ascending: true });
+
+      if (selectedQuality) query = query.eq('quality_grade_id', selectedQuality);
+      else query = query.is('quality_grade_id', null);
+
+      if (selectedUnit) query = query.eq('unit_id', selectedUnit);
+      if (selectedPriceType) query = query.eq('price_type_id', selectedPriceType);
+
+      const { data } = await query;
 
       const dateMap = {};
       (data || []).forEach(item => {
@@ -109,7 +138,7 @@ const PriceAnalysis = () => {
       }
 
       // Fetch base date prices
-      const { data: baseData } = await supabase
+      let baseQuery = supabase
         .from('raw_material_price_entries')
         .select('price, brokers(broker_name), market_location, created_at')
         .eq('raw_material_id', selectedMaterial)
@@ -117,8 +146,15 @@ const PriceAnalysis = () => {
         .eq('is_deleted', false)
         .eq('status', 'Official');
 
+      if (selectedQuality) baseQuery = baseQuery.eq('quality_grade_id', selectedQuality);
+      else baseQuery = baseQuery.is('quality_grade_id', null);
+      if (selectedUnit) baseQuery = baseQuery.eq('unit_id', selectedUnit);
+      if (selectedPriceType) baseQuery = baseQuery.eq('price_type_id', selectedPriceType);
+
+      const { data: baseData } = await baseQuery;
+
       // Fetch current date prices
-      const { data: currentData } = await supabase
+      let currentQuery = supabase
         .from('raw_material_price_entries')
         .select('price, brokers(broker_name, mobile, whatsapp_number), market_location, created_at')
         .eq('raw_material_id', selectedMaterial)
@@ -126,7 +162,23 @@ const PriceAnalysis = () => {
         .eq('is_deleted', false)
         .eq('status', 'Official');
 
+      if (selectedQuality) currentQuery = currentQuery.eq('quality_grade_id', selectedQuality);
+      else currentQuery = currentQuery.is('quality_grade_id', null);
+      if (selectedUnit) currentQuery = currentQuery.eq('unit_id', selectedUnit);
+      if (selectedPriceType) currentQuery = currentQuery.eq('price_type_id', selectedPriceType);
+
+      const { data: currentData } = await currentQuery;
+
       const matInfo = materials.find(m => m.id === selectedMaterial);
+      const unitInfo = units.find(u => u.id === selectedUnit);
+
+      if (!baseData?.length || !currentData?.length) {
+        setAnalysisData(null);
+        setInsufficientDataMsg('Insufficient comparable data. Ensure quotes exist for the selected Material, Quality, Unit, and Price Type on both the Base Date and Analysis Date.');
+        return;
+      }
+
+      setInsufficientDataMsg(null);
 
       const getAvg = (data) => data && data.length > 0 ? data.reduce((sum, item) => sum + Number(item.price), 0) / data.length : 0;
       const getMin = (data) => data && data.length > 0 ? Math.min(...data.map(i => Number(i.price))) : 0;
@@ -152,7 +204,7 @@ const PriceAnalysis = () => {
       setAnalysisData({
         materialNameEn: matInfo?.name_en || '',
         materialNameHi: matInfo?.name_hi || '',
-        unit: matInfo?.default_unit?.unit_name || 'Unit',
+        unit: unitInfo?.unit_name || matInfo?.default_unit?.unit_name || 'Unit',
         baseDateStr: format(new Date(calculatedBaseDate), 'dd MMM yyyy'),
         currDateStr: format(new Date(currentDate), 'dd MMM yyyy'),
         calculatedBaseDate,
@@ -182,14 +234,46 @@ const PriceAnalysis = () => {
       </div>
 
       <div className="card p-5 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div className="w-full">
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-7 gap-4 items-end">
+          <div className="w-full lg:col-span-2">
             <label className="block text-[13px] font-medium text-secondary mb-1.5">Material</label>
-            <select className="input w-full" value={selectedMaterial} onChange={e => setSelectedMaterial(e.target.value)}>
+            <select className="input w-full" value={selectedMaterial} onChange={e => {
+              setSelectedMaterial(e.target.value);
+              setSelectedQuality(''); // Reset quality when material changes
+              const mat = materials.find(m => m.id === e.target.value);
+              if (mat) {
+                setSelectedUnit(mat.default_unit_id || '');
+                setSelectedPriceType(mat.default_price_type_id || '');
+              }
+            }}>
               {materials.map(m => <option key={m.id} value={m.id}>{m.name_en} {m.name_hi && `(${m.name_hi})`}</option>)}
             </select>
           </div>
           
+          <div className="w-full">
+            <label className="block text-[13px] font-medium text-secondary mb-1.5">Quality</label>
+            <select className="input w-full" value={selectedQuality} onChange={e => setSelectedQuality(e.target.value)}>
+              <option value="">Standard/Any</option>
+              {qualityGrades.filter(q => q.raw_material_id === selectedMaterial).map(q => <option key={q.id} value={q.id}>{q.grade_name}</option>)}
+            </select>
+          </div>
+
+          <div className="w-full">
+            <label className="block text-[13px] font-medium text-secondary mb-1.5">Unit</label>
+            <select className="input w-full" value={selectedUnit} onChange={e => setSelectedUnit(e.target.value)}>
+              <option value="">Select Unit</option>
+              {units.map(u => <option key={u.id} value={u.id}>{u.unit_name}</option>)}
+            </select>
+          </div>
+
+          <div className="w-full">
+            <label className="block text-[13px] font-medium text-secondary mb-1.5">Price Type</label>
+            <select className="input w-full" value={selectedPriceType} onChange={e => setSelectedPriceType(e.target.value)}>
+              <option value="">Select Type</option>
+              {priceTypes.map(pt => <option key={pt.id} value={pt.id}>{pt.type_name}</option>)}
+            </select>
+          </div>
+
           <div className="w-full">
             <label className="block text-[13px] font-medium text-secondary mb-1.5">Analysis Date</label>
             <input type="date" className="input w-full" value={currentDate} onChange={e => setCurrentDate(e.target.value)} />
@@ -221,6 +305,12 @@ const PriceAnalysis = () => {
         <div className="card p-12 flex flex-col items-center justify-center text-secondary">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
           <p className="text-sm font-medium">Analyzing market data...</p>
+        </div>
+      ) : insufficientDataMsg ? (
+        <div className="card p-12 text-center flex flex-col items-center justify-center bg-amber-50/50 border border-amber-200">
+          <Info size={32} className="text-amber-500 mb-3" />
+          <p className="text-lg font-semibold text-amber-800 mb-1">Insufficient Data</p>
+          <p className="text-sm text-amber-700 max-w-md">{insufficientDataMsg}</p>
         </div>
       ) : analysisData ? (
         <div className="space-y-6">

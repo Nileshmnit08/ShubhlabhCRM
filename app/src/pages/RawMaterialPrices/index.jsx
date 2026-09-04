@@ -9,6 +9,7 @@ import PriceHistory from './PriceHistory';
 import PriceAnalysis from './PriceAnalysis';
 import WhatsAppUpdate from './WhatsAppUpdate';
 import Configuration from './Configuration';
+import AttentionCenter from './AttentionCenter';
 
 const RawMaterialPrices = () => {
   return (
@@ -22,6 +23,7 @@ const RawMaterialPrices = () => {
           <Route path="history" element={<PriceHistory />} />
           <Route path="analysis" element={<PriceAnalysis />} />
           <Route path="whatsapp" element={<WhatsAppUpdate />} />
+          <Route path="attention" element={<AttentionCenter />} />
           <Route path="configuration/*" element={<Configuration />} />
           <Route path="*" element={<Navigate to="/raw-material-prices" replace />} />
         </Routes>
