@@ -185,7 +185,7 @@ export default function AppShell() {
          <div key={itemInfo.path}>
            <NavLink
              to={path}
-             className={({ isActive }) => `nav-item ${isActive || pathname.startsWith(path + '/') ? 'active' : ''}`}
+             className={() => "nav-item"}
              onClick={() => setSidebarOpen(false)}
              title={sidebarOpen ? '' : itemInfo.label}
            >
