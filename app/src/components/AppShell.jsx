@@ -62,12 +62,7 @@ const menuGroups = [
   {
     id: 'operations',
     title: 'OPERATIONS',
-    items: ['/activity', '/performance', '/control-room', '/account-control']
-  },
-  {
-    id: 'raw-material-prices',
-    title: 'RAW MATERIAL PRICES',
-    items: ['/raw-material-prices']
+    items: ['/activity', '/performance', '/control-room', '/account-control', '/raw-material-prices']
   },
   {
     id: 'data-automation',
@@ -128,7 +123,6 @@ export default function AppShell() {
     'customers-growth': false,
     'demand-insights': false,
     'operations': false,
-    'raw-material-prices': false,
     'data-automation': false,
     'settings': false
   });
