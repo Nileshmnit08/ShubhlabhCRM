@@ -60,6 +60,7 @@ const PriceAnalysis = () => {
         .eq('raw_material_id', selectedMaterial)
         .gte('entry_date', startDate)
         .eq('is_deleted', false)
+        .eq('status', 'Official')
         .order('entry_date', { ascending: true });
 
       const dateMap = {};
@@ -113,7 +114,8 @@ const PriceAnalysis = () => {
         .select('price, brokers(broker_name), market_location, created_at')
         .eq('raw_material_id', selectedMaterial)
         .eq('entry_date', calculatedBaseDate)
-        .eq('is_deleted', false);
+        .eq('is_deleted', false)
+        .eq('status', 'Official');
 
       // Fetch current date prices
       const { data: currentData } = await supabase
@@ -121,7 +123,8 @@ const PriceAnalysis = () => {
         .select('price, brokers(broker_name, mobile, whatsapp_number), market_location, created_at')
         .eq('raw_material_id', selectedMaterial)
         .eq('entry_date', currentDate)
-        .eq('is_deleted', false);
+        .eq('is_deleted', false)
+        .eq('status', 'Official');
 
       const matInfo = materials.find(m => m.id === selectedMaterial);
 

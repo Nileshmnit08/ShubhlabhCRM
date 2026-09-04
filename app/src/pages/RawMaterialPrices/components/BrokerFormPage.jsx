@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
 import { ChevronRight, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { normalizeMobile, validateMobile } from '../../../utils/phoneUtils';
 
 export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
   const navigate = useNavigate();
@@ -106,11 +107,21 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
     try {
       if (!formData.broker_name.trim()) throw new Error("Broker Name is required.");
 
+      const normalizedMobile = normalizeMobile(formData.mobile);
+      if (normalizedMobile && !validateMobile(normalizedMobile)) {
+        throw new Error("Invalid mobile number format. Please enter a valid 10-digit number.");
+      }
+
+      const normalizedWhatsapp = normalizeMobile(formData.whatsapp_number);
+      if (normalizedWhatsapp && !validateMobile(normalizedWhatsapp)) {
+        throw new Error("Invalid WhatsApp number format. Please enter a valid 10-digit number.");
+      }
+
       const payload = {
         broker_name: formData.broker_name.trim(),
         firm_name: formData.firm_name.trim(),
-        mobile: formData.mobile.trim(),
-        whatsapp_number: formData.whatsapp_number.trim(),
+        mobile: normalizedMobile || null,
+        whatsapp_number: normalizedWhatsapp || null,
         market_location: formData.market_location.trim(),
         state: formData.state.trim(),
         notes: formData.notes.trim(),

@@ -59,6 +59,7 @@ const PriceHistory = () => {
             rm_price_types(type_name)
           `)
           .eq('is_deleted', false)
+          .eq('status', 'Official')
           .order('entry_date', { ascending: false })
           .order('created_at', { ascending: false })
           .limit(5000) // fetch a large dataset for client-side filtering

@@ -11,6 +11,7 @@ const DailyPriceEntry = () => {
   const [brokerMaterials, setBrokerMaterials] = useState([]);
   const [qualityGrades, setQualityGrades] = useState([]);
   const [units, setUnits] = useState([]);
+  const [allowedUnits, setAllowedUnits] = useState([]);
   const [priceTypes, setPriceTypes] = useState([]);
   const [entries, setEntries] = useState([]);
   const [message, setMessage] = useState(null);
@@ -28,19 +29,21 @@ const DailyPriceEntry = () => {
   const fetchMasterData = async () => {
     setLoading(true);
     try {
-      const [matsRes, brokersRes, gradesRes, unitsRes, pTypesRes, brkMatsRes] = await Promise.all([
+      const [matsRes, brokersRes, gradesRes, unitsRes, pTypesRes, brkMatsRes, allowedUnitsRes] = await Promise.all([
         supabase.from('raw_materials').select('*').eq('active', true).order('display_order'),
         supabase.from('brokers').select('*').eq('active', true).order('broker_name'),
         supabase.from('material_quality_grades').select('*').eq('active', true).order('display_order'),
         supabase.from('rm_units').select('*').eq('active', true).order('display_order'),
         supabase.from('rm_price_types').select('*').eq('active', true).order('display_order'),
-        supabase.from('broker_materials').select('*')
+        supabase.from('broker_materials').select('*'),
+        supabase.from('rm_allowed_units').select('*')
       ]);
 
       setMaterials(matsRes.data || []);
       setBrokers(brokersRes.data || []);
       setQualityGrades(gradesRes.data || []);
       setUnits(unitsRes.data || []);
+      setAllowedUnits(allowedUnitsRes.data || []);
       setPriceTypes(pTypesRes.data || []);
       setBrokerMaterials(brkMatsRes.data || []);
       
@@ -73,7 +76,8 @@ const DailyPriceEntry = () => {
     price: '',
     unit_id: unitId,
     price_type_id: priceTypeId,
-    remarks: ''
+    remarks: '',
+    status: 'Official'
   });
 
   const handleAddRow = () => {
@@ -150,7 +154,9 @@ const DailyPriceEntry = () => {
         price: Number(e.price),
         unit_id: e.unit_id,
         price_type_id: e.price_type_id,
-        remarks: e.remarks
+        remarks: e.remarks,
+        status: e.status,
+        source: 'Manual Entry'
       }));
 
       const { error } = await supabase.from('raw_material_price_entries').insert(recordsToInsert);
@@ -166,7 +172,13 @@ const DailyPriceEntry = () => {
       setTimeout(() => setMessage(null), 5000);
     } catch (error) {
       console.error('Error saving entries:', error);
-      setMessage({ type: 'error', text: error.message || 'Failed to save entries.' });
+      
+      let errorMsg = error.message || 'Failed to save entries.';
+      if (errorMsg.includes('duplicate key value violates unique constraint')) {
+         errorMsg = 'A duplicate quote for the same material, broker, and location on this date already exists. Please verify your entries.';
+      }
+      
+      setMessage({ type: 'error', text: errorMsg });
     } finally {
       setSaving(false);
     }
@@ -245,6 +257,7 @@ const DailyPriceEntry = () => {
                 <th style={{width: '130px'}}>Price (₹) *</th>
                 <th style={{width: '130px'}}>Unit *</th>
                 <th style={{width: '160px'}}>Price Type *</th>
+                <th style={{width: '120px'}}>Status</th>
                 <th style={{minWidth: '200px'}}>Remarks</th>
                 <th style={{width: '100px', textAlign: 'center'}}>Actions</th>
               </tr>
@@ -253,6 +266,10 @@ const DailyPriceEntry = () => {
               {entries.map((entry, index) => {
                 const availableGrades = qualityGrades.filter(q => q.raw_material_id === entry.raw_material_id);
                 const availableBrokers = getAvailableBrokers(entry.raw_material_id);
+                const allowedUnitIds = allowedUnits.filter(au => au.raw_material_id === entry.raw_material_id).map(au => au.unit_id);
+                const availableUnits = entry.raw_material_id && allowedUnitIds.length > 0 
+                                      ? units.filter(u => allowedUnitIds.includes(u.id))
+                                      : units;
                 
                 return (
                   <tr key={entry.id} className="hover:bg-base/20 transition-colors group">
@@ -321,7 +338,7 @@ const DailyPriceEntry = () => {
                         onChange={(e) => handleChange(entry.id, 'unit_id', e.target.value)}
                       >
                         <option value="">Unit...</option>
-                        {units.map(u => (
+                        {availableUnits.map(u => (
                           <option key={u.id} value={u.id}>{u.unit_name}</option>
                         ))}
                       </select>
@@ -336,6 +353,16 @@ const DailyPriceEntry = () => {
                         {priceTypes.map(pt => (
                           <option key={pt.id} value={pt.id}>{pt.type_name}</option>
                         ))}
+                      </select>
+                    </td>
+                    <td data-label="Status">
+                      <select 
+                        className={`input w-full text-sm font-medium ${entry.status === 'Official' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}
+                        value={entry.status}
+                        onChange={(e) => handleChange(entry.id, 'status', e.target.value)}
+                      >
+                        <option value="Official">Official</option>
+                        <option value="Pending">Pending</option>
                       </select>
                     </td>
                     <td data-label="Remarks">
