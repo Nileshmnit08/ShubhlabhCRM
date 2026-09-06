@@ -17,7 +17,6 @@ export default function AddRequirementScreen({ route, navigation }) {
   const [productType, setProductType] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unit, setUnit] = useState('Bags');
-  const [deliveryLocation, setDeliveryLocation] = useState('');
   const [expectedDate, setExpectedDate] = useState('');
 
   const handleSubmit = async () => {
@@ -33,12 +32,11 @@ export default function AddRequirementScreen({ route, navigation }) {
         .insert([{
           party_id: partyId,
           product_type: productType,
-          required_quantity: Number(quantity),
+          quantity: Number(quantity),
           unit: unit,
-          delivery_location: deliveryLocation,
-          expected_delivery_date: expectedDate || null,
-          status: 'Open',
-          created_by: userProfile.id
+          expected_date: expectedDate || null,
+          status: 'New',
+          assigned_to: userProfile.id
         }]);
 
       if (error) throw error;
@@ -83,13 +81,6 @@ export default function AddRequirementScreen({ route, navigation }) {
             containerStyle={{ flex: 1, marginLeft: theme.spacing.sm }}
           />
         </View>
-
-        <Input
-          label={t('delivery_location', 'Delivery Location')}
-          placeholder={t('placeholder_location', 'Enter city or address')}
-          value={deliveryLocation}
-          onChangeText={setDeliveryLocation}
-        />
 
         <Input
           label={t('expected_date', 'Expected Delivery Date')}
