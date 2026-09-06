@@ -5,17 +5,24 @@ import { theme } from '../theme';
 export default function Badge({ label, status = 'default' }) {
   const getColors = () => {
     switch (status) {
-      case 'success': return { bg: 'rgba(16, 185, 129, 0.2)', text: theme.colors.success, border: theme.colors.success };
-      case 'warning': return { bg: 'rgba(245, 158, 11, 0.2)', text: theme.colors.warning, border: theme.colors.warning };
-      case 'danger': return { bg: 'rgba(239, 68, 68, 0.2)', text: theme.colors.danger, border: theme.colors.danger };
-      default: return { bg: 'rgba(148, 163, 184, 0.2)', text: theme.colors.textMuted, border: theme.colors.textMuted };
+      case 'success': 
+        return { bg: theme.colors.successContainer, text: theme.colors.onSuccessContainer };
+      case 'warning': 
+        return { bg: theme.colors.warningContainer, text: theme.colors.onWarningContainer };
+      case 'danger': 
+      case 'error':
+        return { bg: theme.colors.errorContainer, text: theme.colors.onErrorContainer };
+      case 'info':
+        return { bg: theme.colors.infoContainer, text: theme.colors.onInfoContainer };
+      default: 
+        return { bg: theme.colors.surfaceContainerHighest, text: theme.colors.onSurfaceVariant };
     }
   };
 
   const colors = getColors();
 
   return (
-    <View style={[styles.badge, { backgroundColor: colors.bg, borderColor: colors.border }]}>
+    <View style={[styles.badge, { backgroundColor: colors.bg }]}>
       <Text style={[styles.text, { color: colors.text }]}>{label}</Text>
     </View>
   );
@@ -23,14 +30,17 @@ export default function Badge({ label, status = 'default' }) {
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs / 2,
-    borderRadius: theme.borders.radius.sm,
-    borderWidth: theme.borders.width,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borders.radius.full,
     alignSelf: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   text: {
-    fontSize: theme.typography.sizes.sm - 2,
-    fontWeight: theme.typography.weights.bold,
+    fontFamily: theme.typography.fontFamily.body,
+    fontSize: theme.typography.sizes.labelSm,
+    fontWeight: theme.typography.weights.semibold,
+    letterSpacing: 0.3,
   }
 });

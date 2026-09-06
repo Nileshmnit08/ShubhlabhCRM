@@ -1,21 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { MapPin, Phone, Building, CheckCircle, MessageSquare, PlusCircle, FileText, Truck, Calendar } from 'lucide-react-native';
-import { useTranslation } from 'react-i18next';
+import { Phone, MessageCircle, FilePlus2, CalendarPlus, Building2, MapPin, BadgeCheck, FileText, Truck, Clock, User, Landmark, IndianRupee, Hash } from 'lucide-react-native';
 import { theme } from '../theme';
-import Card from '../components/Card';
 import Badge from '../components/Badge';
+import ScreenHeader from '../components/ScreenHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function CustomerDetailScreen({ route, navigation }) {
   const { customerId } = route.params;
-  const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
+  
   const [customer, setCustomer] = useState(null);
-  const [interactions, setInteractions] = useState([]);
+  const [financials, setFinancials] = useState(null);
   const [requirements, setRequirements] = useState([]);
   const [dispatches, setDispatches] = useState([]);
   const [followUps, setFollowUps] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Tab state: 'overview' | 'requirements' | 'dispatch' | 'history'
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     fetchCustomerDetails();
@@ -26,21 +30,23 @@ export default function CustomerDetailScreen({ route, navigation }) {
   const fetchCustomerDetails = async () => {
     setLoading(true);
     try {
+      // 1. Fetch from crm_parties
       const { data: custData } = await supabase
         .from('crm_parties')
-        .select('*')
+        .select(`*, auth_users:assigned_owner_id(email, first_name, last_name)`)
         .eq('id', customerId)
         .single();
       if (custData) setCustomer(custData);
 
-      const { data: intData } = await supabase
-        .from('interactions')
+      // 2. Fetch financial data from v_customer_360
+      const { data: finData } = await supabase
+        .from('v_customer_360')
         .select('*')
-        .eq('party_id', customerId)
-        .order('created_at', { ascending: false })
-        .limit(5);
-      if (intData) setInteractions(intData);
+        .eq('customer_id', customerId)
+        .single();
+      if (finData) setFinancials(finData);
 
+      // 3. Fetch requirements
       const { data: reqData } = await supabase
         .from('v_board_requirements')
         .select('*')
@@ -48,6 +54,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
         .order('created_at', { ascending: false });
       if (reqData) setRequirements(reqData);
 
+      // 4. Fetch follow-ups
       const { data: followUpData } = await supabase
         .from('follow_ups')
         .select('*')
@@ -56,7 +63,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
         .order('follow_up_date', { ascending: true });
       if (followUpData) setFollowUps(followUpData);
 
-      // Fetch dispatches tied to requirements of this customer
+      // 5. Fetch dispatches
       if (reqData && reqData.length > 0) {
         const reqIds = reqData.map(r => r.id);
         const { data: dispData } = await supabase
@@ -76,7 +83,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
 
   const handleCall = () => {
     if (!customer?.mobile) {
-      Alert.alert(t('error', 'Error'), t('msg_no_phone', 'No phone number available.'));
+      alert('No phone number available.');
       return;
     }
     Linking.openURL(`tel:${customer.mobile}`);
@@ -84,164 +91,304 @@ export default function CustomerDetailScreen({ route, navigation }) {
 
   const handleWhatsApp = () => {
     if (!customer?.mobile) {
-      Alert.alert(t('error', 'Error'), t('msg_no_phone', 'No phone number available.'));
+      alert('No phone number available.');
       return;
     }
     const cleanPhone = customer.mobile.replace(/[^0-9]/g, '');
     Linking.openURL(`whatsapp://send?phone=${cleanPhone}`);
   };
 
-  if (loading && !customer) return <View style={styles.centerContainer}><ActivityIndicator size="large" color={theme.colors.primary} /></View>;
-  if (!customer) return <View style={styles.centerContainer}><Text style={styles.errorText}>{t('customer_not_found', 'Customer not found.')}</Text></View>;
+  const formatCurrency = (val) => {
+    if (val === null || val === undefined) return '₹0';
+    return `₹${Number(val).toLocaleString('en-IN')}`;
+  };
+
+  const renderTabs = () => {
+    const tabs = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'requirements', label: `Requirements (${requirements.length})` },
+      { id: 'dispatch', label: `Dispatch (${dispatches.length})` },
+      { id: 'history', label: 'History' }
+    ];
+
+    return (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabContainer}>
+        {tabs.map(tab => {
+          const isActive = activeTab === tab.id;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.tabButton, isActive ? styles.tabButtonActive : styles.tabButtonInactive]}
+              onPress={() => setActiveTab(tab.id)}
+            >
+              <Text style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    );
+  };
+
+  if (loading && !customer) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color={theme.colors.secondary} />
+      </View>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <Text style={styles.errorText}>Customer not found.</Text>
+      </View>
+    );
+  }
+
+  const assignedRep = customer.auth_users ? 
+    (customer.auth_users.first_name ? `${customer.auth_users.first_name} ${customer.auth_users.last_name || ''}` : customer.auth_users.email) 
+    : 'Unassigned';
+
+  const creditLimit = financials?.crm_credit_limit_amount || 0;
+  const outstanding = financials?.crm_credit_outstanding_amount || 0;
+  const creditUtil = creditLimit > 0 ? (outstanding / creditLimit) * 100 : 0;
+  const creditAvailable = Math.max(0, creditLimit - outstanding);
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.name}>{customer.display_name}</Text>
-        <Text style={styles.subtitle}>{customer.party_type}</Text>
-        
-        <View style={styles.infoRow}>
-          <Building size={16} color={theme.colors.textMuted} style={styles.icon} />
-          <Text style={styles.infoText}>{customer.billing_address || t('no_address', 'No address')}</Text>
-        </View>
-        <View style={styles.infoRow}>
-          <Phone size={16} color={theme.colors.textMuted} style={styles.icon} />
-          <Text style={styles.infoText}>{customer.mobile || t('msg_no_phone', 'No phone')}</Text>
-        </View>
-
-        <View style={styles.actionGrid}>
-          <TouchableOpacity style={styles.actionBtn} onPress={handleCall}>
-            <Phone size={16} color="#fff" />
-            <Text style={styles.actionBtnText}>{t('call', 'Call')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: theme.colors.success }]} onPress={handleWhatsApp}>
-            <MessageSquare size={16} color="#fff" />
-            <Text style={styles.actionBtnText}>WhatsApp</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: theme.colors.secondary }]} 
-            onPress={() => navigation.navigate('AddFollowUp', { partyId: customer.id, partyName: customer.display_name })}
-          >
-            <Calendar size={16} color="#fff" />
-            <Text style={styles.actionBtnText}>{t('follow_up', 'Follow-up')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('requirements', 'Requirements')}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('AddRequirement', { partyId: customer.id, partyName: customer.display_name })}>
-            <PlusCircle size={24} color={theme.colors.success} />
-          </TouchableOpacity>
-        </View>
-        {requirements.length === 0 ? (
-          <Text style={styles.emptyText}>{t('no_reqs', 'No requirements logged.')}</Text>
-        ) : (
-          requirements.map(req => (
-            <Card key={req.id} style={styles.cardItem}>
-              <View style={styles.cardRow}>
-                <Text style={styles.cardTitle}>{req.product_type}</Text>
-                <Badge label={req.status} status={req.status === 'Open' ? 'warning' : 'neutral'} />
-              </View>
-              <Text style={styles.cardDetail}>{t('qty', 'Qty')}: {req.required_quantity} {req.unit}</Text>
-            </Card>
-          ))
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('dispatches', 'Dispatches')}</Text>
-        {dispatches.length === 0 ? (
-          <Text style={styles.emptyText}>{t('no_dispatches', 'No dispatches found.')}</Text>
-        ) : (
-          dispatches.map(disp => (
-            <Card key={disp.id} style={styles.cardItem} onPress={() => navigation.navigate('UpdateDispatch', { dispatchId: disp.id })}>
-              <View style={styles.cardRow}>
-                <View>
-                  <Text style={styles.cardTitle}>{disp.truck_number || t('no_truck', 'No Truck Info')}</Text>
-                  <Text style={styles.cardDetail}>{new Date(disp.dispatch_date).toLocaleDateString()}</Text>
-                </View>
-                <Badge label={disp.status} status={disp.status === 'Dispatched' ? 'success' : 'neutral'} />
-              </View>
-              <Text style={styles.linkText}>{t('update_dispatch', 'Update Dispatch')}</Text>
-            </Card>
-          ))
-        )}
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Customer Profile Detail" showBack={true} />
       
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('active_followups', 'Active Follow-ups')}</Text>
-        {followUps.length === 0 ? (
-          <Text style={styles.emptyText}>{t('no_followups', 'No active follow-ups.')}</Text>
-        ) : (
-          followUps.map(fu => (
-            <Card key={fu.id} style={styles.cardItem} onPress={() => navigation.navigate('LogFollowUp', { followUpId: fu.id, partyId: customer.id, partyName: customer.display_name, currentReason: fu.reason })}>
-              <View style={styles.cardRow}>
-                <View>
-                  <Text style={styles.cardTitle}>{fu.reason}</Text>
-                  <Text style={styles.cardDetail}>{new Date(fu.follow_up_date).toLocaleDateString()}</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        {/* Customer Identity Card */}
+        <View style={styles.identityCard}>
+          <View style={styles.identityHeader}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.badgeRow}>
+                <View style={styles.idBadge}>
+                  <Text style={styles.idBadgeText}>{customer.id.substring(0, 8).toUpperCase()}</Text>
                 </View>
-                <Badge label={fu.priority} status={fu.priority === 'High' ? 'danger' : 'neutral'} />
+                {customer.status === 'Active' ? (
+                  <View style={styles.statusBadge}>
+                    <View style={styles.statusDot} />
+                    <Text style={styles.statusBadgeText}>Active • {customer.party_type}</Text>
+                  </View>
+                ) : null}
               </View>
-              <Text style={styles.linkText}>{t('complete_followup', 'Complete Follow-up')}</Text>
-            </Card>
-          ))
-        )}
-      </View>
+              <Text style={styles.customerName}>{customer.display_name}</Text>
+            </View>
+            <View style={styles.companyIcon}>
+              <Building2 size={24} color={theme.colors.secondary} />
+            </View>
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('recent_interactions', 'Recent Interactions')}</Text>
-        {interactions.length === 0 ? (
-          <Text style={styles.emptyText}>{t('no_interactions', 'No recent interactions.')}</Text>
-        ) : (
-          interactions.map((int) => (
-            <View key={int.id} style={styles.timelineItem}>
-              <View style={styles.timelineIcon}><CheckCircle size={14} color={theme.colors.primary} /></View>
-              <View style={styles.timelineContent}>
-                <Text style={styles.timelineTitle}>{int.interaction_type}</Text>
-                <Text style={styles.timelineDate}>{new Date(int.created_at).toLocaleDateString()}</Text>
-                {int.notes ? <Text style={styles.timelineNotes}>{int.notes}</Text> : null}
+          <View style={styles.contactCard}>
+            <View style={styles.contactRow}>
+              <User size={18} color={theme.colors.onSurfaceVariant} />
+              <Text style={styles.contactName}>Primary Contact</Text>
+            </View>
+            <View style={styles.contactRow}>
+              <Phone size={16} color={theme.colors.secondary} />
+              <Text style={styles.contactValuePhone} onPress={handleCall}>{customer.mobile || 'No phone'}</Text>
+            </View>
+            <View style={styles.contactRow}>
+              <MapPin size={16} color={theme.colors.onSurfaceVariant} />
+              <Text style={styles.contactValueLoc}>{customer.billing_address || customer.shipping_address || 'No location specified'}</Text>
+            </View>
+          </View>
+
+          <View style={styles.repRow}>
+            <View style={styles.repBadge}>
+              <BadgeCheck size={14} color={theme.colors.onPrimaryContainer} />
+            </View>
+            <Text style={styles.repText}>Rep: <Text style={styles.repTextBold}>{assignedRep}</Text></Text>
+            <View style={{ flex: 1 }} />
+            <Text style={styles.tallyText}>Tally Synced</Text>
+          </View>
+        </View>
+
+        {/* Quick Action Launchpad */}
+        <View style={styles.launchpadGrid}>
+          <TouchableOpacity style={[styles.launchpadBtn, { backgroundColor: theme.colors.primary }]} onPress={handleCall}>
+            <Phone size={20} color={theme.colors.onPrimary} style={styles.launchIcon} />
+            <Text style={[styles.launchpadText, { color: theme.colors.onPrimary }]}>Call Now</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.launchpadBtn, { backgroundColor: theme.colors.surfaceContainer }]} onPress={handleWhatsApp}>
+            <MessageCircle size={20} color={theme.colors.onTertiaryContainer} style={styles.launchIcon} />
+            <Text style={[styles.launchpadText, { color: theme.colors.onTertiaryContainer }]}>WhatsApp</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.launchpadBtn, { backgroundColor: theme.colors.surfaceContainerLowest }]} onPress={() => navigation.navigate('AddRequirement', { partyId: customer.id, partyName: customer.display_name })}>
+            <FilePlus2 size={20} color={theme.colors.secondary} style={styles.launchIcon} />
+            <Text style={[styles.launchpadText, { color: theme.colors.onSurface }]}>+ Req</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.launchpadBtn, { backgroundColor: theme.colors.surfaceContainerLowest }]} onPress={() => navigation.navigate('AddFollowUp', { partyId: customer.id, partyName: customer.display_name })}>
+            <CalendarPlus size={20} color={theme.colors.secondary} style={styles.launchIcon} />
+            <Text style={[styles.launchpadText, { color: theme.colors.onSurface }]}>+ Follow-up</Text>
+          </TouchableOpacity>
+        </View>
+
+        {renderTabs()}
+
+        {/* CRM Financial Vitals */}
+        {activeTab === 'overview' && (
+          <View style={styles.financialCard}>
+            <View style={styles.financialHeader}>
+              <Landmark size={20} color={theme.colors.secondary} />
+              <Text style={styles.sectionTitle}>CRM Vital Snapshot</Text>
+            </View>
+            
+            <View style={styles.financialGrid}>
+              <View style={styles.finCell}>
+                <Text style={styles.finLabel}>GSTIN</Text>
+                <Text style={styles.finValue}>{customer.gstin || 'UNREGISTERED'}</Text>
+              </View>
+              <View style={styles.finCell}>
+                <Text style={styles.finLabel}>CREDIT TERMS</Text>
+                <Text style={styles.finValue}>{financials?.crm_credit_days ? `${financials.crm_credit_days} Days` : 'N/A'}</Text>
+              </View>
+              <View style={styles.finCell}>
+                <Text style={styles.finLabel}>CREDIT LIMIT</Text>
+                <Text style={styles.finValue}>{formatCurrency(creditLimit)}</Text>
+              </View>
+              <View style={styles.finCell}>
+                <Text style={styles.finLabel}>OUTSTANDING</Text>
+                <Text style={[styles.finValue, { color: theme.colors.secondary }]}>{formatCurrency(outstanding)}</Text>
               </View>
             </View>
-          ))
+            
+            <View style={styles.creditBarContainer}>
+              <View style={styles.creditBarLabels}>
+                <Text style={styles.creditUtilText}>Credit Utilization ({creditUtil.toFixed(1)}%)</Text>
+                <Text style={styles.creditAvailText}>{formatCurrency(creditAvailable)} Available</Text>
+              </View>
+              <View style={styles.creditBarTrack}>
+                <View style={[styles.creditBarFill, { width: `${Math.min(100, creditUtil)}%` }]} />
+              </View>
+            </View>
+          </View>
         )}
+
+        {/* Dynamic Lists based on tabs */}
+        {(activeTab === 'overview' || activeTab === 'requirements') && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <FileText size={20} color={theme.colors.secondary} style={{ marginRight: 8 }} />
+                <Text style={styles.sectionTitle}>Open & Recent Requirements</Text>
+              </View>
+            </View>
+            {requirements.length === 0 ? (
+              <Text style={styles.emptyText}>No requirements logged.</Text>
+            ) : (
+              requirements.map(req => (
+                <View key={req.id} style={styles.reqCard}>
+                  <View style={styles.reqHeader}>
+                    <Text style={styles.reqId}>REQ-{req.id.substring(0,6).toUpperCase()}</Text>
+                    <Badge label={req.status} status={req.status === 'Open' ? 'warning' : 'success'} />
+                  </View>
+                  <Text style={styles.reqTitle}>{req.required_quantity} {req.unit} {req.product_type}</Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+      </ScrollView>
+
+      {/* Persistent Floating Tactical Dock */}
+      <View style={[styles.bottomDock, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View style={styles.dockInner}>
+          <TouchableOpacity style={styles.dockBtnPrimary} onPress={handleCall}>
+            <Phone size={20} color={theme.colors.onPrimary} />
+            <Text style={styles.dockBtnPrimaryText}>Call {customer.display_name.split(' ')[0]}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.dockBtnIcon} onPress={handleWhatsApp}>
+            <MessageCircle size={24} color={theme.colors.onTertiaryContainer} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.dockBtnSecondary} onPress={() => alert('Log Action deferred')}>
+            <FilePlus2 size={20} color={theme.colors.onSecondary} />
+            <Text style={styles.dockBtnSecondaryText}>Log Action</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  centerContainer: { flex: 1, backgroundColor: theme.colors.background, justifyContent: 'center', alignItems: 'center' },
-  errorText: { color: theme.colors.danger, fontSize: theme.typography.sizes.lg },
-  header: {
-    backgroundColor: theme.colors.surface,
+  center: { justifyContent: 'center', alignItems: 'center' },
+  errorText: { fontSize: 16, color: theme.colors.error, fontWeight: '600' },
+  
+  identityCard: {
+    backgroundColor: theme.colors.surfaceContainerLowest,
+    margin: theme.spacing['screen-edge'],
     padding: theme.spacing.lg,
-    borderBottomWidth: theme.borders.width,
-    borderBottomColor: theme.colors.border,
+    borderRadius: theme.borders.radius.lg,
+    ...theme.shadows.md,
   },
-  name: { fontSize: theme.typography.sizes.xxl, fontWeight: theme.typography.weights.bold, color: theme.colors.text, marginBottom: theme.spacing.xs },
-  subtitle: { fontSize: theme.typography.sizes.md, color: theme.colors.primary, marginBottom: theme.spacing.md, fontWeight: theme.typography.weights.bold },
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.sm },
-  icon: { marginRight: theme.spacing.sm },
-  infoText: { color: theme.colors.textMuted, fontSize: theme.typography.sizes.md, flex: 1 },
-  actionGrid: { flexDirection: 'row', gap: theme.spacing.sm, marginTop: theme.spacing.md },
-  actionBtn: { flex: 1, backgroundColor: theme.colors.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: theme.spacing.sm, borderRadius: theme.borders.radius.md, gap: theme.spacing.sm },
-  actionBtnText: { color: '#fff', fontSize: theme.typography.sizes.sm, fontWeight: theme.typography.weights.bold },
-  section: { padding: theme.spacing.lg, paddingBottom: 0 },
+  identityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: theme.spacing.md },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  idBadge: { backgroundColor: theme.colors.surfaceContainerHigh, paddingHorizontal: 6, paddingVertical: 2, borderRadius: theme.borders.radius.full, marginRight: 8 },
+  idBadgeText: { fontSize: theme.typography.sizes.labelSm, color: theme.colors.onSurfaceVariant, fontWeight: '600' },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.surfaceContainerHighest, paddingHorizontal: 8, paddingVertical: 2, borderRadius: theme.borders.radius.full },
+  statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.colors.secondary, marginRight: 4 },
+  statusBadgeText: { fontSize: theme.typography.sizes.labelSm, color: theme.colors.secondary, fontWeight: '600' },
+  customerName: { fontFamily: theme.typography.fontFamily.display, fontSize: theme.typography.sizes.headlineLg, fontWeight: theme.typography.weights.bold, color: theme.colors.onSurface },
+  companyIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: theme.colors.surfaceContainer, alignItems: 'center', justifyContent: 'center' },
+  
+  contactCard: { backgroundColor: theme.colors.surfaceContainerLow, borderRadius: theme.borders.radius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md },
+  contactRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  contactName: { fontSize: theme.typography.sizes.titleMd, fontWeight: '600', color: theme.colors.onSurface, marginLeft: 8 },
+  contactValuePhone: { fontSize: theme.typography.sizes.bodyLg, color: theme.colors.onSurface, fontWeight: '600', marginLeft: 8, textDecorationLine: 'underline' },
+  contactValueLoc: { fontSize: theme.typography.sizes.bodySm, color: theme.colors.onSurfaceVariant, marginLeft: 8, flex: 1 },
+
+  repRow: { flexDirection: 'row', alignItems: 'center' },
+  repBadge: { width: 24, height: 24, borderRadius: 12, backgroundColor: theme.colors.primaryContainer, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  repText: { fontSize: theme.typography.sizes.labelMd, color: theme.colors.onSurfaceVariant },
+  repTextBold: { color: theme.colors.onSurface, fontWeight: '600' },
+  tallyText: { fontSize: theme.typography.sizes.labelSm, color: theme.colors.secondary, fontWeight: '600', textTransform: 'uppercase' },
+
+  launchpadGrid: { flexDirection: 'row', paddingHorizontal: theme.spacing['screen-edge'], gap: theme.spacing.sm, marginBottom: theme.spacing.md },
+  launchpadBtn: { flex: 1, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: theme.borders.radius.md, ...theme.shadows.sm },
+  launchIcon: { marginBottom: 4 },
+  launchpadText: { fontSize: theme.typography.sizes.labelSm, fontWeight: '600' },
+
+  tabContainer: { paddingHorizontal: theme.spacing['screen-edge'], paddingVertical: 8, gap: 8, marginBottom: 8 },
+  tabButton: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: theme.borders.radius.full },
+  tabButtonActive: { backgroundColor: theme.colors.primary },
+  tabButtonInactive: { backgroundColor: theme.colors.surfaceContainer },
+  tabText: { fontSize: theme.typography.sizes.labelMd, fontWeight: '600' },
+  tabTextActive: { color: theme.colors.onPrimary },
+  tabTextInactive: { color: theme.colors.onSurfaceVariant },
+
+  financialCard: { backgroundColor: theme.colors.surfaceContainerLowest, marginHorizontal: theme.spacing['screen-edge'], padding: theme.spacing.lg, borderRadius: theme.borders.radius.lg, ...theme.shadows.sm, marginBottom: theme.spacing.lg },
+  financialHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: theme.spacing.md },
+  sectionTitle: { fontFamily: theme.typography.fontFamily.display, fontSize: theme.typography.sizes.headlineSm, fontWeight: '700', color: theme.colors.onSurface, marginLeft: 8 },
+  financialGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  finCell: { width: '48%', backgroundColor: theme.colors.surfaceContainerLow, borderRadius: theme.borders.radius.md, padding: 12 },
+  finLabel: { fontSize: theme.typography.sizes.labelSm, color: theme.colors.onSurfaceVariant, fontWeight: '600', marginBottom: 4 },
+  finValue: { fontSize: theme.typography.sizes.bodyLg, color: theme.colors.onSurface, fontWeight: '600', fontFamily: 'monospace' },
+  creditBarContainer: { marginTop: 4 },
+  creditBarLabels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  creditUtilText: { fontSize: theme.typography.sizes.labelSm, color: theme.colors.onSurfaceVariant },
+  creditAvailText: { fontSize: theme.typography.sizes.labelSm, color: theme.colors.onSurface, fontWeight: '600' },
+  creditBarTrack: { height: 8, backgroundColor: theme.colors.surfaceContainer, borderRadius: 4, overflow: 'hidden' },
+  creditBarFill: { height: '100%', backgroundColor: theme.colors.secondary, borderRadius: 4 },
+
+  section: { paddingHorizontal: theme.spacing['screen-edge'], marginBottom: theme.spacing.xl },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md },
-  sectionTitle: { fontSize: theme.typography.sizes.lg, fontWeight: theme.typography.weights.bold, color: theme.colors.text, marginBottom: theme.spacing.md },
-  emptyText: { color: theme.colors.textMuted, fontStyle: 'italic', marginBottom: theme.spacing.md },
-  cardItem: { marginBottom: theme.spacing.md, padding: theme.spacing.md },
-  cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  cardTitle: { color: theme.colors.text, fontWeight: theme.typography.weights.bold, fontSize: theme.typography.sizes.lg },
-  cardDetail: { color: theme.colors.textMuted, fontSize: theme.typography.sizes.md, marginTop: theme.spacing.xs },
-  linkText: { color: theme.colors.primary, fontSize: theme.typography.sizes.sm, fontWeight: theme.typography.weights.medium, marginTop: theme.spacing.md },
-  timelineItem: { flexDirection: 'row', marginBottom: theme.spacing.md },
-  timelineIcon: { width: 24, alignItems: 'center', paddingTop: 2, marginRight: theme.spacing.sm },
-  timelineContent: { flex: 1, backgroundColor: theme.colors.surface, padding: theme.spacing.md, borderRadius: theme.borders.radius.md, borderWidth: theme.borders.width, borderColor: theme.colors.border },
-  timelineTitle: { color: theme.colors.text, fontWeight: theme.typography.weights.bold, fontSize: theme.typography.sizes.md },
-  timelineDate: { color: theme.colors.textMuted, fontSize: theme.typography.sizes.sm, marginBottom: theme.spacing.xs },
-  timelineNotes: { color: theme.colors.text, fontSize: theme.typography.sizes.md, marginTop: theme.spacing.xs },
+  emptyText: { color: theme.colors.onSurfaceVariant, fontStyle: 'italic', fontSize: theme.typography.sizes.bodyMd },
+  
+  reqCard: { backgroundColor: theme.colors.surfaceContainerLowest, padding: theme.spacing.lg, borderRadius: theme.borders.radius.lg, marginBottom: theme.spacing.md, ...theme.shadows.sm },
+  reqHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  reqId: { fontSize: theme.typography.sizes.labelMd, fontWeight: '600', color: theme.colors.onSurface },
+  reqTitle: { fontSize: theme.typography.sizes.titleMd, fontWeight: '700', color: theme.colors.onSurface },
+
+  bottomDock: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(248,249,255,0.95)', borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 12, paddingHorizontal: theme.spacing['screen-edge'], zIndex: 100 },
+  dockInner: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  dockBtnPrimary: { flex: 1, height: 48, backgroundColor: theme.colors.primary, borderRadius: theme.borders.radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  dockBtnPrimaryText: { color: theme.colors.onPrimary, fontSize: theme.typography.sizes.labelLg, fontWeight: '600' },
+  dockBtnIcon: { width: 48, height: 48, backgroundColor: theme.colors.surfaceContainer, borderRadius: theme.borders.radius.md, alignItems: 'center', justifyContent: 'center' },
+  dockBtnSecondary: { flex: 1, height: 48, backgroundColor: theme.colors.secondary, borderRadius: theme.borders.radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  dockBtnSecondaryText: { color: theme.colors.onSecondary, fontSize: theme.typography.sizes.labelLg, fontWeight: '600' },
 });

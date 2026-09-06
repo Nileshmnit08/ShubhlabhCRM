@@ -12,11 +12,12 @@ export default function Card({ children, style }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceContainerLowest,
     borderRadius: theme.borders.radius.md,
-    padding: theme.spacing.md,
+    padding: theme.spacing.lg,
     borderWidth: theme.borders.width,
     borderColor: theme.colors.border,
     marginBottom: theme.spacing.md,
+    ...theme.shadows.sm,
   }
 });

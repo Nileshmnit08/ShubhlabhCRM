@@ -5,25 +5,36 @@ import { theme } from '../theme';
 export default function Button({ 
   title, 
   onPress, 
-  variant = 'primary', // 'primary', 'secondary', 'danger'
+  variant = 'primary', // 'primary', 'secondary', 'danger', 'outline', 'ghost'
   loading = false, 
   disabled = false,
   icon: Icon,
-  style
+  style,
+  textStyle,
 }) {
-  const getBackgroundColor = () => {
+  const getColors = () => {
     switch (variant) {
-      case 'secondary': return theme.colors.secondary;
-      case 'danger': return theme.colors.danger;
-      default: return theme.colors.primary;
+      case 'secondary': 
+        return { bg: theme.colors.secondary, text: theme.colors.onSecondary };
+      case 'danger': 
+        return { bg: theme.colors.error, text: theme.colors.onError };
+      case 'outline':
+        return { bg: 'transparent', text: theme.colors.onSurface, border: theme.colors.outlineVariant };
+      case 'ghost':
+        return { bg: 'transparent', text: theme.colors.secondary };
+      default: 
+        return { bg: theme.colors.primary, text: theme.colors.onPrimary };
     }
   };
+
+  const colors = getColors();
 
   return (
     <TouchableOpacity 
       style={[
         styles.button, 
-        { backgroundColor: getBackgroundColor() },
+        { backgroundColor: colors.bg },
+        colors.border && { borderWidth: 1, borderColor: colors.border },
         (disabled || loading) && styles.disabled,
         style
       ]} 
@@ -32,11 +43,11 @@ export default function Button({
       activeOpacity={0.8}
     >
       {loading ? (
-        <ActivityIndicator color="#fff" size="small" />
+        <ActivityIndicator color={colors.text} size="small" />
       ) : (
         <>
-          {Icon && <Icon size={18} color="#fff" style={styles.icon} />}
-          <Text style={styles.text}>{title}</Text>
+          {Icon && <Icon size={20} color={colors.text} style={styles.icon} />}
+          <Text style={[styles.text, { color: colors.text }, textStyle]}>{title}</Text>
         </>
       )}
     </TouchableOpacity>
@@ -46,9 +57,9 @@ export default function Button({
 const styles = StyleSheet.create({
   button: {
     flexDirection: 'row',
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.lg,
-    borderRadius: theme.borders.radius.md,
+    minHeight: theme.spacing['touch-target'],
+    paddingHorizontal: theme.spacing.xl,
+    borderRadius: theme.borders.radius.full,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -56,9 +67,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   text: {
-    color: '#fff',
-    fontSize: theme.typography.sizes.lg,
-    fontWeight: theme.typography.weights.bold,
+    fontSize: theme.typography.sizes.labelLg,
+    fontFamily: theme.typography.fontFamily.body,
+    fontWeight: theme.typography.weights.semibold,
   },
   icon: {
     marginRight: theme.spacing.sm,
