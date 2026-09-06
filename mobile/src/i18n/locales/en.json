@@ -1,0 +1,17 @@
+{
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "english": "English",
+    "hindi": "Hindi (हिन्दी)",
+    "save": "Save Changes"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "no_data": "No data found."
+  }
+}
