@@ -13,6 +13,7 @@ import CallHistoryScreen from './src/screens/CallHistoryScreen';
 import AddRequirementScreen from './src/screens/AddRequirementScreen';
 import AddFollowUpScreen from './src/screens/AddFollowUpScreen';
 import UpdateDispatchScreen from './src/screens/UpdateDispatchScreen';
+import RequirementDetailScreen from './src/screens/RequirementDetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { StatusBar } from 'expo-status-bar';
 import './src/i18n'; // Initialize i18n
@@ -42,20 +43,21 @@ function AppNavigator() {
   // Role-based routing with Stack for Detail screens
   return (
     <>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: '#1e293b' }, headerTintColor: '#fff', headerBackTitleVisible: false }}>
           <Stack.Screen name="MainTabs" options={{ headerShown: false }}>
             {() => userProfile?.role === 'Admin' ? <AdminWorkspace /> : <FieldWorkspace />}
           </Stack.Screen>
-          <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} options={{ title: 'Customer Details' }} />
+          <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="LogFollowUp" component={LogFollowUpScreen} options={{ title: 'Log Follow-up' }} />
           <Stack.Screen name="AddActivity" component={AddActivityScreen} options={{ title: 'Log Activity' }} />
           <Stack.Screen name="CallHistory" component={CallHistoryScreen} options={{ title: 'Recent Calls' }} />
           <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings & UI' }} />
-          <Stack.Screen name="AddRequirement" component={AddRequirementScreen} options={{ title: 'Add Requirement' }} />
+          <Stack.Screen name="AddRequirement" component={AddRequirementScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AddFollowUp" component={AddFollowUpScreen} options={{ title: 'Schedule Follow-up' }} />
           <Stack.Screen name="UpdateDispatch" component={UpdateDispatchScreen} options={{ title: 'Update Dispatch' }} />
+          <Stack.Screen name="RequirementDetail" component={RequirementDetailScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
     </>
@@ -81,6 +83,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#f8f9ff',
   },
 });

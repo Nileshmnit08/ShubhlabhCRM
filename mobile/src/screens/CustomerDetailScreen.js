@@ -280,13 +280,21 @@ export default function CustomerDetailScreen({ route, navigation }) {
               <Text style={styles.emptyText}>No requirements logged.</Text>
             ) : (
               requirements.map(req => (
-                <View key={req.id} style={styles.reqCard}>
+                <TouchableOpacity
+                  key={req.id}
+                  style={styles.reqCard}
+                  onPress={() => navigation.navigate('RequirementDetail', {
+                    requirementId: req.id,
+                    partyName: customer.display_name,
+                  })}
+                  activeOpacity={0.8}
+                >
                   <View style={styles.reqHeader}>
                     <Text style={styles.reqId}>REQ-{req.id.substring(0,6).toUpperCase()}</Text>
                     <Badge label={req.status} status={req.status === 'Open' ? 'warning' : 'success'} />
                   </View>
                   <Text style={styles.reqTitle}>{req.required_quantity} {req.unit} {req.product_type}</Text>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </View>
