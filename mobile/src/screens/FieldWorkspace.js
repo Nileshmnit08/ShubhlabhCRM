@@ -3,25 +3,27 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuth } from '../AuthContext';
 import { supabase } from '../lib/supabase';
-import { Map, Briefcase, UserCircle } from 'lucide-react-native';
+import { Map, Briefcase, CalendarCheck, UserCircle } from 'lucide-react-native';
+import { theme } from '../theme';
 
 import MyRouteScreen from './MyRouteScreen';
 import MyCustomersScreen from './MyCustomersScreen';
+import FollowUpListScreen from './FollowUpListScreen';
 
 const Tab = createBottomTabNavigator();
 
 // Operator Profile / Logout
 function ProfileScreen() {
   const { userProfile } = useAuth();
-  
+
   return (
     <View style={styles.placeholderContainer}>
-      <UserCircle color="#3b82f6" size={64} style={{marginBottom: 16}} />
+      <UserCircle color={theme.colors.secondary} size={64} style={{ marginBottom: 16 }} />
       <Text style={styles.placeholderTitle}>{userProfile?.display_name}</Text>
       <View style={styles.roleBadge}>
         <Text style={styles.roleText}>{userProfile?.role}</Text>
       </View>
-      
+
       <TouchableOpacity style={styles.logoutButton} onPress={() => supabase.auth.signOut()}>
         <Text style={styles.logoutText}>Sign Out</Text>
       </TouchableOpacity>
@@ -33,30 +35,49 @@ export default function FieldWorkspace() {
   return (
     <Tab.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#1e293b', shadowColor: 'transparent', elevation: 0 },
-        headerTintColor: '#f8fafc',
-        tabBarStyle: { backgroundColor: '#1e293b', borderTopColor: '#334155' },
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#64748b',
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: theme.colors.surfaceContainerLowest,
+          borderTopColor: theme.colors.border,
+          borderTopWidth: 1,
+          elevation: 0,
+          height: 60,
+        },
+        tabBarActiveTintColor: theme.colors.secondary,
+        tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+        tabBarLabelStyle: {
+          fontFamily: theme.typography.fontFamily.body,
+          fontSize: 11,
+          fontWeight: '600',
+          marginBottom: 4,
+        },
       }}
     >
-      <Tab.Screen 
-        name="My Route" 
-        component={MyRouteScreen} 
+      <Tab.Screen
+        name="My Route"
+        component={MyRouteScreen}
         options={{
+          tabBarLabel: "Today's Work",
           tabBarIcon: ({ color, size }) => <Map color={color} size={size} />,
         }}
       />
-      <Tab.Screen 
-        name="My Customers" 
-        component={MyCustomersScreen} 
+      <Tab.Screen
+        name="My Customers"
+        component={MyCustomersScreen}
         options={{
           tabBarIcon: ({ color, size }) => <Briefcase color={color} size={size} />,
         }}
       />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen} 
+      <Tab.Screen
+        name="Follow-ups"
+        component={FollowUpListScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <CalendarCheck color={color} size={size} />,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
         options={{
           tabBarIcon: ({ color, size }) => <UserCircle color={color} size={size} />,
         }}
@@ -66,13 +87,9 @@ export default function FieldWorkspace() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-  },
   placeholderContainer: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.background,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -80,44 +97,13 @@ const styles = StyleSheet.create({
   placeholderTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: theme.colors.onSurface,
     marginBottom: 8,
-  },
-  placeholderText: {
-    fontSize: 16,
-    color: '#94a3b8',
-    textAlign: 'center',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#64748b',
-    fontStyle: 'italic',
-  },
-  listItem: {
-    backgroundColor: '#1e293b',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
-  },
-  itemTitle: {
-    color: '#f8fafc',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  itemSubtitle: {
-    color: '#94a3b8',
-    fontSize: 14,
-    marginTop: 4,
+    fontFamily: theme.typography.fontFamily.display,
   },
   logoutButton: {
     marginTop: 40,
-    backgroundColor: '#ef4444',
+    backgroundColor: theme.colors.error,
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
@@ -126,19 +112,21 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+    fontFamily: theme.typography.fontFamily.body,
   },
   roleBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    backgroundColor: 'rgba(37,99,235,0.1)',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#3b82f6',
+    borderColor: theme.colors.secondary,
     marginTop: 8,
   },
   roleText: {
-    color: '#60a5fa',
+    color: theme.colors.secondary,
     fontSize: 12,
     fontWeight: 'bold',
+    fontFamily: theme.typography.fontFamily.body,
   },
 });

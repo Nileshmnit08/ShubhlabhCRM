@@ -14,6 +14,8 @@ import AddRequirementScreen from './src/screens/AddRequirementScreen';
 import AddFollowUpScreen from './src/screens/AddFollowUpScreen';
 import UpdateDispatchScreen from './src/screens/UpdateDispatchScreen';
 import RequirementDetailScreen from './src/screens/RequirementDetailScreen';
+import FollowUpListScreen from './src/screens/FollowUpListScreen';
+import FollowUpDetailScreen from './src/screens/FollowUpDetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { StatusBar } from 'expo-status-bar';
 import './src/i18n'; // Initialize i18n
@@ -55,9 +57,11 @@ function AppNavigator() {
           <Stack.Screen name="CallHistory" component={CallHistoryScreen} options={{ title: 'Recent Calls' }} />
           <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings & UI' }} />
           <Stack.Screen name="AddRequirement" component={AddRequirementScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="AddFollowUp" component={AddFollowUpScreen} options={{ title: 'Schedule Follow-up' }} />
+          <Stack.Screen name="AddFollowUp" component={AddFollowUpScreen} options={{ headerShown: false }} />
           <Stack.Screen name="UpdateDispatch" component={UpdateDispatchScreen} options={{ title: 'Update Dispatch' }} />
           <Stack.Screen name="RequirementDetail" component={RequirementDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="FollowUpList" component={FollowUpListScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="FollowUpDetail" component={FollowUpDetailScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
     </>
