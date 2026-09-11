@@ -8,39 +8,10 @@ import { theme } from '../theme';
 
 // NEW: Stitch-approved Admin Control Center replaces old HomeScreen / "Global Overview"
 import AdminControlCenterScreen from './AdminControlCenterScreen';
+import TeamActivityScreen from './TeamActivityScreen';
+import AdminSettingsScreen from './AdminSettingsScreen';
 
 const Tab = createBottomTabNavigator();
-
-// ─── Team Activity (placeholder, unchanged from original) ─────────────────────
-function TeamActivityScreen() {
-  return (
-    <View style={styles.placeholderContainer}>
-      <Users size={48} color={theme.colors.secondary} style={{ marginBottom: 16 }} />
-      <Text style={styles.placeholderTitle}>Team Activity</Text>
-      <Text style={styles.placeholderText}>Admin view of all field operators' daily activities.</Text>
-    </View>
-  );
-}
-
-// ─── Admin Settings (placeholder, unchanged from original) ────────────────────
-function AdminSettingsScreen() {
-  const { userProfile } = useAuth();
-
-  return (
-    <View style={styles.placeholderContainer}>
-      <Settings size={48} color={theme.colors.secondary} style={{ marginBottom: 16 }} />
-      <Text style={styles.placeholderTitle}>Admin Settings</Text>
-      <Text style={styles.placeholderText}>Manage CRM Roles & Defaults.</Text>
-      <Text style={{ color: '#94a3b8', marginTop: 20 }}>Logged in as: {userProfile?.display_name}</Text>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={() => supabase.auth.signOut()}>
-        <Text style={styles.logoutText}>Sign Out</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Admin Workspace Navigator ────────────────────────────────────────────────
 export default function AdminWorkspace() {
   return (
     <Tab.Navigator

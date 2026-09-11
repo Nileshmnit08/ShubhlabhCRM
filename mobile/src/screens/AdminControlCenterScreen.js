@@ -94,14 +94,14 @@ function KpiTile({ label, value, sub, subColor, icon: Icon, iconColor }) {
 }
 
 // ─── Shortcut button ─────────────────────────────────────────────────────────
-function ShortcutBtn({ label, icon: Icon, iconColor }) {
+function ShortcutBtn({ label, icon: Icon, iconColor, onPress }) {
   return (
-    <View style={s.shortcut}>
+    <TouchableOpacity style={s.shortcut} onPress={onPress}>
       <View style={[s.shortcutIcon, { backgroundColor: C.surfaceContainer }]}>
         <Icon size={18} color={iconColor || C.onSurface} />
       </View>
       <Text style={s.shortcutLabel}>{label}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -146,6 +146,7 @@ export default function AdminControlCenterScreen({ navigation }) {
     openPipeline: 0,
     activeCustomers: 0,
     exceptions: 0,
+    gpsActive: 0,
   });
 
   const [exceptionItems, setExceptionItems] = useState([]);
@@ -199,6 +200,14 @@ export default function AdminControlCenterScreen({ navigation }) {
         .select('customer_id', { count: 'exact', head: true })
         .eq('crm_status', 'Active');
 
+      // 6. GPS Active (unique users logging location today)
+      const { data: gpsData } = await supabase
+        .from('staff_location_events')
+        .select('user_id')
+        .gte('created_at', today + 'T00:00:00');
+      
+      const uniqueGpsUsers = new Set((gpsData || []).map(row => row.user_id)).size;
+
       // 6. Exception items — overdue follow-ups as exception cards
       const { data: overdueItems } = await supabase
         .from('follow_ups')
@@ -224,7 +233,7 @@ export default function AdminControlCenterScreen({ navigation }) {
         : items.length;
 
       setKpis({
-        activeStaff: Math.max(0, totalStaff - 1), // estimated active (minus offline buffer)
+        activeStaff: totalStaff, // Real total field staff
         totalStaff,
         callsLogged: callsCount || 0,
         openFollowUps: openFups || 0,
@@ -232,6 +241,7 @@ export default function AdminControlCenterScreen({ navigation }) {
         openPipeline: pipelineCount || 0,
         activeCustomers: activeCust || 0,
         exceptions: overdueFups || 0,
+        gpsActive: uniqueGpsUsers || 0,
       });
       setExceptionItems(items);
     } catch (err) {
@@ -358,16 +368,16 @@ export default function AdminControlCenterScreen({ navigation }) {
               />
               <KpiTile
                 label="GPS Active"
-                value="Live"
-                sub="Location Tracking"
-                subColor={C.teal}
+                value={String(kpis.gpsActive)}
+                sub="Staff Live Today"
+                subColor={kpis.gpsActive > 0 ? C.teal : C.onSurfaceVariant}
                 icon={MapPin}
-                iconColor={C.teal}
+                iconColor={kpis.gpsActive > 0 ? C.teal : C.onSurfaceVariant}
               />
               <KpiTile
                 label="Audio Vault"
                 value="—"
-                sub="See Call History"
+                sub="Unavailable"
                 subColor={C.onSurfaceVariant}
                 icon={Mic}
                 iconColor={C.onSurfaceVariant}
@@ -377,10 +387,10 @@ export default function AdminControlCenterScreen({ navigation }) {
 
           {/* ── Shortcut Buttons ── */}
           <View style={s.shortcuts}>
-            <ShortcutBtn label="Directory" icon={BookUser} iconColor={C.onSurface} />
-            <ShortcutBtn label="Call Vault" icon={Phone} iconColor={C.secondary} />
-            <ShortcutBtn label="Radar Map" icon={Map} iconColor={C.teal} />
-            <ShortcutBtn label="Audit Logs" icon={ShieldCheck} iconColor={C.onSurfaceVariant} />
+            <ShortcutBtn label="Directory" icon={BookUser} iconColor={C.onSurface} onPress={() => navigation.navigate('MyCustomers')} />
+            <ShortcutBtn label="Call Vault" icon={Phone} iconColor={C.secondary} onPress={() => navigation.navigate('CallHistory')} />
+            <ShortcutBtn label="Radar Map" icon={Map} iconColor={C.teal} onPress={() => alert('Radar Map is currently unavailable.')} />
+            <ShortcutBtn label="Audit Logs" icon={ShieldCheck} iconColor={C.onSurfaceVariant} onPress={() => navigation.navigate('ActivityList')} />
           </View>
 
           {/* ── Exceptions Section ── */}

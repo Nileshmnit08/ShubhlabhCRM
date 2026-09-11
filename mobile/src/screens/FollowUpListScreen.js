@@ -197,7 +197,10 @@ export default function FollowUpListScreen({ navigation }) {
         rightElement={
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => navigation.navigate('AddFollowUp', { partyId: null, partyName: null })}
+            onPress={() => {
+              alert('Please select a customer first.');
+              navigation.navigate('MyCustomers');
+            }}
           >
             <PlusCircle size={22} color={theme.colors.secondary} />
           </TouchableOpacity>

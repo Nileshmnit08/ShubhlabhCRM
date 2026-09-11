@@ -28,7 +28,7 @@ export default function MyRouteScreen({ navigation }) {
       // 1. Fetch pending follow-ups
       const { data: followUpsData } = await supabase
         .from('follow_ups')
-        .select(`*, crm_parties(display_name, assigned_owner_id)`)
+        .select(`*, crm_parties(display_name, assigned_owner_id, mobile)`)
         .eq('status', 'Pending');
       
       const allAccessibleFu = (followUpsData || []).filter(
@@ -114,11 +114,20 @@ export default function MyRouteScreen({ navigation }) {
             <Phone size={18} color={theme.colors.onPrimaryContainer} />
             <Text style={styles.quickActionText}>Log Call</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionBtn} onPress={() => handleActionToast("WhatsApp integration deferred")}>
+          <TouchableOpacity style={styles.quickActionBtn} onPress={() => {
+            if (!item.crm_parties?.mobile) { alert('No phone number available.'); return; }
+            const cleanPhone = item.crm_parties.mobile.replace(/[^0-9]/g, '');
+            Linking.openURL(`whatsapp://send?phone=${cleanPhone}`);
+          }}>
             <MessageCircle size={18} color={theme.colors.onPrimaryContainer} />
             <Text style={styles.quickActionText}>WhatsApp</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionDoneBtn} onPress={() => handleActionToast("Mark as done logic deferred")}>
+          <TouchableOpacity style={styles.quickActionDoneBtn} onPress={() => navigation.navigate('LogFollowUp', { 
+              followUpId: item.id, 
+              partyId: item.party_id, 
+              partyName: item.crm_parties?.display_name,
+              currentReason: item.reason || item.follow_up_type
+            })}>
             <CheckCircle size={18} color={theme.colors.onSecondaryContainer} />
           </TouchableOpacity>
         </View>
@@ -187,12 +196,18 @@ export default function MyRouteScreen({ navigation }) {
 
       {/* 3. Fast Action Quick Bar */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickBar}>
-        <TouchableOpacity style={styles.primaryCta} onPress={() => handleActionToast("Add Requirement flow starting...")}>
+        <TouchableOpacity style={styles.primaryCta} onPress={() => {
+          alert('Please select a customer first.');
+          navigation.navigate('MyCustomers');
+        }}>
           <PlusCircle size={18} color={theme.colors.onSecondary} />
           <Text style={styles.primaryCtaText}>+ Requirement</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.secondaryCta} onPress={() => handleActionToast("Add Follow-up flow starting...")}>
+        <TouchableOpacity style={styles.secondaryCta} onPress={() => {
+          alert('Please select a customer first.');
+          navigation.navigate('MyCustomers');
+        }}>
           <Calendar size={16} color={theme.colors.secondary} />
           <Text style={styles.secondaryCtaText}>+ Follow-up</Text>
         </TouchableOpacity>

@@ -7,6 +7,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import AdminWorkspace from './src/screens/AdminWorkspace';
 import FieldWorkspace from './src/screens/FieldWorkspace';
 import CustomerDetailScreen from './src/screens/CustomerDetailScreen';
+import MyCustomersScreen from './src/screens/MyCustomersScreen';
 import LogFollowUpScreen from './src/screens/LogFollowUpScreen';
 import AddActivityScreen from './src/screens/AddActivityScreen';
 import ActivityListScreen from './src/screens/ActivityListScreen';
@@ -54,6 +55,7 @@ function AppNavigator() {
             {() => userProfile?.role === 'Admin' ? <AdminWorkspace /> : <FieldWorkspace />}
           </Stack.Screen>
           <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="MyCustomers" component={MyCustomersScreen} options={{ headerShown: false }} />
           <Stack.Screen name="LogFollowUp" component={LogFollowUpScreen} options={{ title: 'Log Follow-up' }} />
           <Stack.Screen name="AddActivity" component={AddActivityScreen} options={{ headerShown: false }} />
           <Stack.Screen name="ActivityList" component={ActivityListScreen} options={{ headerShown: false }} />
