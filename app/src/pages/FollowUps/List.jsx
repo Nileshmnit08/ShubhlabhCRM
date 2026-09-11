@@ -17,6 +17,8 @@ export default function FollowUpList() {
   const [filterType, setFilterType] = useState('All');
   const [filterPriority, setFilterPriority] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [filterOwner, setFilterOwner] = useState('All Owners');
+  const [users, setUsers] = useState([]);
   
   // Call Queue State
   const [isCalling, setIsCalling] = useState(false);
@@ -29,6 +31,19 @@ export default function FollowUpList() {
   const [summary, setSummary] = useState({ dueToday: 0, overdue: 0, tomorrow: 0, thisWeek: 0, highPriority: 0, completedToday: 0 });
 
   const { t } = useContext(LanguageContext);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data } = await supabase.from('app_users').select('id, display_name, email').eq('is_active', true);
+      if (data) setUsers(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     fetchFollowUps();
@@ -75,7 +90,7 @@ export default function FollowUpList() {
     setLoading(true);
     try {
       let query = supabase.from('follow_ups')
-        .select(`*, crm_parties ( id, display_name, mobile, crm_status, city )`)
+        .select(`*, crm_parties ( id, display_name, mobile, crm_status, city, assigned_owner_id )`)
         .order('due_at', { ascending: true, nullsFirst: false });
 
       const todayStart = new Date();
@@ -123,7 +138,7 @@ export default function FollowUpList() {
       // Also in Upcoming tab, fetch items where reminder is today but due is future.
       if (activeTab === 'Upcoming') {
           const { data: reminderData } = await supabase.from('follow_ups')
-            .select(`*, crm_parties ( id, display_name, mobile, crm_status, city )`)
+            .select(`*, crm_parties ( id, display_name, mobile, crm_status, city, assigned_owner_id )`)
             .neq('status', 'Completed')
             .neq('status', 'Cancelled')
             .gte('due_at', todayEnd.toISOString())
@@ -214,6 +229,12 @@ export default function FollowUpList() {
     if (filterType !== 'All' && f.follow_up_type !== filterType) return false;
     if (filterPriority !== 'All' && f.priority !== filterPriority) return false;
     if (filterStatus !== 'All' && f.status !== filterStatus) return false;
+    
+    if (filterOwner === 'Unassigned') {
+      if (f.assigned_to !== null || f.crm_parties?.assigned_owner_id != null) return false;
+    } else if (filterOwner !== 'All Owners') {
+      if (f.assigned_to !== filterOwner && f.crm_parties?.assigned_owner_id !== filterOwner) return false;
+    }
     
     if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -365,6 +386,14 @@ export default function FollowUpList() {
                 <option value="High">High</option>
                 <option value="Normal">Normal</option>
                 <option value="Low">Low</option>
+            </select>
+            
+            <select value={filterOwner} onChange={e => setFilterOwner(e.target.value)} style={{background: 'var(--bg-surface)'}}>
+                <option value="All Owners">All Owners</option>
+                <option value="Unassigned">Unassigned</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.display_name || u.email?.split('@')[0]}</option>
+                ))}
             </select>
           </>
         )}

@@ -494,6 +494,18 @@ export default function RequirementList() {
             <option value="Custom">Custom Range</option>
           </select>
         </div>
+
+        <div style={{flex: '1 1 150px'}}>
+          <label className="text-muted" style={{display: 'block', fontSize: '0.85rem', marginBottom: '0.25rem'}}>Assigned Owner</label>
+          <select value={ownerFilter} onChange={(e) => updateFilter('owner', e.target.value)} style={{width: '100%', padding: '0.5rem', borderRadius: '4px', background: 'var(--bg-base)', border: '1px solid var(--border)'}}>
+            <option value="All Owners">All Owners</option>
+            <option value="Unassigned">Unassigned</option>
+            <option value="My Requirements">My Requirements</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.email?.split('@')[0] || 'Unknown'}</option>
+            ))}
+          </select>
+        </div>
         
         <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', paddingBottom: '0.5rem'}} className="text-muted">
           <input type="checkbox" checked={includeCompleted} onChange={(e) => updateFilter('includeCompleted', e.target.checked.toString())} />

@@ -14,6 +14,23 @@ export default function DispatchList() {
   // Status filter
   const [statusFilter, setStatusFilter] = useState('All');
   
+  // Owner filter
+  const [filterOwner, setFilterOwner] = useState('All');
+  const [users, setUsers] = useState([]);
+  
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const { data } = await supabase.from('app_users').select('id, display_name, email').eq('is_active', true);
+      if (data) setUsers(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchDispatches();
   }, [reqIdParam]);
@@ -24,7 +41,7 @@ export default function DispatchList() {
       let query = supabase.from('requirement_dispatches').select(`
         *,
         requirements (
-          id, quantity, unit,
+          id, quantity, unit, assigned_to,
           crm_parties (id, display_name, city, territory_name)
         ),
         created_user:created_by (email)
@@ -47,6 +64,12 @@ export default function DispatchList() {
 
   const filteredDispatches = dispatches.filter(d => {
     if (statusFilter !== 'All' && d.status !== statusFilter) return false;
+    
+    if (filterOwner === 'Unassigned') {
+      if (d.requirements?.assigned_to != null) return false;
+    } else if (filterOwner !== 'All') {
+      if (d.requirements?.assigned_to !== filterOwner) return false;
+    }
     
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -104,6 +127,16 @@ export default function DispatchList() {
               <option value="Delayed">Delayed</option>
               <option value="Cancelled">Cancelled</option>
               <option value="Returned">Returned</option>
+            </select>
+            <select 
+              value={filterOwner} onChange={e => setFilterOwner(e.target.value)}
+              style={{padding: '0.5rem', borderRadius: '6px', background: 'var(--bg-base)', border: '1px solid var(--border)', color: 'var(--text-primary)'}}
+            >
+              <option value="All">All Owners</option>
+              <option value="Unassigned">Unassigned</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>{u.display_name || u.email?.split('@')[0]}</option>
+              ))}
             </select>
           </div>
           
