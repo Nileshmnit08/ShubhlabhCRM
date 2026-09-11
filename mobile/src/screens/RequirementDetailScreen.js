@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Package, Hash, Scale, CalendarDays, User, Sparkles,
   Building2, ClipboardList, Truck, Tag, PenLine,
-  CalendarPlus, AlertCircle, CheckCircle2, Clock,
+  CalendarPlus, AlertCircle, CheckCircle2, Clock, ArrowRight,
 } from 'lucide-react-native';
 
 // ─── Status → Badge mapping ───────────────────────────────────────────────────
@@ -87,7 +87,7 @@ export default function RequirementDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
 
   const [requirement, setRequirement] = useState(null);
-  const [dispatchSummary, setDispatchSummary] = useState(null);
+  const [dispatches, setDispatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -115,6 +115,15 @@ export default function RequirementDetailScreen({ route, navigation }) {
 
       setRequirement(data);
       setError(null);
+
+      // Fetch actual dispatch records for this requirement
+      const { data: dispData } = await supabase
+        .from('requirement_dispatches')
+        .select('id, dispatch_date, quantity, unit, truck_number, status, transporter_name')
+        .eq('requirement_id', requirementId)
+        .order('dispatch_date', { ascending: false });
+      setDispatches(dispData || []);
+
     } catch (err) {
       console.error('[RequirementDetail] unexpected error:', err);
       setError('An unexpected error occurred.');
@@ -285,12 +294,16 @@ export default function RequirementDetailScreen({ route, navigation }) {
           <InfoRow icon={CalendarDays} label="Expected By" value={expectedDateFormatted} />
         </SectionCard>
 
-        {/* Dispatch Summary */}
-        <SectionCard icon={Truck} title="Dispatch Summary">
+        {/* Dispatch Records — Live list from requirement_dispatches */}
+        <SectionCard icon={Truck} title={`Dispatches (${dispatches.length})`}>
+          {/* Summary row */}
           <View style={styles.dispatchGrid}>
             <View style={styles.dispatchCell}>
-              <Text style={styles.dispatchCellLabel}>Status</Text>
-              <Badge label={requirement.dispatch_progress || 'Not Dispatched'} status={requirement.total_dispatched_quantity > 0 ? 'info' : 'default'} />
+              <Text style={styles.dispatchCellLabel}>Progress</Text>
+              <Badge
+                label={requirement.dispatch_progress || 'Not Dispatched'}
+                status={requirement.total_dispatched_quantity > 0 ? 'info' : 'default'}
+              />
             </View>
             <View style={styles.dispatchCell}>
               <Text style={styles.dispatchCellLabel}>Last Dispatch</Text>
@@ -301,16 +314,45 @@ export default function RequirementDetailScreen({ route, navigation }) {
               </Text>
             </View>
           </View>
-          {!isOpen && (
-            <View style={styles.dispatchNote}>
-              <CheckCircle2 size={16} color={theme.colors.onSuccessContainer} />
-              <Text style={styles.dispatchNoteText}>Dispatch editing is available for Open requirements only.</Text>
+
+          {/* Individual dispatch cards */}
+          {dispatches.length === 0 ? (
+            <View style={styles.dispatchEmpty}>
+              <Truck size={28} color={theme.colors.onSurfaceVariant} />
+              <Text style={styles.dispatchEmptyText}>No dispatches recorded for this requirement.</Text>
             </View>
-          )}
-          {isOpen && (
-            <Text style={styles.deferredNote}>
-              Dispatch management is available in a future sprint (MC-UI-03).
-            </Text>
+          ) : (
+            dispatches.map((d) => {
+              const dStatus = d.status || 'Dispatched';
+              const dBadge = dStatus === 'Dispatched' ? 'info' : dStatus === 'Delivered' ? 'success' : dStatus === 'Delayed' ? 'warning' : dStatus === 'Cancelled' ? 'error' : 'default';
+              const dDate = d.dispatch_date
+                ? new Date(d.dispatch_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                : '—';
+              return (
+                <TouchableOpacity
+                  key={d.id}
+                  style={styles.dispatchCard}
+                  onPress={() => navigation.navigate('DispatchDetail', {
+                    dispatchId: d.id,
+                    requirementId,
+                    partyName: customerName,
+                  })}
+                  activeOpacity={0.75}
+                >
+                  <View style={styles.dispatchCardLeft}>
+                    <View style={styles.dispatchCardRow}>
+                      <Badge label={dStatus} status={dBadge} />
+                      <Text style={styles.dispatchCardDate}>{dDate}</Text>
+                    </View>
+                    <Text style={styles.dispatchCardInfo}>
+                      {d.quantity} {d.unit}{d.truck_number ? ` · ${d.truck_number}` : ''}
+                      {d.transporter_name ? `\n${d.transporter_name}` : ''}
+                    </Text>
+                  </View>
+                  <ArrowRight size={16} color={theme.colors.onSurfaceVariant} />
+                </TouchableOpacity>
+              );
+            })
           )}
         </SectionCard>
 
@@ -384,13 +426,25 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: theme.colors.success, borderRadius: 3 },
   progressLabel: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelSm, color: theme.colors.onSurfaceVariant, textAlign: 'right' },
 
-  dispatchGrid: { flexDirection: 'row', gap: 16, marginTop: 4 },
+  dispatchGrid: { flexDirection: 'row', gap: 16, marginTop: 4, marginBottom: theme.spacing.md },
   dispatchCell: { flex: 1 },
   dispatchCellLabel: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelSm, color: theme.colors.onSurfaceVariant, fontWeight: '600', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6 },
   dispatchCellValue: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.bodyMd, color: theme.colors.onSurface, fontWeight: '600' },
-  dispatchNote: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: theme.spacing.lg, backgroundColor: theme.colors.successContainer, padding: theme.spacing.md, borderRadius: theme.borders.radius.md },
-  dispatchNoteText: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelMd, color: theme.colors.onSuccessContainer, flex: 1 },
-  deferredNote: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelMd, color: theme.colors.onSurfaceVariant, marginTop: theme.spacing.md, fontStyle: 'italic' },
+
+  dispatchEmpty: { alignItems: 'center', paddingVertical: theme.spacing.xl, gap: 10 },
+  dispatchEmptyText: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.bodyMd, color: theme.colors.onSurfaceVariant, textAlign: 'center' },
+
+  dispatchCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: theme.colors.surfaceContainerLow,
+    borderRadius: theme.borders.radius.md,
+    padding: theme.spacing.md, marginTop: theme.spacing.sm,
+    borderWidth: 1, borderColor: theme.colors.border,
+  },
+  dispatchCardLeft: { flex: 1 },
+  dispatchCardRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 5 },
+  dispatchCardDate: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelMd, color: theme.colors.onSurfaceVariant },
+  dispatchCardInfo: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.bodyMd, color: theme.colors.onSurface, fontWeight: '600', fontFamily: 'monospace' },
 
   notesText: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.bodyMd, color: theme.colors.onSurface, lineHeight: 22 },
 

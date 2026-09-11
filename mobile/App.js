@@ -9,11 +9,13 @@ import FieldWorkspace from './src/screens/FieldWorkspace';
 import CustomerDetailScreen from './src/screens/CustomerDetailScreen';
 import LogFollowUpScreen from './src/screens/LogFollowUpScreen';
 import AddActivityScreen from './src/screens/AddActivityScreen';
+import ActivityListScreen from './src/screens/ActivityListScreen';
 import CallHistoryScreen from './src/screens/CallHistoryScreen';
 import AddRequirementScreen from './src/screens/AddRequirementScreen';
 import AddFollowUpScreen from './src/screens/AddFollowUpScreen';
 import UpdateDispatchScreen from './src/screens/UpdateDispatchScreen';
 import RequirementDetailScreen from './src/screens/RequirementDetailScreen';
+import DispatchDetailScreen from './src/screens/DispatchDetailScreen';
 import FollowUpListScreen from './src/screens/FollowUpListScreen';
 import FollowUpDetailScreen from './src/screens/FollowUpDetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -53,13 +55,15 @@ function AppNavigator() {
           </Stack.Screen>
           <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="LogFollowUp" component={LogFollowUpScreen} options={{ title: 'Log Follow-up' }} />
-          <Stack.Screen name="AddActivity" component={AddActivityScreen} options={{ title: 'Log Activity' }} />
+          <Stack.Screen name="AddActivity" component={AddActivityScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="ActivityList" component={ActivityListScreen} options={{ headerShown: false }} />
           <Stack.Screen name="CallHistory" component={CallHistoryScreen} options={{ title: 'Recent Calls' }} />
           <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings & UI' }} />
           <Stack.Screen name="AddRequirement" component={AddRequirementScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AddFollowUp" component={AddFollowUpScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="UpdateDispatch" component={UpdateDispatchScreen} options={{ title: 'Update Dispatch' }} />
+          <Stack.Screen name="UpdateDispatch" component={UpdateDispatchScreen} options={{ headerShown: false }} />
           <Stack.Screen name="RequirementDetail" component={RequirementDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="DispatchDetail" component={DispatchDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="FollowUpList" component={FollowUpListScreen} options={{ headerShown: false }} />
           <Stack.Screen name="FollowUpDetail" component={FollowUpDetailScreen} options={{ headerShown: false }} />
         </Stack.Navigator>

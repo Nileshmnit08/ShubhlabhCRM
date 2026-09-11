@@ -447,7 +447,7 @@ export default function FollowUpDetailScreen({ route, navigation }) {
           {customer && (
             <TouchableOpacity
               style={styles.heroCustomerRow}
-              onPress={() => navigation.navigate('CustomerDetail', { partyId: customer.id, partyName: customer.display_name })}
+              onPress={() => navigation.navigate('CustomerDetail', { customerId: customer.id })}
             >
               <Building2 size={16} color={theme.colors.secondary} />
               <Text style={styles.heroCustomerName}>{customer.display_name}</Text>

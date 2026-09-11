@@ -27,6 +27,13 @@ export default function DormantList() {
   const [selectedRows, setSelectedRows] = useState(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
+  // Assignment Modal
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
+  const [assignmentTargetCustomers, setAssignmentTargetCustomers] = useState([]); // array of { id, display_name, assigned_owner_id, owner_name }
+  const [selectedAssignee, setSelectedAssignee] = useState('');
+  const [assignmentNote, setAssignmentNote] = useState('');
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+
   const toggleAllSelection = (e) => {
     if (e.target.checked) {
       setSelectedRows(new Set(candidates.map(c => c.party_id)));
@@ -67,6 +74,82 @@ export default function DormantList() {
       alert('Failed to exclude customers.');
     } finally {
       setBulkActionLoading(false);
+    }
+  };
+
+  const openAssignmentModal = (targets) => {
+    setAssignmentTargetCustomers(targets);
+    setSelectedAssignee('');
+    setAssignmentNote('');
+    setAssignmentModalOpen(true);
+  };
+
+  const handleAssignmentSubmit = async () => {
+    if (!userProfile) return;
+    if (selectedAssignee === '') {
+      alert('Please select an owner to assign.');
+      return;
+    }
+
+    setAssignmentLoading(true);
+    try {
+      const newOwnerId = selectedAssignee === 'UNASSIGNED' ? null : selectedAssignee;
+      
+      // Filter out no-ops
+      const customersToUpdate = assignmentTargetCustomers.filter(c => 
+        (c.assigned_owner_id || null) !== newOwnerId
+      );
+
+      if (customersToUpdate.length === 0) {
+        alert('All selected customers are already assigned to this owner.');
+        setAssignmentModalOpen(false);
+        setAssignmentLoading(false);
+        return;
+      }
+
+      const partyIds = customersToUpdate.map(c => c.id);
+
+      // 1. Update crm_parties
+      const { error: updateErr } = await supabase
+        .from('crm_parties')
+        .update({ assigned_owner_id: newOwnerId })
+        .in('id', partyIds);
+        
+      if (updateErr) throw updateErr;
+
+      // 2. Explicit Audit logging via interactions
+      const inserts = customersToUpdate.map(c => {
+        let outcome = 'Assigned';
+        if (newOwnerId === null) outcome = 'Unassigned';
+        else if (c.assigned_owner_id) outcome = 'Reassigned';
+
+        return {
+          party_id: c.id,
+          user_id: userProfile.id,
+          channel: 'System',
+          interaction_type: 'Ownership Assignment',
+          outcome: outcome,
+          note: assignmentNote.trim() || null
+        };
+      });
+
+      const { error: insertErr } = await supabase.from('interactions').insert(inserts);
+      if (insertErr) {
+        console.warn('Failed to insert explicit audit interactions', insertErr);
+      }
+
+      // Refresh data
+      setSelectedRows(new Set());
+      setAssignmentModalOpen(false);
+      fetchDormantCandidates();
+      
+      // Show success toast (using standard alert as placeholder)
+      alert(`Successfully updated ownership for ${partyIds.length} customer(s).`);
+    } catch (err) {
+      console.error('Owner assignment failed', err);
+      alert('Failed to update owner assignment.');
+    } finally {
+      setAssignmentLoading(false);
     }
   };
 
@@ -225,6 +308,13 @@ export default function DormantList() {
             {selectedRows.size} customers selected
           </div>
           <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => openAssignmentModal(candidates.filter(c => selectedRows.has(c.party_id)))} 
+              disabled={bulkActionLoading}
+            >
+              Assign Owner ({selectedRows.size} selected)
+            </button>
             <button className="btn btn-secondary" onClick={handleBulkExclude} disabled={bulkActionLoading}>
               {bulkActionLoading ? 'Excluding...' : 'Exclude from Dormant Candidates'}
             </button>
@@ -251,10 +341,11 @@ export default function DormantList() {
                   <input type="checkbox" checked={selectedRows.size === candidates.length && candidates.length > 0} onChange={toggleAllSelection} />
                 </th>
                 <th style={{width: '25%'}}>Customer</th>
-                <th style={{width: '20%'}}>Last Sale Date</th>
+                <th style={{width: '15%'}}>Last Sale Date</th>
                 <th style={{width: '15%'}}>Days Inactive</th>
-                <th style={{width: '20%'}}>Candidate Reason</th>
-                <th style={{width: '20%'}}>Review State</th>
+                <th style={{width: '15%'}}>Candidate Reason</th>
+                <th style={{width: '15%'}}>Assigned Owner</th>
+                <th style={{width: '15%'}}>Review State</th>
               </tr>
             </thead>
             <tbody>
@@ -274,9 +365,6 @@ export default function DormantList() {
                        {c.city && <span><MapPin size={12} style={{display: 'inline'}}/> {c.city}</span>}
                        {c.mobile && <span><Phone size={12} style={{display: 'inline'}}/> {c.mobile}</span>}
                     </div>
-                    {c.owner_name && (
-                       <div className="text-muted" style={{fontSize: '0.75rem', marginTop: '0.25rem'}}>Assigned: {c.owner_name}</div>
-                    )}
                   </td>
                   <td data-label="Last Sale Date">
                     {c.last_sale_date ? new Date(c.last_sale_date).toLocaleDateString() : <span className="text-muted">None</span>}
@@ -289,6 +377,16 @@ export default function DormantList() {
                   </td>
                   <td data-label="Candidate Reason">
                     <span style={{whiteSpace: 'normal', lineHeight: 1.4, textAlign: 'left', display: 'inline-block', fontSize: '0.85rem', color: 'var(--text-secondary)'}}>{c.candidate_reason}</span>
+                  </td>
+                  <td data-label="Assigned Owner">
+                    <button 
+                      onClick={() => openAssignmentModal([{ id: c.party_id, display_name: c.display_name, assigned_owner_id: c.assigned_owner_id, owner_name: c.owner_name }])}
+                      className="btn btn-secondary"
+                      style={{padding: '0.25rem 0.5rem', fontSize: '0.8rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', width: '100%', justifyContent: 'space-between'}}
+                    >
+                      {c.owner_name ? <span style={{color: 'var(--text-primary)'}}>{c.owner_name}</span> : <span style={{color: 'var(--text-muted)'}}>Unassigned</span>}
+                      <span style={{color: 'var(--primary)', fontSize: '0.7rem'}}>Edit</span>
+                    </button>
                   </td>
                   <td data-label="Review State">
                     <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem'}}>
@@ -395,6 +493,63 @@ export default function DormantList() {
                 </>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* ASSIGNMENT MODAL */}
+      {assignmentModalOpen && (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'}}>
+          <div className="glass-panel slide-up" style={{width: '100%', maxWidth: '500px', padding: '1.5rem', background: 'var(--bg-surface)'}}>
+            <h3 style={{marginTop: 0, marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between'}}>
+              Assign Owner
+              <button onClick={() => setAssignmentModalOpen(false)} style={{background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}><X size={20}/></button>
+            </h3>
+            
+            {assignmentTargetCustomers.length > 1 ? (
+              <p style={{marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)'}}>
+                You are assigning {assignmentTargetCustomers.length} dormant customer(s).
+              </p>
+            ) : (
+              <p style={{marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)'}}>
+                You are assigning <strong>{assignmentTargetCustomers[0]?.display_name}</strong>.
+                <br/>
+                Current Owner: {assignmentTargetCustomers[0]?.owner_name || 'Unassigned'}
+              </p>
+            )}
+
+            <div style={{marginBottom: '1rem'}}>
+              <label style={{display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600}}>Select Owner</label>
+              <select 
+                className="form-input" 
+                value={selectedAssignee} 
+                onChange={e => setSelectedAssignee(e.target.value)}
+                style={{width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)'}}
+              >
+                <option value="" disabled>-- Select Staff --</option>
+                <option value="UNASSIGNED">None (Unassigned)</option>
+                {teamMembers.map(t => <option key={t.id} value={t.id}>{t.display_name}</option>)}
+              </select>
+            </div>
+
+            <div style={{marginBottom: '1.5rem'}}>
+              <label style={{display: 'block', marginBottom: '0.5rem', fontSize: '0.85rem', fontWeight: 600}}>Assignment Note (Optional)</label>
+              <textarea 
+                className="form-input" 
+                rows={3} 
+                placeholder="Reason for assignment..."
+                value={assignmentNote}
+                onChange={e => setAssignmentNote(e.target.value)}
+                style={{width: '100%', padding: '0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)'}}
+              />
+            </div>
+
+            <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
+              <button className="btn btn-secondary" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentLoading}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleAssignmentSubmit} disabled={assignmentLoading || !selectedAssignee}>
+                {assignmentLoading ? 'Saving...' : 'Assign Owner'}
+              </button>
+            </div>
           </div>
         </div>
       )}

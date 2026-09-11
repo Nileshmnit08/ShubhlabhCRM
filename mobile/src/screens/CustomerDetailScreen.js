@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, AppState, Modal } from 'react-native';
 import { supabase } from '../lib/supabase';
-import { Phone, MessageCircle, FilePlus2, CalendarPlus, Building2, MapPin, BadgeCheck, FileText, Truck, Clock, User, Landmark, IndianRupee, Hash } from 'lucide-react-native';
+import { Phone, MessageCircle, FilePlus2, CalendarPlus, Building2, MapPin, BadgeCheck, FileText, Truck, Clock, User, Landmark, IndianRupee, Hash, Activity, ArrowRight, CheckCircle2 } from 'lucide-react-native';
 import { theme } from '../theme';
 import Badge from '../components/Badge';
 import ScreenHeader from '../components/ScreenHeader';
@@ -10,13 +10,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function CustomerDetailScreen({ route, navigation }) {
   const { customerId } = route.params;
   const insets = useSafeAreaInsets();
-  
+
   const [customer, setCustomer] = useState(null);
   const [financials, setFinancials] = useState(null);
   const [requirements, setRequirements] = useState([]);
   const [dispatches, setDispatches] = useState([]);
   const [followUps, setFollowUps] = useState([]);
+  const [recentInteractions, setRecentInteractions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null); // 'not_found' | 'query_error' | null
+
+  // Post-call/WhatsApp outcome prompt
+  const [showPostActionSheet, setShowPostActionSheet] = useState(false);
+  const [pendingChannel, setPendingChannel] = useState(null); // 'Call' | 'WhatsApp'
+  const appStateRef = useRef(AppState.currentState);
 
   // Tab state: 'overview' | 'requirements' | 'dispatch' | 'history'
   const [activeTab, setActiveTab] = useState('overview');
@@ -24,18 +31,45 @@ export default function CustomerDetailScreen({ route, navigation }) {
   useEffect(() => {
     fetchCustomerDetails();
     const unsubscribe = navigation.addListener('focus', fetchCustomerDetails);
-    return unsubscribe;
-  }, [navigation, customerId]);
+
+    // AppState listener: detect when user returns from native dialer/WhatsApp
+    const appStateSub = AppState.addEventListener('change', nextState => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+        if (pendingChannel) {
+          setShowPostActionSheet(true);
+        }
+      }
+      appStateRef.current = nextState;
+    });
+
+    return () => { unsubscribe(); appStateSub.remove(); };
+  }, [navigation, customerId, pendingChannel]);
 
   const fetchCustomerDetails = async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       // 1. Fetch from crm_parties
-      const { data: custData } = await supabase
+      // NOTE: app_users has no first_name/last_name — use display_name only.
+      // The join alias 'rep:assigned_owner_id' follows Supabase FK-based join syntax.
+      const { data: custData, error: custError } = await supabase
         .from('crm_parties')
-        .select(`*, auth_users:assigned_owner_id(email, first_name, last_name)`)
+        .select(`*, rep:assigned_owner_id(email, display_name)`)
         .eq('id', customerId)
         .single();
+
+      if (custError) {
+        // PostgREST PGRST116 = 0 rows returned (genuine not found or RLS blocked)
+        if (custError.code === 'PGRST116') {
+          console.warn('[CustomerDetail] Customer not returned for id:', customerId, '— may be RLS or not found.');
+          setFetchError('not_found');
+        } else {
+          console.error('[CustomerDetail] Query error fetching crm_parties:', custError);
+          setFetchError('query_error');
+        }
+        return; // Cannot proceed without the base customer record
+      }
+
       if (custData) setCustomer(custData);
 
       // 2. Fetch financial data from v_customer_360
@@ -46,11 +80,11 @@ export default function CustomerDetailScreen({ route, navigation }) {
         .single();
       if (finData) setFinancials(finData);
 
-      // 3. Fetch requirements
+      // 3. Fetch requirements — uses party_id (correct column in v_board_requirements)
       const { data: reqData } = await supabase
         .from('v_board_requirements')
         .select('*')
-        .eq('customer_id', customerId)
+        .eq('party_id', customerId)
         .order('created_at', { ascending: false });
       if (reqData) setRequirements(reqData);
 
@@ -74,8 +108,18 @@ export default function CustomerDetailScreen({ route, navigation }) {
         if (dispData) setDispatches(dispData);
       }
 
+      // 6. Fetch recent interactions (History tab)
+      const { data: intData } = await supabase
+        .from('interactions')
+        .select('id, channel, interaction_type, outcome, note, created_at')
+        .eq('party_id', customerId)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      if (intData) setRecentInteractions(intData);
+
     } catch (err) {
-      console.error(err);
+      console.error('[CustomerDetail] Unexpected error:', err);
+      setFetchError('query_error');
     } finally {
       setLoading(false);
     }
@@ -86,6 +130,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
       alert('No phone number available.');
       return;
     }
+    setPendingChannel('Call');
     Linking.openURL(`tel:${customer.mobile}`);
   };
 
@@ -94,8 +139,27 @@ export default function CustomerDetailScreen({ route, navigation }) {
       alert('No phone number available.');
       return;
     }
+    setPendingChannel('WhatsApp');
     const cleanPhone = customer.mobile.replace(/[^0-9]/g, '');
     Linking.openURL(`whatsapp://send?phone=${cleanPhone}`);
+  };
+
+  const handleLogAction = () => {
+    navigation.navigate('AddActivity', {
+      partyId: customer.id,
+      partyName: customer.display_name,
+    });
+  };
+
+  const handlePostActionLog = () => {
+    const ch = pendingChannel;
+    setPendingChannel(null);
+    setShowPostActionSheet(false);
+    navigation.navigate('AddActivity', {
+      partyId: customer.id,
+      partyName: customer.display_name,
+      presetChannel: ch,
+    });
   };
 
   const formatCurrency = (val) => {
@@ -108,7 +172,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
       { id: 'overview', label: 'Overview' },
       { id: 'requirements', label: `Requirements (${requirements.length})` },
       { id: 'dispatch', label: `Dispatch (${dispatches.length})` },
-      { id: 'history', label: 'History' }
+      { id: 'history', label: `History (${recentInteractions.length})` }
     ];
 
     return (
@@ -138,15 +202,24 @@ export default function CustomerDetailScreen({ route, navigation }) {
   }
 
   if (!customer) {
+    const isQueryError = fetchError === 'query_error';
     return (
       <View style={[styles.container, styles.center]}>
-        <Text style={styles.errorText}>Customer not found.</Text>
+        <Text style={styles.errorText}>
+          {isQueryError
+            ? 'Unable to load customer. Please check your connection and try again.'
+            : 'Customer not found or you do not have access to this record.'}
+        </Text>
+        <TouchableOpacity onPress={fetchCustomerDetails} style={{ marginTop: 16 }}>
+          <Text style={{ color: theme.colors.secondary, fontWeight: '600', fontSize: 14 }}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  const assignedRep = customer.auth_users ? 
-    (customer.auth_users.first_name ? `${customer.auth_users.first_name} ${customer.auth_users.last_name || ''}` : customer.auth_users.email) 
+  // 'rep' is the FK-joined app_users record (display_name or email)
+  const assignedRep = customer.rep
+    ? (customer.rep.display_name || customer.rep.email || 'Unassigned')
     : 'Unassigned';
 
   const creditLimit = financials?.crm_credit_limit_amount || 0;
@@ -157,7 +230,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       <ScreenHeader title="Customer Profile Detail" showBack={true} />
-      
+
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         {/* Customer Identity Card */}
         <View style={styles.identityCard}>
@@ -235,7 +308,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
               <Landmark size={20} color={theme.colors.secondary} />
               <Text style={styles.sectionTitle}>CRM Vital Snapshot</Text>
             </View>
-            
+
             <View style={styles.financialGrid}>
               <View style={styles.finCell}>
                 <Text style={styles.finLabel}>GSTIN</Text>
@@ -254,7 +327,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
                 <Text style={[styles.finValue, { color: theme.colors.secondary }]}>{formatCurrency(outstanding)}</Text>
               </View>
             </View>
-            
+
             <View style={styles.creditBarContainer}>
               <View style={styles.creditBarLabels}>
                 <Text style={styles.creditUtilText}>Credit Utilization ({creditUtil.toFixed(1)}%)</Text>
@@ -290,7 +363,7 @@ export default function CustomerDetailScreen({ route, navigation }) {
                   activeOpacity={0.8}
                 >
                   <View style={styles.reqHeader}>
-                    <Text style={styles.reqId}>REQ-{req.id.substring(0,6).toUpperCase()}</Text>
+                    <Text style={styles.reqId}>REQ-{req.id.substring(0, 6).toUpperCase()}</Text>
                     <Badge label={req.status} status={req.status === 'Open' ? 'warning' : 'success'} />
                   </View>
                   <Text style={styles.reqTitle}>{req.required_quantity} {req.unit} {req.product_type}</Text>
@@ -300,8 +373,108 @@ export default function CustomerDetailScreen({ route, navigation }) {
           </View>
         )}
 
-      </ScrollView>
+        {/* Dispatch Tab */}
+        {activeTab === 'dispatch' && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Truck size={20} color={theme.colors.secondary} style={{ marginRight: 8 }} />
+                <Text style={styles.sectionTitle}>Dispatches</Text>
+              </View>
+            </View>
+            {dispatches.length === 0 ? (
+              <Text style={styles.emptyText}>No dispatches recorded for this customer.</Text>
+            ) : (
+              dispatches.map(d => {
+                const dStatus = d.status || 'Dispatched';
+                const dBadge = dStatus === 'Dispatched' ? 'info' : dStatus === 'Delivered' ? 'success' : dStatus === 'Delayed' ? 'warning' : dStatus === 'Cancelled' ? 'error' : 'default';
+                const dDate = d.dispatch_date
+                  ? new Date(d.dispatch_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : '—';
+                return (
+                  <TouchableOpacity
+                    key={d.id}
+                    style={styles.reqCard}
+                    onPress={() => navigation.navigate('DispatchDetail', {
+                      dispatchId: d.id,
+                      partyName: customer.display_name,
+                    })}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.reqHeader}>
+                      <Text style={styles.reqId}>DSP-{d.id.substring(0, 6).toUpperCase()}</Text>
+                      <Badge label={dStatus} status={dBadge} />
+                    </View>
+                    <Text style={styles.reqTitle}>
+                      {d.quantity} {d.unit}{d.truck_number ? ` · ${d.truck_number}` : ''}
+                    </Text>
+                    <Text style={[styles.emptyText, { marginTop: 2 }]}>{dDate}</Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </View>
+        )}
+        {/* History Tab */}
+        {activeTab === 'history' && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Activity size={20} color={theme.colors.secondary} style={{ marginRight: 8 }} />
+                <Text style={styles.sectionTitle}>Recent Activity</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ActivityList', { partyId: customer.id, partyName: customer.display_name })}
+              >
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
 
+            {recentInteractions.length === 0 ? (
+              <View style={styles.emptyActivity}>
+                <Activity size={32} color={theme.colors.outlineVariant} />
+                <Text style={styles.emptyText}>No activity recorded yet for this customer.</Text>
+              </View>
+            ) : (
+              recentInteractions.map(item => {
+                const ch = item.channel || item.interaction_type || 'Note';
+                const chColor = ch === 'Call' ? theme.colors.primary : ch === 'WhatsApp' ? '#25D366' : theme.colors.secondary;
+                const timeStr = item.created_at
+                  ? new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                  : '—';
+                const Icon = ch === 'Call' ? Phone : ch === 'WhatsApp' ? MessageCircle : ch === 'Meeting' ? User : FileText;
+                return (
+                  <View key={item.id} style={styles.activityCard}>
+                    <View style={[styles.activityIconBox, { backgroundColor: chColor + '18' }]}>
+                      <Icon size={18} color={chColor} />
+                    </View>
+                    <View style={styles.activityBody}>
+                      <View style={styles.activityTopRow}>
+                        <Text style={styles.activityChannel}>{ch}</Text>
+                        {item.outcome ? (
+                          <Text style={styles.activityOutcome}>{item.outcome}</Text>
+                        ) : null}
+                      </View>
+                      {item.note ? <Text style={styles.activityNote} numberOfLines={1}>{item.note}</Text> : null}
+                      <Text style={styles.activityTime}>{timeStr}</Text>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+
+            {recentInteractions.length >= 5 && (
+              <TouchableOpacity
+                style={styles.viewAllBtn}
+                onPress={() => navigation.navigate('ActivityList', { partyId: customer.id, partyName: customer.display_name })}
+              >
+                <Text style={styles.viewAllBtnText}>View Full Activity History</Text>
+                <ArrowRight size={16} color={theme.colors.secondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </ScrollView>
       {/* Persistent Floating Tactical Dock */}
       <View style={[styles.bottomDock, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <View style={styles.dockInner}>
@@ -312,12 +485,46 @@ export default function CustomerDetailScreen({ route, navigation }) {
           <TouchableOpacity style={styles.dockBtnIcon} onPress={handleWhatsApp}>
             <MessageCircle size={24} color={theme.colors.onTertiaryContainer} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.dockBtnSecondary} onPress={() => alert('Log Action deferred')}>
+          <TouchableOpacity style={styles.dockBtnSecondary} onPress={handleLogAction}>
             <FilePlus2 size={20} color={theme.colors.onSecondary} />
             <Text style={styles.dockBtnSecondaryText}>Log Action</Text>
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Post-Call / Post-WhatsApp Outcome Prompt */}
+      <Modal
+        visible={showPostActionSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setShowPostActionSheet(false); setPendingChannel(null); }}
+      >
+        <View style={styles.sheetOverlay}>
+          <TouchableOpacity
+            style={styles.sheetBackdrop}
+            activeOpacity={1}
+            onPress={() => { setShowPostActionSheet(false); setPendingChannel(null); }}
+          />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>
+              {pendingChannel === 'Call' ? 'Record Call Outcome' : 'Record WhatsApp Outcome'}
+            </Text>
+            <Text style={styles.sheetSubtitle}>
+              What happened on this {pendingChannel}? Logging it keeps your CRM up to date.
+            </Text>
+            <TouchableOpacity style={styles.sheetPrimary} onPress={handlePostActionLog}>
+              <Text style={styles.sheetPrimaryText}>Log This {pendingChannel}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.sheetSecondary}
+              onPress={() => { setShowPostActionSheet(false); setPendingChannel(null); }}
+            >
+              <Text style={styles.sheetSecondaryText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -326,7 +533,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   center: { justifyContent: 'center', alignItems: 'center' },
   errorText: { fontSize: 16, color: theme.colors.error, fontWeight: '600' },
-  
+
   identityCard: {
     backgroundColor: theme.colors.surfaceContainerLowest,
     margin: theme.spacing['screen-edge'],
@@ -343,7 +550,7 @@ const styles = StyleSheet.create({
   statusBadgeText: { fontSize: theme.typography.sizes.labelSm, color: theme.colors.secondary, fontWeight: '600' },
   customerName: { fontFamily: theme.typography.fontFamily.display, fontSize: theme.typography.sizes.headlineLg, fontWeight: theme.typography.weights.bold, color: theme.colors.onSurface },
   companyIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: theme.colors.surfaceContainer, alignItems: 'center', justifyContent: 'center' },
-  
+
   contactCard: { backgroundColor: theme.colors.surfaceContainerLow, borderRadius: theme.borders.radius.md, padding: theme.spacing.md, marginBottom: theme.spacing.md },
   contactRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   contactName: { fontSize: theme.typography.sizes.titleMd, fontWeight: '600', color: theme.colors.onSurface, marginLeft: 8 },
@@ -386,7 +593,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: theme.spacing['screen-edge'], marginBottom: theme.spacing.xl },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.md },
   emptyText: { color: theme.colors.onSurfaceVariant, fontStyle: 'italic', fontSize: theme.typography.sizes.bodyMd },
-  
+
   reqCard: { backgroundColor: theme.colors.surfaceContainerLowest, padding: theme.spacing.lg, borderRadius: theme.borders.radius.lg, marginBottom: theme.spacing.md, ...theme.shadows.sm },
   reqHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   reqId: { fontSize: theme.typography.sizes.labelMd, fontWeight: '600', color: theme.colors.onSurface },
@@ -399,4 +606,30 @@ const styles = StyleSheet.create({
   dockBtnIcon: { width: 48, height: 48, backgroundColor: theme.colors.surfaceContainer, borderRadius: theme.borders.radius.md, alignItems: 'center', justifyContent: 'center' },
   dockBtnSecondary: { flex: 1, height: 48, backgroundColor: theme.colors.secondary, borderRadius: theme.borders.radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   dockBtnSecondaryText: { color: theme.colors.onSecondary, fontSize: theme.typography.sizes.labelLg, fontWeight: '600' },
+
+  // History tab styles
+  emptyActivity: { alignItems: 'center', paddingVertical: theme.spacing.xl, gap: 10 },
+  viewAllText: { fontSize: theme.typography.sizes.labelMd, color: theme.colors.secondary, fontWeight: '600' },
+  viewAllBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: theme.spacing.md, marginTop: theme.spacing.sm, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  viewAllBtnText: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelMd, color: theme.colors.secondary, fontWeight: '600' },
+  activityCard: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: theme.colors.surfaceContainerLow, borderRadius: theme.borders.radius.md, padding: theme.spacing.md, marginBottom: theme.spacing.sm, borderWidth: 1, borderColor: theme.colors.border },
+  activityIconBox: { width: 36, height: 36, borderRadius: theme.borders.radius.md, alignItems: 'center', justifyContent: 'center', marginRight: theme.spacing.md, flexShrink: 0 },
+  activityBody: { flex: 1 },
+  activityTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
+  activityChannel: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.titleSm, fontWeight: '700', color: theme.colors.onSurface },
+  activityOutcome: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelSm, color: theme.colors.secondary, fontWeight: '600', backgroundColor: theme.colors.secondaryContainer, paddingHorizontal: 8, paddingVertical: 2, borderRadius: theme.borders.radius.full },
+  activityNote: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.bodySm, color: theme.colors.onSurfaceVariant, marginBottom: 3 },
+  activityTime: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelSm, color: theme.colors.outlineVariant },
+
+  // Post-action modal sheet
+  sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
+  sheetBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(11,28,48,0.45)' },
+  sheet: { backgroundColor: theme.colors.surfaceContainerLowest, borderTopLeftRadius: theme.borders.radius.lg, borderTopRightRadius: theme.borders.radius.lg, padding: theme.spacing.xl, paddingBottom: 40 },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: theme.colors.outlineVariant, alignSelf: 'center', marginBottom: theme.spacing.lg },
+  sheetTitle: { fontFamily: theme.typography.fontFamily.display, fontSize: theme.typography.sizes.titleMd, fontWeight: '700', color: theme.colors.onSurface, textAlign: 'center', marginBottom: theme.spacing.sm },
+  sheetSubtitle: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.bodyMd, color: theme.colors.onSurfaceVariant, textAlign: 'center', lineHeight: 22, marginBottom: theme.spacing.xl },
+  sheetPrimary: { height: 48, backgroundColor: theme.colors.secondary, borderRadius: theme.borders.radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: theme.spacing.md },
+  sheetPrimaryText: { fontFamily: theme.typography.fontFamily.body, color: theme.colors.onSecondary, fontSize: theme.typography.sizes.labelLg, fontWeight: '600' },
+  sheetSecondary: { height: 48, borderRadius: theme.borders.radius.md, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' },
+  sheetSecondaryText: { fontFamily: theme.typography.fontFamily.body, color: theme.colors.onSurfaceVariant, fontSize: theme.typography.sizes.labelLg, fontWeight: '600' },
 });
