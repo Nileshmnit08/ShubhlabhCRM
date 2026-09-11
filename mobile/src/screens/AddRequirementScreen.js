@@ -10,6 +10,8 @@ import ScreenHeader from '../components/ScreenHeader';
 import Button from '../components/Button';
 import Input from '../components/Input';
 import Badge from '../components/Badge';
+import VoiceInput from '../components/VoiceInput';
+import DateTimePickerInput from '../components/DateTimePickerInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Building2, Package, Scale, CalendarDays, ChevronDown,
@@ -494,12 +496,15 @@ export default function AddRequirementScreen({ route, navigation }) {
             />
             <View style={{ height: theme.spacing.lg }} />
 
-            <Input
+            <DateTimePickerInput
               label="Expected Delivery Date"
-              placeholder="YYYY-MM-DD"
               value={expectedDate}
-              onChangeText={setExpectedDate}
-              keyboardType="numbers-and-punctuation"
+              onChange={(date) => {
+                const d = new Date(date);
+                if (!isNaN(d.getTime())) {
+                  setExpectedDate(d.toISOString().split('T')[0]);
+                }
+              }}
               error={errors.expectedDate}
             />
           </View>
@@ -511,18 +516,11 @@ export default function AddRequirementScreen({ route, navigation }) {
               <Text style={styles.sectionTitle}>Notes</Text>
             </View>
 
-            <View style={styles.notesInputContainer}>
-              <TextInput
-                style={styles.notesInput}
-                placeholder="Any additional context, specific requirements, or customer remarks..."
-                placeholderTextColor={theme.colors.onSurfaceVariant}
-                multiline
-                numberOfLines={4}
-                value={notes}
-                onChangeText={setNotes}
-                textAlignVertical="top"
-              />
-            </View>
+            <VoiceInput
+              placeholder="Any additional context, specific requirements, or customer remarks..."
+              value={notes}
+              onChangeText={setNotes}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

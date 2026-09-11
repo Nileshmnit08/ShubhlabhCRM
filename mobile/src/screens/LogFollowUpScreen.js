@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../AuthContext';
+import VoiceInput from '../components/VoiceInput';
 
 export default function LogFollowUpScreen({ route, navigation }) {
   const { followUpId, partyId, partyName, currentReason } = route.params;
@@ -59,16 +60,13 @@ export default function LogFollowUpScreen({ route, navigation }) {
         {currentReason ? <Text style={styles.reasonText}>Reason: {currentReason}</Text> : null}
 
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Notes</Text>
-          <TextInput
-            style={styles.textArea}
+          <VoiceInput
+            label="Notes"
             placeholder="Enter discussion notes..."
-            placeholderTextColor="#64748b"
-            multiline
-            numberOfLines={4}
             value={notes}
             onChangeText={setNotes}
-            textAlignVertical="top"
+            style={styles.textArea}
+            containerStyle={{ marginBottom: 0 }}
           />
         </View>
 

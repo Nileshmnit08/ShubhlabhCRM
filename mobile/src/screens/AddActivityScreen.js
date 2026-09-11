@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase';
 import { theme } from '../theme';
 import ScreenHeader from '../components/ScreenHeader';
 import Badge from '../components/Badge';
+import VoiceInput from '../components/VoiceInput';
+import DateTimePickerInput from '../components/DateTimePickerInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../AuthContext';
 import {
@@ -516,27 +518,25 @@ export default function AddActivityScreen({ route, navigation }) {
           {/* ── Call Later Branch ────────────────────────────── */}
           {showFollowUpBranch && (
             <Section title="Schedule Follow-up">
-              <View style={styles.fieldLabel}>
-                <CalendarDays size={14} color={theme.colors.secondary} />
-                <Text style={styles.fieldLabelText}>Follow-up Date * (YYYY-MM-DD)</Text>
-              </View>
-              <StyledInput
+              <DateTimePickerInput
+                label="Follow-up Date *"
                 value={fuDate}
-                onChangeText={setFuDate}
-                placeholder="YYYY-MM-DD"
-                keyboardType="numeric"
-                maxLength={10}
+                onChange={(date) => {
+                  const d = new Date(date);
+                  if (!isNaN(d.getTime())) {
+                    setFuDate(d.toISOString().split('T')[0]);
+                  }
+                }}
               />
             </Section>
           )}
 
           {/* ── Notes ───────────────────────────────────────── */}
           <Section title="Notes">
-            <StyledInput
+            <VoiceInput
               value={notes}
               onChangeText={setNotes}
               placeholder={`Add notes about this ${channel.toLowerCase()}...`}
-              multiline
             />
           </Section>
 

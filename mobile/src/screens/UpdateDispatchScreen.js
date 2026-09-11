@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase';
 import { theme } from '../theme';
 import ScreenHeader from '../components/ScreenHeader';
 import Badge from '../components/Badge';
+import VoiceInput from '../components/VoiceInput';
+import DateTimePickerInput from '../components/DateTimePickerInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Truck, CheckCircle2, AlertCircle, XCircle, RotateCcw,
@@ -549,12 +551,14 @@ export default function UpdateDispatchScreen({ route, navigation }) {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Delivery Confirmation</Text>
               <FieldRow label="Actual Delivery Date" icon={Clock}>
-                <StyledInput
+                <DateTimePickerInput
                   value={actualDeliveryDate}
-                  onChangeText={setActualDeliveryDate}
-                  placeholder="YYYY-MM-DD"
-                  keyboardType="numeric"
-                  maxLength={10}
+                  onChange={(date) => {
+                    const d = new Date(date);
+                    if (!isNaN(d.getTime())) {
+                      setActualDeliveryDate(d.toISOString().split('T')[0]);
+                    }
+                  }}
                 />
               </FieldRow>
               <FieldRow label="Shortage Quantity (if any)" icon={Scale}>
@@ -585,11 +589,10 @@ export default function UpdateDispatchScreen({ route, navigation }) {
                 </FieldRow>
               )}
               <FieldRow label="Reason *" icon={AlertCircle}>
-                <StyledInput
+                <VoiceInput
                   value={cancellationReason}
                   onChangeText={setCancellationReason}
                   placeholder="Required — describe the reason"
-                  multiline
                 />
               </FieldRow>
             </View>
@@ -599,11 +602,10 @@ export default function UpdateDispatchScreen({ route, navigation }) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Remarks</Text>
             <FieldRow label="Additional Notes" icon={ClipboardList}>
-              <StyledInput
+              <VoiceInput
                 value={remarks}
                 onChangeText={setRemarks}
                 placeholder="Any additional notes on this dispatch..."
-                multiline
               />
             </FieldRow>
           </View>

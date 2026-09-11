@@ -8,6 +8,8 @@ import { useAuth } from '../AuthContext';
 import { theme } from '../theme';
 import ScreenHeader from '../components/ScreenHeader';
 import Input from '../components/Input';
+import VoiceInput from '../components/VoiceInput';
+import DateTimePickerInput from '../components/DateTimePickerInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Building2, Calendar, Tag, ChevronDown, AlertCircle,
@@ -405,7 +407,7 @@ export default function AddFollowUpScreen({ route, navigation }) {
               ))}
             </View>
 
-            <Input
+            <VoiceInput
               label="Reason *"
               placeholder="Describe the follow-up purpose..."
               value={reason}
@@ -422,12 +424,15 @@ export default function AddFollowUpScreen({ route, navigation }) {
               <Text style={styles.sectionTitle}>Schedule</Text>
             </View>
 
-            <Input
+            <DateTimePickerInput
               label="Follow-up Date *"
-              placeholder="YYYY-MM-DD"
               value={followUpDate}
-              onChangeText={setFollowUpDate}
-              keyboardType="numbers-and-punctuation"
+              onChange={(date) => {
+                const d = new Date(date);
+                if (!isNaN(d.getTime())) {
+                  setFollowUpDate(d.toISOString().split('T')[0]);
+                }
+              }}
               error={errors.followUpDate}
             />
 
@@ -445,18 +450,11 @@ export default function AddFollowUpScreen({ route, navigation }) {
               <Sparkles size={18} color={theme.colors.secondary} />
               <Text style={styles.sectionTitle}>Notes</Text>
             </View>
-            <View style={styles.notesContainer}>
-              <TextInput
-                style={styles.notesInput}
-                placeholder="Context, background, anything relevant..."
-                placeholderTextColor={theme.colors.onSurfaceVariant}
-                multiline
-                numberOfLines={3}
-                value={notes}
-                onChangeText={setNotes}
-                textAlignVertical="top"
-              />
-            </View>
+            <VoiceInput
+              placeholder="Context, background, anything relevant..."
+              value={notes}
+              onChangeText={setNotes}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

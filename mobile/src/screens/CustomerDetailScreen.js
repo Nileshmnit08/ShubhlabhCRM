@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, AppState, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, AppState, Modal, PermissionsAndroid, Platform } from 'react-native';
+import CallLogs from 'react-native-call-log';
 import { supabase } from '../lib/supabase';
 import { Phone, MessageCircle, FilePlus2, CalendarPlus, Building2, MapPin, BadgeCheck, FileText, Truck, Clock, User, Landmark, IndianRupee, Hash, Activity, ArrowRight, CheckCircle2 } from 'lucide-react-native';
 import { theme } from '../theme';
@@ -151,14 +152,42 @@ export default function CustomerDetailScreen({ route, navigation }) {
     });
   };
 
-  const handlePostActionLog = () => {
+  const handlePostActionLog = async () => {
     const ch = pendingChannel;
     setPendingChannel(null);
     setShowPostActionSheet(false);
+    
+    let callNotes = '';
+    
+    if (ch === 'Call' && Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
+          {
+            title: 'Call Log Permission',
+            message: 'Access your call logs to automatically record call duration.',
+            buttonNeutral: 'Ask Me Later',
+            buttonNegative: 'Cancel',
+            buttonPositive: 'OK',
+          }
+        );
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+          const logs = await CallLogs.load(1);
+          if (logs && logs.length > 0) {
+            const lastCall = logs[0];
+            callNotes = `Duration: ${lastCall.duration}s. Type: ${lastCall.type}.`;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to read call log', err);
+      }
+    }
+
     navigation.navigate('AddActivity', {
       partyId: customer.id,
       partyName: customer.display_name,
       presetChannel: ch,
+      prefillNotes: callNotes
     });
   };
 

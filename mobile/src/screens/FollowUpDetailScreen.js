@@ -9,7 +9,8 @@ import { useAuth } from '../AuthContext';
 import { theme } from '../theme';
 import ScreenHeader from '../components/ScreenHeader';
 import Badge from '../components/Badge';
-import Button from '../components/Button';
+import VoiceInput from '../components/VoiceInput';
+import DateTimePickerInput from '../components/DateTimePickerInput';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Building2, Calendar, Clock, User, ClipboardList, Tag,
@@ -97,18 +98,13 @@ function CompleteSheet({ visible, onClose, onConfirm, saving }) {
           <Text style={sheetStyles.sheetTitle}>Complete Follow-up</Text>
           <Text style={sheetStyles.sheetSub}>Record the outcome of this follow-up.</Text>
           <Text style={sheetStyles.inputLabel}>Outcome / Notes *</Text>
-          <View style={sheetStyles.inputBox}>
-            <TextInput
-              style={sheetStyles.input}
-              placeholder="What happened? Any next action to plan?"
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              multiline
-              value={notes}
-              onChangeText={setNotes}
-              textAlignVertical="top"
-              autoFocus
-            />
-          </View>
+          <VoiceInput
+            style={sheetStyles.input}
+            placeholder="What happened? Any next action to plan?"
+            value={notes}
+            onChangeText={setNotes}
+            containerStyle={{ marginBottom: theme.spacing.lg }}
+          />
           <View style={sheetStyles.actions}>
             <TouchableOpacity style={sheetStyles.cancelBtn} onPress={onClose}>
               <Text style={sheetStyles.cancelText}>Cancel</Text>
@@ -142,30 +138,24 @@ function RescheduleSheet({ visible, onClose, onConfirm, saving }) {
           <View style={sheetStyles.handle} />
           <Text style={sheetStyles.sheetTitle}>Reschedule Follow-up</Text>
           <Text style={sheetStyles.sheetSub}>The original date will be preserved for audit.</Text>
-          <Text style={sheetStyles.inputLabel}>New Date (YYYY-MM-DD) *</Text>
-          <View style={[sheetStyles.inputBox, { minHeight: 48, justifyContent: 'center' }]}>
-            <TextInput
-              style={[sheetStyles.input, { minHeight: 48 }]}
-              placeholder="e.g. 2026-09-20"
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              value={newDate}
-              onChangeText={setNewDate}
-              keyboardType="numbers-and-punctuation"
-              autoFocus
-            />
-          </View>
+          <DateTimePickerInput
+            label="New Date *"
+            value={newDate}
+            onChange={(date) => {
+              const d = new Date(date);
+              if (!isNaN(d.getTime())) {
+                setNewDate(d.toISOString().split('T')[0]);
+              }
+            }}
+          />
           <Text style={sheetStyles.inputLabel}>Reason for reschedule</Text>
-          <View style={sheetStyles.inputBox}>
-            <TextInput
-              style={sheetStyles.input}
-              placeholder="Optional: Customer requested, was out of office..."
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              multiline
-              value={rescheduleNote}
-              onChangeText={setRescheduleNote}
-              textAlignVertical="top"
-            />
-          </View>
+          <VoiceInput
+            style={sheetStyles.input}
+            placeholder="Optional: Customer requested, was out of office..."
+            value={rescheduleNote}
+            onChangeText={setRescheduleNote}
+            containerStyle={{ marginBottom: theme.spacing.lg }}
+          />
           <View style={sheetStyles.actions}>
             <TouchableOpacity style={sheetStyles.cancelBtn} onPress={onClose}>
               <Text style={sheetStyles.cancelText}>Cancel</Text>
