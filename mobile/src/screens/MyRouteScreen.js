@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl, ScrollView, Linking } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl, ScrollView, Linking, Alert } from 'react-native';
 import { useAuth } from '../AuthContext';
 import { supabase } from '../lib/supabase';
 import { theme } from '../theme';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
-import { Phone, MessageCircle, Navigation as NavigationIcon, CheckCircle, Calendar, PlusCircle, PenTool, PhoneCall, AlertCircle, MapPin } from 'lucide-react-native';
+import { Phone, MessageCircle, Navigation as NavigationIcon, CheckCircle, Calendar, PlusCircle, PenTool, PhoneCall, AlertCircle, MapPin, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function MyRouteScreen({ navigation }) {
@@ -61,7 +61,7 @@ export default function MyRouteScreen({ navigation }) {
       setClientCount(count || 0);
 
     } catch (err) {
-      console.error(err);
+      console.error('[MyRouteScreen]', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -70,7 +70,9 @@ export default function MyRouteScreen({ navigation }) {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [userProfile]);
+    const unsubscribe = navigation.addListener('focus', fetchDashboardData);
+    return unsubscribe;
+  }, [navigation]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -80,6 +82,16 @@ export default function MyRouteScreen({ navigation }) {
   const handleActionToast = (message) => {
     // Ideally use a Toast provider, falling back to alert if not wired
     alert(message);
+  };
+
+  const markAsComplete = async (id) => {
+    try {
+      const { error } = await supabase.from('follow_ups').update({ status: 'Completed' }).eq('id', id);
+      if (error) throw error;
+      fetchDashboardData();
+    } catch (err) {
+      Alert.alert('Error', 'Failed to mark as complete.');
+    }
   };
 
   const renderFollowUp = ({ item }) => {
@@ -122,12 +134,7 @@ export default function MyRouteScreen({ navigation }) {
             <MessageCircle size={18} color={theme.colors.onPrimaryContainer} />
             <Text style={styles.quickActionText}>WhatsApp</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickActionDoneBtn} onPress={() => navigation.navigate('LogFollowUp', { 
-              followUpId: item.id, 
-              partyId: item.party_id, 
-              partyName: item.crm_parties?.display_name,
-              currentReason: item.reason || item.follow_up_type
-            })}>
+          <TouchableOpacity style={styles.quickActionDoneBtn} onPress={() => markAsComplete(item.id)}>
             <CheckCircle size={18} color={theme.colors.onSecondaryContainer} />
           </TouchableOpacity>
         </View>
@@ -140,11 +147,12 @@ export default function MyRouteScreen({ navigation }) {
   }
 
   return (
-    <ScrollView 
-      style={[styles.container, { paddingTop: insets.top }]} 
-      contentContainerStyle={{ paddingBottom: 100 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.secondary} />}
-    >
+    <View style={styles.container}>
+      <ScrollView 
+        style={[{ paddingTop: insets.top, flex: 1 }]} 
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.secondary} />}
+      >
       {/* 1. Executive Top Bar */}
       <View style={styles.topBar}>
         <View style={styles.greetingRow}>
@@ -198,7 +206,7 @@ export default function MyRouteScreen({ navigation }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickBar}>
         <TouchableOpacity style={styles.primaryCta} onPress={() => {
           alert('Please select a customer first.');
-          navigation.navigate('MyCustomers');
+          navigation.navigate('My Customers');
         }}>
           <PlusCircle size={18} color={theme.colors.onSecondary} />
           <Text style={styles.primaryCtaText}>+ Requirement</Text>
@@ -206,7 +214,7 @@ export default function MyRouteScreen({ navigation }) {
         
         <TouchableOpacity style={styles.secondaryCta} onPress={() => {
           alert('Please select a customer first.');
-          navigation.navigate('MyCustomers');
+          navigation.navigate('My Customers');
         }}>
           <Calendar size={16} color={theme.colors.secondary} />
           <Text style={styles.secondaryCtaText}>+ Follow-up</Text>
@@ -218,10 +226,10 @@ export default function MyRouteScreen({ navigation }) {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* 4. Priority Follow-ups Today */}
+      {/* 4. My Pending Work */}
       <View style={styles.sectionHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={styles.sectionTitle}>Priority Follow-ups Today</Text>
+          <Text style={styles.sectionTitle}>My Pending Work</Text>
           <View style={styles.badgeCount}>
             <Text style={styles.badgeCountText}>{priorities.length}</Text>
           </View>
@@ -247,13 +255,25 @@ export default function MyRouteScreen({ navigation }) {
         <Text style={styles.emptySubtext}>Logistics tracking is not yet active for your zone.</Text>
       </View>
 
-    </ScrollView>
+      </ScrollView>
+
+      {/* FAB: Add Customer */}
+      <TouchableOpacity 
+        style={styles.fab} 
+        activeOpacity={0.8}
+        onPress={() => navigation.navigate('AddCustomer')}
+      >
+        <Plus size={24} color={theme.colors.onPrimary} />
+      </TouchableOpacity>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background },
   container: { flex: 1, backgroundColor: theme.colors.background },
+  fab: { position: 'absolute', right: 24, bottom: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center', ...theme.shadows.md, elevation: 6 },
   
   topBar: {
     paddingHorizontal: theme.spacing['screen-edge'],

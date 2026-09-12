@@ -9,7 +9,7 @@ import Badge from '../components/Badge';
 import ScreenHeader from '../components/ScreenHeader';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function MyCustomersScreen({ navigation }) {
+export default function MyCustomersScreen({ navigation, route }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [customers, setCustomers] = useState([]);
@@ -18,13 +18,28 @@ export default function MyCustomersScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const staffId = route?.params?.staffId;
+  const staffName = route?.params?.staffName;
+
   const fetchMyCustomers = async () => {
     try {
-      // Postgres RLS automatically filters rows to those assigned to the logged-in user
-      const { data, error } = await supabase
-        .from('v_customer_360')
-        .select('id:customer_id, name:crm_display_name, city:crm_city, mobile:crm_mobile, status:crm_status')
-        .order('customer_id', { ascending: false });
+      let query;
+      if (staffId) {
+        // When filtered by staff, query crm_parties directly since v_customer_360 doesn't expose assigned_owner_id
+        query = supabase
+          .from('crm_parties')
+          .select('id, name:display_name, city, mobile, status:crm_status')
+          .eq('assigned_owner_id', staffId)
+          .order('id', { ascending: false });
+      } else {
+        // Default behavior (relies on RLS)
+        query = supabase
+          .from('v_customer_360')
+          .select('id:customer_id, name:crm_display_name, city:crm_city, mobile:crm_mobile, status:crm_status')
+          .order('customer_id', { ascending: false });
+      }
+
+      const { data, error } = await query;
 
       if (error) console.error(error);
       else {
@@ -41,7 +56,7 @@ export default function MyCustomersScreen({ navigation }) {
 
   useEffect(() => {
     fetchMyCustomers();
-  }, []);
+  }, [staffId]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -107,8 +122,8 @@ export default function MyCustomersScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <ScreenHeader 
-        title="My Customers" 
-        showBack={false} 
+        title={staffName ? `Customers — ${staffName}` : "My Customers"} 
+        showBack={!!staffId} 
         rightElement={
           <View style={styles.countBadge}>
             <Text style={styles.countText}>{filteredCustomers.length}</Text>

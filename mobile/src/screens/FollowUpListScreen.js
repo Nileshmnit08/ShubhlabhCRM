@@ -118,15 +118,20 @@ export default function FollowUpListScreen({ navigation }) {
   const fetchFollowUps = useCallback(async () => {
     if (!userProfile) return;
     try {
-      // Fetch all relevant follow-ups for this user's territory
-      const { data, error } = await supabase
+      // Fetch all relevant follow-ups
+      let query = supabase
         .from('follow_ups')
         .select(`
           *,
           crm_parties(display_name, mobile)
         `)
-        .or(`assigned_to.eq.${userProfile.id},created_by.eq.${userProfile.id}`)
         .order('follow_up_date', { ascending: true });
+
+      if (userProfile.role !== 'Admin') {
+        query = query.or(`assigned_to.eq.${userProfile.id},created_by.eq.${userProfile.id}`);
+      }
+      
+      const { data, error } = await query;
 
       if (error) {
         console.error('[FollowUpList] fetch error:', error.message);

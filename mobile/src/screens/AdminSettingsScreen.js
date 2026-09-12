@@ -1,61 +1,125 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../AuthContext';
 import { supabase } from '../lib/supabase';
-import { Settings } from 'lucide-react-native';
 import { theme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LogOut, Globe, ShieldCheck, ChevronRight } from 'lucide-react-native';
+import Card from '../components/Card';
+import ScreenHeader from '../components/ScreenHeader';
 
 export default function AdminSettingsScreen() {
-  const { userProfile } = useAuth();
+  const { userProfile, session } = useAuth();
+  const { i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  
+  const toggleLanguage = () => {
+    const newLang = i18n.language === 'en' ? 'hi' : 'en';
+    i18n.changeLanguage(newLang);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const getInitials = (name) => {
+    return (name || 'A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+  };
+
+  const SettingRow = ({ icon: Icon, title, value, onPress, isError }) => (
+    <TouchableOpacity 
+      style={styles.settingRow} 
+      onPress={onPress} 
+      activeOpacity={onPress ? 0.7 : 1}
+    >
+      <View style={styles.settingRowLeft}>
+        <View style={styles.iconBox}>
+          <Icon size={20} color={theme.colors.onSurfaceVariant} />
+        </View>
+        <Text style={styles.settingTitle}>{title}</Text>
+      </View>
+      <View style={styles.settingRowRight}>
+        {value && <Text style={[styles.settingValue, isError && { color: theme.colors.error }]}>{value}</Text>}
+        {onPress && <ChevronRight size={16} color={theme.colors.outline} />}
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Admin Settings</Text>
-      </View>
+    <View style={styles.container}>
+      <ScreenHeader title="Admin Profile" showBack />
       
-      <View style={styles.content}>
-        <View style={styles.card}>
-          <View style={styles.iconBox}>
-            <Settings size={28} color={theme.colors.secondary} />
+      <ScrollView contentContainerStyle={{ padding: theme.spacing['screen-edge'], paddingBottom: 100 }}>
+        
+        {/* User Identity Card */}
+        <Card style={styles.profileCard}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{getInitials(userProfile?.display_name)}</Text>
           </View>
-          <Text style={styles.label}>Signed in as</Text>
-          <Text style={styles.value}>{userProfile?.display_name || 'Admin User'}</Text>
-          
+          <Text style={styles.profileName}>{userProfile?.display_name || 'Admin User'}</Text>
           <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{userProfile?.role || 'Admin'}</Text>
+            <Text style={styles.roleText}>{userProfile?.role || 'System Admin'}</Text>
           </View>
+          <Text style={styles.profileEmail}>{session?.user?.email}</Text>
+        </Card>
 
+        {/* Preferences Section */}
+        <Text style={styles.sectionTitle}>Preferences</Text>
+        <Card style={styles.sectionCard}>
+          <SettingRow 
+            icon={Globe} 
+            title="Language" 
+            value={i18n.language === 'hi' ? 'हिंदी (Hindi)' : 'English'} 
+            onPress={toggleLanguage} 
+          />
+        </Card>
+
+        {/* System & Permissions Section */}
+        <Text style={styles.sectionTitle}>System Info</Text>
+        <Card style={styles.sectionCard}>
+          <SettingRow 
+            icon={ShieldCheck} 
+            title="App Version" 
+            value="1.0.0"
+          />
           <View style={styles.divider} />
-          
-          <Text style={styles.infoText}>App Version: 1.0.0 (Production)</Text>
-          <Text style={styles.infoText}>Workspace: Directorate Workspace</Text>
-          <Text style={styles.infoText}>Sync State: Online</Text>
+          <SettingRow 
+            icon={ShieldCheck} 
+            title="Sync State" 
+            value="Online"
+          />
+        </Card>
 
-          <TouchableOpacity style={styles.logoutButton} onPress={() => supabase.auth.signOut()}>
-            <Text style={styles.logoutText}>Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <LogOut size={20} color={theme.colors.onError} />
+          <Text style={styles.logoutText}>Sign Out</Text>
+        </TouchableOpacity>
+
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  header: { padding: 16, backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.onSurface, fontFamily: theme.typography.fontFamily.display },
-  content: { padding: 16 },
-  card: { backgroundColor: theme.colors.surface, borderRadius: 12, padding: 20, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center' },
-  iconBox: { width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.surfaceContainerLow, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  label: { fontSize: 12, color: theme.colors.onSurfaceVariant, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
-  value: { fontSize: 22, fontWeight: 'bold', color: theme.colors.onSurface, marginTop: 4, fontFamily: theme.typography.fontFamily.display },
-  roleBadge: { marginTop: 12, backgroundColor: theme.colors.primary, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16 },
-  roleText: { color: theme.colors.onPrimary, fontSize: 12, fontWeight: 'bold' },
-  divider: { height: 1, backgroundColor: theme.colors.border, width: '100%', marginVertical: 24 },
-  infoText: { fontSize: 14, color: theme.colors.onSurfaceVariant, marginBottom: 8 },
-  logoutButton: { marginTop: 24, backgroundColor: theme.colors.error, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 8, width: '100%', alignItems: 'center' },
-  logoutText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  profileCard: { alignItems: 'center', padding: theme.spacing.xl, marginBottom: theme.spacing.lg },
+  avatarCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: theme.spacing.md },
+  avatarText: { fontFamily: theme.typography.fontFamily.display, fontSize: 28, color: theme.colors.onPrimary, fontWeight: '700' },
+  profileName: { fontFamily: theme.typography.fontFamily.display, fontSize: theme.typography.sizes.titleLg, fontWeight: '700', color: theme.colors.onSurface, marginBottom: 4 },
+  roleBadge: { backgroundColor: theme.colors.secondaryContainer, paddingHorizontal: 12, paddingVertical: 4, borderRadius: theme.borders.radius.full, marginBottom: 8 },
+  roleText: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelMd, color: theme.colors.onSecondaryContainer, fontWeight: '600' },
+  profileEmail: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.bodyMd, color: theme.colors.onSurfaceVariant },
+  sectionTitle: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.labelLg, fontWeight: '700', color: theme.colors.onSurface, marginBottom: theme.spacing.sm, marginLeft: 4, letterSpacing: 0.5, textTransform: 'uppercase' },
+  sectionCard: { padding: 0, marginBottom: theme.spacing.lg, overflow: 'hidden' },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: theme.spacing.md },
+  settingRowLeft: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md },
+  iconBox: { width: 36, height: 36, borderRadius: theme.borders.radius.md, backgroundColor: theme.colors.surfaceContainerLow, alignItems: 'center', justifyContent: 'center' },
+  settingTitle: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.bodyLg, color: theme.colors.onSurface, fontWeight: '500' },
+  settingRowRight: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.xs },
+  settingValue: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.bodyMd, color: theme.colors.onSurfaceVariant },
+  divider: { height: 1, backgroundColor: theme.colors.border, marginLeft: 52 },
+  logoutButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: theme.colors.error, paddingVertical: theme.spacing.md, borderRadius: theme.borders.radius.lg, marginTop: theme.spacing.md },
+  logoutText: { fontFamily: theme.typography.fontFamily.body, fontSize: theme.typography.sizes.titleSm, color: theme.colors.onError, fontWeight: '700' },
 });

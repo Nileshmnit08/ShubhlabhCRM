@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, AppState, Modal, PermissionsAndroid, Platform } from 'react-native';
+import * as Location from 'expo-location';
+import { TextInput as RNTextInput } from 'react-native';
 import CallLogs from 'react-native-call-log';
 import { supabase } from '../lib/supabase';
-import { Phone, MessageCircle, FilePlus2, CalendarPlus, Building2, MapPin, BadgeCheck, FileText, Truck, Clock, User, Landmark, IndianRupee, Hash, Activity, ArrowRight, CheckCircle2 } from 'lucide-react-native';
+import { Phone, MessageCircle, Edit2, Navigation, AlertCircle, X, FilePlus2, CalendarPlus, Building2, MapPin, BadgeCheck, FileText, Truck, Clock, User, Landmark, IndianRupee, Hash, Activity, ArrowRight, CheckCircle2 } from 'lucide-react-native';
 import { theme } from '../theme';
 import Badge from '../components/Badge';
 import ScreenHeader from '../components/ScreenHeader';
@@ -28,6 +30,18 @@ export default function CustomerDetailScreen({ route, navigation }) {
 
   // Tab state: 'overview' | 'requirements' | 'dispatch' | 'history'
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Update Modals State
+  const [showMobileModal, setShowMobileModal] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [editMobile, setEditMobile] = useState('');
+  const [editAddress, setEditAddress] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editState, setEditState] = useState('');
+  const [editPincode, setEditPincode] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+
 
   useEffect(() => {
     fetchCustomerDetails();
@@ -123,6 +137,86 @@ export default function CustomerDetailScreen({ route, navigation }) {
       setFetchError('query_error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  
+  const handleSaveMobile = async () => {
+    if (!editMobile || editMobile.length < 10) {
+      alert('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('crm_parties')
+        .update({ mobile: editMobile })
+        .eq('id', customerId);
+      if (error) throw error;
+      setShowMobileModal(false);
+      fetchCustomerDetails();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update mobile number.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const captureGpsLocation = async () => {
+    setGpsLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Location permission is required to auto-fill address.');
+        setGpsLoading(false);
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const geocode = await Location.reverseGeocodeAsync(location.coords);
+      
+      if (geocode && geocode.length > 0) {
+        const place = geocode[0];
+        setEditCity(place.city || place.subregion || '');
+        setEditPincode(place.postalCode || '');
+        if (place.region) {
+          setEditState(place.region);
+        }
+      } else {
+        alert('Could not determine address from location.');
+      }
+    } catch (error) {
+      console.warn(error);
+      alert('Failed to get location.');
+    } finally {
+      setGpsLoading(false);
+    }
+  };
+
+  const handleSaveLocation = async () => {
+    if (!editAddress.trim() || !editCity.trim() || !editPincode.trim() || !editState.trim()) {
+      alert('Please fill all required address fields.');
+      return;
+    }
+    setIsUpdating(true);
+    try {
+      const { error } = await supabase
+        .from('crm_parties')
+        .update({ 
+          address_line_1: editAddress.trim(),
+          city: editCity.trim(),
+          state: editState.trim(),
+          pincode: editPincode.trim()
+        })
+        .eq('id', customerId);
+      if (error) throw error;
+      setShowLocationModal(false);
+      fetchCustomerDetails();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update location.');
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -288,13 +382,25 @@ export default function CustomerDetailScreen({ route, navigation }) {
               <User size={18} color={theme.colors.onSurfaceVariant} />
               <Text style={styles.contactName}>Primary Contact</Text>
             </View>
-            <View style={styles.contactRow}>
-              <Phone size={16} color={theme.colors.secondary} />
-              <Text style={styles.contactValuePhone} onPress={handleCall}>{customer.mobile || 'No phone'}</Text>
-            </View>
-            <View style={styles.contactRow}>
-              <MapPin size={16} color={theme.colors.onSurfaceVariant} />
-              <Text style={styles.contactValueLoc}>{customer.billing_address || customer.shipping_address || 'No location specified'}</Text>
+            <View style={[styles.contactRow, { justifyContent: 'space-between' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <Phone size={16} color={theme.colors.secondary} />
+                {customer.mobile ? (
+                  <Text style={styles.contactValuePhone} onPress={handleCall}>{customer.mobile}</Text>
+                ) : (
+                  <Text style={[styles.contactValueLoc, { marginLeft: 8, fontStyle: 'italic', color: theme.colors.error }]}>Mobile not available</Text>
+                )}
+              </View>
+              <TouchableOpacity 
+                style={styles.editBtn} 
+                onPress={() => {
+                  setEditMobile(customer.mobile || '');
+                  setShowMobileModal(true);
+                }}
+              >
+                <Edit2 size={12} color={theme.colors.onSurfaceVariant} />
+                <Text style={styles.editBtnText}>{customer.mobile ? 'Edit' : 'Add'}</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -306,6 +412,37 @@ export default function CustomerDetailScreen({ route, navigation }) {
             <View style={{ flex: 1 }} />
             <Text style={styles.tallyText}>Tally Synced</Text>
           </View>
+        </View>
+
+
+        {/* Location Card */}
+        <View style={styles.locationCard}>
+          <View style={styles.locationHeader}>
+            <View style={styles.locationTitleRow}>
+              <MapPin size={20} color={theme.colors.secondary} />
+              <Text style={styles.sectionTitle}>Location</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.editBtn} 
+              onPress={() => {
+                setEditAddress(customer.address_line_1 || customer.billing_address || '');
+                setEditCity(customer.city || '');
+                setEditState(customer.state || '');
+                setEditPincode(customer.pincode || '');
+                setShowLocationModal(true);
+              }}
+            >
+              <Edit2 size={12} color={theme.colors.onSurfaceVariant} />
+              <Text style={styles.editBtnText}>{customer.city || customer.address_line_1 ? 'Update Location' : 'Add Location'}</Text>
+            </TouchableOpacity>
+          </View>
+          {customer.city || customer.address_line_1 ? (
+            <Text style={styles.locationDetails}>
+              {[customer.address_line_1, customer.city, customer.state, customer.pincode].filter(Boolean).join(', ')}
+            </Text>
+          ) : (
+            <Text style={[styles.locationDetails, styles.errorLocText]}>Location not available</Text>
+          )}
         </View>
 
         {/* Quick Action Launchpad */}
@@ -554,11 +691,105 @@ export default function CustomerDetailScreen({ route, navigation }) {
           </View>
         </View>
       </Modal>
+    
+      {/* Mobile Number Modal */}
+      <Modal visible={showMobileModal} transparent animationType="fade" onRequestClose={() => setShowMobileModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Update Mobile Number</Text>
+              <TouchableOpacity onPress={() => setShowMobileModal(false)}>
+                <X size={24} color={theme.colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Primary Mobile Number</Text>
+              <RNTextInput
+                style={styles.textInput}
+                placeholder="10 digit number"
+                keyboardType="phone-pad"
+                maxLength={10}
+                value={editMobile}
+                onChangeText={(v) => setEditMobile(v.replace(/[^0-9]/g, ''))}
+              />
+            </View>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleSaveMobile} disabled={isUpdating}>
+              {isUpdating ? <ActivityIndicator color={theme.colors.onPrimary} /> : <Text style={styles.primaryBtnText}>Save</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Location Modal */}
+      <Modal visible={showLocationModal} transparent animationType="fade" onRequestClose={() => setShowLocationModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Update Location</Text>
+              <TouchableOpacity onPress={() => setShowLocationModal(false)}>
+                <X size={24} color={theme.colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity style={styles.gpsBtn} onPress={captureGpsLocation} disabled={gpsLoading}>
+              {gpsLoading ? <ActivityIndicator color={theme.colors.secondary} size="small" /> : <Navigation size={18} color={theme.colors.secondary} />}
+              <Text style={styles.gpsBtnText}>{gpsLoading ? 'Acquiring GPS Fix...' : 'Use Current Location'}</Text>
+            </TouchableOpacity>
+
+            <ScrollView style={{ maxHeight: 400 }}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Address Line (Shop / Plot)</Text>
+                <RNTextInput style={styles.textInput} value={editAddress} onChangeText={setEditAddress} />
+              </View>
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                  <Text style={styles.label}>City</Text>
+                  <RNTextInput style={styles.textInput} value={editCity} onChangeText={setEditCity} />
+                </View>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                  <Text style={styles.label}>Pincode</Text>
+                  <RNTextInput style={styles.textInput} value={editPincode} onChangeText={setEditPincode} keyboardType="numeric" maxLength={6} />
+                </View>
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>State</Text>
+                <RNTextInput style={styles.textInput} value={editState} onChangeText={setEditState} />
+              </View>
+            </ScrollView>
+
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleSaveLocation} disabled={isUpdating}>
+              {isUpdating ? <ActivityIndicator color={theme.colors.onPrimary} /> : <Text style={styles.primaryBtnText}>Save</Text>}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: theme.spacing['screen-edge'] },
+  modalContent: { backgroundColor: theme.colors.surfaceContainerLowest, borderRadius: theme.borders.radius.lg, padding: theme.spacing.lg, ...theme.shadows.md },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.lg },
+  modalTitle: { fontSize: theme.typography.sizes.titleLg, fontWeight: '700', color: theme.colors.onSurface },
+  inputGroup: { marginBottom: theme.spacing.md },
+  label: { fontSize: theme.typography.sizes.labelMd, fontWeight: '600', color: theme.colors.onSurface, marginBottom: 4 },
+  textInput: { height: 48, backgroundColor: theme.colors.surfaceContainerLow, borderRadius: theme.borders.radius.md, paddingHorizontal: theme.spacing.md, fontSize: theme.typography.sizes.bodyMd, color: theme.colors.onSurface },
+  primaryBtn: { height: 48, backgroundColor: theme.colors.secondary, borderRadius: theme.borders.radius.md, alignItems: 'center', justifyContent: 'center', marginTop: theme.spacing.sm },
+  primaryBtnText: { color: theme.colors.onSecondary, fontSize: theme.typography.sizes.labelLg, fontWeight: '600' },
+  gpsBtn: { height: 48, backgroundColor: theme.colors.surfaceContainerHigh, borderRadius: theme.borders.radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: theme.spacing.md },
+  gpsBtnText: { fontSize: theme.typography.sizes.labelMd, fontWeight: '600', color: theme.colors.secondary, marginLeft: 8 },
+  row: { flexDirection: 'row' },
+  editBtn: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: theme.borders.radius.full, backgroundColor: theme.colors.surfaceContainerHigh, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  editBtnText: { fontSize: theme.typography.sizes.labelSm, color: theme.colors.onSurfaceVariant, fontWeight: '600' },
+  locationCard: { backgroundColor: theme.colors.surfaceContainerLowest, marginHorizontal: theme.spacing['screen-edge'], padding: theme.spacing.lg, borderRadius: theme.borders.radius.lg, ...theme.shadows.sm, marginBottom: theme.spacing.lg },
+  locationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm },
+  locationTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  locationDetails: { fontSize: theme.typography.sizes.bodyMd, color: theme.colors.onSurfaceVariant, lineHeight: 20 },
+  errorLocText: { color: theme.colors.error, fontStyle: 'italic' },
+
   container: { flex: 1, backgroundColor: theme.colors.background },
   center: { justifyContent: 'center', alignItems: 'center' },
   errorText: { fontSize: 16, color: theme.colors.error, fontWeight: '600' },

@@ -20,6 +20,10 @@ import DispatchDetailScreen from './src/screens/DispatchDetailScreen';
 import FollowUpListScreen from './src/screens/FollowUpListScreen';
 import FollowUpDetailScreen from './src/screens/FollowUpDetailScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import StaffDetailScreen from './src/screens/StaffDetailScreen';
+import AdminCallDetailScreen from './src/screens/AdminCallDetailScreen';
+import AddCustomerScreen from './src/screens/AddCustomerScreen';
+import AdminSettingsScreen from './src/screens/AdminSettingsScreen';
 import { StatusBar } from 'expo-status-bar';
 import './src/i18n'; // Initialize i18n
 
@@ -68,6 +72,10 @@ function AppNavigator() {
           <Stack.Screen name="DispatchDetail" component={DispatchDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="FollowUpList" component={FollowUpListScreen} options={{ headerShown: false }} />
           <Stack.Screen name="FollowUpDetail" component={FollowUpDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="StaffDetail" component={StaffDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="AdminCallDetail" component={AdminCallDetailScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="AddCustomer" component={AddCustomerScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Admin Settings" component={AdminSettingsScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>
     </>

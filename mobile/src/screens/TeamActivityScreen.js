@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { Users } from 'lucide-react-native';
 import { theme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export default function TeamActivityScreen() {
+export default function TeamActivityScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +45,10 @@ export default function TeamActivityScreen() {
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <TouchableOpacity 
+              style={styles.card}
+              onPress={() => navigation.navigate('StaffDetail', { staffId: item.id })}
+            >
               <View style={styles.cardHeader}>
                 <View style={styles.iconBox}>
                   <Users color={theme.colors.primary} size={20} />
@@ -60,7 +63,7 @@ export default function TeamActivityScreen() {
                   </Text>
                 </View>
               </View>
-            </View>
+            </TouchableOpacity>
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>No field staff found.</Text>}
         />
