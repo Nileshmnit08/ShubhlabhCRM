@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#f8f9ff;}body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-bright": "#f8f9ff", "on-secondary-container": "#663500", "tertiary-container": "#465165", "on-primary-fixed-variant": "#005232", "secondary-container": "#fe932c", "inverse-on-surface": "#eaf1ff", "on-background": "#0b1c30", "surface-container-lowest": "#ffffff", "error": "#ba1a1a", "primary-fixed": "#a9f3c5", "surface-tint": "#226b47", "secondary": "#904d00", "surface-container": "#e5eeff", "primary": "#004328", "surface-variant": "#d3e4fe", "on-tertiary-container": "#b8c4db", "inverse-primary": "#8ed6aa", "background": "#f8f9ff", "on-surface": "#0b1c30", "primary-fixed-dim": "#8ed6aa", "tertiary-fixed-dim": "#bcc7de", "error-container": "#ffdad6", "on-tertiary-fixed-variant": "#3c475a", "surface": "#f8f9ff", "on-primary-container": "#8ad2a7", "on-surface-variant": "#404942", "tertiary": "#2f3a4d", "inverse-surface": "#213145", "on-primary-fixed": "#002111", "on-secondary-fixed": "#2f1500", "on-error": "#ffffff", "surface-dim": "#cbdbf5", "on-error-container": "#93000a", "outline-variant": "#bfc9c0", "on-secondary": "#ffffff", "on-primary": "#ffffff", "surface-container-low": "#eff4ff", "secondary-fixed-dim": "#ffb77d", "surface-container-high": "#dce9ff", "outline": "#707971", "secondary-fixed": "#ffdcc3", "on-tertiary-fixed": "#111c2d", "surface-container-highest": "#d3e4fe", "on-tertiary": "#ffffff", "tertiary-fixed": "#d8e3fb", "on-secondary-fixed-variant": "#6e3900", "primary-container": "#0d5c3a" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-md": "1rem", "margin": "1rem", "space-xl": "2rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "gutter": "1rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-lg-mobile": ["Inter"], "currency-display": ["Inter"], "label-md": ["Inter"], "body-sm": ["Inter"], "body-md": ["Inter"], "headline-sm": ["Inter"], "body-lg": ["Inter"], "headline-lg": ["Inter"], "headline-md": ["Inter"], "label-lg": ["Inter"], "label-sm": ["Inter"] }, "fontSize": { "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}], "currency-display": ["26px", {"lineHeight": "32px", "fontWeight": "800"}], "label-md": ["13px", {"lineHeight": "16px", "fontWeight": "600"}], "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}], "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "700"}], "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "700"}], "label-lg": ["15px", {"lineHeight": "20px", "fontWeight": "600"}], "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700"}] } } } };</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-16 px-space-xs flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-xs min-w-0"><button aria-label="Back" class="w-11 h-11 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-low transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><img alt="Shubh Labh Field Logo" class="h-7 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1VFeo0JeRTn4GGZdG8TBreckFpRQioYJe7FbVmDALXC69lIkKqYjkvML0aqq3m0P49iSMJoCVzNezjwc1JGL-5fbSFqfjXAo169d0zgRObNa3hGY_4ji7T6pfhwtihOk_YhFZP9ji-GeXksuHWzew8NzcQeNHLB1TA_DnOvyXFW2l_-NBPFUUdg6pYSxVzFoa2E4gZSVylz2oLOmrJs_WphlQc6ozKoMqlh2orpzfSgEN7BjVQueOZYVe0"/><div class="flex flex-col min-w-0 pl-1"><span class="font-label-sm text-label-sm text-on-surface-variant truncate uppercase">SHUBH LABH FIELD</span><span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate leading-none">Customer Detail</span></div></div><div class="flex items-center gap-space-xs flex-shrink-0 pr-space-xs"><button aria-label="Sync" class="h-8 px-2 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-sm text-label-sm">Synced</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-16 pb-safe px-margin bg-surface flex-grow"><div class="flex flex-col w-full relative -mx-margin">
+<!-- Dimmed & Frosted Background: Behind the bottom sheet (Active Merchant Profile Context) -->
+<div class="px-margin pt-space-xs pb-space-lg opacity-40 select-none pointer-events-none filter blur-[1px]">
+<!-- Merchant Quick Profile Card Behind -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm mb-space-md">
+<div class="flex items-center gap-space-sm mb-space-xs">
+<div class="w-10 h-10 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-bold">
+          SG
+        </div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Shree Ganesh Fertilisers</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Mandi Gate No. 2, Sanwer Road, Indore</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs">
+<div class="bg-surface-container-low p-space-xs rounded-lg">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Current Outstanding</span>
+<p class="font-headline-sm text-headline-sm text-error">₹1,42,800</p>
+</div>
+<div class="bg-surface-container-low p-space-xs rounded-lg">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">GSTIN / UID</span>
+<p class="font-label-md text-label-md text-on-surface">23AABCS1429P1Z</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Ambient Backdrop Scrim -->
+<div class="fixed inset-0 bg-on-surface/40 backdrop-blur-sm z-30 pointer-events-auto transition-opacity duration-300"></div>
+<!-- Prominent Tactile Bottom Sheet (Slid up into focus) -->
+<section class="relative z-40 bg-surface-container-lowest rounded-t-[1.75rem] shadow-2xl flex flex-col pt-space-sm pb-space-xl px-margin -mt-24 transition-transform ease-out">
+<!-- Tactile Drag Handle -->
+<div class="w-full flex justify-center pb-space-xs cursor-grab active:cursor-grabbing">
+<div class="w-12 h-1.5 rounded-full bg-surface-variant"></div>
+</div>
+<!-- Sheet Header -->
+<div class="flex items-start justify-between gap-space-sm pt-space-xs pb-space-sm">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2 flex-wrap mb-1">
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+            Active Visit
+          </span>
+<span class="inline-flex items-center gap-1 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[15px] text-secondary">schedule</span>
+            18m 45s
+          </span>
+</div>
+<h1 class="font-headline-sm text-headline-sm text-on-surface font-bold tracking-tight">
+          Visit Summary & Outcome
+        </h1>
+<p class="font-label-md text-label-md text-on-surface-variant">
+          विज़िट सारांश एवं त्वरित परिणाम • Shree Ganesh Fertilisers
+        </p>
+</div>
+<button aria-label="Close sheet" class="w-11 h-11 rounded-full bg-surface-container-low text-on-surface-variant flex items-center justify-center active:scale-95 transition-transform" id="closeSheetBtn">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Section 1: Quick Outcome Category (Tap in 1 hit) -->
+<div class="mt-space-xs mb-space-md">
+<div class="flex items-center justify-between mb-space-xs">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">
+          Primary Outcome / मुख्य नतीजा
+        </span>
+<span class="font-label-sm text-label-sm text-primary font-bold">1-Tap Select</span>
+</div>
+<!-- Horizontal Pills Scroll / Grid -->
+<div class="grid grid-cols-2 gap-2" id="outcomePillGroup">
+<!-- Deal Closed (Selected Default) -->
+<button class="outcome-pill active-pill h-[52px] px-3 rounded-xl bg-primary-container text-on-primary flex items-center justify-between shadow-md transition-all active:scale-[0.98]" type="button">
+<div class="flex flex-col text-left">
+<span class="font-label-lg text-label-lg font-bold leading-tight">Deal Closed</span>
+<span class="font-label-sm text-label-sm opacity-90 leading-none">सौदा पक्का हुआ</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-primary-fixed" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</button>
+<!-- Promise to Pay -->
+<button class="outcome-pill h-[52px] px-3 rounded-xl bg-surface-container-low text-on-surface flex items-center justify-between transition-all active:scale-[0.98]" type="button">
+<div class="flex flex-col text-left">
+<span class="font-label-lg text-label-lg font-bold leading-tight">Promise to Pay</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant leading-none">भुगतान वादा</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-secondary">payments</span>
+</button>
+<!-- Demo Given -->
+<button class="outcome-pill h-[52px] px-3 rounded-xl bg-surface-container-low text-on-surface flex items-center justify-between transition-all active:scale-[0.98]" type="button">
+<div class="flex flex-col text-left">
+<span class="font-label-lg text-label-lg font-bold leading-tight">Demo Given</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant leading-none">डेमो प्रस्तुत किया</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-tertiary">inventory_2</span>
+</button>
+<!-- Follow-up Set -->
+<button class="outcome-pill h-[52px] px-3 rounded-xl bg-surface-container-low text-on-surface flex items-center justify-between transition-all active:scale-[0.98]" type="button">
+<div class="flex flex-col text-left">
+<span class="font-label-lg text-label-lg font-bold leading-tight">Follow-up Set</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant leading-none">फॉलो-अप तय</span>
+</div>
+<span class="material-symbols-outlined text-[20px] text-tertiary">calendar_clock</span>
+</button>
+</div>
+</div>
+<!-- Section 2: Voice Capture / Transcribed Review Box -->
+<div class="bg-surface-container-low rounded-xl p-space-md mb-space-md shadow-sm">
+<div class="flex items-center justify-between mb-space-xs">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">mic</span>
+</div>
+<div>
+<h2 class="font-label-lg text-label-lg text-on-surface font-bold leading-tight">Voice Note Recorded</h2>
+<p class="font-label-sm text-label-sm text-on-surface-variant">वॉयस रिकॉर्डिंग समीक्षा</p>
+</div>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container-highest text-on-surface font-bold">
+          0:24
+        </span>
+</div>
+<!-- Waveform Audio Player Preview Strip -->
+<div class="bg-surface-container-lowest rounded-lg p-2.5 flex items-center gap-3 my-space-xs shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
+<button aria-label="Play voice note" class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center flex-shrink-0 active:scale-95 shadow-sm" id="playVoiceBtn">
+<span class="material-symbols-outlined text-[22px]" id="playIcon" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+<!-- Live Visualizer Bar Preview -->
+<div class="flex-grow flex items-center gap-1 h-7 px-1">
+<span class="w-1 bg-primary rounded-full h-3"></span>
+<span class="w-1 bg-primary rounded-full h-5"></span>
+<span class="w-1 bg-primary-container rounded-full h-6"></span>
+<span class="w-1 bg-primary rounded-full h-4"></span>
+<span class="w-1 bg-primary rounded-full h-7"></span>
+<span class="w-1 bg-primary-fixed-dim rounded-full h-5"></span>
+<span class="w-1 bg-primary rounded-full h-3"></span>
+<span class="w-1 bg-primary-container rounded-full h-6"></span>
+<span class="w-1 bg-primary-fixed-dim rounded-full h-4"></span>
+<span class="w-1 bg-primary rounded-full h-7"></span>
+<span class="w-1 bg-primary rounded-full h-5"></span>
+<span class="w-1 bg-primary-container rounded-full h-3"></span>
+<span class="w-1 bg-primary-fixed-dim rounded-full h-6"></span>
+<span class="w-1 bg-primary rounded-full h-4"></span>
+<span class="w-1 bg-primary-fixed-dim rounded-full h-2"></span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">0:24</span>
+</div>
+<!-- Transcribed Text Viewport (Smart Editable) -->
+<div class="mt-space-xs">
+<div class="flex items-center justify-between mb-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant font-bold uppercase tracking-wider" for="transcriptArea">
+            Live AI Transcription (Hindi-English Mix)
+          </label>
+<span class="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary font-semibold">
+<span class="material-symbols-outlined text-[14px]">auto_awesome</span> 98% Confident
+          </span>
+</div>
+<textarea class="w-full bg-surface-container-lowest text-on-surface font-body-md text-body-md rounded-lg p-3 outline-none focus:ring-0 resize-none shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]" id="transcriptArea" rows="3">Rajesh Patel confirmed bulk booking for 50 bags Urea substitute on credit terms 15 days. Signed confirmation letter collected. Cheque of ₹50,000 promised on Thursday 21 Nov.</textarea>
+</div>
+<!-- Micro Action Buttons Under Voice -->
+<div class="flex items-center gap-2 mt-space-xs pt-1">
+<button class="flex-1 min-h-[44px] rounded-lg bg-surface-container-highest text-on-surface flex items-center justify-center gap-1.5 active:scale-95 transition-all" id="rerecordBtn" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">refresh</span>
+<span class="font-label-md text-label-md font-bold">Re-record (दोबारा बोलें)</span>
+</button>
+<button class="flex-1 min-h-[44px] rounded-lg bg-surface-container-highest text-on-surface flex items-center justify-center gap-1.5 active:scale-95 transition-all" id="focusTextBtn" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">edit_note</span>
+<span class="font-label-md text-label-md font-bold">Edit Text (एडिट करें)</span>
+</button>
+</div>
+</div>
+<!-- Section 3: Smart Next-Step Defaults (Triggered by transcription) -->
+<div class="bg-surface-container-low rounded-xl p-space-md mb-space-md shadow-sm">
+<div class="flex items-center justify-between mb-space-xs">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px] text-primary">event_available</span>
+<span class="font-label-lg text-label-lg text-on-surface font-bold">Smart Follow-up Detected</span>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-bold">
+          AI Linked
+        </span>
+</div>
+<div class="bg-surface-container-lowest rounded-lg p-3 flex flex-col gap-1 mb-space-xs shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+<div class="flex items-center gap-2 text-on-surface">
+<span class="material-symbols-outlined text-[18px] text-secondary">calendar_today</span>
+<span class="font-label-lg text-label-lg font-bold">Thursday, 21 Nov 2024</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant pl-6">
+          Task: Cheque Collection (₹50,000) & Dispatch Confirmation
+        </p>
+</div>
+<!-- Action Toggle Switch -->
+<label class="flex items-center justify-between cursor-pointer pt-1" for="calendarReminderToggle">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Set Reminder on Calendar & SMS</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">कैलेंडर और ग्राहक को SMS अनुस्मारक भेजें</span>
+</div>
+<div class="relative">
+<input checked="" class="sr-only peer" id="calendarReminderToggle" type="checkbox"/>
+<div class="w-12 h-7 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[3px] after:bg-surface-container-lowest after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary-container"></div>
+</div>
+</label>
+</div>
+<!-- Section 4: Geotag & Mandatory Proof Verification Badge -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-xs mb-space-md">
+<!-- GPS Verification Tag -->
+<div class="bg-surface-container-low rounded-xl p-3 flex items-center gap-2.5">
+<div class="w-8 h-8 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+</div>
+<div class="min-w-0">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase font-bold block leading-tight">GPS Auto Check-out</span>
+<p class="font-label-sm text-label-sm text-on-surface truncate font-mono">22.7196° N, 75.8577° E (±3m)</p>
+</div>
+</div>
+<!-- Media Attachment Verification -->
+<div class="bg-surface-container-low rounded-xl p-3 flex items-center justify-between">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-8 h-8 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[18px]">photo_camera</span>
+</div>
+<div class="min-w-0">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase font-bold block leading-tight">Proof Attached</span>
+<p class="font-label-md text-label-md text-on-surface font-semibold truncate">1 Photo (Shop & Slip)</p>
+</div>
+</div>
+<button class="font-label-sm text-label-sm text-primary font-bold px-2 py-1 rounded bg-surface-container-highest">
+          View
+        </button>
+</div>
+</div>
+<!-- Section 5: Sticky Footer Primary Actions -->
+<div class="mt-space-xs flex flex-col gap-2 pt-space-xs">
+<!-- Giant High-Contrast CTA Button -->
+<button class="w-full min-h-[56px] rounded-xl bg-primary-container text-on-primary flex items-center justify-center gap-2 shadow-lg active:scale-[0.98] transition-transform" id="saveCompleteBtn" type="button">
+<span class="material-symbols-outlined text-[24px]">task_alt</span>
+<div class="flex flex-col text-center">
+<span class="font-label-lg text-label-lg font-bold uppercase tracking-wide leading-none">
+            SAVE & COMPLETE VISIT
+          </span>
+<span class="font-label-sm text-label-sm opacity-90 leading-tight pt-0.5">
+            विज़िट सुरक्षित व समाप्त करें
+          </span>
+</div>
+</button>
+<!-- Quick Shortcut Link to Nearby Merchant -->
+<button class="w-full min-h-[48px] rounded-xl bg-transparent text-primary hover:bg-surface-container-low flex items-center justify-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">near_me</span>
+<span class="font-label-md text-label-md font-bold">
+          Save & Move to Next Merchant (Kisan Krishi Kendra • 450m)
+        </span>
+</button>
+</div>
+</section>
+</div>
+<script>
+  // Quick micro-interactions
+  const pills = document.querySelectorAll('.outcome-pill');
+  pills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      pills.forEach(p => {
+        p.classList.remove('bg-primary-container', 'text-on-primary', 'shadow-md');
+        p.classList.add('bg-surface-container-low', 'text-on-surface');
+        const icon = p.querySelector('.material-symbols-outlined');
+        if (icon) {
+          icon.style.fontVariationSettings = "'FILL' 0";
+        }
+      });
+
+      pill.classList.remove('bg-surface-container-low', 'text-on-surface');
+      pill.classList.add('bg-primary-container', 'text-on-primary', 'shadow-md');
+      const activeIcon = pill.querySelector('.material-symbols-outlined');
+      if (activeIcon) {
+        activeIcon.style.fontVariationSettings = "'FILL' 1";
+      }
+    });
+  });
+
+  // Audio Playback simulation
+  const playBtn = document.getElementById('playVoiceBtn');
+  const playIcon = document.getElementById('playIcon');
+  let isPlaying = false;
+
+  playBtn.addEventListener('click', () => {
+    isPlaying = !isPlaying;
+    playIcon.textContent = isPlaying ? 'pause' : 'play_arrow';
+    playBtn.classList.toggle('bg-secondary', isPlaying);
+    playBtn.classList.toggle('bg-primary', !isPlaying);
+  });
+
+  // Focus Text Button
+  const focusTextBtn = document.getElementById('focusTextBtn');
+  const transcriptArea = document.getElementById('transcriptArea');
+  focusTextBtn.addEventListener('click', () => {
+    transcriptArea.focus();
+    transcriptArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  // Re-record placeholder toast
+  const rerecordBtn = document.getElementById('rerecordBtn');
+  rerecordBtn.addEventListener('click', () => {
+    const originalText = transcriptArea.value;
+    transcriptArea.value = "Listening... बोलिए... (Hold near mouthpiece)";
+    setTimeout(() => {
+      transcriptArea.value = originalText;
+    }, 2200);
+  });
+
+  // Completion animation
+  const saveCompleteBtn = document.getElementById('saveCompleteBtn');
+  saveCompleteBtn.addEventListener('click', () => {
+    saveCompleteBtn.innerHTML = `
+      <span class="material-symbols-outlined text-[24px] animate-spin">sync</span>
+      <span class="font-label-lg text-label-lg font-bold uppercase">Saving Geotag & Syncing...</span>
+    `;
+    setTimeout(() => {
+      saveCompleteBtn.classList.remove('bg-primary-container');
+      saveCompleteBtn.classList.add('bg-primary');
+      saveCompleteBtn.innerHTML = `
+        <span class="material-symbols-outlined text-[24px]">check_circle</span>
+        <span class="font-label-lg text-label-lg font-bold uppercase">Visit Logged Successfully!</span>
+      `;
+    }, 1000);
+  });
+</script></main></body></html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#f8f9ff;}body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-bright": "#f8f9ff", "on-secondary-container": "#663500", "tertiary-container": "#465165", "on-primary-fixed-variant": "#005232", "secondary-container": "#fe932c", "inverse-on-surface": "#eaf1ff", "on-background": "#0b1c30", "surface-container-lowest": "#ffffff", "error": "#ba1a1a", "primary-fixed": "#a9f3c5", "surface-tint": "#226b47", "secondary": "#904d00", "surface-container": "#e5eeff", "primary": "#004328", "surface-variant": "#d3e4fe", "on-tertiary-container": "#b8c4db", "inverse-primary": "#8ed6aa", "background": "#f8f9ff", "on-surface": "#0b1c30", "primary-fixed-dim": "#8ed6aa", "tertiary-fixed-dim": "#bcc7de", "error-container": "#ffdad6", "on-tertiary-fixed-variant": "#3c475a", "surface": "#f8f9ff", "on-primary-container": "#8ad2a7", "on-surface-variant": "#404942", "tertiary": "#2f3a4d", "inverse-surface": "#213145", "on-primary-fixed": "#002111", "on-secondary-fixed": "#2f1500", "on-error": "#ffffff", "surface-dim": "#cbdbf5", "on-error-container": "#93000a", "outline-variant": "#bfc9c0", "on-secondary": "#ffffff", "on-primary": "#ffffff", "surface-container-low": "#eff4ff", "secondary-fixed-dim": "#ffb77d", "surface-container-high": "#dce9ff", "outline": "#707971", "secondary-fixed": "#ffdcc3", "on-tertiary-fixed": "#111c2d", "surface-container-highest": "#d3e4fe", "on-tertiary": "#ffffff", "tertiary-fixed": "#d8e3fb", "on-secondary-fixed-variant": "#6e3900", "primary-container": "#0d5c3a" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-md": "1rem", "margin": "1rem", "space-xl": "2rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "gutter": "1rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-lg-mobile": ["Inter"], "currency-display": ["Inter"], "label-md": ["Inter"], "body-sm": ["Inter"], "body-md": ["Inter"], "headline-sm": ["Inter"], "body-lg": ["Inter"], "headline-lg": ["Inter"], "headline-md": ["Inter"], "label-lg": ["Inter"], "label-sm": ["Inter"] }, "fontSize": { "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}], "currency-display": ["26px", {"lineHeight": "32px", "fontWeight": "800"}], "label-md": ["13px", {"lineHeight": "16px", "fontWeight": "600"}], "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}], "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "700"}], "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "700"}], "label-lg": ["15px", {"lineHeight": "20px", "fontWeight": "600"}], "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700"}] } } } };</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-16 px-space-xs flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-xs min-w-0"><button aria-label="Back" class="w-11 h-11 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-low transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><img alt="Shubh Labh Field Logo" class="h-7 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1VFeo0JeRTn4GGZdG8TBreckFpRQioYJe7FbVmDALXC69lIkKqYjkvML0aqq3m0P49iSMJoCVzNezjwc1JGL-5fbSFqfjXAo169d0zgRObNa3hGY_4ji7T6pfhwtihOk_YhFZP9ji-GeXksuHWzew8NzcQeNHLB1TA_DnOvyXFW2l_-NBPFUUdg6pYSxVzFoa2E4gZSVylz2oLOmrJs_WphlQc6ozKoMqlh2orpzfSgEN7BjVQueOZYVe0"/><div class="flex flex-col min-w-0 pl-1"><span class="font-label-sm text-label-sm text-on-surface-variant truncate uppercase">SHUBH LABH FIELD</span><span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate leading-none">Customer Detail</span></div></div><div class="flex items-center gap-space-xs flex-shrink-0 pr-space-xs"><button aria-label="Sync" class="h-8 px-2 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-sm text-label-sm">Synced</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-16 pb-safe px-margin bg-surface flex-grow"><div class="flex flex-col w-full pb-32">
+<!-- Offline / GPS Diagnostic Strip -->
+<div class="flex items-center justify-between px-space-md py-1.5 bg-primary text-on-primary rounded-xl mb-3 shadow-sm">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="inline-block w-2.5 h-2.5 rounded-full bg-primary-fixed animate-ping"></span>
+<span class="font-label-sm text-label-sm truncate">GPS Live: ±3m • Krishi Mandi Sector-B</span>
+</div>
+<div class="flex items-center gap-1 shrink-0 bg-primary-container px-2 py-0.5 rounded-full">
+<span class="material-symbols-outlined text-[14px] text-on-primary-container">satellite_alt</span>
+<span class="font-label-sm text-label-sm text-on-primary-container">High Accuracy</span>
+</div>
+</div>
+<!-- Screen Context / Value Proposition -->
+<div class="flex flex-col mb-3">
+<div class="flex items-center justify-between">
+<h1 class="font-headline-sm text-headline-sm text-on-surface flex items-center gap-1.5">
+<span>Nearby Customers</span>
+<span class="text-on-surface-variant font-normal text-[15px]">• नजदीक के ग्राहक</span>
+</h1>
+<span class="font-label-sm text-label-sm bg-secondary-fixed text-on-secondary-fixed px-2 py-0.5 rounded-full font-bold">
+        Free 45 Min Slot
+      </span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+      Maximize your downtime: Squeeze an unplanned visit right now (अतिरिक्त समय का सदुपयोग करें).
+    </p>
+</div>
+<!-- Radius Filter Chips (Horizontal Scrollable) -->
+<div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none mb-3 -mx-margin px-margin">
+<button aria-pressed="true" class="shrink-0 h-9 px-3.5 rounded-full bg-primary text-on-primary font-label-md text-label-md flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px]">near_me</span>
+<span>< 1 km</span>
+<span class="bg-primary-container px-1.5 py-0.2 rounded-full text-on-primary-container font-label-sm text-label-sm">5</span>
+</button>
+<button class="shrink-0 h-9 px-3.5 rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-1.5 active:scale-95 transition-transform">
+<span>< 2 km</span>
+<span class="bg-surface-container-lowest px-1.5 py-0.2 rounded-full text-on-surface-variant font-label-sm text-label-sm">12</span>
+</button>
+<button class="shrink-0 h-9 px-3.5 rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-1.5 active:scale-95 transition-transform">
+<span>< 5 km</span>
+<span class="bg-surface-container-lowest px-1.5 py-0.2 rounded-full text-on-surface-variant font-label-sm text-label-sm">24</span>
+</button>
+<button class="shrink-0 h-9 px-3.5 rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-1.5 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[16px] text-secondary">alt_route</span>
+<span>In Beat Route</span>
+<span class="bg-surface-container-lowest px-1.5 py-0.2 rounded-full text-secondary font-label-sm text-label-sm">8</span>
+</button>
+</div>
+<!-- Quick Sorting Strip -->
+<div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-xl mb-3">
+<div class="flex items-center gap-1.5 text-on-surface-variant min-w-0">
+<span class="material-symbols-outlined text-[18px]">sort</span>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface font-bold">Sort By:</span>
+<span class="font-label-sm text-label-sm text-primary font-bold truncate">Closest First / नजदीकी पहले</span>
+</div>
+<div class="flex items-center gap-1 shrink-0">
+<button class="h-7 px-2 bg-surface-container-lowest text-on-surface text-label-sm font-label-sm rounded-lg shadow-sm flex items-center gap-1 active:bg-surface-container">
+<span>Payment Due</span>
+</button>
+<button class="h-7 px-2 bg-surface-container-lowest text-on-surface text-label-sm font-label-sm rounded-lg shadow-sm flex items-center gap-1 active:bg-surface-container">
+<span>>15 Days Visited</span>
+</button>
+</div>
+</div>
+<!-- Compact Interactive Vector Radar / Mandi Cluster Map -->
+<div class="relative w-full rounded-2xl overflow-hidden bg-surface-container shadow-md mb-4">
+<!-- Map Canvas (Vector Radar Overlay) -->
+<div class="relative h-44 w-full bg-surface-container-high overflow-hidden">
+<!-- Simulated Mandi Grid Roads -->
+<svg class="absolute inset-0 w-full h-full stroke-surface-variant" fill="none" stroke-width="1.5">
+<path d="M-20 40 Q 120 70 280 30 T 480 80" stroke-dasharray="4 2"></path>
+<path d="M-10 110 L 450 110"></path>
+<path d="M120 -20 L 140 180"></path>
+<path d="M260 -10 L 250 190"></path>
+<circle class="stroke-primary/20 fill-primary/5" cx="160" cy="85" r="30"></circle>
+<circle class="stroke-primary/25 fill-transparent" cx="160" cy="85" r="65" stroke-dasharray="3 3"></circle>
+<circle class="stroke-primary/15 fill-transparent" cx="160" cy="85" r="95"></circle>
+</svg>
+<!-- Center User Pulse: Emerald Green -->
+<div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center">
+<span class="absolute w-8 h-8 rounded-full bg-primary/25 animate-ping"></span>
+<span class="w-4 h-4 rounded-full bg-primary shadow-lg border-2 border-surface-container-lowest flex items-center justify-center"></span>
+<div class="absolute top-4 whitespace-nowrap bg-primary text-on-primary font-label-sm text-[10px] px-1.5 py-0.5 rounded shadow">
+          You are here
+        </div>
+</div>
+<!-- Nearby Dealer Interactive Pins -->
+<!-- Pin 1 (Shree Ganesh - 250m) -->
+<div class="absolute left-[58%] top-[34%] -translate-x-1/2 -translate-y-1/2 cursor-pointer group">
+<div class="flex items-center gap-1 bg-surface-container-lowest text-on-surface px-2 py-0.5 rounded-full shadow-md active:scale-95 transition-transform">
+<span class="w-4 h-4 rounded-full bg-primary text-on-primary flex items-center justify-center text-[10px] font-bold">1</span>
+<span class="font-label-sm text-[11px] font-bold">250m</span>
+</div>
+</div>
+<!-- Pin 2 (Kisan Krishi - 450m) -->
+<div class="absolute left-[38%] top-[66%] -translate-x-1/2 -translate-y-1/2 cursor-pointer">
+<div class="flex items-center gap-1 bg-surface-container-lowest text-on-surface px-2 py-0.5 rounded-full shadow-md active:scale-95 transition-transform">
+<span class="w-4 h-4 rounded-full bg-secondary text-on-secondary flex items-center justify-center text-[10px] font-bold">2</span>
+<span class="font-label-sm text-[11px] font-bold">450m</span>
+</div>
+</div>
+<!-- Pin 3 (Patidar Mart - 800m) -->
+<div class="absolute left-[78%] top-[60%] -translate-x-1/2 -translate-y-1/2 cursor-pointer">
+<div class="flex items-center gap-1 bg-surface-container-lowest text-on-surface px-2 py-0.5 rounded-full shadow-md active:scale-95 transition-transform">
+<span class="w-4 h-4 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center text-[10px] font-bold">3</span>
+<span class="font-label-sm text-[11px] font-bold">800m</span>
+</div>
+</div>
+<!-- Pin 4 (Narmada Khad - 1.2km) -->
+<div class="absolute left-[20%] top-[25%] -translate-x-1/2 -translate-y-1/2 cursor-pointer">
+<div class="flex items-center gap-1 bg-surface-container-lowest text-on-surface px-2 py-0.5 rounded-full shadow-md active:scale-95 transition-transform">
+<span class="w-4 h-4 rounded-full bg-tertiary text-on-tertiary flex items-center justify-center text-[10px] font-bold">4</span>
+<span class="font-label-sm text-[11px] font-bold">1.2k</span>
+</div>
+</div>
+<!-- Floating Map Badge -->
+<div class="absolute top-2.5 left-2.5 bg-surface-container-lowest/95 backdrop-blur-sm px-2.5 py-1 rounded-lg shadow-sm flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">radar</span>
+<span class="font-label-sm text-label-sm text-on-surface font-bold">Radar: 1 km cluster</span>
+</div>
+<!-- Recenter Target Action -->
+<button aria-label="Recenter GPS" class="absolute bottom-2.5 right-2.5 w-9 h-9 rounded-full bg-surface-container-lowest text-on-surface shadow-md flex items-center justify-center active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-[20px] text-primary">my_location</span>
+</button>
+</div>
+<!-- Map Info Banner Sub-strip -->
+<div class="px-3.5 py-2 bg-surface-container-lowest flex items-center justify-between text-on-surface">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-primary text-[18px]">verified</span>
+<span class="font-label-sm text-label-sm font-bold truncate">8 Verified Customers within 2 km radius</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant shrink-0">Indore Krishi Mandi Hub</span>
+</div>
+</div>
+<!-- Proximity Feed Section Header -->
+<div class="flex items-center justify-between mb-2.5">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-[16px] text-on-surface font-bold">Nearest Opportunities</span>
+<span class="bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm px-1.5 py-0.2 rounded font-bold">Active</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Tap to Start Visit</span>
+</div>
+<!-- NEARBY CUSTOMER CARDS -->
+<div class="flex flex-col gap-3">
+<!-- CARD 1: Shree Ganesh Fertilisers (250m - Priority Slot) -->
+<div class="relative bg-surface-container-lowest rounded-2xl p-3.5 shadow-md flex flex-col gap-3 overflow-hidden">
+<!-- Semantic Left Color Bar: Emerald (Due Visit) -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary"></div>
+<!-- Top Row: Name, Proximity Badge, Contact info -->
+<div class="flex items-start justify-between gap-2 pl-1.5">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Shree Ganesh Fertilisers & Seeds</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant">Prop. Rajesh Patel • Gate No. 4, Mandi Complex</span>
+</div>
+<!-- Proximity Tag -->
+<span class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-md text-label-md font-bold shadow-sm">
+<span class="material-symbols-outlined text-[16px]">directions_walk</span>
+<span>250m • 3 min</span>
+</span>
+</div>
+<!-- Middle Status & Dues Block -->
+<div class="pl-1.5 flex flex-col gap-1.5 bg-surface-container-low p-2.5 rounded-xl">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1 text-on-surface font-label-md text-label-md">
+<span class="material-symbols-outlined text-[16px] text-primary">schedule</span>
+<span class="font-bold">Today 11:30 AM Slot Available</span>
+</div>
+<span class="font-label-sm text-label-sm bg-error-container text-on-error-container px-2 py-0.5 rounded font-bold">
+            Overdue
+          </span>
+</div>
+<div class="flex items-baseline justify-between pt-1">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Outstanding Ledger Balance:</span>
+<span class="font-headline-sm text-headline-sm text-error font-extrabold">₹1,24,500</span>
+</div>
+</div>
+<!-- Action Button Group (>= 52px Touch Targets) -->
+<div class="pl-1.5 flex items-center gap-2 pt-1">
+<button aria-label="Start Visit with Shree Ganesh Fertilisers" class="flex-1 h-[52px] bg-primary text-on-primary rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 shadow-md active:translate-y-0.5 transition-transform">
+<span class="material-symbols-outlined text-[22px]">play_circle</span>
+<span class="tracking-wide">START VISIT (विज़िट शुरू)</span>
+</button>
+<button aria-label="Call Rajesh Patel" class="w-[52px] h-[52px] bg-surface-container rounded-xl flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[22px]">call</span>
+</button>
+<button aria-label="Get Directions" class="w-[52px] h-[52px] bg-surface-container rounded-xl flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[22px]">directions</span>
+</button>
+</div>
+</div>
+<!-- CARD 2: Kisan Krishi Seva Kendra (450m - Unvisited 18 days) -->
+<div class="relative bg-surface-container-lowest rounded-2xl p-3.5 shadow-md flex flex-col gap-3 overflow-hidden">
+<!-- Semantic Left Color Bar: Amber/Secondary (Overdue Visit) -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary-container"></div>
+<!-- Top Row -->
+<div class="flex items-start justify-between gap-2 pl-1.5">
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Kisan Krishi Seva Kendra</span>
+<span class="font-body-md text-body-md text-on-surface-variant">Prop. Mahesh Sharma • Shop 12, Shed B</span>
+</div>
+<span class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-[16px]">directions_walk</span>
+<span>450m • 5 min</span>
+</span>
+</div>
+<!-- Opportunity Note & Status -->
+<div class="pl-1.5 flex flex-col gap-1.5 bg-secondary-fixed/30 p-2.5 rounded-xl">
+<div class="flex items-center justify-between text-on-secondary-container">
+<div class="flex items-center gap-1 font-label-md text-label-md">
+<span class="material-symbols-outlined text-[16px]">history</span>
+<span>Last visited 18 days ago • No active orders</span>
+</div>
+<span class="font-label-sm text-label-sm bg-secondary-container text-on-secondary-container px-1.5 py-0.5 rounded font-bold">Due</span>
+</div>
+<div class="flex items-center gap-1.5 pt-0.5">
+<span class="material-symbols-outlined text-[16px] text-secondary">lightbulb</span>
+<span class="font-body-sm text-body-sm text-on-surface font-medium">Quick Lead: Potential Urea substitute demand for sowing</span>
+</div>
+</div>
+<!-- Action Button Group -->
+<div class="pl-1.5 flex items-center gap-2 pt-1">
+<button aria-label="Start Visit with Kisan Krishi Seva" class="flex-1 h-[52px] bg-primary text-on-primary rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 shadow-md active:translate-y-0.5 transition-transform">
+<span class="material-symbols-outlined text-[22px]">play_circle</span>
+<span class="tracking-wide">START VISIT (विज़िट शुरू)</span>
+</button>
+<button aria-label="Call Mahesh Sharma" class="w-[52px] h-[52px] bg-surface-container rounded-xl flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[22px]">call</span>
+</button>
+<button aria-label="Send WhatsApp Message" class="w-[52px] h-[52px] bg-surface-container rounded-xl flex items-center justify-center text-primary-container active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[22px]">chat</span>
+</button>
+</div>
+</div>
+<!-- CARD 3: Patidar Agri Mart (800m - Drive) -->
+<div class="relative bg-surface-container-lowest rounded-2xl p-3.5 shadow-md flex flex-col gap-3 overflow-hidden">
+<!-- Semantic Left Color Bar -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-tertiary"></div>
+<div class="flex items-start justify-between gap-2 pl-1.5">
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Patidar Agri Mart</span>
+<span class="font-body-md text-body-md text-on-surface-variant">Prop. Sunil Patidar • Sanwer Road Crossing</span>
+</div>
+<span class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-[16px]">directions_bike</span>
+<span>800m • 2 min</span>
+</span>
+</div>
+<div class="pl-1.5 flex flex-col gap-1 bg-surface-container-low p-2.5 rounded-xl">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold">Overdue Follow-up: Wheat seed trial kit feedback</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Demo active</span>
+</div>
+</div>
+<div class="pl-1.5 flex items-center gap-2 pt-1">
+<button aria-label="Start Visit with Patidar Agri Mart" class="flex-1 h-[52px] bg-primary text-on-primary rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 shadow-md active:translate-y-0.5 transition-transform">
+<span class="material-symbols-outlined text-[22px]">play_circle</span>
+<span class="tracking-wide">START VISIT</span>
+</button>
+<button aria-label="Add Quick Note" class="h-[52px] px-3 bg-surface-container rounded-xl flex items-center justify-center gap-1 text-on-surface font-label-md text-label-md active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px] text-primary">edit_note</span>
+<span>Note</span>
+</button>
+<button aria-label="Directions" class="w-[52px] h-[52px] bg-surface-container rounded-xl flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[22px]">near_me</span>
+</button>
+</div>
+</div>
+<!-- CARD 4: Narmada Khad & Beej Bhandar (1.2 km) -->
+<div class="relative bg-surface-container-lowest rounded-2xl p-3.5 shadow-md flex flex-col gap-3 overflow-hidden">
+<!-- Semantic Left Color Bar: Red Dues -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-error"></div>
+<div class="flex items-start justify-between gap-2 pl-1.5">
+<div class="flex flex-col min-w-0">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Narmada Khad & Beej Bhandar</span>
+<span class="font-body-md text-body-md text-on-surface-variant">Prop. Ramesh Verma • Outer Bypass Road</span>
+</div>
+<span class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-[16px]">directions_car</span>
+<span>1.2 km</span>
+</span>
+</div>
+<div class="pl-1.5 flex items-baseline justify-between bg-error-container/40 p-2.5 rounded-xl">
+<div class="flex items-center gap-1 text-on-error-container font-label-md text-label-md">
+<span class="material-symbols-outlined text-[16px] text-error">receipt_long</span>
+<span>Payment collection target due:</span>
+</div>
+<span class="font-headline-sm text-headline-sm text-error font-extrabold">₹42,800</span>
+</div>
+<div class="pl-1.5 flex items-center gap-2 pt-1">
+<button aria-label="Start Visit with Narmada Khad" class="flex-1 h-[52px] bg-primary text-on-primary rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 shadow-md active:translate-y-0.5 transition-transform">
+<span class="material-symbols-outlined text-[22px]">play_circle</span>
+<span class="tracking-wide">START VISIT</span>
+</button>
+<button aria-label="Call Ramesh Verma" class="w-[52px] h-[52px] bg-surface-container rounded-xl flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[22px]">call</span>
+</button>
+<button aria-label="Directions" class="w-[52px] h-[52px] bg-surface-container rounded-xl flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[22px]">turn_right</span>
+</button>
+</div>
+</div>
+<!-- CARD 5: Malwa Krishi Yantra & Fertilisers (1.6 km - New Lead) -->
+<div class="relative bg-surface-container-lowest rounded-2xl p-3.5 shadow-md flex flex-col gap-3 overflow-hidden">
+<!-- Semantic Left Color Bar: Cyan/Blue In-Progress / Lead -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary"></div>
+<div class="flex items-start justify-between gap-2 pl-1.5">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Malwa Krishi Yantra</span>
+<span class="font-label-sm text-[10px] bg-primary-fixed text-on-primary-fixed px-1.5 py-0.2 rounded font-bold uppercase">New Lead</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant">Prop. Dinesh Yadav • Industrial Area Phase 1</span>
+</div>
+<span class="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md font-bold">
+<span class="material-symbols-outlined text-[16px]">navigation</span>
+<span>1.6 km</span>
+</span>
+</div>
+<div class="pl-1.5 flex items-center justify-between bg-surface-container-low p-2.5 rounded-xl">
+<div class="flex items-center gap-1 text-on-surface-variant font-label-md text-label-md">
+<span class="material-symbols-outlined text-[16px] text-secondary">campaign</span>
+<span>Lead generated via Mandi campaign • First encounter</span>
+</div>
+</div>
+<div class="pl-1.5 flex items-center gap-2 pt-1">
+<button aria-label="First Visit with Malwa Krishi" class="flex-1 h-[52px] bg-primary-container text-on-primary rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 shadow-md active:translate-y-0.5 transition-transform">
+<span class="material-symbols-outlined text-[22px]">handshake</span>
+<span class="tracking-wide">First Visit (पहली मुलाकात)</span>
+</button>
+<button aria-label="Get Directions" class="w-[52px] h-[52px] bg-surface-container rounded-xl flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[22px]">directions</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Ambient Micro-Card: Voice Quick Command Field Assistant -->
+<div class="mt-4 bg-surface-container-high/80 rounded-2xl p-3 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-on-primary text-[20px]">mic</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-on-surface font-bold">Voice Search: "मंडी में खाद वाले डीलर"</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Tap mic or hold volume button to speak dealer name</span>
+</div>
+</div>
+<button class="px-2.5 py-1.5 bg-surface-container-lowest text-primary rounded-lg font-label-sm text-label-sm font-bold shadow-sm shrink-0 active:bg-surface-container">
+      Speak
+    </button>
+</div>
+<!-- PERSISTENT FLOATING QUICK ADD CUSTOMER BUTTON (Thumb Zone) -->
+<div class="fixed bottom-20 right-4 z-40">
+<button aria-label="Quick Add Customer" class="h-14 px-5 rounded-full bg-secondary-container text-on-secondary-container shadow-xl flex items-center gap-2 font-label-lg text-label-lg font-bold border-2 border-surface-container-lowest active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[24px]">person_add</span>
+<span>+ Customer (त्वरित नया ग्राहक)</span>
+</button>
+</div>
+<!-- GLOBAL BOTTOM 5-TAB NAVIGATION (Nearby selected) -->
+<nav aria-label="Global Navigation" class="fixed bottom-0 left-0 right-0 z-50 bg-surface-container-lowest/95 backdrop-blur-md shadow-[0_-2px_10px_rgba(0,0,0,0.06)] px-2 pb-safe">
+<div class="flex items-center justify-around h-16 max-w-md mx-auto">
+<!-- Tab 1: Home -->
+<button class="flex flex-col items-center justify-center flex-1 h-full text-on-surface-variant active:text-primary transition-colors">
+<span class="material-symbols-outlined text-[22px]">home</span>
+<span class="font-label-sm text-[11px] mt-0.5">Home</span>
+</button>
+<!-- Tab 2: Customers -->
+<button class="flex flex-col items-center justify-center flex-1 h-full text-on-surface-variant active:text-primary transition-colors">
+<span class="material-symbols-outlined text-[22px]">group</span>
+<span class="font-label-sm text-[11px] mt-0.5">Customers</span>
+</button>
+<!-- Tab 3: Nearby (Active) -->
+<button class="flex flex-col items-center justify-center flex-1 h-full text-primary font-bold relative">
+<div class="w-10 h-7 rounded-full bg-primary-fixed flex items-center justify-center mb-0.5">
+<span class="material-symbols-outlined text-[22px] text-on-primary-fixed" style="font-variation-settings: 'FILL' 1;">near_me</span>
+</div>
+<span class="font-label-sm text-[11px] text-primary">Nearby</span>
+</button>
+<!-- Tab 4: My Work (Badge 4) -->
+<button class="flex flex-col items-center justify-center flex-1 h-full text-on-surface-variant active:text-primary transition-colors relative">
+<div class="relative">
+<span class="material-symbols-outlined text-[22px]">assignment</span>
+<span class="absolute -top-1 -right-2 w-4 h-4 bg-error text-on-error rounded-full font-label-sm text-[9px] flex items-center justify-center font-bold">4</span>
+</div>
+<span class="font-label-sm text-[11px] mt-0.5">My Work</span>
+</button>
+<!-- Tab 5: Profile -->
+<button class="flex flex-col items-center justify-center flex-1 h-full text-on-surface-variant active:text-primary transition-colors">
+<span class="material-symbols-outlined text-[22px]">person</span>
+<span class="font-label-sm text-[11px] mt-0.5">Profile</span>
+</button>
+</div>
+</nav>
+</div></main></body></html>

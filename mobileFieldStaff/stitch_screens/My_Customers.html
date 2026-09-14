@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#f8f9ff;}body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-bright": "#f8f9ff", "on-secondary-container": "#663500", "tertiary-container": "#465165", "on-primary-fixed-variant": "#005232", "secondary-container": "#fe932c", "inverse-on-surface": "#eaf1ff", "on-background": "#0b1c30", "surface-container-lowest": "#ffffff", "error": "#ba1a1a", "primary-fixed": "#a9f3c5", "surface-tint": "#226b47", "secondary": "#904d00", "surface-container": "#e5eeff", "primary": "#004328", "surface-variant": "#d3e4fe", "on-tertiary-container": "#b8c4db", "inverse-primary": "#8ed6aa", "background": "#f8f9ff", "on-surface": "#0b1c30", "primary-fixed-dim": "#8ed6aa", "tertiary-fixed-dim": "#bcc7de", "error-container": "#ffdad6", "on-tertiary-fixed-variant": "#3c475a", "surface": "#f8f9ff", "on-primary-container": "#8ad2a7", "on-surface-variant": "#404942", "tertiary": "#2f3a4d", "inverse-surface": "#213145", "on-primary-fixed": "#002111", "on-secondary-fixed": "#2f1500", "on-error": "#ffffff", "surface-dim": "#cbdbf5", "on-error-container": "#93000a", "outline-variant": "#bfc9c0", "on-secondary": "#ffffff", "on-primary": "#ffffff", "surface-container-low": "#eff4ff", "secondary-fixed-dim": "#ffb77d", "surface-container-high": "#dce9ff", "outline": "#707971", "secondary-fixed": "#ffdcc3", "on-tertiary-fixed": "#111c2d", "surface-container-highest": "#d3e4fe", "on-tertiary": "#ffffff", "tertiary-fixed": "#d8e3fb", "on-secondary-fixed-variant": "#6e3900", "primary-container": "#0d5c3a" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-md": "1rem", "margin": "1rem", "space-xl": "2rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "gutter": "1rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-lg-mobile": ["Inter"], "currency-display": ["Inter"], "label-md": ["Inter"], "body-sm": ["Inter"], "body-md": ["Inter"], "headline-sm": ["Inter"], "body-lg": ["Inter"], "headline-lg": ["Inter"], "headline-md": ["Inter"], "label-lg": ["Inter"], "label-sm": ["Inter"] }, "fontSize": { "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}], "currency-display": ["26px", {"lineHeight": "32px", "fontWeight": "800"}], "label-md": ["13px", {"lineHeight": "16px", "fontWeight": "600"}], "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}], "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "700"}], "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "700"}], "label-lg": ["15px", {"lineHeight": "20px", "fontWeight": "600"}], "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700"}] } } } };</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-20 px-margin flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-sm min-w-0"><img alt="Shubh Labh Field Logo" class="h-8 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1VFeo0JeRTn4GGZdG8TBreckFpRQioYJe7FbVmDALXC69lIkKqYjkvML0aqq3m0P49iSMJoCVzNezjwc1JGL-5fbSFqfjXAo169d0zgRObNa3hGY_4ji7T6pfhwtihOk_YhFZP9ji-GeXksuHWzew8NzcQeNHLB1TA_DnOvyXFW2l_-NBPFUUdg6pYSxVzFoa2E4gZSVylz2oLOmrJs_WphlQc6ozKoMqlh2orpzfSgEN7BjVQueOZYVe0"/><div class="flex flex-col min-w-0"><div class="flex items-center gap-1"><span class="font-label-md text-label-md text-on-surface font-bold tracking-tight truncate">SHUBH LABH</span><span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant uppercase tracking-wider">FIELD</span></div><span class="font-headline-sm text-headline-sm text-primary font-bold truncate leading-tight">Customers</span></div></div><div class="flex items-center gap-space-xs flex-shrink-0"><button aria-label="Sync Status" class="h-8 px-2.5 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center gap-1.5 text-left active:translate-y-[1px] transition-transform"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-sm text-label-sm">Online</span></button><button aria-label="Switch Language" class="w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors"><span class="font-label-md text-label-md font-bold text-on-surface">अ/A</span></button><button aria-label="Notifications" class="w-11 h-11 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined text-[22px]">notifications</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-20 pb-36 px-margin bg-surface flex-grow"><div class="flex flex-col w-full gap-space-md">
+<!-- Voice & Fast Search Bar Sticky Header -->
+<div class="sticky top-20 z-30 -mx-margin px-margin pt-2 pb-3 bg-surface/95 backdrop-blur-md flex flex-col gap-space-sm shadow-sm">
+<div class="relative w-full flex items-center bg-surface-container-lowest rounded-xl shadow-sm">
+<span class="material-symbols-outlined absolute left-3.5 text-on-surface-variant text-[22px] pointer-events-none">search</span>
+<input class="w-full h-14 pl-12 pr-24 rounded-xl bg-transparent font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none" id="customer-search-input" placeholder="Search shop, owner or GSTIN / खोजें..." type="text"/>
+<div class="absolute right-2 flex items-center gap-1">
+<button aria-label="Voice Search" class="w-10 h-10 rounded-full flex items-center justify-center text-primary bg-primary-fixed hover:bg-primary-fixed-dim active:scale-95 transition-transform" id="mic-search-btn">
+<span class="material-symbols-outlined text-[20px]">mic</span>
+</button>
+<button aria-label="Scan QR / GST" class="w-10 h-10 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container active:scale-95 transition-transform" id="qr-scan-btn">
+<span class="material-symbols-outlined text-[20px]">qr_code_scanner</span>
+</button>
+</div>
+</div>
+<!-- Rapid Filter Segment Chips -->
+<div class="flex items-center gap-space-xs overflow-x-auto no-scrollbar py-0.5" id="chip-filters">
+<button class="chip-item active px-3.5 py-1.5 rounded-full bg-primary text-on-primary font-label-md text-label-md whitespace-nowrap shadow-sm active:translate-y-[1px] transition-all flex items-center gap-1.5" data-filter="all">
+<span>All</span>
+<span class="text-on-primary-container font-label-sm text-label-sm font-bold bg-primary-container/60 px-1.5 py-0.2 rounded-full">42</span>
+</button>
+<button class="chip-item px-3.5 py-1.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md whitespace-nowrap active:translate-y-[1px] transition-all flex items-center gap-1.5" data-filter="near">
+<span class="material-symbols-outlined text-[16px] text-primary">near_me</span>
+<span>Near Me (<2km)</span>
+</button>
+<button class="chip-item px-3.5 py-1.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md whitespace-nowrap active:translate-y-[1px] transition-all flex items-center gap-1.5" data-filter="overdue">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span>Overdue</span>
+<span class="text-error font-bold text-label-sm">3</span>
+</button>
+<button class="chip-item px-3.5 py-1.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md whitespace-nowrap active:translate-y-[1px] transition-all flex items-center gap-1.5" data-filter="active">
+<span>Active</span>
+</button>
+<button class="chip-item px-3.5 py-1.5 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md whitespace-nowrap active:translate-y-[1px] transition-all flex items-center gap-1.5" data-filter="prospects">
+<span>Prospects</span>
+</button>
+</div>
+</div>
+<!-- Real-Time Geo Bar -->
+<div class="w-full bg-surface-container-low rounded-xl px-3.5 py-2.5 flex items-center justify-between">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-primary text-[20px] flex-shrink-0">my_location</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-on-surface font-bold truncate">Loha Mandi, Beat Sector 4</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">8 clients within 2.5 km • Next scheduled 11:30 AM</span>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-primary font-bold bg-primary-fixed px-2 py-0.5 rounded-full flex-shrink-0">GPS Locked</span>
+</div>
+<!-- Customer Cards Feed -->
+<div class="flex flex-col gap-space-sm" id="customer-list">
+<!-- Card 1: Shree Ganesh Fertilisers (Payment Due) -->
+<div class="customer-card relative bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden active:bg-surface-container-low transition-all" data-category="near overdue" data-name="shree ganesh fertilisers rajesh patel">
+<!-- Semantic Left Bar -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-secondary-container"></div>
+<div class="p-4 pl-4.5 flex flex-col gap-3">
+<!-- Top Meta: Title + Status Badge -->
+<div class="flex items-start justify-between gap-2" onclick="openProfile('Shree Ganesh Fertilisers', 'Rajesh Patel', '+91 98260 12345', 'Loha Mandi, Indore', '₹1,42,800 Overdue (12 Days)', 'Payment Due', 'secondary-container')">
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Shree Ganesh Fertilisers</h3>
+<span class="material-symbols-outlined text-primary text-[18px]" title="Verified GSTIN">verified</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant font-medium flex items-center gap-1 mt-0.5">
+<span>Rajesh Patel</span>
+<span class="text-outline-variant">•</span>
+<span class="text-on-surface font-mono text-label-md">+91 98260 12345</span>
+</p>
+</div>
+<span class="rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm px-2.5 py-1 whitespace-nowrap font-bold flex items-center gap-1 flex-shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            Payment Due
+          </span>
+</div>
+<!-- Geo & Next Schedule Row -->
+<div class="flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant bg-surface-container-low/60 px-3 py-2 rounded-lg" onclick="openProfile('Shree Ganesh Fertilisers', 'Rajesh Patel', '+91 98260 12345', 'Loha Mandi, Indore', '₹1,42,800 Overdue (12 Days)', 'Payment Due', 'secondary-container')">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-primary">distance</span>
+<span class="truncate font-medium text-on-surface">Loha Mandi (0.4 km)</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface font-semibold flex-shrink-0">
+<span class="material-symbols-outlined text-[16px] text-secondary">schedule</span>
+<span>Today 11:30 AM</span>
+</div>
+</div>
+<!-- Rapid 1-Tap Thumb Actions -->
+<div class="grid grid-cols-4 gap-2 pt-1">
+<a class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-primary hover:bg-surface-container-high active:translate-y-[1px] transition-transform" href="tel:+919826012345">
+<span class="material-symbols-outlined text-[20px]">call</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">Call</span>
+</a>
+<a class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-primary hover:bg-surface-container-high active:translate-y-[1px] transition-transform" href="https://wa.me/919826012345?text=Namaste%20Rajesh%20ji,%20regarding%20Shubh%20Labh%20order" target="_blank">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">WhatsApp</span>
+</a>
+<button class="h-11 rounded-lg bg-primary text-on-primary flex flex-col items-center justify-center active:translate-y-[1px] transition-transform shadow-sm" onclick="startVisit('Shree Ganesh Fertilisers')">
+<span class="material-symbols-outlined text-[20px]">store</span>
+<span class="font-label-sm text-label-sm text-[10px] font-bold leading-tight">Start Visit</span>
+</button>
+<button class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-on-surface hover:bg-surface-container-high active:translate-y-[1px] transition-transform" onclick="openProfile('Shree Ganesh Fertilisers', 'Rajesh Patel', '+91 98260 12345', 'Loha Mandi, Indore', '₹1,42,800 Overdue (12 Days)', 'Payment Due', 'secondary-container')">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">Profile</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Card 2: Kalyan Agro Agencies (Visit Overdue) -->
+<div class="customer-card relative bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden active:bg-surface-container-low transition-all" data-category="near overdue" data-name="kalyan agro agencies vikram singh">
+<!-- Semantic Left Bar: Error -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-error"></div>
+<div class="p-4 pl-4.5 flex flex-col gap-3">
+<div class="flex items-start justify-between gap-2" onclick="openProfile('Kalyan Agro Agencies', 'Vikram Singh', '+91 94250 88990', 'Sanwer Road, Indore', '₹85,200 Balanced Ledger', 'Visit Overdue', 'error')">
+<div class="flex flex-col min-w-0">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Kalyan Agro Agencies</h3>
+<p class="font-body-md text-body-md text-on-surface-variant font-medium flex items-center gap-1 mt-0.5">
+<span>Vikram Singh</span>
+<span class="text-outline-variant">•</span>
+<span class="text-on-surface font-mono text-label-md">+91 94250 88990</span>
+</p>
+</div>
+<span class="rounded-full bg-error-container text-on-error-container font-label-sm text-label-sm px-2.5 py-1 whitespace-nowrap font-bold flex items-center gap-1 flex-shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+            Visit Overdue
+          </span>
+</div>
+<div class="flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant bg-surface-container-low/60 px-3 py-2 rounded-lg" onclick="openProfile('Kalyan Agro Agencies', 'Vikram Singh', '+91 94250 88990', 'Sanwer Road, Indore', '₹85,200 Balanced Ledger', 'Visit Overdue', 'error')">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-primary">distance</span>
+<span class="truncate font-medium text-on-surface">Sanwer Road (1.8 km)</span>
+</div>
+<div class="flex items-center gap-1 text-error font-bold flex-shrink-0">
+<span class="material-symbols-outlined text-[16px]">timer_off</span>
+<span>Overdue by 2 hrs</span>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2 pt-1">
+<a class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-primary hover:bg-surface-container-high active:translate-y-[1px] transition-transform" href="tel:+919425088990">
+<span class="material-symbols-outlined text-[20px]">call</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">Call</span>
+</a>
+<a class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-primary hover:bg-surface-container-high active:translate-y-[1px] transition-transform" href="https://wa.me/919425088990?text=Namaste%20Vikram%20ji" target="_blank">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">WhatsApp</span>
+</a>
+<button class="h-11 rounded-lg bg-primary text-on-primary flex flex-col items-center justify-center active:translate-y-[1px] transition-transform shadow-sm" onclick="startVisit('Kalyan Agro Agencies')">
+<span class="material-symbols-outlined text-[20px]">navigation</span>
+<span class="font-label-sm text-label-sm text-[10px] font-bold leading-tight">Start Visit</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Card 3: Patidar Agri Tech Mart (Sample Follow-up) -->
+<div class="customer-card relative bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden active:bg-surface-container-low transition-all" data-category="active" data-name="patidar agri tech mart sunil patidar">
+<!-- Semantic Left Bar: Primary Clear -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-primary"></div>
+<div class="p-4 pl-4.5 flex flex-col gap-3">
+<div class="flex items-start justify-between gap-2" onclick="openProfile('Patidar Agri Tech Mart', 'Sunil Patidar', '+91 97555 43210', 'Dewas Naka, Indore', '₹2,10,000 Verified Credit Limit', 'Sample Follow-up', 'primary')">
+<div class="flex flex-col min-w-0">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Patidar Agri Tech Mart</h3>
+<p class="font-body-md text-body-md text-on-surface-variant font-medium flex items-center gap-1 mt-0.5">
+<span>Sunil Patidar</span>
+<span class="text-outline-variant">•</span>
+<span class="text-on-surface font-mono text-label-md">+91 97555 43210</span>
+</p>
+</div>
+<span class="rounded-full bg-surface-container-high text-on-surface font-label-sm text-label-sm px-2.5 py-1 whitespace-nowrap font-bold flex items-center gap-1 flex-shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+            Sample Follow-up
+          </span>
+</div>
+<div class="flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant bg-surface-container-low/60 px-3 py-2 rounded-lg" onclick="openProfile('Patidar Agri Tech Mart', 'Sunil Patidar', '+91 97555 43210', 'Dewas Naka, Indore', '₹2,10,000 Verified Credit Limit', 'Sample Follow-up', 'primary')">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-primary">distance</span>
+<span class="truncate font-medium text-on-surface">Dewas Naka (3.2 km)</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface font-semibold flex-shrink-0">
+<span class="material-symbols-outlined text-[16px] text-primary">science</span>
+<span>Bio-DAP Batch 4</span>
+</div>
+</div>
+<div class="grid grid-cols-4 gap-2 pt-1">
+<a class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-primary hover:bg-surface-container-high active:translate-y-[1px] transition-transform" href="tel:+919755543210">
+<span class="material-symbols-outlined text-[20px]">call</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">Call</span>
+</a>
+<a class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-primary hover:bg-surface-container-high active:translate-y-[1px] transition-transform" href="https://wa.me/919755543210" target="_blank">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">WhatsApp</span>
+</a>
+<button class="h-11 rounded-lg bg-primary text-on-primary flex flex-col items-center justify-center active:translate-y-[1px] transition-transform shadow-sm" onclick="startVisit('Patidar Agri Tech Mart')">
+<span class="material-symbols-outlined text-[20px]">store</span>
+<span class="font-label-sm text-label-sm text-[10px] font-bold leading-tight">Start Visit</span>
+</button>
+<button class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-on-surface hover:bg-surface-container-high active:translate-y-[1px] transition-transform" onclick="openProfile('Patidar Agri Tech Mart', 'Sunil Patidar', '+91 97555 43210', 'Dewas Naka, Indore', '₹2,10,000 Verified Credit Limit', 'Sample Follow-up', 'primary')">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">Profile</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Card 4: Mahalaxmi Khad Bhandar (New Prospect) -->
+<div class="customer-card relative bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden active:bg-surface-container-low transition-all" data-category="prospects" data-name="mahalaxmi khad bhandar ramesh verma">
+<!-- Semantic Left Bar: Neutral Tertiary -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-tertiary"></div>
+<div class="p-4 pl-4.5 flex flex-col gap-3">
+<div class="flex items-start justify-between gap-2" onclick="openProfile('Mahalaxmi Khad Bhandar', 'Ramesh Verma', '+91 98930 77112', 'Palasia Mandi, Indore', 'Zero Invoices • First Pitch', 'New Prospect', 'tertiary')">
+<div class="flex flex-col min-w-0">
+<h3 class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Mahalaxmi Khad Bhandar</h3>
+<p class="font-body-md text-body-md text-on-surface-variant font-medium flex items-center gap-1 mt-0.5">
+<span>Ramesh Verma</span>
+<span class="text-outline-variant">•</span>
+<span class="text-on-surface font-mono text-label-md">+91 98930 77112</span>
+</p>
+</div>
+<span class="rounded-full bg-surface-variant text-on-surface-variant font-label-sm text-label-sm px-2.5 py-1 whitespace-nowrap font-bold flex items-center gap-1 flex-shrink-0">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary-container"></span>
+            New Prospect
+          </span>
+</div>
+<div class="flex items-center justify-between text-body-sm font-body-sm text-on-surface-variant bg-surface-container-low/60 px-3 py-2 rounded-lg" onclick="openProfile('Mahalaxmi Khad Bhandar', 'Ramesh Verma', '+91 98930 77112', 'Palasia Mandi, Indore', 'Zero Invoices • First Pitch', 'New Prospect', 'tertiary')">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-[16px] text-primary">distance</span>
+<span class="truncate font-medium text-on-surface">Palasia Mandi (4.5 km)</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface font-semibold flex-shrink-0">
+<span class="material-symbols-outlined text-[16px] text-primary">add_business</span>
+<span>Onboard Ready</span>
+</div>
+</div>
+<div class="grid grid-cols-4 gap-2 pt-1">
+<a class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-primary hover:bg-surface-container-high active:translate-y-[1px] transition-transform" href="tel:+919893077112">
+<span class="material-symbols-outlined text-[20px]">call</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">Call</span>
+</a>
+<a class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-primary hover:bg-surface-container-high active:translate-y-[1px] transition-transform" href="https://wa.me/919893077112" target="_blank">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">WhatsApp</span>
+</a>
+<button class="h-11 rounded-lg bg-primary text-on-primary flex flex-col items-center justify-center active:translate-y-[1px] transition-transform shadow-sm" onclick="startVisit('Mahalaxmi Khad Bhandar')">
+<span class="material-symbols-outlined text-[20px]">person_add</span>
+<span class="font-label-sm text-label-sm text-[10px] font-bold leading-tight">First Visit</span>
+</button>
+<button class="h-11 rounded-lg bg-surface-container flex flex-col items-center justify-center text-on-surface hover:bg-surface-container-high active:translate-y-[1px] transition-transform" onclick="openProfile('Mahalaxmi Khad Bhandar', 'Ramesh Verma', '+91 98930 77112', 'Palasia Mandi, Indore', 'Zero Invoices • First Pitch', 'New Prospect', 'tertiary')">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+<span class="font-label-sm text-label-sm text-[10px] leading-tight">Profile</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Empty Search State (Hidden by default) -->
+<div class="hidden flex-col items-center justify-center py-12 px-4 text-center bg-surface-container-lowest rounded-2xl shadow-sm" id="empty-state">
+<div class="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant mb-3">
+<span class="material-symbols-outlined text-[32px]">article_shortcut</span>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface font-bold">No retail partner found</h4>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1 max-w-xs">Try searching by mobile number or add this shop to your route beat.</p>
+<button class="mt-4 h-12 px-6 rounded-full bg-primary text-on-primary font-label-lg text-label-lg flex items-center gap-2 active:scale-95 transition-transform" onclick="openAddModal()">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<span>Add New Merchant / नया जोड़ें</span>
+</button>
+</div>
+<!-- 10-Second Customer Profile Bottom Drawer Backdrop -->
+<div class="fixed inset-0 bg-on-surface/40 z-50 opacity-0 pointer-events-none transition-opacity duration-200" id="profile-drawer-backdrop">
+<!-- Bottom Sheet Content -->
+<div class="absolute bottom-0 left-0 right-0 max-h-[751px] bg-surface-container-lowest rounded-t-3xl p-5 shadow-2xl transform translate-y-full transition-transform duration-300 ease-out flex flex-col gap-4 overflow-y-auto" id="profile-drawer">
+<!-- Drag pill -->
+<div class="w-10 h-1.5 rounded-full bg-outline-variant mx-auto -mt-1 mb-1"></div>
+<!-- Header Information -->
+<div class="flex items-start justify-between">
+<div class="flex flex-col min-w-0 pr-3">
+<div class="flex items-center gap-1.5">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface font-bold leading-tight" id="modal-shop-name">Customer Name</h2>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant font-medium mt-1" id="modal-contact-row">Contact: Rajesh Patel • +91 98260 12345</p>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5" id="modal-address">
+<span class="material-symbols-outlined text-[16px] text-primary">location_on</span>
+<span class="truncate">Address</span>
+</span>
+</div>
+<button class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center text-on-surface active:scale-90 transition-transform flex-shrink-0" onclick="closeProfile()">
+<span class="material-symbols-outlined text-[22px]">close</span>
+</button>
+</div>
+<!-- 10-Second Snapshot Grid -->
+<div class="grid grid-cols-2 gap-2.5">
+<div class="p-3 rounded-xl bg-surface-container-low flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Ledger Dues (बकाया)</span>
+<span class="font-currency-display text-currency-display text-on-surface font-bold mt-1" id="modal-ledger">₹1,42,800</span>
+<span class="font-body-sm text-body-sm text-secondary font-medium mt-0.5">3 Overdue Bills</span>
+</div>
+<div class="p-3 rounded-xl bg-surface-container-low flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">30-Day Volume (ऑर्डर)</span>
+<span class="font-currency-display text-currency-display text-primary font-bold mt-1">₹4.85 L</span>
+<span class="font-body-sm text-body-sm text-primary font-medium mt-0.5">14 Deliveries</span>
+</div>
+</div>
+<!-- Quick Action Buttons -->
+<div class="flex flex-col gap-2 pt-1">
+<div class="grid grid-cols-2 gap-2">
+<button class="h-14 rounded-xl bg-secondary-container text-on-secondary-container font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-sm" onclick="quickActionToast('Opening Payment Collection QR...')">
+<span class="material-symbols-outlined text-[22px]">payments</span>
+<span>Collect Payment</span>
+</button>
+<button class="h-14 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-sm" onclick="quickActionToast('Opening New Order Pad...')">
+<span class="material-symbols-outlined text-[22px]">add_shopping_cart</span>
+<span>Take Order</span>
+</button>
+</div>
+<div class="grid grid-cols-3 gap-2">
+<button class="h-12 rounded-xl bg-surface-container flex items-center justify-center gap-1.5 text-on-surface font-label-md text-label-md active:translate-y-[1px]" id="modal-call-btn">
+<span class="material-symbols-outlined text-[18px] text-primary">call</span>
+<span>Call</span>
+</button>
+<button class="h-12 rounded-xl bg-surface-container flex items-center justify-center gap-1.5 text-on-surface font-label-md text-label-md active:translate-y-[1px]" id="modal-wa-btn">
+<span class="material-symbols-outlined text-[18px] text-primary">chat</span>
+<span>WhatsApp</span>
+</button>
+<button class="h-12 rounded-xl bg-surface-container flex items-center justify-center gap-1.5 text-on-surface font-label-md text-label-md active:translate-y-[1px]" onclick="quickActionToast('Route loaded on GPS map')">
+<span class="material-symbols-outlined text-[18px] text-primary">directions</span>
+<span>Navigate</span>
+</button>
+</div>
+</div>
+<!-- Recent Transactions Mini-Feed -->
+<div class="flex flex-col gap-1.5 pt-2">
+<span class="font-label-md text-label-md text-on-surface font-bold">Recent History / ताज़ा लेन-देन</span>
+<div class="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">check_circle</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface font-bold">Cash Collection #4902</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">2 days ago • Verified</span>
+</div>
+</div>
+<span class="font-label-md text-label-md font-bold text-primary">₹50,000</span>
+</div>
+<div class="p-2.5 rounded-lg bg-surface-container-low flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]">local_shipping</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface font-bold">DAP 50kg Bags x 40</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">04 Nov 2024 • Delivered</span>
+</div>
+</div>
+<span class="font-label-md text-label-md font-bold text-on-surface">₹54,000</span>
+</div>
+</div>
+<button class="w-full h-12 mt-1 rounded-xl bg-surface-container-high text-on-surface font-label-lg text-label-lg font-semibold active:translate-y-[1px]" onclick="closeProfile()">
+        Done / बन्द करें
+      </button>
+</div>
+</div>
+<!-- Toast Micro-Alert Notification -->
+<div class="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-full font-label-md text-label-md shadow-xl flex items-center gap-2 opacity-0 pointer-events-none transition-all duration-200" id="toast-message">
+<span class="material-symbols-outlined text-primary-fixed text-[18px]">info</span>
+<span id="toast-text">Action triggered</span>
+</div>
+</div>
+<script>
+  // Filter Tabs Micro-Interaction
+  const filterChips = document.querySelectorAll('#chip-filters .chip-item');
+  const cards = document.querySelectorAll('.customer-card');
+  const emptyState = document.getElementById('empty-state');
+  const searchInput = document.getElementById('customer-search-input');
+
+  filterChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      filterChips.forEach(c => {
+        c.classList.remove('bg-primary', 'text-on-primary', 'active');
+        c.classList.add('bg-surface-container', 'text-on-surface-variant');
+      });
+      chip.classList.add('bg-primary', 'text-on-primary', 'active');
+      chip.classList.remove('bg-surface-container', 'text-on-surface-variant');
+
+      const filterValue = chip.getAttribute('data-filter');
+      applyFilterAndSearch(filterValue, searchInput.value.toLowerCase().trim());
+    });
+  });
+
+  // Real-time Search Handler
+  searchInput.addEventListener('input', (e) => {
+    const activeChip = document.querySelector('#chip-filters .chip-item.active');
+    const filter = activeChip ? activeChip.getAttribute('data-filter') : 'all';
+    applyFilterAndSearch(filter, e.target.value.toLowerCase().trim());
+  });
+
+  function applyFilterAndSearch(filter, query) {
+    let visibleCount = 0;
+    cards.forEach(card => {
+      const cardCategory = card.getAttribute('data-category') || '';
+      const cardName = card.getAttribute('data-name') || '';
+
+      const matchesFilter = (filter === 'all') || cardCategory.includes(filter);
+      const matchesSearch = !query || cardName.includes(query);
+
+      if (matchesFilter && matchesSearch) {
+        card.style.display = 'block';
+        visibleCount++;
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    if (visibleCount === 0) {
+      emptyState.classList.remove('hidden');
+      emptyState.classList.add('flex');
+    } else {
+      emptyState.classList.add('hidden');
+      emptyState.classList.remove('flex');
+    }
+  }
+
+  // Voice Search Simulation with Haptic Delight
+  const micBtn = document.getElementById('mic-search-btn');
+  micBtn.addEventListener('click', () => {
+    micBtn.classList.add('animate-ping');
+    quickActionToast('Listening in Hindi/English... बोलो...');
+    setTimeout(() => {
+      micBtn.classList.remove('animate-ping');
+      searchInput.value = 'Ganesh';
+      applyFilterAndSearch('all', 'ganesh');
+    }, 1200);
+  });
+
+  // 10-Second Customer Profile Drawer Logic
+  const backdrop = document.getElementById('profile-drawer-backdrop');
+  const drawer = document.getElementById('profile-drawer');
+
+  window.openProfile = function(name, contact, phone, location, ledger, status, colorKey) {
+    document.getElementById('modal-shop-name').innerText = name;
+    document.getElementById('modal-contact-row').innerText = contact + ' • ' + phone;
+    document.getElementById('modal-address').querySelector('span:last-child').innerText = location;
+    document.getElementById('modal-ledger').innerText = ledger.split(' ')[0];
+
+    document.getElementById('modal-call-btn').onclick = () => window.location.href = `tel:${phone.replace(/\s+/g, '')}`;
+    document.getElementById('modal-wa-btn').onclick = () => window.open(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`, '_blank');
+
+    backdrop.classList.remove('opacity-0', 'pointer-events-none');
+    backdrop.classList.add('opacity-100');
+    drawer.classList.remove('translate-y-full');
+  };
+
+  window.closeProfile = function() {
+    backdrop.classList.remove('opacity-100');
+    backdrop.classList.add('opacity-0', 'pointer-events-none');
+    drawer.classList.add('translate-y-full');
+  };
+
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop) closeProfile();
+  });
+
+  // Micro-toast feedback
+  window.quickActionToast = function(msg) {
+    const toast = document.getElementById('toast-message');
+    document.getElementById('toast-text').innerText = msg;
+    toast.classList.remove('opacity-0', 'pointer-events-none');
+    toast.classList.add('opacity-100');
+    setTimeout(() => {
+      toast.classList.remove('opacity-100');
+      toast.classList.add('opacity-0', 'pointer-events-none');
+    }, 2200);
+  };
+
+  window.startVisit = function(shop) {
+    quickActionToast(`Geo-Check In at ${shop} recorded!`);
+  };
+
+  window.openAddModal = function() {
+    quickActionToast('Opening Instant Merchant Onboarding...');
+  };
+</script></main><div class="fixed bottom-24 right-4 z-40"><a class="h-[52px] pl-4 pr-5 rounded-full bg-primary text-on-primary flex items-center gap-2 shadow-[0_8px_16px_rgba(0,67,40,0.24)] active:translate-y-[1px] transition-all" data-path="new-customer" href="#"><span class="material-symbols-outlined text-[22px]">person_add</span><div class="flex flex-col"><span class="font-label-lg text-label-lg leading-tight">+ Customer</span><span class="font-label-sm text-label-sm text-on-primary-container leading-none">त्वरित नया ग्राहक</span></div></a></div><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-2px_12px_rgba(0,0,0,0.04)]" data-active-classes="text-primary font-bold"><div class="flex justify-around items-center h-16 px-space-xs"><a class="flex-1 flex flex-col items-center justify-center py-1 text-on-surface-variant hover:text-on-surface min-h-[48px] transition-colors" data-path="home" href="#"><span class="material-symbols-outlined text-[22px]">dashboard</span><div class="flex flex-col items-center -mt-0.5"><span class="font-label-sm text-label-sm leading-tight">Home</span><span class="font-label-sm text-label-sm text-[9px] opacity-75 leading-none">होम</span></div></a><a aria-current="page" class="flex-1 flex flex-col items-center justify-center py-1 min-h-[48px] transition-colors text-primary font-bold" data-path="customers" href="#"><span class="material-symbols-outlined text-[22px]">storefront</span><div class="flex flex-col items-center -mt-0.5"><span class="font-label-sm text-label-sm leading-tight">Customers</span><span class="font-label-sm text-label-sm text-[9px] opacity-75 leading-none">ग्राहक</span></div></a><a class="flex-1 flex flex-col items-center justify-center py-1 text-on-surface-variant hover:text-on-surface min-h-[48px] transition-colors" data-path="nearby" href="#"><span class="material-symbols-outlined text-[22px]">location_searching</span><div class="flex flex-col items-center -mt-0.5"><span class="font-label-sm text-label-sm leading-tight">Nearby</span><span class="font-label-sm text-label-sm text-[9px] opacity-75 leading-none">नजदीक</span></div></a><a class="flex-1 flex flex-col items-center justify-center py-1 text-on-surface-variant hover:text-on-surface min-h-[48px] transition-colors relative" data-path="my-work" href="#"><div class="relative"><span class="material-symbols-outlined text-[22px]">fact_check</span><span class="absolute -top-1 -right-2 bg-error text-on-error font-label-sm text-label-sm text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">4</span></div><div class="flex flex-col items-center -mt-0.5"><span class="font-label-sm text-label-sm leading-tight">My Work</span><span class="font-label-sm text-label-sm text-[9px] opacity-75 leading-none">मेरा काम</span></div></a><a class="flex-1 flex flex-col items-center justify-center py-1 text-on-surface-variant hover:text-on-surface min-h-[48px] transition-colors" data-path="profile" href="#"><span class="material-symbols-outlined text-[22px]">manage_accounts</span><div class="flex flex-col items-center -mt-0.5"><span class="font-label-sm text-label-sm leading-tight">Profile</span><span class="font-label-sm text-label-sm text-[9px] opacity-75 leading-none">प्रोफ़ाइल</span></div></a></div></nav></body></html>

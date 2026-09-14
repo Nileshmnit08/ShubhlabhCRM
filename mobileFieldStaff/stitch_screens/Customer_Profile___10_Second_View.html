@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#f8f9ff;}body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-bright": "#f8f9ff", "on-secondary-container": "#663500", "tertiary-container": "#465165", "on-primary-fixed-variant": "#005232", "secondary-container": "#fe932c", "inverse-on-surface": "#eaf1ff", "on-background": "#0b1c30", "surface-container-lowest": "#ffffff", "error": "#ba1a1a", "primary-fixed": "#a9f3c5", "surface-tint": "#226b47", "secondary": "#904d00", "surface-container": "#e5eeff", "primary": "#004328", "surface-variant": "#d3e4fe", "on-tertiary-container": "#b8c4db", "inverse-primary": "#8ed6aa", "background": "#f8f9ff", "on-surface": "#0b1c30", "primary-fixed-dim": "#8ed6aa", "tertiary-fixed-dim": "#bcc7de", "error-container": "#ffdad6", "on-tertiary-fixed-variant": "#3c475a", "surface": "#f8f9ff", "on-primary-container": "#8ad2a7", "on-surface-variant": "#404942", "tertiary": "#2f3a4d", "inverse-surface": "#213145", "on-primary-fixed": "#002111", "on-secondary-fixed": "#2f1500", "on-error": "#ffffff", "surface-dim": "#cbdbf5", "on-error-container": "#93000a", "outline-variant": "#bfc9c0", "on-secondary": "#ffffff", "on-primary": "#ffffff", "surface-container-low": "#eff4ff", "secondary-fixed-dim": "#ffb77d", "surface-container-high": "#dce9ff", "outline": "#707971", "secondary-fixed": "#ffdcc3", "on-tertiary-fixed": "#111c2d", "surface-container-highest": "#d3e4fe", "on-tertiary": "#ffffff", "tertiary-fixed": "#d8e3fb", "on-secondary-fixed-variant": "#6e3900", "primary-container": "#0d5c3a" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-md": "1rem", "margin": "1rem", "space-xl": "2rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "gutter": "1rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-lg-mobile": ["Inter"], "currency-display": ["Inter"], "label-md": ["Inter"], "body-sm": ["Inter"], "body-md": ["Inter"], "headline-sm": ["Inter"], "body-lg": ["Inter"], "headline-lg": ["Inter"], "headline-md": ["Inter"], "label-lg": ["Inter"], "label-sm": ["Inter"] }, "fontSize": { "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}], "currency-display": ["26px", {"lineHeight": "32px", "fontWeight": "800"}], "label-md": ["13px", {"lineHeight": "16px", "fontWeight": "600"}], "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}], "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "700"}], "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "700"}], "label-lg": ["15px", {"lineHeight": "20px", "fontWeight": "600"}], "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700"}] } } } };</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-16 px-space-xs flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-xs min-w-0"><button aria-label="Back" class="w-11 h-11 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-low transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><img alt="Shubh Labh Field Logo" class="h-7 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1VFeo0JeRTn4GGZdG8TBreckFpRQioYJe7FbVmDALXC69lIkKqYjkvML0aqq3m0P49iSMJoCVzNezjwc1JGL-5fbSFqfjXAo169d0zgRObNa3hGY_4ji7T6pfhwtihOk_YhFZP9ji-GeXksuHWzew8NzcQeNHLB1TA_DnOvyXFW2l_-NBPFUUdg6pYSxVzFoa2E4gZSVylz2oLOmrJs_WphlQc6ozKoMqlh2orpzfSgEN7BjVQueOZYVe0"/><div class="flex flex-col min-w-0 pl-1"><span class="font-label-sm text-label-sm text-on-surface-variant truncate uppercase">SHUBH LABH FIELD</span><span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate leading-none">Customer Detail</span></div></div><div class="flex items-center gap-space-xs flex-shrink-0 pr-space-xs"><button aria-label="Sync" class="h-8 px-2 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-sm text-label-sm">Synced</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-16 pb-safe px-margin bg-surface flex-grow"><div class="flex flex-col w-full pb-10 space-y-4">
+<!-- Offline / Field Sync Pill Banner -->
+<div class="w-full bg-surface-container-low px-space-md py-1.5 rounded-full flex items-center justify-between shadow-sm">
+<div class="flex items-center space-x-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary animate-ping"></span>
+<span class="font-label-sm text-label-sm text-primary uppercase font-bold">10-Sec Executive Brief / तीव्र समीक्षा</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-medium">Dealer ID: #IN-MP-7782</span>
+</div>
+<!-- Hero Summary Card (Level 1 Tactile Surface with Emerald Left Accent) -->
+<div class="relative bg-surface-container-lowest rounded-xl shadow-md overflow-hidden transition-all duration-200 active:scale-[0.995]">
+<!-- High-glare tactile semantic left stripe -->
+<div class="absolute top-0 bottom-0 left-0 w-2 bg-primary"></div>
+<div class="p-space-md pl-5 flex flex-col space-y-3">
+<!-- Top Row: Badges & Credit Health -->
+<div class="flex items-start justify-between gap-2">
+<div class="flex flex-wrap items-center gap-1.5">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm font-bold">
+<span class="material-symbols-outlined text-[13px] mr-1" style="font-variation-settings: 'FILL' 1;">verified</span>
+            Active Dealer (श्रेणी-A)
+          </span>
+<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-surface-container text-on-surface font-label-sm text-label-sm">
+            GST Verified
+          </span>
+</div>
+<!-- Distance / Walk Time -->
+<div class="flex items-center space-x-1 text-primary bg-primary-fixed-dim/20 px-2 py-0.5 rounded-md">
+<span class="material-symbols-outlined text-[15px] animate-bounce">directions_walk</span>
+<span class="font-label-sm text-label-sm font-bold">0.4 km (3m)</span>
+</div>
+</div>
+<!-- Business Name & Entity -->
+<div class="flex flex-col">
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight leading-snug">
+          Shree Ganesh Fertilisers & Seeds
+        </h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          श्री गणेश फर्टिलाइजर्स एंड सीड्स • प्रो: <span class="font-semibold text-on-surface">Rajesh Patel</span>
+</p>
+</div>
+<!-- Quick Geo & GST Micro-Block -->
+<div class="bg-surface-container-low rounded-lg p-2 flex flex-col space-y-1">
+<div class="flex items-center text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] mr-1.5 text-primary">storefront</span>
+<span class="font-body-sm text-body-sm truncate">Shop 14, Loha Mandi, Malwa Mills Belt, Indore</span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant text-[11px] pt-0.5">
+<span class="font-label-sm text-label-sm">GSTIN: <span class="font-mono text-on-surface font-semibold">23AABCS1429B1Z</span></span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold">Limit: ₹5,00,000</span>
+</div>
+</div>
+<!-- Outstanding & Financial Snapshot Pill Bar -->
+<div class="flex items-center justify-between bg-error-container/40 p-2.5 rounded-lg">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-error-container uppercase">Pending Dues / बकाया राशि</span>
+<span class="font-currency-display text-currency-display text-error font-extrabold leading-none mt-0.5">
+            ₹1,24,500
+          </span>
+</div>
+<div class="text-right flex flex-col items-end">
+<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-error text-on-error font-label-sm text-label-sm font-bold">
+            Due in 4 Days
+          </span>
+<span class="font-body-sm text-body-sm text-on-error-container mt-0.5">Bill: #INV-24-998</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Primary One-Handed Quick-Action Bar (Thumb-Accessible Target Rows) -->
+<div class="flex flex-col space-y-2">
+<!-- Main Highlighted Target: Start Visit -->
+<button class="w-full h-[52px] bg-primary text-on-primary rounded-xl flex items-center justify-center space-x-2 font-label-lg text-label-lg shadow-md hover:bg-primary-container active:scale-[0.98] transition-transform" onclick="triggerAction('Visit Started: Geo-fencing locked.')">
+<span class="relative flex h-3 w-3 mr-1">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-fixed opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-primary-fixed"></span>
+</span>
+<span class="material-symbols-outlined text-[22px]">location_on</span>
+<span class="font-bold">START VISIT (विज़िट शुरू करें)</span>
+<span class="text-xs opacity-80 pl-1 font-normal">• GPS Auto-Checkin</span>
+</button>
+<!-- Communication & Fast Capture Row -->
+<div class="grid grid-cols-5 gap-1.5">
+<button class="h-[52px] bg-surface-container-lowest rounded-xl flex flex-col items-center justify-center shadow-sm active:bg-surface-container text-on-surface" onclick="triggerAction('Calling Rajesh Patel...')">
+<span class="material-symbols-outlined text-[20px] text-primary">call</span>
+<span class="font-label-sm text-label-sm mt-0.5">Call / कॉल</span>
+</button>
+<button class="h-[52px] bg-surface-container-lowest rounded-xl flex flex-col items-center justify-center shadow-sm active:bg-surface-container text-on-surface" onclick="triggerAction('Opening WhatsApp Business Chat...')">
+<span class="material-symbols-outlined text-[20px] text-primary">chat</span>
+<span class="font-label-sm text-label-sm mt-0.5">WhatsApp</span>
+</button>
+<button class="h-[52px] bg-surface-container-lowest rounded-xl flex flex-col items-center justify-center shadow-sm active:bg-surface-container text-on-surface" onclick="openBottomSheet('requirement-sheet')">
+<span class="material-symbols-outlined text-[20px] text-secondary">add_shopping_cart</span>
+<span class="font-label-sm text-label-sm mt-0.5">+ Demand</span>
+</button>
+<button class="h-[52px] bg-surface-container-lowest rounded-xl flex flex-col items-center justify-center shadow-sm active:bg-surface-container text-on-surface" onclick="openBottomSheet('followup-sheet')">
+<span class="material-symbols-outlined text-[20px] text-on-surface-variant">calendar_clock</span>
+<span class="font-label-sm text-label-sm mt-0.5">+ Follow</span>
+</button>
+<button class="h-[52px] bg-surface-container-lowest rounded-xl flex flex-col items-center justify-center shadow-sm active:bg-error-container text-on-surface group" onclick="toggleVoiceRecording(this)">
+<span class="material-symbols-outlined text-[20px] text-error group-hover:animate-pulse">mic</span>
+<span class="font-label-sm text-label-sm mt-0.5">Voice / नोट</span>
+</button>
+</div>
+</div>
+<!-- 10-Second Quick Insight Cards (2x2 Ultra-Scannable Bento Matrix) -->
+<div class="flex flex-col space-y-1.5">
+<div class="flex items-center justify-between px-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-bold uppercase tracking-wider">
+        Operational Radar (10 सेकंड इनसाइट्स)
+      </span>
+<span class="font-label-sm text-label-sm text-primary font-semibold">Priority: High</span>
+</div>
+<div class="grid grid-cols-2 gap-2">
+<!-- Card 1: Last Interaction -->
+<div class="bg-surface-container-lowest p-3 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center space-x-1 text-primary-container mb-1">
+<span class="material-symbols-outlined text-[16px]">history_edu</span>
+<span class="font-label-sm text-label-sm uppercase font-bold text-on-surface-variant">Last Interaction</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-medium leading-tight">
+            Met Rajesh-ji; gave 10kg Bio-NPK sample. Very receptive to trial.
+          </p>
+</div>
+<div class="mt-2 pt-1.5 flex items-center justify-between border-t border-surface-container">
+<span class="font-label-sm text-label-sm text-on-surface-variant">2 days ago</span>
+<span class="font-label-sm text-label-sm text-primary font-bold">By You</span>
+</div>
+</div>
+<!-- Card 2: Next Follow-up (Action Today) -->
+<div class="bg-secondary-container/20 p-3 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center space-x-1 text-secondary mb-1">
+<span class="material-symbols-outlined text-[16px] animate-pulse">alarm</span>
+<span class="font-label-sm text-label-sm uppercase font-bold text-on-secondary-container">Follow-Up Today</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-medium leading-tight">
+            Confirm bulk booking for 50 bags Urea substitute.
+          </p>
+</div>
+<div class="mt-2 pt-1.5 flex items-center justify-between border-t border-secondary-container/30">
+<span class="font-label-sm text-label-sm font-bold text-secondary">Today, 11:30 AM</span>
+<span class="material-symbols-outlined text-[16px] text-secondary">arrow_forward</span>
+</div>
+</div>
+<!-- Card 3: Open Requirements -->
+<div class="bg-surface-container-lowest p-3 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center space-x-1 text-on-surface">
+<span class="material-symbols-outlined text-[16px] text-primary">inventory_2</span>
+<span class="font-label-sm text-label-sm uppercase font-bold text-on-surface-variant">Open Demand</span>
+</div>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-container text-on-surface font-label-sm text-label-sm font-bold">1 Req</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-medium leading-tight">
+            25 Bags Zinc Sulphate (21% Granular Grade).
+          </p>
+</div>
+<div class="mt-2 pt-1.5 flex items-center justify-between border-t border-surface-container">
+<span class="font-label-sm text-label-sm text-error font-semibold">Needed: 20 Nov</span>
+<span class="font-label-sm text-label-sm text-primary">₹38,500</span>
+</div>
+</div>
+<!-- Card 4: Pending Field Tasks -->
+<div class="bg-surface-container-lowest p-3 rounded-xl shadow-sm flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center space-x-1 text-on-surface">
+<span class="material-symbols-outlined text-[16px] text-error">assignment_late</span>
+<span class="font-label-sm text-label-sm uppercase font-bold text-on-surface-variant">Mandatory Task</span>
+</div>
+<span class="px-1.5 py-0.2 rounded-full bg-error-container text-on-error-container font-label-sm text-label-sm font-bold">1 Due</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface font-medium leading-tight">
+            Collect signed physical balance confirmation letter.
+          </p>
+</div>
+<div class="mt-2 pt-1.5 flex items-center justify-between border-t border-surface-container">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Audit Req.</span>
+<span class="material-symbols-outlined text-[15px] text-error">check_box_outline_blank</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Store Visual Proof & Geo-Verification Snippet -->
+<div class="bg-surface-container-lowest p-3 rounded-xl shadow-sm flex items-center space-x-3">
+<div class="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="Close-up photograph of an organized rural Indian agri-input retail counter shop named Shree Ganesh Fertilisers, stacked bags of seeds and bio-fertilizers visible under daylight." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWx2kE22d9Cx2Z4n8ayvfYoo9fVRlSRpQLX6lsjr6ROnDado_VBee-WXZStbvPgKESLkLjcyGdxW3QTdik0lu7RNTnkRR8vPWwQNVrmP18M3rRW73stvJ4_4ITDq-9TFDSfH6wNFj10FZu5irSvjKYXo6VBXy4Vuqa6tWorjQQdlCUvbhxqjaL2ksMnrBluSVeKQSZhhGt1LG9YySHv9sXuiDqBzUL588CsfRrN97YW9jWvv-WSqrv"/>
+<div class="absolute bottom-0 inset-x-0 bg-primary/80 text-[8px] text-on-primary text-center font-bold uppercase py-0.5">Verified</div>
+</div>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-bold truncate">Shop Front Geotag</span>
+<span class="font-label-sm text-label-sm text-primary font-semibold flex items-center">
+<span class="material-symbols-outlined text-[13px] mr-0.5">pin_drop</span>Accurate (4m)
+        </span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Geo-stamp: 22.7196° N, 75.8577° E</p>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Photo updated by Area Officer: 14 Oct 2024</span>
+</div>
+</div>
+<!-- Recent Activity Timeline (Audit Trail) -->
+<div class="flex flex-col space-y-2">
+<div class="flex items-center justify-between px-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-bold uppercase tracking-wider">
+        Recent Timeline / हालिया गतिविधियां
+      </span>
+<button class="font-label-sm text-label-sm text-primary font-bold">View History</button>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-3 shadow-sm space-y-3">
+<!-- Item 1: Field Visit -->
+<div class="flex items-start space-x-3">
+<div class="w-8 h-8 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]">how_to_reg</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-bold">Physical Visit & Demo</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">16 Nov, 04:15 PM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">GPS Validated check-in (24 mins spent). Handed over 10kg Bio-NPK product kit.</p>
+</div>
+</div>
+<!-- Item 2: WhatsApp Quotation -->
+<div class="flex items-start space-x-3">
+<div class="w-8 h-8 rounded-full bg-surface-container text-primary flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]">receipt_long</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-bold">Price List Shared via WhatsApp</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">14 Nov, 11:20 AM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Rabi season bulk discount rate-card PDF dispatched to +91 98260-XXXXX.</p>
+</div>
+</div>
+<!-- Item 3: Phone Log -->
+<div class="flex items-start space-x-3">
+<div class="w-8 h-8 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[16px]">call_made</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-bold">Outgoing Call Connected</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">10 Nov, 06:40 PM</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Spoke for 3m 42s regarding payment schedule for invoice #998.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Persistent Customer Sticky Bottom Context Sheet / Action Tray -->
+<div class="fixed inset-x-0 bottom-0 z-50 transform translate-y-full transition-transform duration-300 ease-out bg-surface-container-lowest rounded-t-3xl shadow-2xl p-space-md max-w-lg mx-auto" id="requirement-sheet">
+<!-- Drag Handle -->
+<div class="w-12 h-1.5 bg-surface-container-highest rounded-full mx-auto mb-3"></div>
+<!-- Persistent Customer Context Bar -->
+<div class="flex items-center justify-between bg-surface-container-low px-3 py-2 rounded-xl mb-4">
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-primary font-bold truncate">TARGET CUSTOMER</span>
+<span class="font-label-md text-label-md text-on-surface font-bold truncate">Shree Ganesh Fertilisers (Rajesh Patel)</span>
+</div>
+<span class="px-2 py-0.5 rounded-md bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm font-semibold">
+        #IN-MP-7782
+      </span>
+</div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-1 font-bold">Quick Demand Note (+ मांग प्रविष्टि)</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-4">Add SKU demand directly to dispatch order queue.</p>
+<div class="space-y-3">
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface mb-1">Product SKU / उत्पाद चुनें</label>
+<select class="w-full h-12 bg-surface-container-low rounded-xl px-3 text-on-surface font-body-md text-body-md focus:outline-none">
+<option>Bio-NPK Granules 50kg (Special Rabi)</option>
+<option>Zinc Sulphate 21% Mono 25kg</option>
+<option>Urea Replacer Bio-Pellets 40kg</option>
+</select>
+</div>
+<div class="flex items-center justify-between gap-3">
+<div class="w-1/2">
+<label class="block font-label-sm text-label-sm text-on-surface mb-1">Quantity (Bags)</label>
+<input class="w-full h-12 bg-surface-container-low rounded-xl px-3 font-headline-sm text-headline-sm text-on-surface focus:outline-none text-center" type="number" value="25"/>
+</div>
+<div class="w-1/2">
+<label class="block font-label-sm text-label-sm text-on-surface mb-1">Delivery Due</label>
+<input class="w-full h-12 bg-surface-container-low rounded-xl px-3 font-body-md text-body-md text-on-surface focus:outline-none" type="date" value="2024-11-20"/>
+</div>
+</div>
+<div class="pt-2 flex items-center space-x-2">
+<button class="w-1/3 h-[52px] bg-surface-container text-on-surface rounded-xl font-label-lg text-label-lg font-semibold" onclick="closeBottomSheet('requirement-sheet')">
+          Cancel
+        </button>
+<button class="w-2/3 h-[52px] bg-primary text-on-primary rounded-xl font-label-lg text-label-lg font-bold shadow-md" onclick="saveRequirement()">
+          Save Demand (दर्ज करें)
+        </button>
+</div>
+</div>
+</div>
+<!-- Micro-Feedback Toast (Client Interactivity) -->
+<div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-inverse-surface text-inverse-on-surface px-4 py-2.5 rounded-full font-label-md text-label-md shadow-xl opacity-0 pointer-events-none transition-opacity duration-300 flex items-center space-x-2" id="action-toast">
+<span class="material-symbols-outlined text-[18px] text-primary-fixed">check_circle</span>
+<span id="toast-message">Action confirmed</span>
+</div>
+</div>
+<script>
+  function showToast(text) {
+    const toast = document.getElementById('action-toast');
+    const msg = document.getElementById('toast-message');
+    if (!toast || !msg) return;
+    msg.innerText = text;
+    toast.classList.remove('opacity-0', 'pointer-events-none');
+    toast.classList.add('opacity-100');
+    setTimeout(() => {
+      toast.classList.remove('opacity-100');
+      toast.classList.add('opacity-0', 'pointer-events-none');
+    }, 2400);
+  }
+
+  function triggerAction(actionName) {
+    showToast(actionName);
+  }
+
+  function openBottomSheet(id) {
+    const sheet = document.getElementById(id);
+    if (sheet) {
+      sheet.classList.remove('translate-y-full');
+      sheet.classList.add('translate-y-0');
+    }
+  }
+
+  function closeBottomSheet(id) {
+    const sheet = document.getElementById(id);
+    if (sheet) {
+      sheet.classList.remove('translate-y-0');
+      sheet.classList.add('translate-y-full');
+    }
+  }
+
+  function saveRequirement() {
+    closeBottomSheet('requirement-sheet');
+    showToast('Requirement saved for Shree Ganesh Fertilisers');
+  }
+
+  let isRecording = false;
+  function toggleVoiceRecording(btn) {
+    isRecording = !isRecording;
+    if (isRecording) {
+      btn.classList.add('bg-error', 'text-on-error');
+      btn.classList.remove('bg-surface-container-lowest', 'text-on-surface');
+      showToast('Recording voice note for Rajesh Patel... (Tap again to stop)');
+    } else {
+      btn.classList.remove('bg-error', 'text-on-error');
+      btn.classList.add('bg-surface-container-lowest', 'text-on-surface');
+      showToast('Voice note transcribed & linked to merchant file.');
+    }
+  }
+</script></main></body></html>

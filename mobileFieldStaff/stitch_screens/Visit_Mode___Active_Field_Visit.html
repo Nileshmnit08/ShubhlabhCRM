@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#f8f9ff;}body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-bright": "#f8f9ff", "on-secondary-container": "#663500", "tertiary-container": "#465165", "on-primary-fixed-variant": "#005232", "secondary-container": "#fe932c", "inverse-on-surface": "#eaf1ff", "on-background": "#0b1c30", "surface-container-lowest": "#ffffff", "error": "#ba1a1a", "primary-fixed": "#a9f3c5", "surface-tint": "#226b47", "secondary": "#904d00", "surface-container": "#e5eeff", "primary": "#004328", "surface-variant": "#d3e4fe", "on-tertiary-container": "#b8c4db", "inverse-primary": "#8ed6aa", "background": "#f8f9ff", "on-surface": "#0b1c30", "primary-fixed-dim": "#8ed6aa", "tertiary-fixed-dim": "#bcc7de", "error-container": "#ffdad6", "on-tertiary-fixed-variant": "#3c475a", "surface": "#f8f9ff", "on-primary-container": "#8ad2a7", "on-surface-variant": "#404942", "tertiary": "#2f3a4d", "inverse-surface": "#213145", "on-primary-fixed": "#002111", "on-secondary-fixed": "#2f1500", "on-error": "#ffffff", "surface-dim": "#cbdbf5", "on-error-container": "#93000a", "outline-variant": "#bfc9c0", "on-secondary": "#ffffff", "on-primary": "#ffffff", "surface-container-low": "#eff4ff", "secondary-fixed-dim": "#ffb77d", "surface-container-high": "#dce9ff", "outline": "#707971", "secondary-fixed": "#ffdcc3", "on-tertiary-fixed": "#111c2d", "surface-container-highest": "#d3e4fe", "on-tertiary": "#ffffff", "tertiary-fixed": "#d8e3fb", "on-secondary-fixed-variant": "#6e3900", "primary-container": "#0d5c3a" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-md": "1rem", "margin": "1rem", "space-xl": "2rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "gutter": "1rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-lg-mobile": ["Inter"], "currency-display": ["Inter"], "label-md": ["Inter"], "body-sm": ["Inter"], "body-md": ["Inter"], "headline-sm": ["Inter"], "body-lg": ["Inter"], "headline-lg": ["Inter"], "headline-md": ["Inter"], "label-lg": ["Inter"], "label-sm": ["Inter"] }, "fontSize": { "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}], "currency-display": ["26px", {"lineHeight": "32px", "fontWeight": "800"}], "label-md": ["13px", {"lineHeight": "16px", "fontWeight": "600"}], "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}], "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "700"}], "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "700"}], "label-lg": ["15px", {"lineHeight": "20px", "fontWeight": "600"}], "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700"}] } } } };</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-16 px-space-xs flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-xs min-w-0"><button aria-label="Back" class="w-11 h-11 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-low transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><img alt="Shubh Labh Field Logo" class="h-7 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1VFeo0JeRTn4GGZdG8TBreckFpRQioYJe7FbVmDALXC69lIkKqYjkvML0aqq3m0P49iSMJoCVzNezjwc1JGL-5fbSFqfjXAo169d0zgRObNa3hGY_4ji7T6pfhwtihOk_YhFZP9ji-GeXksuHWzew8NzcQeNHLB1TA_DnOvyXFW2l_-NBPFUUdg6pYSxVzFoa2E4gZSVylz2oLOmrJs_WphlQc6ozKoMqlh2orpzfSgEN7BjVQueOZYVe0"/><div class="flex flex-col min-w-0 pl-1"><span class="font-label-sm text-label-sm text-on-surface-variant truncate uppercase">SHUBH LABH FIELD</span><span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate leading-none">Customer Detail</span></div></div><div class="flex items-center gap-space-xs flex-shrink-0 pr-space-xs"><button aria-label="Sync" class="h-8 px-2 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-sm text-label-sm">Synced</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-16 pb-safe px-margin bg-surface flex-grow"><div class="flex flex-col w-full pb-28 space-y-4">
+<!-- Offline / Field State Toast Pill -->
+<div class="w-full bg-primary-container text-on-primary px-3 py-2 rounded-xl shadow-md flex items-center justify-between">
+<div class="flex items-center gap-2 min-w-0">
+<span class="relative flex h-3 w-3">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-fixed opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-primary-fixed"></span>
+</span>
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-primary-fixed flex items-center gap-1">
+          VISIT ACTIVE • विज़िट चालू है
+        </span>
+<span class="font-body-sm text-body-sm text-surface-container-low truncate">
+          Shree Ganesh Fertilisers (Rajesh Patel)
+        </span>
+</div>
+</div>
+<div class="flex items-center gap-1.5 bg-primary px-2.5 py-1 rounded-full text-primary-fixed shrink-0">
+<span class="material-symbols-outlined text-[16px]">timer</span>
+<span class="font-label-md text-label-md tabular-nums tracking-wide" id="live-timer">14:32</span>
+</div>
+</div>
+<!-- Store Verification Meta Card -->
+<div class="w-full bg-surface-container-lowest rounded-xl p-3.5 shadow-sm flex flex-col gap-2.5">
+<div class="flex items-start justify-between gap-2">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">Shree Ganesh Fertilisers & Seeds</span>
+<span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings: 'FILL' 1;" title="KYC Verified">verified</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Shop 14, Krishi Upaj Mandi, Loha Bazar • GSTIN: 23AAGCS1249L1Z8</span>
+</div>
+<button aria-label="Open Merchant Dossier" class="shrink-0 w-9 h-9 rounded-full bg-surface-container flex items-center justify-center text-primary active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]">storefront</span>
+</button>
+</div>
+<!-- Geo-Fence Validation Sub-strip -->
+<div class="flex items-center justify-between bg-surface-container-low rounded-lg p-2 text-on-surface-variant">
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="material-symbols-outlined text-primary-container text-[18px]">verified_user</span>
+<span class="font-label-sm text-label-sm text-on-surface truncate">
+          Geofence Lock: <span class="text-primary font-bold">12m from counter</span>
+</span>
+</div>
+<div class="flex items-center gap-1 text-on-surface-variant shrink-0">
+<span class="material-symbols-outlined text-[15px]">my_location</span>
+<span class="font-label-sm text-label-sm font-semibold">22.7196° N, 75.8577° E</span>
+</div>
+</div>
+</div>
+<!-- Hero Decision Grid: "What happened?" / "क्या हुआ?" -->
+<div class="w-full bg-surface-container-lowest rounded-xl p-4 shadow-sm flex flex-col gap-3">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface font-bold leading-tight">
+          What happened? <span class="text-on-surface-variant font-normal text-headline-sm">/ क्या हुआ?</span>
+</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Tap outcomes to auto-draft summary • टैप करके दर्ज करें
+        </p>
+</div>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-bold">
+        3 SELECTED
+      </span>
+</div>
+<!-- Touch-Optimized Toggles Grid -->
+<div class="grid grid-cols-2 gap-2.5">
+<!-- 1. Met Customer (Active) -->
+<button class="outcome-chip flex items-center justify-between p-3 rounded-xl min-h-[58px] bg-primary text-on-primary shadow-sm text-left transition-all active:scale-[0.98]" onclick="toggleOutcome(this)">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="font-label-lg text-label-lg leading-tight font-bold truncate">Met Customer</span>
+<span class="font-body-sm text-body-sm opacity-90 truncate">ग्राहक से मिले</span>
+</div>
+<span class="material-symbols-outlined text-[22px] shrink-0" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</button>
+<!-- 2. Requirement Received (Active with Counter) -->
+<button class="outcome-chip flex items-center justify-between p-3 rounded-xl min-h-[58px] bg-primary text-on-primary shadow-sm text-left transition-all active:scale-[0.98]" onclick="toggleOutcome(this)">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="font-label-lg text-label-lg leading-tight font-bold truncate">Demand Added</span>
+<span class="font-body-sm text-body-sm opacity-90 truncate">मांग / ऑर्डर मिला</span>
+</div>
+<div class="h-6 px-1.5 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-label-sm text-label-sm font-bold shrink-0">
+          +1
+        </div>
+</button>
+<!-- 3. Payment Collected (Inactive) -->
+<button class="outcome-chip flex items-center justify-between p-3 rounded-xl min-h-[58px] bg-surface-container-low text-on-surface hover:bg-surface-container text-left transition-all active:scale-[0.98]" onclick="toggleOutcome(this)">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="font-label-lg text-label-lg leading-tight font-bold truncate">Payment Talk</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">भुगतान वसूली</span>
+</div>
+<span class="material-symbols-outlined text-[22px] text-outline shrink-0">payments</span>
+</button>
+<!-- 4. Follow-up Needed (Active) -->
+<button class="outcome-chip flex items-center justify-between p-3 rounded-xl min-h-[58px] bg-primary text-on-primary shadow-sm text-left transition-all active:scale-[0.98]" onclick="toggleOutcome(this)">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="font-label-lg text-label-lg leading-tight font-bold truncate">Follow-up Set</span>
+<span class="font-body-sm text-body-sm opacity-90 truncate">फॉलो-अप तय</span>
+</div>
+<span class="material-symbols-outlined text-[22px] shrink-0" style="font-variation-settings: 'FILL' 1;">event_available</span>
+</button>
+<!-- 5. Price List Shared (Inactive) -->
+<button class="outcome-chip flex items-center justify-between p-3 rounded-xl min-h-[58px] bg-surface-container-low text-on-surface hover:bg-surface-container text-left transition-all active:scale-[0.98]" onclick="toggleOutcome(this)">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="font-label-lg text-label-lg leading-tight font-bold truncate">Price List</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">रेट लिस्ट दी</span>
+</div>
+<span class="material-symbols-outlined text-[22px] text-outline shrink-0">menu_book</span>
+</button>
+<!-- 6. Competitor Intel (Inactive) -->
+<button class="outcome-chip flex items-center justify-between p-3 rounded-xl min-h-[58px] bg-surface-container-low text-on-surface hover:bg-surface-container text-left transition-all active:scale-[0.98]" onclick="toggleOutcome(this)">
+<div class="flex flex-col min-w-0 pr-1">
+<span class="font-label-lg text-label-lg leading-tight font-bold truncate">Mandi Intel</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">प्रतिद्वंद्वी भाव</span>
+</div>
+<span class="material-symbols-outlined text-[22px] text-outline shrink-0">insights</span>
+</button>
+<!-- 7. Owner Absent / Locked (Full Width Alternative State) -->
+<button class="outcome-chip col-span-2 flex items-center justify-between p-3 rounded-xl min-h-[52px] bg-surface-container-low text-on-surface hover:bg-surface-container text-left transition-all active:scale-[0.98]" onclick="toggleOutcome(this)">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-outline text-[20px]">person_off</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-bold">Owner Unavailable / Shop Closed</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">मालिक अनुपस्थित / दुकान बंद</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline text-[20px]">radio_button_unchecked</span>
+</button>
+</div>
+</div>
+<!-- Voice & Speed Actions Zone (Direct Thumb Accessibility) -->
+<div class="w-full grid grid-cols-3 gap-2">
+<!-- Big Voice Tap Button -->
+<button class="col-span-3 min-h-[60px] rounded-xl bg-primary-container text-on-primary p-3 shadow-md flex items-center justify-between active:scale-[0.99] transition-transform" id="voice-record-btn" onclick="toggleVoiceCapture()">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center animate-pulse">
+<span class="material-symbols-outlined text-[24px]">mic</span>
+</div>
+<div class="flex flex-col text-left">
+<span class="font-label-lg text-label-lg font-bold flex items-center gap-1">
+            Tap to Speak Note <span class="font-normal text-on-primary-container">• बोलकर जोड़ें</span>
+</span>
+<span class="font-body-sm text-body-sm text-on-primary-container">Hindi / English auto-transcribe & action tag</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary-fixed text-[26px]">graphic_eq</span>
+</button>
+<!-- Quick Demand Trigger -->
+<button class="min-h-[54px] rounded-xl bg-surface-container-lowest text-on-surface p-2.5 shadow-sm flex flex-col items-center justify-center gap-0.5 active:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-primary text-[20px]">add_shopping_cart</span>
+<span class="font-label-sm text-label-sm font-bold leading-none">+ Demand</span>
+<span class="font-label-sm text-[10px] text-on-surface-variant leading-none">मांग जोड़ें</span>
+</button>
+<!-- Quick Photo Trigger -->
+<button class="min-h-[54px] rounded-xl bg-surface-container-lowest text-on-surface p-2.5 shadow-sm flex flex-col items-center justify-center gap-0.5 active:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-secondary text-[20px]">photo_camera</span>
+<span class="font-label-sm text-label-sm font-bold leading-none">+ Proof Pic</span>
+<span class="font-label-sm text-[10px] text-on-surface-variant leading-none">दुकान फ़ोटो</span>
+</button>
+<!-- Quick Ledger Trigger -->
+<button class="min-h-[54px] rounded-xl bg-surface-container-lowest text-on-surface p-2.5 shadow-sm flex flex-col items-center justify-center gap-0.5 active:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-tertiary text-[20px]">currency_rupee</span>
+<span class="font-label-sm text-label-sm font-bold leading-none">Record ₹</span>
+<span class="font-label-sm text-[10px] text-on-surface-variant leading-none">रोकड़ दर्ज</span>
+</button>
+</div>
+<!-- Live Captured Activity Feed (Proof & Line Items) -->
+<div class="w-full flex flex-col gap-2">
+<div class="flex items-center justify-between px-1">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-bold">
+        Captured in this Visit (वर्तमान सत्र डेटा)
+      </span>
+<span class="font-label-sm text-label-sm text-primary font-bold">3 items saved</span>
+</div>
+<!-- Feed Card 1: Product Demand Line -->
+<div class="w-full bg-surface-container-lowest rounded-xl p-3 shadow-sm flex items-start justify-between gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container-low text-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">inventory_2</span>
+</div>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-label-lg text-on-surface font-bold truncate">Zinc Sulphate 21% (Mono)</span>
+<span class="font-label-lg text-label-lg text-primary font-extrabold">₹38,500</span>
+</div>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+            25 HDPE Bags (50kg)
+          </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Dispatch: 18 May</span>
+</div>
+</div>
+<div class="flex items-center gap-1 text-outline shrink-0">
+<button aria-label="Edit line item" class="p-1 hover:text-on-surface">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button aria-label="Delete line item" class="p-1 hover:text-error">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</div>
+</div>
+<!-- Feed Card 2: Voice Audio Note & AI Transcription -->
+<div class="w-full bg-surface-container-lowest rounded-xl p-3 shadow-sm flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-surface-container text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">mic</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface font-bold">Voice Note Transcription</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-full">
+          18s • 10:44 AM
+        </span>
+</div>
+<!-- Speech balloon quote -->
+<div class="bg-surface-container-low rounded-lg p-2.5 text-on-surface font-body-md text-body-md flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5">format_quote</span>
+<span class="italic text-on-surface-variant">
+          "राजेश जी ने कहा कि यूरिया सब्स्टीट्यूट के 50 बैग अगले मंगलवार तक भिजवा दो, पिछला बकाया ₹15,000 चेक से शनिवार को क्लियर करेंगे।"
+        </span>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant px-1 pt-1">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-label-sm text-label-sm text-primary font-semibold">AI Action: Follow-up created for Saturday</span>
+</div>
+<button class="flex items-center gap-0.5 text-primary font-label-sm text-label-sm font-bold">
+<span class="material-symbols-outlined text-[16px]">play_circle</span>
+          Play Audio
+        </button>
+</div>
+</div>
+<!-- Feed Card 3: Geotagged Visual Verification Proof -->
+<div class="w-full bg-surface-container-lowest rounded-xl p-3 shadow-sm flex items-center gap-3">
+<div class="w-16 h-16 rounded-lg bg-surface-container overflow-hidden shrink-0 relative">
+<img class="w-full h-full object-cover" data-alt="High-contrast front photo of an Indian rural agricultural supply store named Shree Ganesh Fertilisers in Madhya Pradesh with stacked fertilizer sacks and shop owner standing smiling under midday natural sunlight." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGNU4AsPGZz1qg_Q78S1PbeI39S6gISdGb4DjGimPXAXyE44MMtcUMTuJ3u7B-8HtuK8juiW5cFzy-lecBB2K8t2TAtTCictdEIMymGsS3qTfZzWWZMtlFlJI1C_Zp4QkcruLBwugQGdX31Eac4Ptut_Yt0hHCY69G9PsMVAP02oY915tWJpVjtj6drA5xXIc-DZjQlw_cTcP7u1Wj5MTI5aBSgU6bH6AQ0cjOhQ36GwSEvVqFu-YK"/>
+<span class="absolute bottom-1 right-1 bg-inverse-surface/80 text-inverse-on-surface text-[9px] px-1 rounded font-mono">GPS</span>
+</div>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center gap-1 text-primary">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">location_on</span>
+<span class="font-label-sm text-label-sm font-bold uppercase">Storefront Captured</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface font-semibold truncate">Shree Ganesh Fertilisers Shop Banner</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant text-[11px]">Accuracy: 3.2m • Lat 22.7196, Lon 75.8577</span>
+</div>
+<button class="w-8 h-8 rounded-full bg-surface-container-low text-on-surface flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[18px]">fullscreen</span>
+</button>
+</div>
+</div>
+<!-- Outstanding Account Mini Card (Context for Rep) -->
+<div class="w-full bg-surface-container rounded-xl p-3 flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-9 h-9 rounded-lg bg-error-container text-on-error-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Current Outstanding Dues</span>
+<span class="font-currency-display text-currency-display text-error font-extrabold leading-tight">₹42,800</span>
+</div>
+</div>
+<button class="px-3 py-1.5 rounded-lg bg-surface-container-lowest text-on-surface font-label-sm text-label-sm font-bold shadow-sm active:bg-surface-container-high transition-colors">
+      View Ledger
+    </button>
+</div>
+<!-- Persistent Tactile Bottom Bar (Thumb Zone) -->
+<div class="fixed bottom-0 left-0 w-full bg-surface-container-lowest/95 backdrop-blur-md px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] z-40 flex flex-col gap-2">
+<!-- Primary CTA: 56px High Thumb Magnet -->
+<button class="w-full min-h-[56px] rounded-xl bg-primary text-on-primary flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-transform" id="finish-btn" onclick="triggerCheckout()">
+<span class="material-symbols-outlined text-[24px]">task_alt</span>
+<div class="flex items-baseline gap-1.5">
+<span class="font-headline-sm text-headline-sm font-bold tracking-tight">FINISH VISIT</span>
+<span class="font-label-md text-label-md text-primary-fixed opacity-90">/ विज़िट पूरी करें</span>
+</div>
+<span class="font-label-sm text-label-sm bg-primary-container text-primary-fixed px-2 py-0.5 rounded-md ml-1">
+        Check-out
+      </span>
+</button>
+<!-- Secondary Emergency / Pause Actions -->
+<div class="flex items-center justify-between px-1">
+<button class="font-label-md text-label-md text-error font-semibold flex items-center gap-1 py-1">
+<span class="material-symbols-outlined text-[16px]">cancel</span>
+        Cancel Visit
+      </button>
+<div class="flex items-center gap-3">
+<button class="font-label-md text-label-md text-on-surface-variant font-semibold flex items-center gap-1 py-1">
+<span class="material-symbols-outlined text-[16px]">pause_circle</span>
+          Pause (चाय ब्रेक)
+        </button>
+<span class="text-outline text-[12px]">•</span>
+<button class="font-label-md text-label-md text-primary font-semibold flex items-center gap-1 py-1">
+<span class="material-symbols-outlined text-[16px]">navigation</span>
+          Next Mandi Stop
+        </button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  // Simple stopwatch counter for active visit realism
+  (function() {
+    let seconds = 872; // Starts at 14m 32s
+    const timerElem = document.getElementById('live-timer');
+    if (timerElem) {
+      setInterval(() => {
+        seconds++;
+        const mins = Math.floor(seconds / 60);
+        const remSecs = seconds % 60;
+        timerElem.textContent = `${mins}:${remSecs < 10 ? '0' : ''}${remSecs}`;
+      }, 1000);
+    }
+  })();
+
+  // Toggle multi-select outcome tags
+  function toggleOutcome(button) {
+    const isSelected = button.classList.contains('bg-primary');
+    if (isSelected) {
+      // Revert to unselected style
+      button.classList.remove('bg-primary', 'text-on-primary', 'shadow-sm');
+      button.classList.add('bg-surface-container-low', 'text-on-surface');
+      const icon = button.querySelector('.material-symbols-outlined');
+      if (icon) {
+        icon.classList.remove('text-primary');
+        icon.classList.add('text-outline');
+        if (icon.innerText === 'check_circle') icon.innerText = 'radio_button_unchecked';
+      }
+    } else {
+      // Apply active primary style
+      button.classList.remove('bg-surface-container-low', 'text-on-surface');
+      button.classList.add('bg-primary', 'text-on-primary', 'shadow-sm');
+      const icon = button.querySelector('.material-symbols-outlined');
+      if (icon) {
+        icon.classList.remove('text-outline');
+        if (icon.innerText === 'radio_button_unchecked') icon.innerText = 'check_circle';
+      }
+    }
+  }
+
+  // Voice capture simulation feedback
+  function toggleVoiceCapture() {
+    const btn = document.getElementById('voice-record-btn');
+    if (!btn) return;
+    const isRecording = btn.dataset.recording === 'true';
+    if (!isRecording) {
+      btn.dataset.recording = 'true';
+      btn.classList.remove('bg-primary-container');
+      btn.classList.add('bg-error', 'text-on-error');
+      btn.querySelector('.font-label-lg').innerHTML = 'Listening... बोलिए <span class="text-surface font-normal">• Tap to Finish</span>';
+    } else {
+      btn.dataset.recording = 'false';
+      btn.classList.remove('bg-error', 'text-on-error');
+      btn.classList.add('bg-primary-container', 'text-on-primary');
+      btn.querySelector('.font-label-lg').innerHTML = 'Voice Note Saved! <span class="font-normal text-on-primary-container">• जोड़ दिया गया</span>';
+      setTimeout(() => {
+        btn.querySelector('.font-label-lg').innerHTML = 'Tap to Speak Note <span class="font-normal text-on-primary-container">• बोलकर जोड़ें</span>';
+      }, 2500);
+    }
+  }
+
+  // Final check-out tactile response
+  function triggerCheckout() {
+    const finishBtn = document.getElementById('finish-btn');
+    if (!finishBtn) return;
+    finishBtn.classList.add('scale-[0.97]', 'bg-primary-container');
+    finishBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[24px]">progress_activity</span> <span class="font-headline-sm text-headline-sm font-bold">Uploading Geo-stamp...</span>';
+    setTimeout(() => {
+      finishBtn.innerHTML = '<span class="material-symbols-outlined text-[24px]">cloud_done</span> <span class="font-headline-sm text-headline-sm font-bold">Visit Completed! (सफल)</span>';
+      finishBtn.classList.remove('bg-primary');
+      finishBtn.classList.add('bg-secondary');
+    }, 1200);
+  }
+</script></main></body></html>

@@ -48,5 +48,9 @@
     "web": "expo start --web",
     "postinstall": "patch-package"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@react-native-community/cli": "^20.2.0",
+    "patch-package": "^8.0.1"
+  }
 }
