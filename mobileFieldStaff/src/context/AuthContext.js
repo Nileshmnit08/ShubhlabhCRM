@@ -54,6 +54,11 @@ export const AuthProvider = ({ children }) => {
       if (error) {
         if (error.code === 'PGRST116') {
           setAuthError('MISSING_PROFILE');
+        } else if (error.code && error.code.startsWith('PGRST3')) {
+          // JWT Authentication error (e.g., PGRST301 expired, PGRST303 issued at future)
+          // The session is poisoned or expired. Force logout to prevent infinite offline cache loop.
+          console.error('JWT Auth Error, clearing session:', error.code, error.message);
+          await logout();
         } else {
           // On network/backend error, try to load from cache
           console.error('Error fetching user profile:', error);

@@ -17,7 +17,7 @@ export const initializeGeofenceCustomers = async (userId) => {
     const { data: customers, error } = await supabase
       .from('crm_parties')
       .select('id, latitude, longitude')
-      .eq('assigned_to', userId)
+      .eq('assigned_owner_id', userId)
       .not('latitude', 'is', null)
       .not('longitude', 'is', null);
 
