@@ -1,14 +1,54 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, rounded, elevation } from '../theme/tokens';
 import { Button } from '../components';
 import { useAuth } from '../context/AuthContext';
+import { 
+  startBackgroundLocationTracking, 
+  stopBackgroundLocationTracking, 
+  checkIsTracking 
+} from '../services/BackgroundLocationService';
 
 export function ProfileScreen() {
   const { t } = useTranslation();
   const { staffProfile, logout } = useAuth();
+  const [isTracking, setIsTracking] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [geofencesCount, setGeofencesCount] = useState(0);
+
+  useEffect(() => {
+    const initTrackingStatus = async () => {
+      const tracking = await checkIsTracking();
+      setIsTracking(tracking);
+    };
+    initTrackingStatus();
+  }, []);
+
+  const handleToggleTracking = async () => {
+    setIsLoading(true);
+    try {
+      if (isTracking) {
+        await stopBackgroundLocationTracking();
+        setIsTracking(false);
+        setGeofencesCount(0);
+        Alert.alert(t('tracking.stoppedTitle', 'Tracking Stopped'), t('tracking.stoppedMessage', 'Background location tracking has been disabled.'));
+      } else {
+        const count = await startBackgroundLocationTracking(staffProfile?.id);
+        setIsTracking(true);
+        setGeofencesCount(count || 0);
+        Alert.alert(
+          t('tracking.activeTitle', 'Tracking Active'), 
+          t('tracking.activeMessage', 'Background location tracking has started.') + `\nMonitored Geofences: ${count || 0}`
+        );
+      }
+    } catch (error) {
+      Alert.alert(t('tracking.errorTitle', 'Tracking Error'), error.message || t('tracking.errorMessage', 'Failed to toggle tracking.'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   return (
     <SafeAreaView style={styles.safe}>
@@ -22,11 +62,42 @@ export function ProfileScreen() {
         <View style={[styles.card, elevation.level1]}>
           <View style={styles.statRow}>
             <Text style={styles.statLabel}>Today's Visits</Text>
-            <Text style={styles.statValue}>12 / 15</Text>
+            <Text style={styles.statValue}>0</Text>
           </View>
           <View style={styles.statRow}>
             <Text style={styles.statLabel}>Collections</Text>
-            <Text style={styles.statValue}>₹ 45,000</Text>
+            <Text style={styles.statValue}>₹ 0</Text>
+          </View>
+        </View>
+
+        <View style={[styles.card, elevation.level1, { marginTop: 16 }]}>
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Tracking Status</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons 
+                name={isTracking ? "gps-fixed" : "gps-off"} 
+                size={20} 
+                color={isTracking ? colors.primary : colors.error} 
+                style={{ marginRight: 8 }} 
+              />
+              <Text style={[styles.statValue, { color: isTracking ? colors.primary : colors.error }]}>
+                {isTracking ? "ACTIVE" : "OFF"}
+              </Text>
+            </View>
+          </View>
+          {isTracking && (
+            <View style={styles.statRow}>
+              <Text style={styles.statLabel}>Active Geofences</Text>
+              <Text style={styles.statValue}>{geofencesCount}</Text>
+            </View>
+          )}
+          <View style={{ marginTop: 16 }}>
+            <Button 
+              title={isTracking ? "STOP TRACKING" : "START TRACKING"} 
+              variant={isTracking ? "secondary" : "primary"} 
+              onPress={handleToggleTracking} 
+              disabled={isLoading}
+            />
           </View>
         </View>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TextInput, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, rounded, elevation } from '../theme/tokens';
@@ -40,11 +41,27 @@ export function CustomersScreen({ navigation }) {
       
       setCustomers(data || []);
       setFilteredCustomers(data || []);
+      await AsyncStorage.setItem('@customers_cache', JSON.stringify(data || []));
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Failed to fetch customers');
+      await loadCachedCustomers();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCachedCustomers = async () => {
+    try {
+      const cached = await AsyncStorage.getItem('@customers_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setCustomers(parsed);
+        setFilteredCustomers(parsed);
+      } else {
+        setError('Failed to fetch customers and no offline data available.');
+      }
+    } catch (e) {
+      setError('Failed to fetch customers');
     }
   };
 

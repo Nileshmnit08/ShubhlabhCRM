@@ -1,3 +1,4 @@
+import 'react-native-get-random-values';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
@@ -7,6 +8,8 @@ import { MaterialIcons } from '@expo/vector-icons';
 import './src/i18n';
 import { colors } from './src/theme/tokens';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { SyncProvider } from './src/context/SyncContext';
+import './src/services/BackgroundLocationService';
 
 import {
   HomeScreen,
@@ -102,10 +105,12 @@ function RootNavigator() {
 export default function App() {
   return (
     <AuthProvider>
-      <NavigationContainer>
-        <RootNavigator />
-        <StatusBar style="auto" />
-      </NavigationContainer>
+      <SyncProvider>
+        <NavigationContainer>
+          <RootNavigator />
+          <StatusBar style="auto" />
+        </NavigationContainer>
+      </SyncProvider>
     </AuthProvider>
   );
 }

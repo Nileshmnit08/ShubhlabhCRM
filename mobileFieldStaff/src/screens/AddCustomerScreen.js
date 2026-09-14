@@ -1,13 +1,117 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { colors, typography, rounded } from '../theme/tokens';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import * as Location from 'expo-location';
 
 export function AddCustomerScreen({ navigation }) {
+  const { t } = useTranslation();
+  const { staffProfile } = useAuth();
+  
+  const [shopName, setShopName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
+  
   const [category, setCategory] = useState('retailer');
   const [tags, setTags] = useState({ fertiliser: true, seeds: true, pesticides: false, micro: false });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const [locationStatus, setLocationStatus] = useState('not_requested');
+  const [gpsData, setGpsData] = useState({ latitude: null, longitude: null, accuracy: null });
+
+  React.useEffect(() => {
+    fetchLocation();
+  }, []);
+
+  const fetchLocation = async () => {
+    setLocationStatus('locating');
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationStatus('denied');
+        return;
+      }
+
+      const loc = await Location.getCurrentPositionAsync({});
+      setGpsData({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        accuracy: loc.coords.accuracy,
+      });
+      setLocationStatus('success');
+    } catch (err) {
+      console.warn(err);
+      setLocationStatus('error');
+    }
+  };
 
   const toggleTag = (key) => setTags(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const handleSave = async () => {
+    setError(null);
+    if (!shopName.trim()) {
+      setError(t('addCustomer.errors.shopNameRequired'));
+      return;
+    }
+    
+    // Optional mobile validation
+    if (mobileNumber.trim() && !/^\d{10}$/.test(mobileNumber.replace(/\D/g, ''))) {
+      setError(t('addCustomer.errors.mobileInvalid'));
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Serialize tags
+      const activeTags = Object.keys(tags).filter(k => tags[k]).join(', ');
+      
+      const payload = {
+        display_name: shopName.trim(),
+        legal_or_core_name: ownerName.trim() || null,
+        mobile: mobileNumber.trim() || null,
+        customer_type: category, // Saving category in customer_type
+        notes: activeTags ? `Tags: ${activeTags}` : null,
+        assigned_owner_id: staffProfile?.id || null,
+        crm_status: 'Active',
+        latitude: gpsData.latitude,
+        longitude: gpsData.longitude,
+        location_accuracy: gpsData.accuracy,
+        location_captured_at: gpsData.latitude ? new Date().toISOString() : null,
+      };
+
+      const { data, error: insertError } = await supabase
+        .from('crm_parties')
+        .insert([payload])
+        .select()
+        .single();
+
+      if (insertError) {
+        // Postgres Unique Violation (code 23505)
+        if (insertError.code === '23505' || insertError.message?.includes('unique')) {
+          setError(t('addCustomer.errors.duplicate'));
+        } else {
+          console.error(insertError);
+          setError(t('addCustomer.errors.generic'));
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Success
+      setLoading(false);
+      navigation.replace('CustomerProfile', { id: data.id, customerName: data.display_name });
+      
+    } catch (err) {
+      console.error(err);
+      setError(t('addCustomer.errors.generic'));
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -19,7 +123,7 @@ export function AddCustomerScreen({ navigation }) {
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
             <Text style={styles.headerLogoText}>SHUBH LABH FIELD</Text>
-            <Text style={styles.headerPageTitle}>Customer Detail</Text>
+            <Text style={styles.headerPageTitle}>{t('addCustomer.pageTitle')}</Text>
           </View>
         </View>
         <View style={styles.headerRight}>
@@ -31,8 +135,7 @@ export function AddCustomerScreen({ navigation }) {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Interactive Top Tray Card */}
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.sheetCard}>
           {/* 1. Sheet Header & Beat Context */}
           <View style={styles.sheetHeader}>
@@ -40,10 +143,10 @@ export function AddCustomerScreen({ navigation }) {
             <View style={styles.sheetHeaderRow}>
               <View style={{flex: 1, paddingRight: 8}}>
                 <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                  <Text style={styles.sheetTitle}>Quick Add Customer</Text>
-                  <View style={styles.timeTag}><Text style={styles.timeTagText}>30s FLOW</Text></View>
+                  <Text style={styles.sheetTitle}>{t('addCustomer.quickAdd')}</Text>
+                  <View style={styles.timeTag}><Text style={styles.timeTagText}>{t('addCustomer.flowTime')}</Text></View>
                 </View>
-                <Text style={styles.sheetSub}>नया ग्राहक जोड़ें • Beat: <Text style={{color: colors.onSurface, fontWeight: '600'}}>Indore Krishi Mandi Sec 4</Text></Text>
+                <Text style={styles.sheetSub}>{t('addCustomer.newCustomer')} • {t('addCustomer.beatPrefix')} <Text style={{color: colors.onSurface, fontWeight: '600'}}>Indore Krishi Mandi Sec 4</Text></Text>
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={() => navigation.goBack()}>
                 <MaterialIcons name="close" size={20} color={colors.onSurface} />
@@ -51,22 +154,40 @@ export function AddCustomerScreen({ navigation }) {
             </View>
           </View>
 
+          {/* Error Banner */}
+          {error && (
+            <View style={styles.errorBanner}>
+              <MaterialIcons name="error-outline" size={20} color={colors.onErrorContainer} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
           {/* 2. Dominant GPS Auto-Location Lock Banner */}
-          <View style={styles.gpsBanner}>
+          <View style={[styles.gpsBanner, (locationStatus === 'error' || locationStatus === 'denied') ? { backgroundColor: '#663500' } : {}]}>
             <View style={styles.gpsTop}>
               <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                <MaterialIcons name="verified" size={20} color="#a9f3c5" />
-                <Text style={styles.gpsLockText}>GPS LOCKED • ±3M ACCURACY</Text>
+                {locationStatus === 'success' && <MaterialIcons name="verified" size={20} color="#a9f3c5" />}
+                {locationStatus === 'locating' && <ActivityIndicator size="small" color="#a9f3c5" />}
+                {(locationStatus === 'error' || locationStatus === 'denied') && <MaterialIcons name="error" size={20} color="#ffdad6" />}
+                <Text style={[styles.gpsLockText, (locationStatus === 'error' || locationStatus === 'denied') ? { color: '#ffdad6' } : {}]}>
+                  {locationStatus === 'success' ? `${t('addCustomer.gpsLocked')} ±${Math.round(gpsData.accuracy)}M` : 
+                   locationStatus === 'locating' ? t('nearby.locating') : 
+                   locationStatus === 'denied' ? t('nearby.permissionDenied') : t('nearby.locationUnavailable')}
+                </Text>
               </View>
-              <TouchableOpacity style={styles.gpsUpdateBtn}>
+              <TouchableOpacity style={styles.gpsUpdateBtn} onPress={fetchLocation}>
                 <MaterialIcons name="sync" size={15} color={colors.primary} />
-                <Text style={styles.gpsUpdateText}>Update GPS</Text>
+                <Text style={styles.gpsUpdateText}>{locationStatus === 'locating' ? '...' : t('addCustomer.updateGps')}</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.gpsAddress}>Shop 18, Mandi Gate 3, Loha Bazar, Indore</Text>
+            <Text style={styles.gpsAddress}>{locationStatus === 'success' ? t('nearby.youAreHere') : t('addCustomer.addressPlaceholder')}</Text>
             <View style={styles.gpsBottom}>
-              <Text style={styles.gpsCoords}>Lat 22.7198° N, 75.8580° E</Text>
-              <Text style={styles.gpsHi}>वर्तमान स्थान सत्यापित</Text>
+              <Text style={styles.gpsCoords}>
+                {locationStatus === 'success' ? `Lat ${gpsData.latitude?.toFixed(5)}°, Lon ${gpsData.longitude?.toFixed(5)}°` : t('addCustomer.coordsPlaceholder')}
+              </Text>
+              <Text style={styles.gpsHi}>
+                {locationStatus === 'success' ? t('addCustomer.gpsVerified') : ''}
+              </Text>
             </View>
           </View>
 
@@ -78,78 +199,100 @@ export function AddCustomerScreen({ navigation }) {
                 <View style={styles.micPulse} />
               </View>
               <View style={{flex: 1}}>
-                <Text style={styles.voiceTitle}>बोलकर भरें (Speak to Auto-Fill)</Text>
-                <Text style={styles.voiceHint} numberOfLines={1}>"Sharma Krishi, रमेश शर्मा, 98261XXXXX..."</Text>
+                <Text style={styles.voiceTitle}>{t('addCustomer.speakToFill')}</Text>
+                <Text style={styles.voiceHint} numberOfLines={1}>{t('addCustomer.speakHint')}</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.tapSpeakBtn}><Text style={styles.tapSpeakText}>Tap & Speak</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.tapSpeakBtn}><Text style={styles.tapSpeakText}>{t('addCustomer.tapSpeak')}</Text></TouchableOpacity>
           </View>
 
           {/* 4. Essential Quick-Intake Form Fields */}
           <View style={styles.formGroup}>
             <View style={styles.labelRow}>
-              <Text style={styles.label}>Shop / Business Name <Text style={styles.labelHi}>(दुकान / व्यापार का नाम)</Text></Text>
-              <Text style={styles.requiredTag}>REQUIRED</Text>
+              <Text style={styles.label}>{t('addCustomer.shopName')} <Text style={styles.labelHi}>{t('addCustomer.shopNameHi')}</Text></Text>
+              <Text style={styles.requiredTag}>{t('addCustomer.required')}</Text>
             </View>
             <View style={styles.inputWrap}>
               <MaterialIcons name="storefront" size={22} color={colors.onSurfaceVariant} style={styles.inputIconL} />
-              <TextInput style={styles.input} value="Sharma Krishi Seva Kendra" />
-              <MaterialIcons name="check-circle" size={20} color={colors.primary} style={styles.inputIconR} />
+              <TextInput 
+                style={styles.input} 
+                value={shopName} 
+                onChangeText={setShopName}
+                placeholder={t('addCustomer.shopName')}
+                placeholderTextColor={colors.onSurfaceVariant}
+              />
+              {shopName.trim().length > 0 && <MaterialIcons name="check-circle" size={20} color={colors.primary} style={styles.inputIconR} />}
             </View>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Owner / Contact Person <Text style={styles.labelHi}>(मालिक का नाम)</Text></Text>
+            <Text style={styles.label}>{t('addCustomer.ownerName')} <Text style={styles.labelHi}>{t('addCustomer.ownerNameHi')}</Text></Text>
             <View style={styles.inputWrap}>
               <MaterialIcons name="person" size={22} color={colors.onSurfaceVariant} style={styles.inputIconL} />
-              <TextInput style={styles.input} value="Ramesh Sharma (रमेश शर्मा)" />
+              <TextInput 
+                style={styles.input} 
+                value={ownerName} 
+                onChangeText={setOwnerName}
+                placeholder={t('addCustomer.ownerName')}
+                placeholderTextColor={colors.onSurfaceVariant}
+              />
             </View>
           </View>
 
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Primary Mobile Number <Text style={styles.labelHi}>(मोबाइल नंबर)</Text></Text>
+            <Text style={styles.label}>{t('addCustomer.mobileNumber')} <Text style={styles.labelHi}>{t('addCustomer.mobileNumberHi')}</Text></Text>
             <View style={styles.inputWrap}>
               <MaterialIcons name="phone-android" size={22} color={colors.onSurfaceVariant} style={styles.inputIconL} />
-              <TextInput style={[styles.input, styles.inputBig]} value="+91 98261 44890" keyboardType="phone-pad" />
-              <View style={styles.waTag}>
-                <MaterialIcons name="chat" size={16} color="#005232" />
-                <Text style={styles.waTagText}>WA Active</Text>
-              </View>
+              <TextInput 
+                style={[styles.input, styles.inputBig]} 
+                value={mobileNumber} 
+                onChangeText={setMobileNumber}
+                keyboardType="phone-pad" 
+                maxLength={15}
+                placeholder="98261XXXXX"
+                placeholderTextColor={colors.onSurfaceVariant}
+              />
+              {mobileNumber.length >= 10 && (
+                <View style={styles.waTag}>
+                  <MaterialIcons name="chat" size={16} color="#005232" />
+                  <Text style={styles.waTagText}>{t('addCustomer.waActive')}</Text>
+                </View>
+              )}
             </View>
           </View>
 
           {/* Customer Category Segmented Fast-Select */}
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Category / श्रेणी <Text style={styles.labelHi}>(One-tap select)</Text></Text>
+            <Text style={styles.label}>{t('addCustomer.category')} <Text style={styles.labelHi}>{t('addCustomer.catSelectHi')}</Text></Text>
             <View style={styles.catGrid}>
               <TouchableOpacity style={category === 'retailer' ? styles.catBtnActive : styles.catBtnInactive} onPress={() => setCategory('retailer')}>
                 <View>
-                  <Text style={category === 'retailer' ? styles.catTitleActive : styles.catTitleInactive}>Retailer</Text>
-                  <Text style={category === 'retailer' ? styles.catSubActive : styles.catSubInactive}>खुदरा विक्रेता</Text>
+                  <Text style={category === 'retailer' ? styles.catTitleActive : styles.catTitleInactive}>{t('addCustomer.retailer')}</Text>
+                  <Text style={category === 'retailer' ? styles.catSubActive : styles.catSubInactive}>{t('addCustomer.retailerHi')}</Text>
                 </View>
                 {category === 'retailer' ? <MaterialIcons name="check-circle" size={20} color={colors.onPrimary} /> : <View style={styles.catEmptyDot} />}
               </TouchableOpacity>
               
               <TouchableOpacity style={category === 'wholesaler' ? styles.catBtnActive : styles.catBtnInactive} onPress={() => setCategory('wholesaler')}>
                 <View>
-                  <Text style={category === 'wholesaler' ? styles.catTitleActive : styles.catTitleInactive}>Wholesaler</Text>
-                  <Text style={category === 'wholesaler' ? styles.catSubActive : styles.catSubInactive}>थोक विक्रेता</Text>
+                  <Text style={category === 'wholesaler' ? styles.catTitleActive : styles.catTitleInactive}>{t('addCustomer.wholesaler')}</Text>
+                  <Text style={category === 'wholesaler' ? styles.catSubActive : styles.catSubInactive}>{t('addCustomer.wholesalerHi')}</Text>
                 </View>
                 {category === 'wholesaler' ? <MaterialIcons name="check-circle" size={20} color={colors.onPrimary} /> : <View style={styles.catEmptyDot} />}
               </TouchableOpacity>
 
               <TouchableOpacity style={category === 'grower' ? styles.catBtnActive : styles.catBtnInactive} onPress={() => setCategory('grower')}>
                 <View>
-                  <Text style={category === 'grower' ? styles.catTitleActive : styles.catTitleInactive}>Large Grower</Text>
-                  <Text style={category === 'grower' ? styles.catSubActive : styles.catSubInactive}>बड़ा किसान</Text>
+                  <Text style={category === 'grower' ? styles.catTitleActive : styles.catTitleInactive}>{t('addCustomer.grower')}</Text>
+                  <Text style={category === 'grower' ? styles.catSubActive : styles.catSubInactive}>{t('addCustomer.growerHi')}</Text>
                 </View>
                 {category === 'grower' ? <MaterialIcons name="check-circle" size={20} color={colors.onPrimary} /> : <View style={styles.catEmptyDot} />}
               </TouchableOpacity>
 
               <TouchableOpacity style={category === 'distributor' ? styles.catBtnActive : styles.catBtnInactive} onPress={() => setCategory('distributor')}>
                 <View>
-                  <Text style={category === 'distributor' ? styles.catTitleActive : styles.catTitleInactive}>Distributor</Text>
-                  <Text style={category === 'distributor' ? styles.catSubActive : styles.catSubInactive}>वितरक</Text>
+                  <Text style={category === 'distributor' ? styles.catTitleActive : styles.catTitleInactive}>{t('addCustomer.distributor')}</Text>
+                  <Text style={category === 'distributor' ? styles.catSubActive : styles.catSubInactive}>{t('addCustomer.distributorHi')}</Text>
                 </View>
                 {category === 'distributor' ? <MaterialIcons name="check-circle" size={20} color={colors.onPrimary} /> : <View style={styles.catEmptyDot} />}
               </TouchableOpacity>
@@ -159,58 +302,66 @@ export function AddCustomerScreen({ navigation }) {
           {/* 5. Shopfront Verification Photo Tile */}
           <View style={styles.formGroup}>
             <View style={styles.labelRow}>
-              <Text style={styles.label}>Shopfront Geotag Photo <Text style={styles.labelHi}>(वैकल्पिक दुकान फोटो)</Text></Text>
-              <Text style={styles.requiredTag}>GEOTAGGED</Text>
+              <Text style={styles.label}>{t('addCustomer.photoGeotag')} <Text style={styles.labelHi}>{t('addCustomer.photoGeotagHi')}</Text></Text>
+              <Text style={styles.requiredTag}>{t('addCustomer.geotagged')}</Text>
             </View>
             <View style={styles.photoGrid}>
               <View style={styles.photoBox}>
                 <Image source={{uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAsPxG-1aZYPgJxg7aK7nrSC-8mn4jO5GvBjm2IFfAM9RQ9wsEnZ39zeMmxle7mQXpGz93J-kVQnovts933nx1sg8iOJhi0njNsO2ahwuGqxrAp1UpMvR7QS-si4eZ-EhhFeHuGHWOQE9B7HKPriLO6f2OyZegux_gmOOthWT_mEmRPwnYQFyNMAK_fOGA8y3uau7IIrR2zJAQqcwklWHv_3GfRVO6qVvZ8qhubDpvRVOEbyMpUUJOV'}} style={{width: '100%', height: '100%', resizeMode: 'cover'}} />
-                <View style={styles.photoGpsTag}><Text style={styles.photoGpsText}>11:42 AM • GPS Tagged</Text></View>
+                <View style={styles.photoGpsTag}><Text style={styles.photoGpsText}>11:42 AM • {t('addCustomer.photoTaggedText')}</Text></View>
                 <TouchableOpacity style={styles.photoCloseBtn}><MaterialIcons name="close" size={13} color={colors.onError} /></TouchableOpacity>
               </View>
               <TouchableOpacity style={styles.addPhotoBtn}>
                 <View style={styles.addPhotoIcon}><MaterialIcons name="add-a-photo" size={20} color="#002111" /></View>
-                <Text style={styles.addPhotoTitle}>Snap GST / Signboard</Text>
-                <Text style={styles.addPhotoSub}>अतिरिक्त फोटो जोड़ें</Text>
+                <Text style={styles.addPhotoTitle}>{t('addCustomer.addPhotoTitle')}</Text>
+                <Text style={styles.addPhotoSub}>{t('addCustomer.addPhotoSub')}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* 6. Smart Interest Tags / Quick Tags */}
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Primary Product Demand <Text style={styles.labelHi}>(मुख्य मांग)</Text></Text>
+            <Text style={styles.label}>{t('addCustomer.demand')} <Text style={styles.labelHi}>{t('addCustomer.demandHi')}</Text></Text>
             <View style={styles.tagWrap}>
               <TouchableOpacity style={tags.fertiliser ? styles.tagBtnActive : styles.tagBtnInactive} onPress={() => toggleTag('fertiliser')}>
                 <MaterialIcons name={tags.fertiliser ? "check" : "add"} size={16} color={tags.fertiliser ? colors.onPrimary : colors.onSurfaceVariant} />
-                <Text style={tags.fertiliser ? styles.tagTextActive : styles.tagTextInactive}>Fertiliser (उर्वरक)</Text>
+                <Text style={tags.fertiliser ? styles.tagTextActive : styles.tagTextInactive}>{t('addCustomer.fert')} {t('addCustomer.fertHi')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={tags.seeds ? styles.tagBtnActive : styles.tagBtnInactive} onPress={() => toggleTag('seeds')}>
                 <MaterialIcons name={tags.seeds ? "check" : "add"} size={16} color={tags.seeds ? colors.onPrimary : colors.onSurfaceVariant} />
-                <Text style={tags.seeds ? styles.tagTextActive : styles.tagTextInactive}>Seeds (बीज)</Text>
+                <Text style={tags.seeds ? styles.tagTextActive : styles.tagTextInactive}>{t('addCustomer.seeds')} {t('addCustomer.seedsHi')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={tags.pesticides ? styles.tagBtnActive : styles.tagBtnInactive} onPress={() => toggleTag('pesticides')}>
                 <MaterialIcons name={tags.pesticides ? "check" : "add"} size={16} color={tags.pesticides ? colors.onPrimary : colors.onSurfaceVariant} />
-                <Text style={tags.pesticides ? styles.tagTextActive : styles.tagTextInactive}>Pesticides (कीटनाशक)</Text>
+                <Text style={tags.pesticides ? styles.tagTextActive : styles.tagTextInactive}>{t('addCustomer.pest')} {t('addCustomer.pestHi')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={tags.micro ? styles.tagBtnActive : styles.tagBtnInactive} onPress={() => toggleTag('micro')}>
                 <MaterialIcons name={tags.micro ? "check" : "add"} size={16} color={tags.micro ? colors.onPrimary : colors.onSurfaceVariant} />
-                <Text style={tags.micro ? styles.tagTextActive : styles.tagTextInactive}>Micro-nutrients</Text>
+                <Text style={tags.micro ? styles.tagTextActive : styles.tagTextInactive}>{t('addCustomer.micro')}</Text>
               </TouchableOpacity>
             </View>
           </View>
 
           {/* 7. Sticky Fast-Action Primary Button Container */}
           <View style={styles.actionBlock}>
-            <TouchableOpacity style={styles.saveBtn} onPress={() => navigation.goBack()}>
-              <MaterialIcons name="how-to-reg" size={24} color={colors.onPrimary} />
+            <TouchableOpacity 
+              style={[styles.saveBtn, loading && { opacity: 0.7 }]} 
+              onPress={handleSave}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={colors.onPrimary} />
+              ) : (
+                <MaterialIcons name="how-to-reg" size={24} color={colors.onPrimary} />
+              )}
               <View>
-                <Text style={styles.saveBtnTitle}>SAVE CUSTOMER & OPEN PROFILE</Text>
-                <Text style={styles.saveBtnSub}>ग्राहक सुरक्षित करें एवं ऑर्डर शुरू करें</Text>
+                <Text style={styles.saveBtnTitle}>{loading ? t('addCustomer.saving') : t('addCustomer.saveBtnSub')}</Text>
+                {!loading && <Text style={styles.saveBtnSub}>{t('addCustomer.saveBtn')}</Text>}
               </View>
             </TouchableOpacity>
             <View style={styles.offlineGuar}>
               <View style={styles.offlineDot} />
-              <Text style={styles.offlineGuarText}>Instant offline save • Syncs automatically when back online</Text>
+              <Text style={styles.offlineGuarText}>{t('addCustomer.offlineInstant')}</Text>
             </View>
           </View>
 
@@ -244,6 +395,9 @@ const styles = StyleSheet.create({
   timeTagText: { fontSize: 11, fontWeight: 'bold', color: colors.primary },
   sheetSub: { ...typography.labelMd, color: colors.onSurfaceVariant, fontWeight: '500', marginTop: 2 },
   closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#e5eeff', alignItems: 'center', justifyContent: 'center' },
+
+  errorBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.errorContainer, padding: 12, borderRadius: 8, marginBottom: 16, gap: 8 },
+  errorText: { color: colors.onErrorContainer, ...typography.labelMd, flex: 1 },
 
   gpsBanner: { backgroundColor: '#0d5c3a', borderRadius: 12, padding: 8, marginBottom: 16, elevation: 1 },
   gpsTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
