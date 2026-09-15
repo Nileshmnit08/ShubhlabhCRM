@@ -33,7 +33,7 @@ export class SyncService {
    * @param {object} payload - Must contain a predefined client UUID 'id'
    * @param {string} userId - Authenticated user's ID
    */
-  static async enqueueOperation(table, payload, userId) {
+  static async enqueueOperation(table, payload, userId, action = 'insert') {
     if (!userId) {
       console.warn('SyncService: enqueueOperation called without userId');
       return null;
@@ -42,10 +42,18 @@ export class SyncService {
     const operation = {
       local_id: payload.id || generateId(), // Guarantee ID exists for idempotency
       table,
+      action,
       payload: { ...payload, id: payload.id || generateId() },
       status: 'PENDING',
       created_at: new Date().toISOString()
     };
+    
+    // Deduplication check: Do not re-enqueue if already in queue
+    const existing = queue.find(op => op.local_id === operation.local_id && op.table === table);
+    if (existing) {
+       return existing.payload;
+    }
+
     queue.push(operation);
     await this.saveQueue(userId, queue);
     
@@ -75,9 +83,19 @@ export class SyncService {
       op.status = 'SYNCING';
       
       try {
-        const { error } = await supabase
-          .from(op.table)
-          .insert([op.payload]);
+        let error;
+        if (op.action === 'update') {
+          const { error: updateError } = await supabase
+            .from(op.table)
+            .update(op.payload)
+            .eq('id', op.payload.id);
+          error = updateError;
+        } else {
+          const { error: insertError } = await supabase
+            .from(op.table)
+            .insert([op.payload]);
+          error = insertError;
+        }
 
         if (error) {
           // Trap Unique Constraint violation (idempotency success)

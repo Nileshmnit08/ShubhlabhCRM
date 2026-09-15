@@ -118,7 +118,7 @@ export class InAppNotificationService {
       await SyncService.enqueueOperation('crm_notifications', {
         id: notificationId,
         is_read: true
-      }, userId);
+      }, userId, 'update');
     }
   }
 }
