@@ -51,6 +51,11 @@ export const SyncProvider = ({ children }) => {
       setPendingCount(0);
     }
 
+    // Register live queue change listener
+    SyncService.onQueueChange = () => {
+      if (userId) updatePendingCount();
+    };
+
     // Poll the queue size periodically to update UI
     const interval = setInterval(() => {
       if (userId) updatePendingCount();
@@ -59,6 +64,7 @@ export const SyncProvider = ({ children }) => {
     return () => {
       unsubscribe();
       clearInterval(interval);
+      SyncService.onQueueChange = null;
     };
   }, [userId]);
 

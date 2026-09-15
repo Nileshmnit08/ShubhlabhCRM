@@ -12,6 +12,8 @@ const generateId = () => {
 };
 
 export class SyncService {
+  static onQueueChange = null;
+
   static async getQueue(userId) {
     if (!userId) return [];
     try {
@@ -64,6 +66,10 @@ export class SyncService {
     queue.push(operation);
     await this.saveQueue(userId, queue);
     
+    if (this.onQueueChange) {
+      this.onQueueChange();
+    }
+
     // Attempt sync immediately if online
     const net = await NetInfo.fetch();
     if (net.isConnected) {
@@ -122,6 +128,12 @@ export class SyncService {
         op.status = 'FAILED';
       }
       queueUpdated = true;
+      
+      // Save progress so UI and app state are consistent
+      await this.saveQueue(userId, queue);
+      if (this.onQueueChange) {
+        this.onQueueChange();
+      }
     }
 
     if (queueUpdated) {
@@ -134,11 +146,17 @@ export class SyncService {
       });
 
       await this.saveQueue(userId, newQueue);
+      if (this.onQueueChange) {
+        this.onQueueChange();
+      }
     }
   }
 
   static async clearQueue(userId) {
     if (!userId) return;
     await AsyncStorage.removeItem(getQueueKey(userId));
+    if (this.onQueueChange) {
+      this.onQueueChange();
+    }
   }
 }
