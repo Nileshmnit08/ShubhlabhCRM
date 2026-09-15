@@ -1,17 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/tokens';
 import { EmptyState } from '../components';
 import { useVisit } from '../context/VisitContext';
+import { supabase } from '../lib/supabase';
 
 export function QuickRequirementScreen({ navigation, route }) {
   const { saveRequirement } = useVisit();
   const [qty, setQty] = useState(50);
   const [activeDate, setActiveDate] = useState('friday');
   const [activeUnit, setActiveUnit] = useState('bags');
+  const [products, setProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
 
   const customerName = route.params?.customerName || 'Customer';
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase.from('products').select('*').eq('active', true).order('name');
+      if (data && data.length > 0) {
+        setProducts(data);
+        setSelectedProduct(data[0].name);
+        await AsyncStorage.setItem('@catalog_products', JSON.stringify(data));
+      } else {
+        await loadCachedProducts();
+      }
+    } catch (e) {
+      await loadCachedProducts();
+    }
+  };
+
+  const loadCachedProducts = async () => {
+    try {
+      const cached = await AsyncStorage.getItem('@catalog_products');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        setProducts(parsed);
+        if (parsed.length > 0) setSelectedProduct(parsed[0].name);
+      }
+    } catch (e) {
+      console.log('Failed to load cached products');
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -21,7 +57,7 @@ export function QuickRequirementScreen({ navigation, route }) {
       }
       
       const req = {
-        product_type: `Generic Requirement (${activeUnit.toUpperCase()})`,
+        product_type: selectedProduct ? `${selectedProduct} (${activeUnit.toUpperCase()})` : `Generic Requirement (${activeUnit.toUpperCase()})`,
         quantity: qty,
         expected_date: expectedDate.toISOString().split('T')[0]
       };
@@ -88,7 +124,24 @@ export function QuickRequirementScreen({ navigation, route }) {
               </View>
             </View>
 
-            <EmptyState title="Catalog Not Connected" message="The product catalog is currently offline. Hardcoded items have been removed." icon="inventory" />
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>Product Catalog / उत्पाद</Text>
+            </View>
+            {products.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 8}}>
+                {products.map(p => (
+                  <TouchableOpacity 
+                    key={p.id} 
+                    style={selectedProduct === p.name ? styles.dateChipActive : styles.dateChipInactive}
+                    onPress={() => setSelectedProduct(p.name)}
+                  >
+                    <Text style={selectedProduct === p.name ? styles.dateTextActive : styles.dateTextInactive}>{p.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={{...typography.bodySm, color: colors.onSurfaceVariant, marginBottom: 8}}>Catalog offline. Using generic requirement.</Text>
+            )}
 
             {/* Quantity Stepper & Quick Presets */}
             <View style={styles.qtySection}>
