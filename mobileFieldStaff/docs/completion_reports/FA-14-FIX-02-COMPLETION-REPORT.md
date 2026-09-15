@@ -5,14 +5,12 @@
 Fix the current logout bug where the user remains trapped on the authenticated screen (showing "Sign out and try again") when tapping Logout, instead of returning to the Login screen.
 
 ### Root Cause
-The `logout` function in `src/context/AuthContext.js` called `supabase.auth.signOut()`. If `signOut()` threw an exception—for example, if the session was already invalid (PGRST303), expired, or if there was a network error—the execution jumped directly into the `catch` block. The `catch` block only logged the error and set `loading` to false. It **never cleared the local `session` or `staffProfile` state**. 
-
-Because `App.js` determines authentication purely based on the presence of these two local variables (`if (!session || !staffProfile)`), the application remained completely convinced the user was logged in, trapping them indefinitely on the authenticated navigator. 
+1. **Network Error Trap**: The `logout` function in `src/context/AuthContext.js` originally only cleared local application state if `supabase.auth.signOut()` successfully resolved. If `signOut()` threw an exception (e.g. invalid/expired JWT, PGRST303, network failure), it jumped to the `catch` block and never cleared the local `session` or `staffProfile`.
+2. **Event Object Injection**: In React Native, passing a function directly to a button's `onPress` prop (e.g., `<Button onPress={logout} />`) implicitly injects a Gesture Responder Event object as the first argument. Because `logout(isSessionExpired = false)` accepts an argument, it received this Event object. Since objects are truthy in JavaScript, `logout` evaluated `isSessionExpired` as `true`, incorrectly setting `authError = 'SESSION_EXPIRED'` during every manual logout, trapping the user on the LoginScreen's error state.
 
 ### Exact Fix
-A `finally` block was added to the `logout` function in `AuthContext.js` to rigidly enforce local state clearance. Regardless of whether the `supabase.auth.signOut()` API call succeeds or throws an error (e.g., due to an already expired JWT), the local React state (`setSession(null)` and `setStaffProfile(null)`) is explicitly zeroed out.
-
-This guarantees `App.js` instantly unmounts the authenticated navigator and remounts the `LoginScreen`.
+1. **Enforced Local State Clearance**: A `finally` block was added to the `logout` function to rigidly enforce local state clearance regardless of backend errors.
+2. **Strict Boolean Check**: The `isSessionExpired` parameter is now strictly evaluated against a boolean `true` (`const isExplicitlyExpired = isSessionExpired === true`). This safely ignores the React Native synthetic event object injected by the `onPress` handler, allowing a manual logout to cleanly return to the login form.
 
 ### Files Changed
 - `d:\ShubhLabhCRM\mobileFieldStaff\src\context\AuthContext.js`

@@ -151,9 +151,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = async (isSessionExpired = false) => {
+    // Guard against React Native event objects being passed from onPress handlers
+    const isExplicitlyExpired = isSessionExpired === true;
     try {
       setLoading(true);
-      if (isSessionExpired) {
+      if (isExplicitlyExpired) {
         setAuthError('SESSION_EXPIRED');
       }
       // Ensure staff notification isolation
@@ -168,7 +170,7 @@ export const AuthProvider = ({ children }) => {
       // FORCE clear local state regardless of Supabase network/JWT errors
       setSession(null);
       setStaffProfile(null);
-      if (!isSessionExpired) {
+      if (!isExplicitlyExpired) {
         setAuthError(null);
       }
       setLoading(false);
