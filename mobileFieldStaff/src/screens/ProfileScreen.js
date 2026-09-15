@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Alert, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, rounded, elevation } from '../theme/tokens';
 import { Button } from '../components';
 import { useAuth } from '../context/AuthContext';
+import { useSync } from '../context/SyncContext';
 import { 
   startBackgroundLocationTracking, 
   stopBackgroundLocationTracking, 
@@ -12,9 +13,26 @@ import {
 } from '../services/BackgroundLocationService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export function ProfileScreen() {
+const appConfig = require('../../app.json');
+
+const SectionHeader = ({ title }) => (
+  <Text style={styles.sectionHeader}>{title}</Text>
+);
+
+const ShortcutRow = ({ icon, title, onPress }) => (
+  <TouchableOpacity style={styles.shortcutRow} onPress={onPress}>
+    <View style={styles.shortcutLeft}>
+      <MaterialIcons name={icon} size={24} color={colors.primary} />
+      <Text style={styles.shortcutText}>{title}</Text>
+    </View>
+    <MaterialIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
+  </TouchableOpacity>
+);
+
+export function ProfileScreen({ navigation }) {
   const { t, i18n } = useTranslation();
   const { staffProfile, logout } = useAuth();
+  const { isOnline, isSyncing, pendingCount, triggerSync } = useSync();
   const [isTracking, setIsTracking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [geofencesCount, setGeofencesCount] = useState(0);
@@ -59,64 +77,114 @@ export function ProfileScreen() {
       console.error('Failed to change language', e);
     }
   };
+
+  const handleHelpStub = (title) => {
+    Alert.alert(title, "Help content is currently unavailable offline.");
+  };
   
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <View style={styles.avatarContainer}>
-          <MaterialIcons name="person" size={64} color={colors.primary} />
-        </View>
-        <Text style={styles.name}>{staffProfile?.display_name || 'Field Agent'}</Text>
-        <Text style={styles.role}>{staffProfile?.role || 'Territory Manager'}</Text>
+      <ScrollView contentContainerStyle={styles.container}>
         
+        {/* HEADER */}
+        <View style={styles.headerSection}>
+          <View style={styles.avatarContainer}>
+            <MaterialIcons name="person" size={56} color={colors.primary} />
+          </View>
+          <Text style={styles.name}>{staffProfile?.display_name || 'Field Agent'}</Text>
+          <Text style={styles.role}>{staffProfile?.role || 'Territory Manager'}</Text>
+          
+          <View style={styles.activeBadge}>
+            <MaterialIcons 
+              name={staffProfile?.is_active ? "check-circle" : "cancel"} 
+              size={14} 
+              color={staffProfile?.is_active ? colors.primary : colors.error} 
+            />
+            <Text style={[styles.activeText, { color: staffProfile?.is_active ? colors.primary : colors.error }]}>
+              {staffProfile?.is_active ? "ACTIVE" : "INACTIVE"}
+            </Text>
+          </View>
+          <Text style={styles.emailText}>{staffProfile?.email || 'Unavailable'}</Text>
+        </View>
+
+        {/* MY WORK */}
+        <SectionHeader title="MY WORK" />
+        <View style={[styles.card, elevation.level1]}>
+          <ShortcutRow 
+            icon="people" 
+            title="My Customers" 
+            onPress={() => navigation.navigate('Customers')} 
+          />
+          <View style={styles.divider} />
+          <ShortcutRow 
+            icon="assignment" 
+            title="My Tasks & Follow-ups" 
+            onPress={() => navigation.navigate('My Work')} 
+          />
+        </View>
+
+        {/* APP & SYNC */}
+        <SectionHeader title="APP & SYNC" />
         <View style={[styles.card, elevation.level1]}>
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Email / Login</Text>
-            <Text style={styles.statValue}>{staffProfile?.email || 'Unavailable'}</Text>
+            <Text style={styles.statLabel}>Internet</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons name={isOnline ? "wifi" : "wifi-off"} size={16} color={isOnline ? colors.primary : colors.error} style={{marginRight: 4}} />
+              <Text style={[styles.statValue, { color: isOnline ? colors.primary : colors.error }]}>{isOnline ? 'ONLINE' : 'OFFLINE'}</Text>
+            </View>
           </View>
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Account Status</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <MaterialIcons 
-                name={staffProfile?.is_active ? "check-circle" : "cancel"} 
-                size={16} 
-                color={staffProfile?.is_active ? colors.primary : colors.error} 
-                style={{ marginRight: 6 }} 
+            <Text style={styles.statLabel}>Sync Status</Text>
+            <Text style={[styles.statValue, { color: isSyncing ? colors.primary : colors.onSurface }]}>
+              {isSyncing ? 'SYNCING...' : 'IDLE'}
+            </Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Pending Sync Items</Text>
+            <Text style={styles.statValue}>{pendingCount}</Text>
+          </View>
+          <View style={{ marginTop: 16 }}>
+            <Button 
+              title={isSyncing ? "SYNCING..." : "SYNC NOW"} 
+              variant="secondary" 
+              onPress={() => triggerSync()} 
+              disabled={isSyncing || !isOnline}
+            />
+          </View>
+        </View>
+
+        {/* LANGUAGE */}
+        <SectionHeader title="LANGUAGE / भाषा" />
+        <View style={[styles.card, elevation.level1]}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Button 
+                title="English" 
+                variant={i18n.language === 'en' ? "primary" : "secondary"}
+                onPress={() => handleLanguageChange('en')}
               />
-              <Text style={[styles.statValue, { color: staffProfile?.is_active ? colors.primary : colors.error, fontSize: 14 }]}>
-                {staffProfile?.is_active ? "ACTIVE" : "INACTIVE"}
-              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button 
+                title="हिन्दी" 
+                variant={i18n.language === 'hi' ? "primary" : "secondary"}
+                onPress={() => handleLanguageChange('hi')}
+              />
             </View>
           </View>
         </View>
 
-        <View style={[styles.card, elevation.level1, { marginTop: 16 }]}>
+        {/* LOCATION & PERMISSIONS */}
+        <SectionHeader title="LOCATION & PERMISSIONS" />
+        <View style={[styles.card, elevation.level1]}>
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Language / भाषा</Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <Button 
-              title="English" 
-              variant={i18n.language === 'en' ? "primary" : "secondary"}
-              onPress={() => handleLanguageChange('en')}
-            />
-            <Button 
-              title="हिन्दी" 
-              variant={i18n.language === 'hi' ? "primary" : "secondary"}
-              onPress={() => handleLanguageChange('hi')}
-            />
-          </View>
-        </View>
-
-        <View style={[styles.card, elevation.level1, { marginTop: 16 }]}>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Tracking Status</Text>
+            <Text style={styles.statLabel}>Background Tracking</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <MaterialIcons 
                 name={isTracking ? "gps-fixed" : "gps-off"} 
-                size={20} 
+                size={16} 
                 color={isTracking ? colors.primary : colors.error} 
-                style={{ marginRight: 8 }} 
+                style={{ marginRight: 4 }} 
               />
               <Text style={[styles.statValue, { color: isTracking ? colors.primary : colors.error }]}>
                 {isTracking ? "ACTIVE" : "OFF"}
@@ -139,10 +207,46 @@ export function ProfileScreen() {
           </View>
         </View>
 
+        {/* HELP & SUPPORT */}
+        <SectionHeader title="HELP & SUPPORT" />
+        <View style={[styles.card, elevation.level1]}>
+          <ShortcutRow 
+            icon="help-outline" 
+            title="How to use Field Assistant" 
+            onPress={() => handleHelpStub('How to use Field Assistant')} 
+          />
+          <View style={styles.divider} />
+          <ShortcutRow 
+            icon="report-problem" 
+            title="Report a Problem" 
+            onPress={() => handleHelpStub('Report a Problem')} 
+          />
+          <View style={styles.divider} />
+          <ShortcutRow 
+            icon="headset-mic" 
+            title="Contact Support" 
+            onPress={() => handleHelpStub('Contact Support')} 
+          />
+        </View>
+
+        {/* ABOUT */}
+        <SectionHeader title="ABOUT" />
+        <View style={[styles.card, elevation.level1]}>
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>App Version</Text>
+            <Text style={styles.statValue}>{appConfig.expo?.version || '1.0.0'}</Text>
+          </View>
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Build</Text>
+            <Text style={styles.statValue}>1</Text>
+          </View>
+        </View>
+
+        {/* LOGOUT */}
         <View style={styles.actionContainer}>
           <Button title={t('auth.action.logout')} variant="secondary" onPress={logout} />
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -150,16 +254,21 @@ export function ProfileScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f8f9ff',
   },
   container: {
-    padding: 24,
+    padding: 16,
+    paddingBottom: 48,
+  },
+  headerSection: {
     alignItems: 'center',
+    marginBottom: 32,
+    marginTop: 16,
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: '#E5EEFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -168,11 +277,40 @@ const styles = StyleSheet.create({
   name: {
     ...typography.headlineMd,
     color: colors.onSurface,
+    fontWeight: 'bold',
   },
   role: {
     ...typography.bodyMd,
     color: colors.onSurfaceVariant,
-    marginBottom: 32,
+    marginBottom: 8,
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainerLowest,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 8,
+    gap: 4
+  },
+  activeText: {
+    ...typography.labelSm,
+    fontWeight: 'bold',
+  },
+  emailText: {
+    ...typography.labelSm,
+    color: colors.onSurfaceVariant,
+  },
+  sectionHeader: {
+    ...typography.labelMd,
+    color: colors.onSurfaceVariant,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    marginLeft: 4,
+    textTransform: 'uppercase'
   },
   card: {
     width: '100%',
@@ -181,26 +319,46 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    marginBottom: 24,
   },
   statRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    alignItems: 'center',
+    paddingVertical: 10,
   },
   divider: {
     height: 1,
     backgroundColor: '#E2E8F0',
+    marginVertical: 4,
   },
   statLabel: {
     ...typography.bodyMd,
     color: colors.onSurfaceVariant,
   },
   statValue: {
-    ...typography.headlineSm,
+    ...typography.labelLg,
     color: colors.onSurface,
+    fontWeight: 'bold',
+  },
+  shortcutRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  shortcutLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  shortcutText: {
+    ...typography.bodyLg,
+    color: colors.onSurface,
+    fontWeight: '500',
   },
   actionContainer: {
-    marginTop: 48,
+    marginTop: 16,
     width: '100%',
   }
 });
