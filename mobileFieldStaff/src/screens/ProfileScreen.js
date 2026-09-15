@@ -10,9 +10,10 @@ import {
   stopBackgroundLocationTracking, 
   checkIsTracking 
 } from '../services/BackgroundLocationService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export function ProfileScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { staffProfile, logout } = useAuth();
   const [isTracking, setIsTracking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -49,6 +50,15 @@ export function ProfileScreen() {
       setIsLoading(false);
     }
   };
+
+  const handleLanguageChange = async (lang) => {
+    try {
+      await AsyncStorage.setItem('@app_language', lang);
+      i18n.changeLanguage(lang);
+    } catch (e) {
+      console.error('Failed to change language', e);
+    }
+  };
   
   return (
     <SafeAreaView style={styles.safe}>
@@ -61,12 +71,40 @@ export function ProfileScreen() {
         
         <View style={[styles.card, elevation.level1]}>
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Today's Visits</Text>
-            <Text style={styles.statValue}>0</Text>
+            <Text style={styles.statLabel}>Email / Login</Text>
+            <Text style={styles.statValue}>{staffProfile?.email || 'Unavailable'}</Text>
           </View>
           <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Collections</Text>
-            <Text style={styles.statValue}>₹ 0</Text>
+            <Text style={styles.statLabel}>Account Status</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialIcons 
+                name={staffProfile?.is_active ? "check-circle" : "cancel"} 
+                size={16} 
+                color={staffProfile?.is_active ? colors.primary : colors.error} 
+                style={{ marginRight: 6 }} 
+              />
+              <Text style={[styles.statValue, { color: staffProfile?.is_active ? colors.primary : colors.error, fontSize: 14 }]}>
+                {staffProfile?.is_active ? "ACTIVE" : "INACTIVE"}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.card, elevation.level1, { marginTop: 16 }]}>
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Language / भाषा</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+            <Button 
+              title="English" 
+              variant={i18n.language === 'en' ? "primary" : "secondary"}
+              onPress={() => handleLanguageChange('en')}
+            />
+            <Button 
+              title="हिन्दी" 
+              variant={i18n.language === 'hi' ? "primary" : "secondary"}
+              onPress={() => handleLanguageChange('hi')}
+            />
           </View>
         </View>
 

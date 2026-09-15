@@ -9,6 +9,8 @@ import './src/i18n';
 import { colors } from './src/theme/tokens';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SyncProvider } from './src/context/SyncContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 import './src/services/BackgroundLocationService';
 
 import {
@@ -117,6 +119,24 @@ function RootNavigator() {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    const loadLanguage = async () => {
+      try {
+        const lang = await AsyncStorage.getItem('@app_language');
+        if (lang) {
+          // i18n is initialized in './src/i18n'
+          const i18next = require('i18next').default;
+          if (i18next && i18next.changeLanguage) {
+            i18next.changeLanguage(lang);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load language', e);
+      }
+    };
+    loadLanguage();
+  }, []);
+
   return (
     <AuthProvider>
       <NotificationProvider>
