@@ -20,7 +20,12 @@ export const SyncProvider = ({ children }) => {
       return;
     }
     const queue = await SyncService.getQueue(userId);
-    setPendingCount(queue.length);
+    if (queue === null) {
+      setPendingCount('Unavailable');
+    } else {
+      const actionableCount = queue.filter(op => op.status !== 'SYNCED').length;
+      setPendingCount(actionableCount);
+    }
   };
 
   useEffect(() => {

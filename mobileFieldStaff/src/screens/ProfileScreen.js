@@ -141,14 +141,20 @@ export function ProfileScreen({ navigation }) {
           </View>
           <View style={styles.statRow}>
             <Text style={styles.statLabel}>Pending Sync Items</Text>
-            <Text style={styles.statValue}>{pendingCount}</Text>
+            <Text style={[
+              styles.statValue, 
+              { color: pendingCount === 'Unavailable' ? colors.error : colors.onSurface, 
+                fontSize: pendingCount === 'Unavailable' ? 14 : styles.statValue.fontSize }
+            ]}>
+              {pendingCount}
+            </Text>
           </View>
           <View style={{ marginTop: 16 }}>
             <Button 
               title={isSyncing ? "SYNCING..." : "SYNC NOW"} 
               variant="secondary" 
               onPress={() => triggerSync()} 
-              disabled={isSyncing || !isOnline}
+              disabled={isSyncing || !isOnline || pendingCount === 'Unavailable'}
             />
           </View>
         </View>

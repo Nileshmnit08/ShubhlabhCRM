@@ -18,7 +18,8 @@ export class SyncService {
       const q = await AsyncStorage.getItem(getQueueKey(userId));
       return q ? JSON.parse(q) : [];
     } catch (e) {
-      return [];
+      console.error('SyncService: Error reading queue', e);
+      return null;
     }
   }
 
@@ -39,6 +40,11 @@ export class SyncService {
       return null;
     }
     const queue = await this.getQueue(userId);
+    if (queue === null) {
+      console.error('SyncService: Critical failure loading queue, cannot enqueue');
+      throw new Error("Unable to read local sync queue. Operation aborted to prevent data loss.");
+    }
+
     const guaranteedId = payload.id || generateId();
     const operation = {
       local_id: guaranteedId, // Guarantee ID exists for idempotency
@@ -73,7 +79,7 @@ export class SyncService {
     if (!net.isConnected) return;
 
     let queue = await this.getQueue(userId);
-    if (queue.length === 0) return;
+    if (!queue || queue.length === 0) return;
 
     let queueUpdated = false;
 
