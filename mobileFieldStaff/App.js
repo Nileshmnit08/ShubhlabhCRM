@@ -25,7 +25,8 @@ import {
   AddCustomerScreen,
   LoginScreen,
   NotificationsScreen,
-  VisitSummaryScreen
+  VisitSummaryScreen,
+  SchemeDetailScreen
 } from './src/screens';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { VisitProvider } from './src/context/VisitContext';
@@ -112,6 +113,11 @@ function RootNavigator() {
       <Stack.Screen 
         name="AddCustomer" 
         component={AddCustomerScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="SchemeDetail" 
+        component={SchemeDetailScreen} 
         options={{ headerShown: false }} 
       />
     </Stack.Navigator>
