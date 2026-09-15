@@ -54,6 +54,9 @@ export function LoginScreen() {
     } else if (authError === 'NETWORK_ERROR') {
       title = t('auth.error.networkErrorTitle');
       message = t('auth.error.networkErrorMessage');
+    } else if (authError === 'SESSION_EXPIRED') {
+      title = t('auth.error.sessionExpiredTitle') || 'Session Expired';
+      message = t('auth.error.sessionExpiredMessage') || 'Your session has expired or is invalid. Please sign in again.';
     }
 
     return (

@@ -31,7 +31,7 @@ export const AuthProvider = ({ children }) => {
         resolveFieldStaffIdentity(session.user.id);
       } else {
         setStaffProfile(null);
-        setAuthError(null);
+        setAuthError(prev => prev === 'SESSION_EXPIRED' ? prev : null);
         setLoading(false);
       }
     });
@@ -64,12 +64,14 @@ export const AuthProvider = ({ children }) => {
             
             if (refreshError) {
               console.error('Session refresh failed:', refreshError);
-              if (refreshError.message && refreshError.message.toLowerCase().includes('network')) {
-                // If it's a network issue, fallback to offline cache gracefully
-                await loadCachedProfile();
+              if (refreshError.name === 'AuthApiError' || refreshError.status >= 400 || (refreshError.message && refreshError.message.toLowerCase().includes('invalid refresh token'))) {
+                // Token is definitively revoked/invalid
+                console.warn('Session definitively invalid. Forcing explicit expiration.');
+                await logout(true);
               } else {
-                // Token is revoked/invalid, enforce logout
-                await logout();
+                // Network issue or other retryable error, fallback to offline cache gracefully
+                console.warn('Session refresh failed due to network. Falling back to offline cache.');
+                await loadCachedProfile();
               }
             } else if (refreshData?.session) {
               console.log('Session refreshed. Re-attempting profile fetch...');
@@ -148,9 +150,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = async (isSessionExpired = false) => {
     try {
       setLoading(true);
+      if (isSessionExpired) {
+        setAuthError('SESSION_EXPIRED');
+      }
       // Ensure staff notification isolation
       if (session?.user?.id) {
         await InAppNotificationService.clearLocalState(session.user.id);

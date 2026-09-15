@@ -87,6 +87,13 @@ export function VisitModeScreen({ navigation, route }) {
     );
   };
 
+  const handleFollowUp = () => {
+    Alert.alert(
+      'Not Implemented',
+      'NOT IMPLEMENTED — ARCHITECTURAL LIMITATION. The CRM requires a specific date and reason for a follow-up. Please use the main CRM for follow-up scheduling.'
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       {/* Header */}
@@ -205,6 +212,14 @@ export function VisitModeScreen({ navigation, route }) {
                 <Text style={styles.outcomeSub} numberOfLines={1}>प्रतिद्वंद्वी भाव</Text>
               </View>
               <MaterialIcons name="insights" size={22} color={outcomes.mandiIntel ? colors.onPrimary : colors.outline} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.outcomeBtnInactive} onPress={handleFollowUp}>
+              <View style={{flex: 1, paddingRight: 4}}>
+                <Text style={styles.outcomeTitle} numberOfLines={1}>Follow-up Set</Text>
+                <Text style={styles.outcomeSub} numberOfLines={1}>फॉलो-अप तय</Text>
+              </View>
+              <MaterialIcons name="event-available" size={22} color={colors.outline} />
             </TouchableOpacity>
 
             <TouchableOpacity style={[outcomes.ownerUnavailable ? styles.outcomeBtnActive : styles.outcomeBtnInactive, {width: '100%'}]} onPress={() => toggleOutcome('ownerUnavailable')}>
