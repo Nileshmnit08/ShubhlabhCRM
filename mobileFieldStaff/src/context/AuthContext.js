@@ -164,6 +164,13 @@ export const AuthProvider = ({ children }) => {
       await supabase.auth.signOut();
     } catch (error) {
       console.error('Error during logout', error);
+    } finally {
+      // FORCE clear local state regardless of Supabase network/JWT errors
+      setSession(null);
+      setStaffProfile(null);
+      if (!isSessionExpired) {
+        setAuthError(null);
+      }
       setLoading(false);
     }
   };
