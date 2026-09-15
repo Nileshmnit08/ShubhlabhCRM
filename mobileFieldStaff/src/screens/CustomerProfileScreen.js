@@ -55,6 +55,7 @@ export function CustomerProfileScreen({ navigation, route }) {
         .limit(10);
         
       let mergedActivity = actData || [];
+      const serverIds = new Set(mergedActivity.map(a => a.id));
       
       // Fetch local offline activity logs
       try {
@@ -64,9 +65,9 @@ export function CustomerProfileScreen({ navigation, route }) {
           const pendingActivity = queue
             .filter(op => op.table === 'activity_logs' && op.payload?.entity_id === customerId && (op.status === 'PENDING' || op.status === 'FAILED' || op.status === 'SYNCING'))
             .map(op => ({ ...op.payload, _isPending: true, _syncStatus: op.status }))
-            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            .filter(act => !serverIds.has(act.id));
             
-          mergedActivity = [...pendingActivity, ...mergedActivity];
+          mergedActivity = [...pendingActivity, ...mergedActivity].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         }
       } catch (e) {
         console.log('Error fetching local sync queue for activity logs', e);

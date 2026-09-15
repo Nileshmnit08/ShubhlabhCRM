@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { SyncService } from '../services/SyncService';
@@ -20,6 +20,7 @@ export const VisitProvider = ({ children }) => {
   const userId = session?.user?.id;
   const [activeVisit, setActiveVisit] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isFinishingRef = useRef(false);
 
   // Helper to reliably fetch location without hanging
   const getFastLocation = async () => {
@@ -110,8 +111,11 @@ export const VisitProvider = ({ children }) => {
   const finishVisit = async (outcomes) => {
     if (!userId) throw new Error('Authentication required to finish a visit.');
     if (!activeVisit) throw new Error('No active visit to finish.');
-
-    const ended_at = new Date().toISOString();
+    if (isFinishingRef.current) return;
+    
+    isFinishingRef.current = true;
+    try {
+      const ended_at = new Date().toISOString();
     const duration_seconds = Math.floor((new Date(ended_at) - new Date(activeVisit.started_at)) / 1000);
 
     // Re-fetch location for checkout if available
@@ -177,6 +181,9 @@ export const VisitProvider = ({ children }) => {
     await AsyncStorage.removeItem(`${ACTIVE_VISIT_KEY}_${userId}`);
     
     return completedVisit;
+    } finally {
+      isFinishingRef.current = false;
+    }
   };
 
   return (

@@ -16,6 +16,7 @@ export function VisitModeScreen({ navigation, route }) {
     mandiIntel: false,
     ownerUnavailable: false
   });
+  const [isFinishing, setIsFinishing] = useState(false);
 
   const customerName = activeVisit?.customerName || route.params?.customerName || 'Customer';
   const latitude = activeVisit?.start_latitude || route.params?.latitude;
@@ -58,10 +59,13 @@ export function VisitModeScreen({ navigation, route }) {
   };
 
   const handleFinishVisit = async () => {
+    if (isFinishing) return;
     try {
+      setIsFinishing(true);
       const completed = await finishVisit(outcomes);
       navigation.replace('VisitSummary', { visit: completed });
     } catch (error) {
+      setIsFinishing(false);
       Alert.alert('Error', error.message || 'Failed to finish visit');
     }
   };
@@ -292,10 +296,10 @@ export function VisitModeScreen({ navigation, route }) {
 
       {/* Persistent Tactile Bottom Bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.finishBtn} onPress={handleFinishVisit}>
+        <TouchableOpacity style={[styles.finishBtn, isFinishing && { opacity: 0.7 }]} onPress={handleFinishVisit} disabled={isFinishing}>
           <MaterialIcons name="task-alt" size={24} color={colors.onPrimary} />
           <View style={{flexDirection: 'row', alignItems: 'baseline', gap: 6}}>
-            <Text style={styles.finishTitle}>FINISH VISIT</Text>
+            <Text style={styles.finishTitle}>{isFinishing ? "SAVING..." : "FINISH VISIT"}</Text>
             <Text style={styles.finishSub}>/ विज़िट पूरी करें</Text>
           </View>
           <View style={styles.checkoutTag}><Text style={styles.checkoutTagText}>Check-out</Text></View>
