@@ -151,7 +151,7 @@ export function MyWorkScreen({ navigation }) {
               <WorkCard 
                 key={item.work_item_id || `opp_${index}`} 
                 item={item} 
-                onPress={() => navigation.navigate('CustomerProfile', { customerId: item.party_id, customerName: item.customer_name })} 
+                onPress={() => navigation.navigate('CustomerProfile', { id: item.party_id, customerName: item.customer_name })} 
               />
             ))
           ) : (

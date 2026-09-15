@@ -29,6 +29,15 @@ export function CustomerProfileScreen({ navigation, route }) {
     try {
       setLoading(true);
       setError(null);
+      
+      // Strict UUID validation to prevent 22P02 Postgres errors
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!customerId || customerId === 'undefined' || !uuidRegex.test(String(customerId))) {
+        setError(t('customers.profile.notFound') || 'Customer not found');
+        setLoading(false);
+        return;
+      }
+
       const { data: custData, error: custError } = await supabase
         .from('crm_parties')
         .select('*')
