@@ -6,11 +6,13 @@ import { colors, typography } from '../theme/tokens';
 import { EmptyState } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
+import { useNotifications } from '../context/NotificationContext';
 
 export function HomeScreen({ navigation }) {
   const { t } = useTranslation();
   const { staffProfile } = useAuth();
   const { isOnline } = useSync();
+  const { unreadCount } = useNotifications();
   const [activeTab, setActiveTab] = useState('visits');
 
   const renderTabContent = () => {
@@ -45,7 +47,16 @@ export function HomeScreen({ navigation }) {
             <Text style={isOnline ? styles.syncText : styles.offlineText}>{isOnline ? 'Online' : 'Offline'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn}><Text style={styles.langText}>अ/A</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}><MaterialIcons name="notifications" size={22} color={colors.onSurfaceVariant} /></TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Notifications')}>
+            <MaterialIcons name="notifications" size={22} color={colors.onSurfaceVariant} />
+            {unreadCount > 0 && (
+              <View style={{ position: 'absolute', right: 8, top: 8, backgroundColor: colors.error, borderRadius: 10, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 }}>
+                <Text style={{ color: colors.onError, fontSize: 9, fontWeight: 'bold' }}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <View style={styles.userIcon}><MaterialIcons name="person" size={18} color={colors.onPrimary} /></View>
         </View>
       </View>

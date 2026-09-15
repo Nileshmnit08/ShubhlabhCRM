@@ -73,7 +73,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
           longitude: loc.coords.longitude,
           accuracy: loc.coords.accuracy,
           captured_at: new Date(loc.timestamp).toISOString()
-        });
+        }, session.user.id);
       } catch (insertError) {
         console.error("Failed to enqueue location:", insertError.message);
       }
@@ -138,7 +138,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
               longitude: loc.coords.longitude,
               accuracy: loc.coords.accuracy,
               distance_m: Math.round(distanceKm * 1000)
-            });
+            }, session.user.id);
             
             customer.status = newStatus;
             // console.log(`Geofence ${eventToTrigger} enqueued for customer ${customer.id}`);
@@ -160,18 +160,40 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
 });
 
 export const startBackgroundLocationTracking = async (userId) => {
-  const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-  if (foregroundStatus !== 'granted') {
-    throw new Error('Foreground location permission not granted');
-  }
-  
-  const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-  if (backgroundStatus !== 'granted') {
-    throw new Error('Background location permission not granted');
+  // Prevent duplicate tracking starts
+  const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+  if (hasStarted) {
+    console.warn('Background tracking is already active.');
+    return;
   }
 
-  // Initialize geofence cache before tracking starts
-  const monitoredCount = await initializeGeofenceCustomers(userId);
+  // Verify the authenticated user/session is available before starting
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session) {
+    throw new Error('Active session required to start tracking.');
+  }
+  const activeUserId = session.user.id;
+
+  // Verify foreground permissions
+  const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+  if (foregroundStatus !== 'granted') {
+    throw new Error('Foreground location permission not granted.');
+  }
+  
+  // Verify background permissions
+  const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+  if (backgroundStatus !== 'granted') {
+    throw new Error('Background location permission not granted.');
+  }
+
+  // Handle unavailable location gracefully
+  const providerStatus = await Location.getProviderStatusAsync();
+  if (!providerStatus.locationServicesEnabled) {
+    throw new Error('Device location services are disabled.');
+  }
+
+  // Initialize geofence cache using verified session user
+  const monitoredCount = await initializeGeofenceCustomers(activeUserId);
 
   await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
     accuracy: Location.Accuracy.Balanced,

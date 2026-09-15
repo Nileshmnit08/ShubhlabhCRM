@@ -3,13 +3,35 @@ import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } fr
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/tokens';
 import { EmptyState } from '../components';
+import { useVisit } from '../context/VisitContext';
 
 export function QuickRequirementScreen({ navigation, route }) {
+  const { saveRequirement } = useVisit();
   const [qty, setQty] = useState(50);
   const [activeDate, setActiveDate] = useState('friday');
   const [activeUnit, setActiveUnit] = useState('bags');
 
   const customerName = route.params?.customerName || 'Customer';
+
+  const handleSave = async () => {
+    try {
+      const expectedDate = new Date();
+      if (activeDate === 'friday') {
+        expectedDate.setDate(expectedDate.getDate() + 5); // Add 5 days for 'This Week' roughly
+      }
+      
+      const req = {
+        product_type: `Generic Requirement (${activeUnit.toUpperCase()})`,
+        quantity: qty,
+        expected_date: expectedDate.toISOString().split('T')[0]
+      };
+      
+      await saveRequirement(req);
+      navigation.goBack();
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -119,7 +141,7 @@ export function QuickRequirementScreen({ navigation, route }) {
 
             {/* Primary Action Button Block */}
             <View style={styles.actionBlock}>
-              <TouchableOpacity style={styles.saveBtn} onPress={() => navigation.goBack()}>
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
                 <MaterialIcons name="check-circle" size={22} color={colors.onPrimary} />
                 <Text style={styles.saveBtnText}>SAVE REQUIREMENT</Text>
               </TouchableOpacity>

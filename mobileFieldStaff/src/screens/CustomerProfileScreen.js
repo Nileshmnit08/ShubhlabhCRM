@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Linking, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -6,14 +6,20 @@ import { colors, typography } from '../theme/tokens';
 import { Button, EmptyState, BottomSheetFoundation } from '../components';
 import { supabase } from '../lib/supabase';
 import { useSync } from '../context/SyncContext';
+import { useVisit } from '../context/VisitContext';
+import { SyncService } from '../services/SyncService';
+import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../context/AuthContext';
 
 export function CustomerProfileScreen({ navigation, route }) {
   const { t } = useTranslation();
   const customerId = route.params?.id;
   const { isOnline } = useSync();
+  const { activeVisit, startVisit } = useVisit();
 
   const [customer, setCustomer] = useState(null);
   const [financials, setFinancials] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [demandSheetVisible, setDemandSheetVisible] = useState(false);
@@ -39,6 +45,34 @@ export function CustomerProfileScreen({ navigation, route }) {
         .single();
         
       if (finData) setFinancials(finData);
+
+      // Fetch server activity logs
+      const { data: actData } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('entity_id', customerId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+        
+      let mergedActivity = actData || [];
+      
+      // Fetch local offline activity logs
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const queue = await SyncService.getQueue(user.id);
+          const pendingActivity = queue
+            .filter(op => op.table === 'activity_logs' && op.payload?.entity_id === customerId && (op.status === 'PENDING' || op.status === 'FAILED' || op.status === 'SYNCING'))
+            .map(op => ({ ...op.payload, _isPending: true, _syncStatus: op.status }))
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+          mergedActivity = [...pendingActivity, ...mergedActivity];
+        }
+      } catch (e) {
+        console.log('Error fetching local sync queue for activity logs', e);
+      }
+      
+      setRecentActivity(mergedActivity);
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to load customer profile');
@@ -47,10 +81,12 @@ export function CustomerProfileScreen({ navigation, route }) {
     }
   };
 
-  useEffect(() => {
-    if (customerId) fetchCustomerProfile();
-    else { setError(t('customers.profile.notFound')); setLoading(false); }
-  }, [customerId]);
+  useFocusEffect(
+    useCallback(() => {
+      if (customerId) fetchCustomerProfile();
+      else { setError(t('customers.profile.notFound')); setLoading(false); }
+    }, [customerId])
+  );
 
   if (loading) {
     return (
@@ -75,6 +111,25 @@ export function CustomerProfileScreen({ navigation, route }) {
   
   // The backend might provide these in the future
   const hasGeofence = customer.latitude && customer.longitude;
+
+  const handleStartVisit = async () => {
+    if (activeVisit) {
+      if (activeVisit.party_id === customer.id) {
+        // Recover active visit
+        navigation.navigate('VisitMode', { customerId: customer.id, customerName: customer.display_name });
+      } else {
+        alert(`You already have an active visit with ${activeVisit.customerName}. Please finish it first.`);
+      }
+      return;
+    }
+
+    try {
+      await startVisit({ party_id: customer.id, customerName: customer.display_name });
+      navigation.navigate('VisitMode', { customerId: customer.id, customerName: customer.display_name });
+    } catch (e) {
+      alert(e.message || 'Failed to start visit');
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -145,7 +200,7 @@ export function CustomerProfileScreen({ navigation, route }) {
 
         {/* Primary Action Row */}
         <View style={styles.actionSection}>
-          <TouchableOpacity style={styles.startVisitBtn} onPress={() => navigation.navigate('VisitMode', { customerId: customer.id, customerName: customer.display_name, latitude: customer.latitude, longitude: customer.longitude })}>
+          <TouchableOpacity style={styles.startVisitBtn} onPress={handleStartVisit}>
             <View style={styles.startVisitDotContainer}>
               <View style={styles.startVisitDotPing} />
               <View style={styles.startVisitDot} />
@@ -184,7 +239,58 @@ export function CustomerProfileScreen({ navigation, route }) {
           <View style={styles.timelineHeader}>
             <Text style={styles.bentoTitle}>Recent Timeline / हालिया गतिविधियां</Text>
           </View>
-          <EmptyState title="No Recent Activity" message="No visits or transactions recorded yet." icon="history" />
+          {recentActivity.length > 0 ? (
+            recentActivity.map((activity, idx) => (
+              <View key={activity.id || idx} style={styles.activityCard}>
+                <View style={styles.activityIconBox}>
+                  <MaterialIcons name="task-alt" size={18} color={colors.primary} />
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle}>{activity.summary || 'Activity Completed'}</Text>
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4}}>
+                    <Text style={styles.activityDate}>
+                      {new Date(activity.created_at).toLocaleDateString()} {new Date(activity.created_at).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                    </Text>
+                    {activity._isPending && (
+                      <View style={styles.pendingTag}>
+                        <MaterialIcons name={activity._syncStatus === 'SYNCING' ? 'sync' : 'cloud-upload'} size={10} color={activity._syncStatus === 'SYNCING' ? '#0052cc' : '#904d00'} />
+                        <Text style={[styles.pendingTagText, activity._syncStatus === 'SYNCING' && {color: '#0052cc'}]}>
+                          {activity._syncStatus === 'SYNCING' ? 'Syncing...' : (activity._syncStatus === 'FAILED' ? 'Sync Failed' : 'Pending Sync')}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  
+                  {/* Detailed metadata bubbles */}
+                  {(activity.metadata?.duration_seconds || activity.metadata?.outcomes || activity.metadata?.requirements_count > 0) && (
+                    <View style={styles.activityMetaRow}>
+                      {activity.metadata?.duration_seconds ? (
+                         <View style={styles.metaChip}>
+                           <MaterialIcons name="timer" size={12} color={colors.onSurfaceVariant} />
+                           <Text style={styles.metaChipText}>{Math.floor(activity.metadata.duration_seconds / 60)}m</Text>
+                         </View>
+                      ) : null}
+                      
+                      {activity.metadata?.outcomes && Object.keys(activity.metadata.outcomes).filter(k => activity.metadata.outcomes[k]).map(out => (
+                         <View key={out} style={styles.metaChip}>
+                           <Text style={styles.metaChipText}>{out}</Text>
+                         </View>
+                      ))}
+
+                      {activity.metadata?.requirements_count > 0 ? (
+                         <View style={styles.metaChip}>
+                           <MaterialIcons name="shopping-cart" size={12} color={colors.primary} />
+                           <Text style={styles.metaChipText}>{activity.metadata.requirements_count} Demands</Text>
+                         </View>
+                      ) : null}
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <EmptyState title="No Recent Activity" message="No visits or transactions recorded yet." icon="history" />
+          )}
         </View>
 
       </ScrollView>
@@ -264,6 +370,16 @@ const styles = StyleSheet.create({
   bentoTitle: { ...typography.labelSm, color: colors.onSurfaceVariant, fontWeight: 'bold', textTransform: 'uppercase' },
   timelineSection: { marginBottom: 24 },
   timelineHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 },
+  activityCard: { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 12, padding: 12, marginBottom: 8, elevation: 1 },
+  activityIconBox: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#e5eeff', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  activityContent: { flex: 1, justifyContent: 'center' },
+  activityTitle: { ...typography.labelLg, color: colors.onSurface, fontWeight: 'bold' },
+  activityDate: { ...typography.bodySm, color: colors.onSurfaceVariant },
+  pendingTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff3e0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 2 },
+  pendingTagText: { fontSize: 10, color: '#904d00', fontWeight: 'bold' },
+  activityMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  metaChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f9fa', borderWidth: 1, borderColor: colors.outlineVariant, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 16, gap: 4 },
+  metaChipText: { fontSize: 10, color: colors.onSurfaceVariant },
   sheetContent: { flex: 1 },
   sheetContextBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#eff4ff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, marginBottom: 16 },
   sheetContextTitle: { ...typography.labelSm, color: colors.primary, fontWeight: 'bold' },

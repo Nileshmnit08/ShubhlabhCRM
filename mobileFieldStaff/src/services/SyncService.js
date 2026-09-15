@@ -2,53 +2,68 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { supabase } from '../lib/supabase';
 
-const SYNC_QUEUE_KEY = '@sync_queue';
+const getQueueKey = (userId) => `@sync_queue_${userId}`;
+
+const generateId = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 export class SyncService {
-  static async getQueue() {
+  static async getQueue(userId) {
+    if (!userId) return [];
     try {
-      const q = await AsyncStorage.getItem(SYNC_QUEUE_KEY);
+      const q = await AsyncStorage.getItem(getQueueKey(userId));
       return q ? JSON.parse(q) : [];
     } catch (e) {
       return [];
     }
   }
 
-  static async saveQueue(queue) {
-    await AsyncStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+  static async saveQueue(userId, queue) {
+    if (!userId) return;
+    await AsyncStorage.setItem(getQueueKey(userId), JSON.stringify(queue));
   }
 
   /**
    * Adds an operation to the offline sync queue.
    * @param {string} table 
    * @param {object} payload - Must contain a predefined client UUID 'id'
+   * @param {string} userId - Authenticated user's ID
    */
-  static async enqueueOperation(table, payload) {
-    const queue = await this.getQueue();
+  static async enqueueOperation(table, payload, userId) {
+    if (!userId) {
+      console.warn('SyncService: enqueueOperation called without userId');
+      return null;
+    }
+    const queue = await this.getQueue(userId);
     const operation = {
-      local_id: payload.id || crypto.randomUUID(), // Guarantee ID exists for idempotency
+      local_id: payload.id || generateId(), // Guarantee ID exists for idempotency
       table,
-      payload: { ...payload, id: payload.id || crypto.randomUUID() },
+      payload: { ...payload, id: payload.id || generateId() },
       status: 'PENDING',
       created_at: new Date().toISOString()
     };
     queue.push(operation);
-    await this.saveQueue(queue);
+    await this.saveQueue(userId, queue);
     
     // Attempt sync immediately if online
     const net = await NetInfo.fetch();
     if (net.isConnected) {
-      this.processQueue();
+      this.processQueue(userId);
     }
     
     return operation.payload;
   }
 
-  static async processQueue() {
+  static async processQueue(userId) {
+    if (!userId) return;
     const net = await NetInfo.fetch();
     if (!net.isConnected) return;
 
-    let queue = await this.getQueue();
+    let queue = await this.getQueue(userId);
     if (queue.length === 0) return;
 
     let queueUpdated = false;
@@ -93,11 +108,12 @@ export class SyncService {
         if (op.status === 'FAILED') op.status = 'PENDING';
       });
 
-      await this.saveQueue(newQueue);
+      await this.saveQueue(userId, newQueue);
     }
   }
 
-  static async clearQueue() {
-    await AsyncStorage.removeItem(SYNC_QUEUE_KEY);
+  static async clearQueue(userId) {
+    if (!userId) return;
+    await AsyncStorage.removeItem(getQueueKey(userId));
   }
 }

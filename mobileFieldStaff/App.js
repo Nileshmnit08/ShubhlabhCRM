@@ -21,8 +21,12 @@ import {
   VisitModeScreen,
   QuickRequirementScreen,
   AddCustomerScreen,
-  LoginScreen
+  LoginScreen,
+  NotificationsScreen,
+  VisitSummaryScreen
 } from './src/screens';
+import { NotificationProvider } from './src/context/NotificationContext';
+import { VisitProvider } from './src/context/VisitContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -79,6 +83,11 @@ function RootNavigator() {
         options={{ headerShown: false }} 
       />
       <Stack.Screen 
+        name="Notifications" 
+        component={NotificationsScreen} 
+        options={{ title: 'Notifications' }} 
+      />
+      <Stack.Screen 
         name="CustomerProfile" 
         component={CustomerProfileScreen} 
         options={{ headerShown: false }} 
@@ -94,6 +103,11 @@ function RootNavigator() {
         options={{ headerShown: false }} 
       />
       <Stack.Screen 
+        name="VisitSummary" 
+        component={VisitSummaryScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
         name="AddCustomer" 
         component={AddCustomerScreen} 
         options={{ headerShown: false }} 
@@ -105,12 +119,16 @@ function RootNavigator() {
 export default function App() {
   return (
     <AuthProvider>
-      <SyncProvider>
-        <NavigationContainer>
-          <RootNavigator />
-          <StatusBar style="auto" />
-        </NavigationContainer>
-      </SyncProvider>
+      <NotificationProvider>
+        <SyncProvider>
+          <VisitProvider>
+            <NavigationContainer>
+              <RootNavigator />
+              <StatusBar style="auto" />
+            </NavigationContainer>
+          </VisitProvider>
+        </SyncProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

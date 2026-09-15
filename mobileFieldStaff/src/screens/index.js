@@ -8,3 +8,5 @@ export * from './VisitModeScreen';
 export * from './QuickRequirementScreen';
 export * from './AddCustomerScreen';
 export * from './LoginScreen';
+export * from './NotificationsScreen';
+export * from './VisitSummaryScreen';

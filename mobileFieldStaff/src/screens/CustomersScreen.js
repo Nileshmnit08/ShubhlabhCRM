@@ -7,10 +7,14 @@ import { colors, typography, rounded, elevation } from '../theme/tokens';
 import { CustomerCard, FAB, EmptyState, Button, Tabs } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useNotifications } from '../context/NotificationContext';
+import { useVisit } from '../context/VisitContext';
 
 export function CustomersScreen({ navigation }) {
   const { t } = useTranslation();
   const { staffProfile } = useAuth();
+  const { unreadCount } = useNotifications();
+  const { activeVisit } = useVisit();
   
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
@@ -20,9 +24,9 @@ export function CustomersScreen({ navigation }) {
   const [activeTab, setActiveTab] = useState('all');
 
   const filterTabs = [
-    { id: 'all', label: 'All 42' },
+    { id: 'all', label: 'All' },
     { id: 'near_me', label: 'Near Me', icon: 'near-me' },
-    { id: 'overdue', label: 'Overdue', badge: '3' },
+    { id: 'overdue', label: 'Overdue' },
     { id: 'active', label: 'Active' },
     { id: 'prospects', label: 'Prospects' }
   ];
@@ -108,7 +112,16 @@ export function CustomersScreen({ navigation }) {
       <View style={styles.topHeader}>
         <Text style={typography.headlineLgMobile}>Customers (ग्राहक)</Text>
         <View style={styles.headerIcons}>
-          <MaterialIcons name="notifications" size={24} color={colors.onSurfaceVariant} style={{ marginRight: 16 }} />
+          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative', marginRight: 16 }}>
+            <MaterialIcons name="notifications" size={24} color={colors.onSurfaceVariant} />
+            {unreadCount > 0 && (
+              <View style={{ position: 'absolute', right: -4, top: -4, backgroundColor: colors.error, borderRadius: 10, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 }}>
+                <Text style={{ color: colors.onError, fontSize: 9, fontWeight: 'bold' }}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
           <MaterialIcons name="account-circle" size={24} color={colors.primary} />
         </View>
       </View>
@@ -136,10 +149,28 @@ export function CustomersScreen({ navigation }) {
       {/* Location Context */}
       <View style={styles.locationContext}>
         <MaterialIcons name="my-location" size={16} color={colors.onSurfaceVariant} />
-        <Text style={styles.locationText}>Loha Mandi, Beat Sector 4</Text>
-        <View style={{ flex: 1 }} />
-        <Text style={styles.locationCount}>8 clients within 2.5 km</Text>
+        <Text style={styles.locationText}>Location unavailable</Text>
       </View>
+
+      {/* Active Visit Recovery Banner */}
+      {activeVisit && (
+        <TouchableOpacity 
+          style={styles.activeVisitBanner} 
+          onPress={() => navigation.navigate('VisitMode', { customerId: activeVisit.party_id, customerName: activeVisit.customerName })}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+            <View style={styles.pulseDotBox}>
+              <View style={styles.pulseDotOuter} />
+              <View style={styles.pulseDotInner} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.activeVisitBannerTitle}>Active Visit in Progress</Text>
+              <Text style={styles.activeVisitBannerSub} numberOfLines={1}>{activeVisit.customerName}</Text>
+            </View>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color="#a9f3c5" />
+        </TouchableOpacity>
+      )}
 
       <ScrollView contentContainerStyle={styles.container}>
         {filteredCustomers.length === 0 ? (
@@ -183,5 +214,11 @@ const styles = StyleSheet.create({
   locationContext: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.surfaceContainerLowest, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
   locationText: { ...typography.labelSm, color: colors.onSurfaceVariant, marginLeft: 4, fontWeight: 'bold' },
   locationCount: { ...typography.labelSm, color: colors.onSurfaceVariant },
-  container: { padding: 16, paddingBottom: 100 }
+  container: { padding: 16, paddingBottom: 100 },
+  activeVisitBanner: { backgroundColor: '#0d5c3a', marginHorizontal: 16, marginTop: 12, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 2 },
+  pulseDotBox: { width: 12, height: 12, justifyContent: 'center', alignItems: 'center' },
+  pulseDotOuter: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5', opacity: 0.75 },
+  pulseDotInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5' },
+  activeVisitBannerTitle: { fontSize: 12, fontWeight: 'bold', color: '#a9f3c5', letterSpacing: 0.5 },
+  activeVisitBannerSub: { fontSize: 13, color: '#eff4ff', marginTop: 2 }
 });

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { SyncService } from '../services/SyncService';
+import { useAuth } from './AuthContext';
 
 const SyncContext = createContext();
 export const useSync = () => useContext(SyncContext);
@@ -9,9 +10,16 @@ export const SyncProvider = ({ children }) => {
   const [isOnline, setIsOnline] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const { session } = useAuth();
+  
+  const userId = session?.user?.id;
 
   const updatePendingCount = async () => {
-    const queue = await SyncService.getQueue();
+    if (!userId) {
+      setPendingCount(0);
+      return;
+    }
+    const queue = await SyncService.getQueue(userId);
     setPendingCount(queue.length);
   };
 
@@ -26,29 +34,35 @@ export const SyncProvider = ({ children }) => {
       const online = state.isConnected;
       setIsOnline(online);
       
-      if (online) {
-        triggerSync();
+      if (online && userId) {
+        triggerSync(userId);
       }
     });
 
-    // Initial queue count
-    updatePendingCount();
+    // Initial queue count for current user
+    if (userId) {
+      updatePendingCount();
+    } else {
+      setPendingCount(0);
+    }
 
     // Poll the queue size periodically to update UI
-    const interval = setInterval(updatePendingCount, 5000);
+    const interval = setInterval(() => {
+      if (userId) updatePendingCount();
+    }, 5000);
 
     return () => {
       unsubscribe();
       clearInterval(interval);
     };
-  }, []);
+  }, [userId]);
 
-  const triggerSync = async () => {
-    if (isSyncing) return;
+  const triggerSync = async (activeUserId = userId) => {
+    if (isSyncing || !activeUserId) return;
     
     setIsSyncing(true);
     try {
-      await SyncService.processQueue();
+      await SyncService.processQueue(activeUserId);
     } finally {
       setIsSyncing(false);
       await updatePendingCount();

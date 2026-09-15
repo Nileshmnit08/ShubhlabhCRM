@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { InAppNotificationService } from '../services/InAppNotificationService';
 
 const AUTH_PROFILE_KEY = '@auth_profile';
 
@@ -56,9 +57,46 @@ export const AuthProvider = ({ children }) => {
           setAuthError('MISSING_PROFILE');
         } else if (error.code && error.code.startsWith('PGRST3')) {
           // JWT Authentication error (e.g., PGRST301 expired, PGRST303 issued at future)
-          // The session is poisoned or expired. Force logout to prevent infinite offline cache loop.
-          console.error('JWT Auth Error, clearing session:', error.code, error.message);
-          await logout();
+          console.warn('JWT Auth Error (PGRST3), attempting session refresh:', error.code, error.message);
+          
+          try {
+            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+            
+            if (refreshError) {
+              console.error('Session refresh failed:', refreshError);
+              if (refreshError.message && refreshError.message.toLowerCase().includes('network')) {
+                // If it's a network issue, fallback to offline cache gracefully
+                await loadCachedProfile();
+              } else {
+                // Token is revoked/invalid, enforce logout
+                await logout();
+              }
+            } else if (refreshData?.session) {
+              console.log('Session refreshed. Re-attempting profile fetch...');
+              const { data: retryData, error: retryError } = await supabase
+                .from('app_users')
+                .select('*')
+                .eq('id', userId)
+                .single();
+                
+              if (retryError) {
+                await loadCachedProfile();
+              } else if (retryData) {
+                if (retryData.is_active && retryData.role !== 'Admin') {
+                  setStaffProfile(retryData);
+                  setAuthError(null);
+                  await AsyncStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(retryData));
+                } else {
+                  setAuthError('UNAUTHORIZED');
+                }
+              }
+            } else {
+              await loadCachedProfile();
+            }
+          } catch (e) {
+            console.error('Exception during session refresh fallback:', e);
+            await loadCachedProfile();
+          }
         } else {
           // On network/backend error, try to load from cache
           console.error('Error fetching user profile:', error);
@@ -113,6 +151,10 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       setLoading(true);
+      // Ensure staff notification isolation
+      if (session?.user?.id) {
+        await InAppNotificationService.clearLocalState(session.user.id);
+      }
       await AsyncStorage.removeItem(AUTH_PROFILE_KEY);
       await supabase.auth.signOut();
     } catch (error) {

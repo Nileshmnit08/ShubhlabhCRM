@@ -1,39 +1,90 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, BackHandler } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/tokens';
 import { EmptyState } from '../components';
+import { useVisit } from '../context/VisitContext';
 
 export function VisitModeScreen({ navigation, route }) {
+  const { activeVisit, finishVisit } = useVisit();
   const [elapsedTime, setElapsedTime] = useState('00:00');
   const [outcomes, setOutcomes] = useState({
     metCustomer: false,
     demandAdded: false,
     paymentTalk: false,
-    followUpSet: false,
     priceList: false,
     mandiIntel: false,
     ownerUnavailable: false
   });
 
-  const customerName = route.params?.customerName || 'Customer';
-  const latitude = route.params?.latitude;
-  const longitude = route.params?.longitude;
+  const customerName = activeVisit?.customerName || route.params?.customerName || 'Customer';
+  const latitude = activeVisit?.start_latitude || route.params?.latitude;
+  const longitude = activeVisit?.start_longitude || route.params?.longitude;
 
-  // Simple timer simulator
+  // Actual timer synced to started_at
   useEffect(() => {
-    let secs = 0;
+    if (!activeVisit) return;
+    const startMs = new Date(activeVisit.started_at).getTime();
+
     const interval = setInterval(() => {
-      secs++;
-      const m = Math.floor(secs / 60).toString().padStart(2, '0');
-      const s = (secs % 60).toString().padStart(2, '0');
+      const now = Date.now();
+      const diffSecs = Math.floor((now - startMs) / 1000);
+      const m = Math.floor(diffSecs / 60).toString().padStart(2, '0');
+      const s = (diffSecs % 60).toString().padStart(2, '0');
       setElapsedTime(`${m}:${s}`);
     }, 1000);
     return () => clearInterval(interval);
+  }, [activeVisit]);
+
+  const handleBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('MainTabs');
+    }
+  };
+
+  // Prevent unhandled GO_BACK on hardware back press
+  useEffect(() => {
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleBack();
+      return true; // prevent default behavior
+    });
+    return () => backHandler.remove();
   }, []);
 
   const toggleOutcome = (key) => {
     setOutcomes(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleFinishVisit = async () => {
+    try {
+      const completed = await finishVisit(outcomes);
+      navigation.replace('VisitSummary', { visit: completed });
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Failed to finish visit');
+    }
+  };
+
+  const handleVoiceNote = () => {
+    Alert.alert(
+      'Not Available Offline/Free',
+      'Voice Transcription requires a paid API (Google/Whisper) or a connected backend service, which is currently disabled to maintain a Zero Cost budget.'
+    );
+  };
+
+  const handlePhotoProof = () => {
+    Alert.alert(
+      'Not Available Offline/Free',
+      'Photo/Proof storage requires a paid AWS/Supabase bucket or local file system architecture which is not currently present. This feature is disabled to maintain zero budget.'
+    );
+  };
+
+  const handleCashCollection = () => {
+    Alert.alert(
+      'Not Implemented',
+      'NOT IMPLEMENTED — AUTHORITATIVE FINANCIAL ARCHITECTURE ABSENT. Cash Collection requires an authoritative financial schema which is currently absent.'
+    );
   };
 
   return (
@@ -41,7 +92,7 @@ export function VisitModeScreen({ navigation, route }) {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
             <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
@@ -138,13 +189,7 @@ export function VisitModeScreen({ navigation, route }) {
               <MaterialIcons name="payments" size={22} color={outcomes.paymentTalk ? colors.onPrimary : colors.outline} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={outcomes.followUpSet ? styles.outcomeBtnActive : styles.outcomeBtnInactive} onPress={() => toggleOutcome('followUpSet')}>
-              <View style={{flex: 1, paddingRight: 4}}>
-                <Text style={styles.outcomeTitle} numberOfLines={1}>Follow-up Set</Text>
-                <Text style={styles.outcomeSub} numberOfLines={1}>फॉलो-अप तय</Text>
-              </View>
-              <MaterialIcons name="event-available" size={22} color={outcomes.followUpSet ? colors.onPrimary : colors.outline} />
-            </TouchableOpacity>
+
 
             <TouchableOpacity style={outcomes.priceList ? styles.outcomeBtnActive : styles.outcomeBtnInactive} onPress={() => toggleOutcome('priceList')}>
               <View style={{flex: 1, paddingRight: 4}}>
@@ -177,7 +222,7 @@ export function VisitModeScreen({ navigation, route }) {
 
         {/* Voice & Speed Actions Zone */}
         <View style={styles.actionsGrid}>
-          <TouchableOpacity style={styles.voiceBtnBig}>
+          <TouchableOpacity style={styles.voiceBtnBig} onPress={handleVoiceNote}>
             <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
               <View style={styles.voiceIconInner}><MaterialIcons name="mic" size={24} color="#663500" /></View>
               <View>
@@ -195,13 +240,13 @@ export function VisitModeScreen({ navigation, route }) {
               <Text style={styles.quickActionSub}>मांग जोड़ें</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.quickActionBtn}>
+            <TouchableOpacity style={styles.quickActionBtn} onPress={handlePhotoProof}>
               <MaterialIcons name="photo-camera" size={20} color="#904d00" />
               <Text style={styles.quickActionTitle}>+ Proof Pic</Text>
               <Text style={styles.quickActionSub}>दुकान फ़ोटो</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.quickActionBtn}>
+            <TouchableOpacity style={styles.quickActionBtn} onPress={handleCashCollection}>
               <MaterialIcons name="currency-rupee" size={20} color="#2f3a4d" />
               <Text style={styles.quickActionTitle}>Record ₹</Text>
               <Text style={styles.quickActionSub}>रोकड़ दर्ज</Text>
@@ -214,13 +259,25 @@ export function VisitModeScreen({ navigation, route }) {
           <View style={styles.feedHeader}>
             <Text style={styles.feedHeaderTitle}>Captured in this Visit (वर्तमान सत्र डेटा)</Text>
           </View>
-          <EmptyState title="No Items Captured" message="Notes, demands, or photos added during this visit will appear here." icon="receipt" />
+          {activeVisit?.requirements && activeVisit.requirements.length > 0 ? (
+            activeVisit.requirements.map((req, i) => (
+              <View key={req.id || i} style={styles.feedItem}>
+                <MaterialIcons name="shopping-cart" size={16} color={colors.primary} />
+                <View style={{flex: 1, marginLeft: 8}}>
+                  <Text style={styles.feedItemTitle}>{req.quantity} {req.product_type}</Text>
+                  <Text style={styles.feedItemSub}>Expected: {req.expected_date}</Text>
+                </View>
+              </View>
+            ))
+          ) : (
+            <EmptyState title="No Items Captured" message="Notes, demands, or photos added during this visit will appear here." icon="receipt" />
+          )}
         </View>
       </ScrollView>
 
       {/* Persistent Tactile Bottom Bar */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.finishBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.finishBtn} onPress={handleFinishVisit}>
           <MaterialIcons name="task-alt" size={24} color={colors.onPrimary} />
           <View style={{flexDirection: 'row', alignItems: 'baseline', gap: 6}}>
             <Text style={styles.finishTitle}>FINISH VISIT</Text>
@@ -296,4 +353,8 @@ const styles = StyleSheet.create({
   finishSub: { ...typography.labelMd, color: '#a9f3c5' },
   checkoutTag: { backgroundColor: '#0d5c3a', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginLeft: 4 },
   checkoutTagText: { fontSize: 11, color: '#a9f3c5' },
+  
+  feedItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 8, padding: 12, marginBottom: 8, elevation: 1 },
+  feedItemTitle: { fontSize: 13, fontWeight: 'bold', color: colors.onSurface },
+  feedItemSub: { fontSize: 11, color: colors.onSurfaceVariant },
 });
