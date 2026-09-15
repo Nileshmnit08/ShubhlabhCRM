@@ -19,21 +19,10 @@ async function testRpc() {
 
   // 2. Test My Work Query
   const { data, error } = await supabase
-        .from('v_salesperson_work_queue')
+        .from('requirements')
         .select('*')
-        .eq('assigned_owner_id', authData.user.id)
-        .order('priority_score', { ascending: true })
-        .order('relevant_date', { ascending: true });
+        .limit(1);
         
-  console.log('My Work Query Result:', JSON.stringify({ data, error }, null, 2));
-
-  // 3. Test if any follow ups exist at all (since v_salesperson_work_queue might fail)
-  const { data: fData, error: fError } = await supabase
-        .from('follow_ups')
-        .select('*')
-        .eq('assigned_to', authData.user.id)
-        .limit(5);
-        
-  console.log('Follow-ups Table Query Result:', JSON.stringify({ data: fData, error: fError }, null, 2));
+  console.log('Requirements Table schema sample:', JSON.stringify({ data, error }, null, 2));
 }
 testRpc();

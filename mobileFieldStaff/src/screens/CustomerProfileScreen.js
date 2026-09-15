@@ -22,7 +22,6 @@ export function CustomerProfileScreen({ navigation, route }) {
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [demandSheetVisible, setDemandSheetVisible] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
 
   const fetchCustomerProfile = async () => {
@@ -225,7 +224,7 @@ export function CustomerProfileScreen({ navigation, route }) {
               <MaterialIcons name="call" size={20} color={colors.primary} />
               <Text style={styles.quickBtnText}>Call / कॉल</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickBtn} onPress={() => setDemandSheetVisible(true)}>
+            <TouchableOpacity style={styles.quickBtn} onPress={() => navigation.navigate('QuickRequirement', { customerId: customer.id, customerName: customer.display_name })}>
               <MaterialIcons name="add-shopping-cart" size={20} color="#904d00" />
               <Text style={styles.quickBtnText}>+ Demand</Text>
             </TouchableOpacity>
@@ -305,26 +304,6 @@ export function CustomerProfileScreen({ navigation, route }) {
 
       </ScrollView>
 
-      {/* Embedded Demand Bottom Sheet */}
-      <BottomSheetFoundation visible={demandSheetVisible} onClose={() => setDemandSheetVisible(false)} height="40%">
-        <View style={styles.sheetContent}>
-          <View style={styles.sheetContextBar}>
-            <View>
-              <Text style={styles.sheetContextTitle}>TARGET CUSTOMER</Text>
-              <Text style={styles.sheetContextName}>{customer.display_name}</Text>
-            </View>
-          </View>
-          
-          <Text style={typography.headlineSm}>Quick Demand Note</Text>
-          <Text style={{...typography.bodySm, color: colors.onSurfaceVariant, marginBottom: 16}}>This feature is not yet connected to the backend.</Text>
-
-          <View style={{flexDirection: 'row', gap: 8, marginTop: 16}}>
-            <TouchableOpacity style={styles.sheetCancelBtn} onPress={() => setDemandSheetVisible(false)}>
-              <Text style={styles.sheetCancelBtnText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </BottomSheetFoundation>
     </SafeAreaView>
   );
 }

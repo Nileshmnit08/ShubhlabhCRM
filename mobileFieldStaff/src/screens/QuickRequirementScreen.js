@@ -5,17 +5,33 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/tokens';
 import { EmptyState } from '../components';
 import { useVisit } from '../context/VisitContext';
+import { useAuth } from '../context/AuthContext';
+import { SyncService } from '../services/SyncService';
 import { supabase } from '../lib/supabase';
 
+const generateId = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export function QuickRequirementScreen({ navigation, route }) {
-  const { saveRequirement } = useVisit();
+  const { saveRequirement, activeVisit } = useVisit();
+  const { session } = useAuth();
+  const userId = session?.user?.id;
+
   const [qty, setQty] = useState(50);
   const [activeDate, setActiveDate] = useState('friday');
   const [activeUnit, setActiveUnit] = useState('bags');
+  const [weight, setWeight] = useState(null);
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
+  const WEIGHT_OPTIONS = [35, 40, 45, 50, 60];
+
   const customerName = route.params?.customerName || 'Customer';
+  const customerId = route.params?.customerId || null;
 
   useEffect(() => {
     fetchProducts();
@@ -50,19 +66,45 @@ export function QuickRequirementScreen({ navigation, route }) {
   };
 
   const handleSave = async () => {
+    if (!weight) {
+      alert('Please select a weight.');
+      return;
+    }
+    
     try {
       const expectedDate = new Date();
       if (activeDate === 'friday') {
-        expectedDate.setDate(expectedDate.getDate() + 5); // Add 5 days for 'This Week' roughly
+        expectedDate.setDate(expectedDate.getDate() + 5);
       }
       
       const req = {
-        product_type: selectedProduct ? `${selectedProduct} (${activeUnit.toUpperCase()})` : `Generic Requirement (${activeUnit.toUpperCase()})`,
+        party_id: customerId || activeVisit?.party_id,
+        product_type: selectedProduct ? `${selectedProduct} (${weight} kg - ${activeUnit.toUpperCase()})` : `Generic Requirement (${weight} kg - ${activeUnit.toUpperCase()})`,
         quantity: qty,
-        expected_date: expectedDate.toISOString().split('T')[0]
+        expected_date: expectedDate.toISOString().split('T')[0],
+        notes: `${qty} * ${weight} kg`
       };
       
-      await saveRequirement(req);
+      if (activeVisit) {
+        await saveRequirement(req);
+      } else {
+        if (!userId || !req.party_id) {
+          alert('Missing user or customer context. Cannot save requirement.');
+          return;
+        }
+        const reqPayload = {
+          id: generateId(),
+          party_id: req.party_id,
+          product_type: req.product_type,
+          quantity: req.quantity,
+          expected_date: req.expected_date,
+          status: 'Open',
+          assigned_to: userId,
+          notes: req.notes
+        };
+        await SyncService.enqueueOperation('requirements', reqPayload, userId);
+      }
+      
       navigation.goBack();
     } catch (e) {
       console.error(e);
@@ -91,10 +133,17 @@ export function QuickRequirementScreen({ navigation, route }) {
         {/* Context Background Simulator */}
         <View style={styles.contextBox}>
           <View style={styles.contextTop}>
-            <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-              <View style={styles.contextPulse} />
-              <Text style={styles.contextActive}>ACTIVE VISIT</Text>
-            </View>
+            {activeVisit ? (
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                <View style={styles.contextPulse} />
+                <Text style={styles.contextActive}>ACTIVE VISIT</Text>
+              </View>
+            ) : (
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+                <MaterialIcons name="person" size={14} color={colors.primary} />
+                <Text style={styles.contextActive}>CUSTOMER DEMAND</Text>
+              </View>
+            )}
           </View>
           <View style={styles.contextContent}>
             <View>
@@ -142,6 +191,22 @@ export function QuickRequirementScreen({ navigation, route }) {
             ) : (
               <Text style={{...typography.bodySm, color: colors.onSurfaceVariant, marginBottom: 8}}>Catalog offline. Using generic requirement.</Text>
             )}
+
+            {/* Weight Selection */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>Weight / वज़न</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 8}}>
+              {WEIGHT_OPTIONS.map(w => (
+                <TouchableOpacity 
+                  key={w} 
+                  style={weight === w ? styles.dateChipActive : styles.dateChipInactive}
+                  onPress={() => setWeight(w)}
+                >
+                  <Text style={weight === w ? styles.dateTextActive : styles.dateTextInactive}>{w} kg</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
             {/* Quantity Stepper & Quick Presets */}
             <View style={styles.qtySection}>
