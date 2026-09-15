@@ -39,11 +39,12 @@ export class SyncService {
       return null;
     }
     const queue = await this.getQueue(userId);
+    const guaranteedId = payload.id || generateId();
     const operation = {
-      local_id: payload.id || generateId(), // Guarantee ID exists for idempotency
+      local_id: guaranteedId, // Guarantee ID exists for idempotency
       table,
       action,
-      payload: { ...payload, id: payload.id || generateId() },
+      payload: { ...payload, id: guaranteedId },
       status: 'PENDING',
       created_at: new Date().toISOString()
     };
