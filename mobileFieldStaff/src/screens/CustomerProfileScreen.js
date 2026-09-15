@@ -19,6 +19,7 @@ export function CustomerProfileScreen({ navigation, route }) {
 
   const [customer, setCustomer] = useState(null);
   const [financials, setFinancials] = useState(null);
+  const [demands, setDemands] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -65,23 +66,41 @@ export function CustomerProfileScreen({ navigation, route }) {
       let mergedActivity = actData || [];
       const serverIds = new Set(mergedActivity.map(a => a.id));
       
-      // Fetch local offline activity logs
+      // Fetch server requirements
+      const { data: reqData } = await supabase
+        .from('requirements')
+        .select('*')
+        .eq('party_id', customerId)
+        .order('created_at', { ascending: false });
+
+      let mergedDemands = reqData || [];
+      const serverReqIds = new Set(mergedDemands.map(r => r.id));
+
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const queue = await SyncService.getQueue(user.id);
+          
           const pendingActivity = queue
             .filter(op => op.table === 'activity_logs' && op.payload?.entity_id === customerId && (op.status === 'PENDING' || op.status === 'FAILED' || op.status === 'SYNCING'))
             .map(op => ({ ...op.payload, _isPending: true, _syncStatus: op.status }))
             .filter(act => !serverIds.has(act.id));
             
           mergedActivity = [...pendingActivity, ...mergedActivity].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+          const pendingDemands = queue
+            .filter(op => op.table === 'requirements' && op.payload?.party_id === customerId && (op.status === 'PENDING' || op.status === 'FAILED' || op.status === 'SYNCING'))
+            .map(op => ({ ...op.payload, _isPending: true, _syncStatus: op.status }))
+            .filter(req => !serverReqIds.has(req.id));
+
+          mergedDemands = [...pendingDemands, ...mergedDemands].sort((a, b) => new Date(b.created_at || b.expected_date || Date.now()) - new Date(a.created_at || a.expected_date || Date.now()));
         }
       } catch (e) {
-        console.log('Error fetching local sync queue for activity logs', e);
+        console.log('Error fetching local sync queue', e);
       }
       
       setRecentActivity(mergedActivity);
+      setDemands(mergedDemands);
     } catch (err) {
       console.error(err);
       setError(err.message || 'Failed to load customer profile');
@@ -233,6 +252,61 @@ export function CustomerProfileScreen({ navigation, route }) {
               <Text style={[styles.quickBtnText, voiceActive && {color: colors.onError}]}>Voice / नोट</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Requirements / Demands Section */}
+        <View style={styles.timelineSection}>
+          <View style={styles.timelineHeader}>
+            <Text style={styles.bentoTitle}>Demands / मांग</Text>
+          </View>
+          {demands.length > 0 ? (
+            demands.map((req, idx) => (
+              <View key={req.id || idx} style={styles.activityCard}>
+                <View style={[styles.activityIconBox, {backgroundColor: '#fff3e0'}]}>
+                  <MaterialIcons name="shopping-cart" size={18} color="#904d00" />
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityTitle}>{req.product_type || 'General Requirement'}</Text>
+                  
+                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4}}>
+                    <Text style={styles.activityDate}>
+                      {req.created_at ? new Date(req.created_at).toLocaleDateString() : (req.expected_date || 'Pending')}
+                    </Text>
+                    {req._isPending ? (
+                      <View style={styles.pendingTag}>
+                        <MaterialIcons name={req._syncStatus === 'SYNCING' ? 'sync' : 'cloud-upload'} size={10} color={req._syncStatus === 'SYNCING' ? '#0052cc' : '#904d00'} />
+                        <Text style={[styles.pendingTagText, req._syncStatus === 'SYNCING' && {color: '#0052cc'}]}>
+                          {req._syncStatus === 'SYNCING' ? 'Syncing...' : (req._syncStatus === 'FAILED' ? 'Sync Failed' : 'Pending Sync')}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={[styles.pendingTag, {backgroundColor: '#e5eeff'}]}>
+                         <Text style={[styles.pendingTagText, {color: colors.primary}]}>{req.status || 'Open'}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {(req.quantity || req.notes) && (
+                    <View style={styles.activityMetaRow}>
+                       {req.quantity ? (
+                         <View style={styles.metaChip}>
+                           <MaterialIcons name="inventory" size={12} color={colors.onSurfaceVariant} />
+                           <Text style={styles.metaChipText}>{req.quantity} Qty</Text>
+                         </View>
+                       ) : null}
+                       {req.notes ? (
+                         <View style={styles.metaChip}>
+                           <Text style={styles.metaChipText}>{req.notes}</Text>
+                         </View>
+                       ) : null}
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <EmptyState title="No Demands" message="No demands raised for this customer yet." icon="shopping-cart" />
+          )}
         </View>
 
         {/* Operational Radar Bento Matrix */}
