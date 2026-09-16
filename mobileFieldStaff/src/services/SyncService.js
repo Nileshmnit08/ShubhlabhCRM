@@ -100,6 +100,12 @@ export class SyncService {
         // Clean out unsupported fields if they accidentally made it into the payload
         let safePayload = { ...op.payload };
         delete safePayload.customerName; // Never sync ephemeral labels
+
+        // Safe recovery patch for existing queued items failing req_status_check
+        if (op.table === 'requirements' && safePayload.status === 'Open') {
+          safePayload.status = 'New';
+          op.payload.status = 'New'; // Persist the patch in memory
+        }
         
         if (op.action === 'update') {
           const { error: updateError } = await supabase

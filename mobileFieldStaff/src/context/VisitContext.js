@@ -153,7 +153,7 @@ export const VisitProvider = ({ children }) => {
           product_type: req.product_type || 'General Requirement',
           quantity: req.quantity,
           expected_date: req.expected_date,
-          status: 'Open',
+          status: 'New', // Complies with req_status_check
           assigned_to: userId
         };
         await SyncService.enqueueOperation('requirements', reqPayload, userId);
