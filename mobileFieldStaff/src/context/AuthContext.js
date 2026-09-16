@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InAppNotificationService } from '../services/InAppNotificationService';
-import { PushNotificationService } from '../services/PushNotificationService';
 
 const AUTH_PROFILE_KEY = '@auth_profile';
 
@@ -112,16 +111,6 @@ export const AuthProvider = ({ children }) => {
           setStaffProfile(data);
           setAuthError(null);
           await AsyncStorage.setItem(AUTH_PROFILE_KEY, JSON.stringify(data));
-
-          // Set up Push Notifications
-          try {
-            const token = await PushNotificationService.registerForPushNotificationsAsync();
-            if (token) {
-              await PushNotificationService.registerDeviceWithBackend(data.id, token);
-            }
-          } catch (e) {
-            console.warn('Push notification setup failed:', e);
-          }
         } else {
           setAuthError('UNAUTHORIZED');
         }

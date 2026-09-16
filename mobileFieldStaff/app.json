@@ -21,11 +21,6 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "extra": {
-      "eas": {
-        "projectId": "placeholder-project-id"
-      }
-    },
     "plugins": [
       "expo-localization",
       "expo-secure-store",
@@ -37,14 +32,7 @@
           "isAndroidBackgroundLocationEnabled": true
         }
       ],
-      "expo-task-manager",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/android-icon-monochrome.png",
-          "color": "#2563eb"
-        }
-      ]
+      "expo-task-manager"
     ]
   }
 }

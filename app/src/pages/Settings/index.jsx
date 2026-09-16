@@ -42,6 +42,9 @@ export default function Settings() {
   const [passwordTarget, setPasswordTarget] = useState(null);
   const [adminChangePasswordData, setAdminChangePasswordData] = useState({ newPassword: '', confirmPassword: '' });
 
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notificationData, setNotificationData] = useState({ recipient: 'ALL_ACTIVE', title: '', message: '', link_url: '' });
+
   const [whatsappTemplates, setWhatsappTemplates] = useState([]);
   const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
   const [newTemplateData, setNewTemplateData] = useState({ name: '', purpose: '', body: '', is_active: true });
@@ -341,6 +344,49 @@ export default function Settings() {
     }
   };
 
+  const handleSendNotification = async (e) => {
+    e.preventDefault();
+    if (!notificationData.title || !notificationData.message) {
+      alert("Please provide a title and message.");
+      return;
+    }
+
+    try {
+      let targetUsers = [];
+      if (notificationData.recipient === 'ALL_ACTIVE') {
+        targetUsers = team.filter(m => m.is_active && m.role !== 'Admin');
+      } else {
+        const u = team.find(m => m.id === notificationData.recipient);
+        if (u) targetUsers = [u];
+      }
+
+      if (targetUsers.length === 0) {
+        alert("No valid recipients found.");
+        return;
+      }
+
+      const inserts = targetUsers.map(u => ({
+        user_id: u.id,
+        notification_type: 'MANUAL_ALERT',
+        title: notificationData.title,
+        message: notificationData.message,
+        link_url: notificationData.link_url || null
+      }));
+
+      const { error } = await supabase.from('crm_notifications').insert(inserts);
+      
+      if (error) throw error;
+      
+      alert(`Notification sent successfully to ${targetUsers.length} staff member(s).`);
+      setShowNotificationModal(false);
+      setNotificationData({ recipient: 'ALL_ACTIVE', title: '', message: '', link_url: '' });
+      
+    } catch (err) {
+      console.error('Error sending notification', err);
+      alert('Failed to send notification: ' + err.message);
+    }
+  };
+
   const handleAddTemplate = async (e) => {
     e.preventDefault();
     if (!newTemplateData.name || !newTemplateData.purpose || !newTemplateData.body) {
@@ -632,9 +678,14 @@ export default function Settings() {
                   <h2 style={{margin: 0}}>{t('settings.tabs.team') || 'Team Management'}</h2>
                   <p className="text-secondary" style={{marginTop: '0.5rem', fontSize: '0.95rem'}}>Manage access and roles across the CRM.</p>
                 </div>
-                <button className="btn btn-primary" onClick={() => setShowAddUserModal(true)}>
-                  <UserPlus size={18} /> Add Team Member
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-secondary" onClick={() => setShowNotificationModal(true)}>
+                    <Bell size={18} /> Send Notification
+                  </button>
+                  <button className="btn btn-primary" onClick={() => setShowAddUserModal(true)}>
+                    <UserPlus size={18} /> Add Team Member
+                  </button>
+                </div>
               </div>
               <div style={{overflowX: 'auto'}}>
                 <table style={{width: '100%', borderCollapse: 'collapse'}}>
@@ -963,6 +1014,78 @@ export default function Settings() {
             <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
               <Save size={18} /> {loading ? 'Saving...' : (t('settings.save') || 'Save Changes')}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* SEND NOTIFICATION MODAL */}
+      {showNotificationModal && (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000}}>
+          <div className="glass-panel" style={{width: '90%', maxWidth: '500px', padding: '2rem'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
+              <h2 style={{margin: 0}}>Send Notification</h2>
+              <button onClick={() => setShowNotificationModal(false)} style={{background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}><X size={20}/></button>
+            </div>
+            
+            <form onSubmit={handleSendNotification} style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
+              <div className="form-group">
+                <label>Recipient(s)</label>
+                <select 
+                  className="form-control" 
+                  value={notificationData.recipient}
+                  onChange={e => setNotificationData({...notificationData, recipient: e.target.value})}
+                >
+                  <option value="ALL_ACTIVE">All Active Field Staff</option>
+                  <optgroup label="Individual Staff">
+                    {team.filter(m => m.is_active && m.role !== 'Admin').map(m => (
+                      <option key={m.id} value={m.id}>{m.display_name} ({m.email})</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Title</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="E.g. Important Update"
+                  value={notificationData.title}
+                  onChange={e => setNotificationData({...notificationData, title: e.target.value})}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Message</label>
+                <textarea 
+                  className="form-control" 
+                  placeholder="Enter notification message..."
+                  rows="3"
+                  value={notificationData.message}
+                  onChange={e => setNotificationData({...notificationData, message: e.target.value})}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Action Link (Optional)</label>
+                <select 
+                  className="form-control" 
+                  value={notificationData.link_url}
+                  onChange={e => setNotificationData({...notificationData, link_url: e.target.value})}
+                >
+                  <option value="">None</option>
+                  <option value="/my-work">My Work Screen</option>
+                </select>
+                <small className="text-secondary" style={{marginTop: '0.25rem', display: 'block'}}>When tapped, the Field Assistant will navigate to this screen.</small>
+              </div>
+
+              <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
+                <button type="button" className="btn btn-secondary" style={{flex: 1}} onClick={() => setShowNotificationModal(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" style={{flex: 1}}>Send Notification</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
