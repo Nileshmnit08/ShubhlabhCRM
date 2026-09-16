@@ -106,7 +106,7 @@ export default function FieldActivityDashboard() {
     ? activities 
     : activities.filter(a => a.staff_id === staffFilter);
 
-  const totalVisits = filteredActivities.filter(a => a.activity_type === 'Visit').length;
+  const totalVisits = new Set(filteredActivities.filter(a => a.source_table === 'crm_visits').map(a => a.source_id)).size;
   const totalReqs = filteredActivities.filter(a => a.activity_type === 'Requirement').length;
   const totalFollowUps = filteredActivities.filter(a => a.activity_type === 'Follow-up').length;
   const totalInteractions = filteredActivities.filter(a => a.activity_type === 'Interaction').length;
@@ -118,7 +118,7 @@ export default function FieldActivityDashboard() {
     const lastAct = memberActs[0]; // ordered desc
     return {
       ...member,
-      visits: memberActs.filter(a => a.activity_type === 'Visit').length,
+      visits: new Set(memberActs.filter(a => a.source_table === 'crm_visits').map(a => a.source_id)).size,
       requirements: memberActs.filter(a => a.activity_type === 'Requirement').length,
       followups: memberActs.filter(a => a.activity_type === 'Follow-up').length,
       interactions: memberActs.filter(a => a.activity_type === 'Interaction').length,
