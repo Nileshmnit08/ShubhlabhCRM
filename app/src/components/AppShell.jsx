@@ -23,7 +23,7 @@ const allNavItems = [
   { path: '/requirements', label: 'Requirements', icon: ClipboardList },
   { path: '/follow-ups', label: 'Follow-ups', icon: Clock },
   { path: '/payments', label: 'Payments', icon: DollarSign },
-  { path: '/activity', label: 'Activity', icon: Activity },
+  { path: '/activity', label: 'Field Activity', icon: Activity },
   { path: '/performance', label: 'My Performance', icon: TrendingUp },
   { path: '/control-room', label: 'Control Room', icon: BarChart },
   { path: '/account-control', label: 'Account Control', icon: ShieldAlert },
@@ -81,7 +81,7 @@ const menuGroups = [
   }
 ];
 
-const defaultPinned = ['/', '/requirements', '/follow-ups', '/payments', '/dispatches', '/customers'];
+const defaultPinned = ['/', '/requirements', '/follow-ups', '/activity', '/payments', '/dispatches', '/customers'];
 
 const getBadge = (path) => {
   if (path === '/requirements') return { count: 3, type: 'amber' };
@@ -108,6 +108,10 @@ export default function AppShell() {
       let items = saved ? JSON.parse(saved) : defaultPinned;
       if (!items.includes('/')) {
          items = ['/', ...items]; // Restore Today if it was removed
+      }
+      // Force Field Activity into pinned items for visibility during this sprint review
+      if (!items.includes('/activity')) {
+         items = [...items, '/activity'];
       }
       return items;
     } catch {
