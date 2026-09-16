@@ -43,7 +43,7 @@ export default function Settings() {
   const [adminChangePasswordData, setAdminChangePasswordData] = useState({ newPassword: '', confirmPassword: '' });
 
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [notificationData, setNotificationData] = useState({ recipient: 'ALL_ACTIVE', title: '', message: '', link_url: '' });
+  const [notificationData, setNotificationData] = useState({ recipients: ['ALL_ACTIVE'], title: '', message: '', link_url: '' });
 
   const [whatsappTemplates, setWhatsappTemplates] = useState([]);
   const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
@@ -353,11 +353,15 @@ export default function Settings() {
 
     try {
       let targetUsers = [];
-      if (notificationData.recipient === 'ALL_ACTIVE') {
+      if (!notificationData.recipients || notificationData.recipients.length === 0) {
+        alert("Please select at least one recipient.");
+        return;
+      }
+      
+      if (notificationData.recipients.includes('ALL_ACTIVE')) {
         targetUsers = team.filter(m => m.is_active && m.role !== 'Admin');
       } else {
-        const u = team.find(m => m.id === notificationData.recipient);
-        if (u) targetUsers = [u];
+        targetUsers = team.filter(m => notificationData.recipients.includes(m.id));
       }
 
       if (targetUsers.length === 0) {
@@ -377,9 +381,9 @@ export default function Settings() {
       
       if (error) throw error;
       
-      alert(`Notification sent successfully to ${targetUsers.length} staff member(s).`);
+      alert(`Notification sent successfully to ${targetUsers.length} Field Staff.`);
       setShowNotificationModal(false);
-      setNotificationData({ recipient: 'ALL_ACTIVE', title: '', message: '', link_url: '' });
+      setNotificationData({ recipients: ['ALL_ACTIVE'], title: '', message: '', link_url: '' });
       
     } catch (err) {
       console.error('Error sending notification', err);
@@ -1030,10 +1034,16 @@ export default function Settings() {
             <form onSubmit={handleSendNotification} style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
               <div className="form-group">
                 <label>Recipient(s)</label>
+                <small className="text-secondary" style={{display: 'block', marginBottom: '0.5rem'}}>Hold Ctrl/Cmd to select multiple staff.</small>
                 <select 
+                  multiple
                   className="form-control" 
-                  value={notificationData.recipient}
-                  onChange={e => setNotificationData({...notificationData, recipient: e.target.value})}
+                  style={{ minHeight: '120px' }}
+                  value={notificationData.recipients}
+                  onChange={e => {
+                    const selected = Array.from(e.target.selectedOptions, option => option.value);
+                    setNotificationData({...notificationData, recipients: selected});
+                  }}
                 >
                   <option value="ALL_ACTIVE">All Active Field Staff</option>
                   <optgroup label="Individual Staff">
