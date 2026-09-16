@@ -97,16 +97,20 @@ export class SyncService {
       
       try {
         let error;
+        // Clean out unsupported fields if they accidentally made it into the payload
+        let safePayload = { ...op.payload };
+        delete safePayload.customerName; // Never sync ephemeral labels
+        
         if (op.action === 'update') {
           const { error: updateError } = await supabase
             .from(op.table)
-            .update(op.payload)
-            .eq('id', op.payload.id);
+            .update(safePayload)
+            .eq('id', safePayload.id);
           error = updateError;
         } else {
           const { error: insertError } = await supabase
             .from(op.table)
-            .insert([op.payload]);
+            .insert([safePayload]);
           error = insertError;
         }
 
@@ -116,8 +120,10 @@ export class SyncService {
             // console.log(`Sync idempotency: ${op.table} ${op.local_id} already exists.`);
             op.status = 'SYNCED';
           } else {
-            // console.error(`Sync error for ${op.local_id}:`, error.message);
+            console.error(`Sync error for ${op.local_id}:`, error.message);
             op.status = 'FAILED';
+            op.last_error = error.message || 'Unknown database error';
+            op.last_attempted_at = new Date().toISOString();
           }
         } else {
           // console.log(`Synced ${op.local_id} to ${op.table}`);
@@ -140,10 +146,8 @@ export class SyncService {
       // Remove SYNCED items, retain FAILED/PENDING
       const newQueue = queue.filter(op => op.status !== 'SYNCED');
       
-      // Reset FAILED to PENDING for next run
-      newQueue.forEach(op => {
-        if (op.status === 'FAILED') op.status = 'PENDING';
-      });
+      // We intentionally do NOT reset FAILED back to PENDING.
+      // This preserves the error state so the user can see what failed.
 
       await this.saveQueue(userId, newQueue);
       if (this.onQueueChange) {

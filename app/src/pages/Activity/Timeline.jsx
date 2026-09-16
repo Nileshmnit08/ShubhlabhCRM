@@ -69,7 +69,7 @@ export default function FieldActivityDashboard() {
       
       const { data, error } = await supabase
         .from('v_field_staff_activity_timeline')
-        .select('*, crm_parties(name)')
+        .select('*, crm_parties(display_name)')
         .gte('activity_time', start.toISOString())
         .lte('activity_time', end.toISOString())
         .order('activity_time', { ascending: false });

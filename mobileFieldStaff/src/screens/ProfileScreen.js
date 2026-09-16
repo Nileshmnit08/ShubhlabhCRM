@@ -32,7 +32,7 @@ const ShortcutRow = ({ icon, title, onPress }) => (
 export function ProfileScreen({ navigation }) {
   const { t, i18n } = useTranslation();
   const { staffProfile, logout } = useAuth();
-  const { isOnline, isSyncing, pendingCount, triggerSync } = useSync();
+  const { isOnline, isSyncing, pendingCount, failedCount, lastError, triggerSync } = useSync();
   const [isTracking, setIsTracking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [geofencesCount, setGeofencesCount] = useState(0);
@@ -146,9 +146,15 @@ export function ProfileScreen({ navigation }) {
               { color: pendingCount === 'Unavailable' ? colors.error : colors.onSurface, 
                 fontSize: pendingCount === 'Unavailable' ? 14 : styles.statValue.fontSize }
             ]}>
-              {pendingCount}
+              {pendingCount} {failedCount > 0 && `(${failedCount} Failed)`}
             </Text>
           </View>
+          {failedCount > 0 && lastError && (
+            <View style={{ marginTop: 8, padding: 8, backgroundColor: '#ffebee', borderRadius: 8 }}>
+              <Text style={{ fontSize: 12, color: colors.error, fontWeight: 'bold' }}>Last Sync Error:</Text>
+              <Text style={{ fontSize: 12, color: colors.error }}>{lastError}</Text>
+            </View>
+          )}
           <View style={{ marginTop: 16 }}>
             <Button 
               title={isSyncing ? "SYNCING..." : "SYNC NOW"} 
