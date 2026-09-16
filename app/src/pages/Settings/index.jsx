@@ -17,7 +17,7 @@ export default function Settings() {
   const getInitialTab = () => {
     const searchParams = new URLSearchParams(location.search);
     const tabParam = searchParams.get('tab');
-    const validTabs = ['profile', 'security', 'appearance', 'personalization', 'notifications', 'brand', 'team', 'territories', 'templates', 'dealer_schemes', 'defaults'];
+    const validTabs = ['profile', 'security', 'appearance', 'personalization', 'notifications', 'brand', 'team', 'territories', 'templates', 'dealer_schemes', 'defaults', 'notification_history'];
     if (tabParam && validTabs.includes(tabParam)) return tabParam;
     return 'profile';
   };
@@ -44,6 +44,10 @@ export default function Settings() {
 
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [notificationData, setNotificationData] = useState({ recipients: ['ALL_ACTIVE'], title: '', message: '', link_url: '' });
+
+  const [historyData, setHistoryData] = useState([]);
+  const [historyFilter, setHistoryFilter] = useState('All');
+  const [historySearch, setHistorySearch] = useState('');
 
   const [whatsappTemplates, setWhatsappTemplates] = useState([]);
   const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
@@ -111,12 +115,24 @@ export default function Settings() {
     }
   }, [crmSettings, userProfile]);
 
+  const fetchNotificationHistory = async () => {
+    if (userProfile?.role !== 'Admin') return;
+    const { data, error } = await supabase
+      .from('crm_notifications')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (data) setHistoryData(data);
+  };
+
   useEffect(() => {
     if (activeTab === 'team' && userProfile?.role === 'Admin') {
       fetchTeam();
     }
     if (activeTab === 'templates' && userProfile?.role === 'Admin') {
       fetchTemplates();
+    }
+    if (activeTab === 'notification_history' && userProfile?.role === 'Admin') {
+      fetchNotificationHistory();
     }
   }, [activeTab, userProfile]);
 
@@ -436,6 +452,7 @@ export default function Settings() {
   if (userProfile?.role === 'Admin') {
     tabs.splice(2, 0, { id: 'brand', label: t('settings.tabs.brand') || 'Brand & Identity', icon: SettingsIcon });
     tabs.push({ id: 'team', label: t('settings.tabs.team') || 'Team Management', icon: Users });
+    tabs.push({ id: 'notification_history', label: 'Notification History', icon: Bell });
     tabs.push({ id: 'territories', label: 'Territories', icon: Map });
     tabs.push({ id: 'templates', label: 'WhatsApp Templates', icon: MessageCircle });
     tabs.push({ id: 'dealer_schemes', label: 'Dealer Schemes', icon: Gift });
@@ -995,6 +1012,97 @@ export default function Settings() {
           {/* DEALER SCHEMES TAB */}
           {activeTab === 'dealer_schemes' && userProfile?.role === 'Admin' && (
             <DealerSchemes />
+          )}
+
+          {/* NOTIFICATION HISTORY TAB */}
+          {activeTab === 'notification_history' && userProfile?.role === 'Admin' && (
+            <div className="glass-panel" style={{padding: '0', overflow: 'hidden'}}>
+              <div style={{padding: '2rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem'}}>
+                <div>
+                  <h2 style={{margin: 0}}>Notification History</h2>
+                  <p className="text-secondary" style={{marginTop: '0.5rem', fontSize: '0.95rem'}}>View all internal notifications sent to Field Staff.</p>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <select className="form-control" value={historyFilter} onChange={e => setHistoryFilter(e.target.value)} style={{padding: '0.5rem'}}>
+                    <option value="All">All Statuses</option>
+                    <option value="Read">Read</option>
+                    <option value="Unread">Unread</option>
+                  </select>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Search messages..." 
+                    value={historySearch}
+                    onChange={e => setHistorySearch(e.target.value)}
+                  />
+                  <button className="btn btn-secondary" onClick={() => fetchNotificationHistory()}>Refresh</button>
+                </div>
+              </div>
+              
+              <div style={{overflowX: 'auto'}}>
+                <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                  <thead>
+                    <tr style={{borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)'}}>
+                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Date & Time</th>
+                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Recipient</th>
+                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Message</th>
+                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyData
+                      .filter(n => historyFilter === 'All' ? true : historyFilter === 'Read' ? n.is_read : !n.is_read)
+                      .filter(n => {
+                        if (historySearch === '') return true;
+                        const u = team.find(m => m.id === n.user_id);
+                        const dName = u ? u.display_name : 'Unknown User';
+                        return (
+                          n.title.toLowerCase().includes(historySearch.toLowerCase()) || 
+                          n.message.toLowerCase().includes(historySearch.toLowerCase()) || 
+                          dName.toLowerCase().includes(historySearch.toLowerCase())
+                        );
+                      })
+                      .map(notif => {
+                        const u = team.find(m => m.id === notif.user_id);
+                        const dName = u ? u.display_name : 'Unknown User';
+                        return (
+                      <tr key={notif.id} style={{borderBottom: '1px solid var(--border)'}}>
+                        <td style={{padding: '1.25rem 2rem', whiteSpace: 'nowrap'}}>
+                          <div style={{fontWeight: 500}}>{new Date(notif.created_at).toLocaleDateString()}</div>
+                          <div className="text-secondary" style={{fontSize: '0.85rem'}}>{new Date(notif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                        </td>
+                        <td style={{padding: '1.25rem 2rem', whiteSpace: 'nowrap'}}>
+                          <div style={{fontWeight: 600}}>{dName}</div>
+                          <div className="text-secondary" style={{fontSize: '0.85rem'}}>{notif.notification_type}</div>
+                        </td>
+                        <td style={{padding: '1.25rem 2rem'}}>
+                          <div style={{fontWeight: 600, marginBottom: '0.25rem'}}>{notif.title}</div>
+                          <div className="text-secondary" style={{fontSize: '0.95rem'}}>{notif.message}</div>
+                          {notif.entity_type && notif.entity_type !== 'null' && (
+                            <div style={{marginTop: '0.5rem', fontSize: '0.85rem'}}>
+                              <span className="badge badge-info" style={{marginRight: '0.5rem'}}>{notif.entity_type}</span>
+                            </div>
+                          )}
+                        </td>
+                        <td style={{padding: '1.25rem 2rem'}}>
+                          <span className={`badge ${notif.is_read ? 'badge-success' : 'badge-warning'}`}>
+                            {notif.is_read ? 'Read' : 'Unread'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                    })}
+                    {historyData.length === 0 && (
+                      <tr>
+                        <td colSpan="4" style={{padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)'}}>
+                          No notifications found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
 
         </div>

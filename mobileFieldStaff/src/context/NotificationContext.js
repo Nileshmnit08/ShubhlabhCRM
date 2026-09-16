@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { useAuth } from './AuthContext';
 import { InAppNotificationService } from '../services/InAppNotificationService';
+import { supabase } from '../lib/supabase';
 
 const NotificationContext = createContext();
 
@@ -46,6 +48,34 @@ export const NotificationProvider = ({ children }) => {
     const synced = await InAppNotificationService.syncNotifications(userId);
     updateState(synced);
   }, [userId]);
+
+  // Listen to AppState (foreground) and Supabase Realtime
+  useEffect(() => {
+    if (!userId) return;
+
+    // 1. AppState Listener for foreground recovery (Fallback/Robustness)
+    const appStateSubscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        syncWithBackend();
+      }
+    });
+
+    // 2. Supabase Realtime Listener (Live Sync while app is open)
+    const channel = supabase.channel(`notifications:${userId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'crm_notifications', filter: `user_id=eq.${userId}` },
+        () => {
+          syncWithBackend();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      appStateSubscription.remove();
+      supabase.removeChannel(channel);
+    };
+  }, [userId, syncWithBackend]);
 
   const markAsRead = async (notificationId) => {
     if (!userId) return;
