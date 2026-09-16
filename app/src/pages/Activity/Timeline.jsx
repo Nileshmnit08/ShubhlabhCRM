@@ -11,6 +11,7 @@ export default function FieldActivityDashboard() {
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
+  const [queryError, setQueryError] = useState(null);
   const [activities, setActivities] = useState([]);
   const [team, setTeam] = useState([]);
   
@@ -65,24 +66,26 @@ export default function FieldActivityDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      setQueryError(null);
       const { start, end } = getDateRange();
       
       const { data, error } = await supabase
         .from('v_field_staff_activity_timeline')
-        .select('*, crm_parties(display_name)')
+        .select('*')
         .gte('activity_time', start.toISOString())
         .lte('activity_time', end.toISOString())
         .order('activity_time', { ascending: false });
 
       if (error) {
-        // Fallback gracefully if view is not yet created by admin
-        console.warn("View v_field_staff_activity_timeline might not exist yet.", error);
+        console.error("Query failed: ", error);
+        setQueryError(error.message || 'Database query failed');
         setActivities([]);
       } else {
         setActivities(data || []);
       }
     } catch (err) {
       console.error(err);
+      setQueryError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -151,6 +154,12 @@ export default function FieldActivityDashboard() {
           <p className="text-secondary" style={{marginTop: '0.5rem'}}>Factual activity logs and timeline across field staff.</p>
         </div>
       </div>
+
+      {queryError && (
+        <div className="alert alert-danger" style={{ marginBottom: '1.5rem', padding: '1rem', background: 'var(--danger-alpha)', color: 'var(--danger)', borderRadius: '8px', border: '1px solid var(--danger)' }}>
+          <strong>Error loading activity data:</strong> {queryError}
+        </div>
+      )}
 
       {/* FILTER BAR */}
       <div className="glass-panel" style={{padding: '1.5rem', marginBottom: '2rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-end'}}>
@@ -358,7 +367,7 @@ export default function FieldActivityDashboard() {
                       </div>
                       
                       <div style={{fontWeight: 600, marginBottom: '0.25rem', fontSize: '1.05rem'}}>
-                        {act.crm_parties?.name || 'Unknown Customer'}
+                        {act.party_name || 'Unknown Customer'}
                       </div>
                       <div style={{fontWeight: 500, color: 'var(--text-primary)', marginBottom: '0.25rem'}}>
                         {act.title}
