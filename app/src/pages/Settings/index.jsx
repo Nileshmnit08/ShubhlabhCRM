@@ -38,6 +38,10 @@ export default function Settings() {
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUserData, setNewUserData] = useState({ email: '', password: '', display_name: '', role: 'Operator', whatsapp: '', contact_details: '', is_active: true });
 
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState(null);
+  const [adminChangePasswordData, setAdminChangePasswordData] = useState({ newPassword: '', confirmPassword: '' });
+
   const [whatsappTemplates, setWhatsappTemplates] = useState([]);
   const [showAddTemplateModal, setShowAddTemplateModal] = useState(false);
   const [newTemplateData, setNewTemplateData] = useState({ name: '', purpose: '', body: '', is_active: true });
@@ -300,6 +304,38 @@ export default function Settings() {
     } catch (err) {
       console.error(err);
       alert('Error creating user: ' + (err.message || 'Unknown error. Make sure you applied the Sprint 15 SQL migration.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAdminChangePassword = async (e) => {
+    e.preventDefault();
+    if (!adminChangePasswordData.newPassword || !adminChangePasswordData.confirmPassword) {
+      alert("Please fill all password fields.");
+      return;
+    }
+    if (adminChangePasswordData.newPassword !== adminChangePasswordData.confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const { error } = await supabase.rpc('admin_change_user_password', {
+        target_user_id: passwordTarget.id,
+        new_password: adminChangePasswordData.newPassword
+      });
+      
+      if (error) throw error;
+      
+      alert('Password changed successfully.\nTeam member can now sign in using the new password.');
+      setShowChangePasswordModal(false);
+      setPasswordTarget(null);
+      setAdminChangePasswordData({ newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      console.error(err);
+      alert('Error changing password: ' + (err.message || 'Unknown error.'));
     } finally {
       setLoading(false);
     }
@@ -633,19 +669,81 @@ export default function Settings() {
                           </select>
                         </td>
                         <td style={{padding: '1.25rem 2rem'}}>
-                          <button 
-                            className={`badge ${member.is_active ? 'badge-success' : 'badge-danger'}`} 
-                            style={{border: 'none', cursor: member.id === userProfile.id ? 'default' : 'pointer'}}
-                            onClick={() => toggleUserStatus(member.id, member.is_active)}
-                            disabled={member.id === userProfile.id}
-                          >
-                            {member.is_active ? 'Active' : 'Inactive'}
-                          </button>
+                          <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                            <button 
+                              className={`badge ${member.is_active ? 'badge-success' : 'badge-danger'}`} 
+                              style={{border: 'none', cursor: member.id === userProfile.id ? 'default' : 'pointer'}}
+                              onClick={() => toggleUserStatus(member.id, member.is_active)}
+                              disabled={member.id === userProfile.id}
+                            >
+                              {member.is_active ? 'Active' : 'Inactive'}
+                            </button>
+                            {member.id !== userProfile.id && (
+                              <button 
+                                className="btn btn-outline"
+                                style={{padding: '0.25rem 0.5rem', fontSize: '0.8rem'}}
+                                onClick={() => {
+                                  setPasswordTarget(member);
+                                  setShowChangePasswordModal(true);
+                                }}
+                              >
+                                Change Password
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* ADMIN CHANGE PASSWORD MODAL */}
+          {showChangePasswordModal && passwordTarget && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+              background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', padding: '1rem'
+            }}>
+              <div className="glass-panel" style={{width: '100%', maxWidth: '400px', padding: '2rem', position: 'relative'}}>
+                <button 
+                  onClick={() => setShowChangePasswordModal(false)}
+                  style={{position: 'absolute', right: '1.5rem', top: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}
+                >
+                  <X size={24} />
+                </button>
+                <h2 style={{marginBottom: '0.5rem'}}>Change Password</h2>
+                <p className="text-secondary" style={{marginBottom: '1.5rem', fontSize: '0.9rem'}}>
+                  Set new password for <strong>{passwordTarget.display_name}</strong>
+                </p>
+                
+                <form onSubmit={handleAdminChangePassword} style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
+                  <div>
+                    <label style={{display: 'block', marginBottom: '0.5rem'}}>New Password *</label>
+                    <input 
+                      type="password" 
+                      className="input" 
+                      value={adminChangePasswordData.newPassword} 
+                      onChange={e => setAdminChangePasswordData({...adminChangePasswordData, newPassword: e.target.value})} 
+                      required 
+                    />
+                  </div>
+                  <div>
+                    <label style={{display: 'block', marginBottom: '0.5rem'}}>Confirm Password *</label>
+                    <input 
+                      type="password" 
+                      className="input" 
+                      value={adminChangePasswordData.confirmPassword} 
+                      onChange={e => setAdminChangePasswordData({...adminChangePasswordData, confirmPassword: e.target.value})} 
+                      required 
+                    />
+                  </div>
+                  <button type="submit" className="btn btn-primary" disabled={loading} style={{marginTop: '1rem'}}>
+                    {loading ? 'Saving...' : 'Set Password'}
+                  </button>
+                </form>
               </div>
             </div>
           )}
