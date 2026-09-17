@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { AuthContext } from '../AuthContext';
-import { PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock, Users, UserX, AlertTriangle, RefreshCw, ChevronRight, Activity, Search, X } from 'lucide-react';
+import { PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed, Clock, Users, UserX, RefreshCw, Search, X, ChevronRight, ChevronDown, Activity } from 'lucide-react';
 
 export default function CommunicationDashboard() {
   const { userProfile } = useContext(AuthContext);
@@ -23,8 +23,8 @@ export default function CommunicationDashboard() {
   const [team, setTeam] = useState([]);
   
   // Data States
-  const [calls, setCalls] = useState([]);
-  const [totalCount, setTotalCount] = useState(0);
+  const [groups, setGroups] = useState([]);
+  const [totalCount, setTotalCount] = useState(0); // Total groups for pagination
   const [summary, setSummary] = useState({
     totalCalls: 0,
     incoming: 0,
@@ -35,8 +35,11 @@ export default function CommunicationDashboard() {
     unknown: 0,
   });
 
+  // UX State
+  const [expandedRows, setExpandedRows] = useState({});
+
   // Identify Modal State
-  const [identifyModal, setIdentifyModal] = useState({ open: false, call: null, partyName: '', partyId: '' });
+  const [identifyModal, setIdentifyModal] = useState({ open: false, phone: '', displayPhone: '', partyName: '', partyId: '' });
   const [customers, setCustomers] = useState([]);
   const [identifying, setIdentifying] = useState(false);
 
@@ -50,6 +53,7 @@ export default function CommunicationDashboard() {
   useEffect(() => {
     if (userProfile?.role === 'Admin') {
       setPage(1); // reset to page 1 on filter change
+      setExpandedRows({}); // collapse all on filter change
     }
   }, [dateFilter, customStart, customEnd, staffFilter, searchTerm, sortConfig]);
 
@@ -101,96 +105,66 @@ export default function CommunicationDashboard() {
       const startDateIso = start.toISOString();
       const endDateIso = end.toISOString();
 
-      let query = supabase
-        .from('v_crm_call_events_enriched')
-        .select('*', { count: 'exact' })
-        .gte('started_at', startDateIso)
-        .lte('started_at', endDateIso);
-
-      if (staffFilter !== 'all') {
-        query = query.eq('staff_id', staffFilter);
-      }
-      
-      if (searchTerm) {
-        query = query.or(`party_name.ilike.%${searchTerm}%,staff_name.ilike.%${searchTerm}%,normalized_phone.ilike.%${searchTerm}%`);
-      }
-
-      // Fetch summary statistics for the exact filtered dataset
-      let summaryQuery = supabase
-        .from('v_crm_call_events_enriched')
-        .select('direction, call_type, duration_seconds, party_id')
-        .gte('started_at', startDateIso)
-        .lte('started_at', endDateIso);
-
-      if (staffFilter !== 'all') summaryQuery = summaryQuery.eq('staff_id', staffFilter);
-      if (searchTerm) summaryQuery = summaryQuery.or(`party_name.ilike.%${searchTerm}%,staff_name.ilike.%${searchTerm}%,normalized_phone.ilike.%${searchTerm}%`);
-
-      const { data: allData, error: summaryErr } = await summaryQuery;
-      if (summaryErr) throw summaryErr;
-
-      let inc = 0, out = 0, mis = 0, talk = 0, kn = 0, unkn = 0;
-      allData.forEach(r => {
-        if (r.direction === 'INCOMING') inc++;
-        if (r.direction === 'OUTGOING') out++;
-        if (r.call_type === 'MISSED') mis++;
-        talk += (r.duration_seconds || 0);
-        if (r.party_id) kn++; else unkn++;
+      const { data, error } = await supabase.rpc('get_communication_dashboard_grouped', {
+        p_start_date: startDateIso,
+        p_end_date: endDateIso,
+        p_staff_id: staffFilter === 'all' ? null : staffFilter,
+        p_search: searchTerm || null,
+        p_sort_key: sortConfig.key,
+        p_sort_direction: sortConfig.direction,
+        p_limit: pageSize,
+        p_offset: (page - 1) * pageSize
       });
 
-      setSummary({
-        totalCalls: allData.length,
-        incoming: inc,
-        outgoing: out,
-        missed: mis,
-        talkSeconds: talk,
-        known: kn,
-        unknown: unkn
-      });
-
-      // Pagination and Sorting
-      // Handle nulls correctly for sorting
-      if (sortConfig.key === 'party_id') {
-         query = query.order('party_id', { ascending: sortConfig.direction === 'asc', nullsFirst: sortConfig.direction === 'asc' });
-      } else {
-         query = query.order(sortConfig.key, { ascending: sortConfig.direction === 'asc' });
-      }
-      
-      const from = (page - 1) * pageSize;
-      const to = from + pageSize - 1;
-      query = query.range(from, to);
-
-      const { data, count, error } = await query;
-      
       if (error) throw error;
-      setCalls(data || []);
-      setTotalCount(count || 0);
+
+      setGroups(data || []);
+
+      if (data && data.length > 0) {
+        setTotalCount(Number(data[0].total_group_count) || 0);
+        setSummary({
+          totalCalls: Number(data[0].grand_total_calls) || 0,
+          incoming: Number(data[0].grand_incoming) || 0,
+          outgoing: Number(data[0].grand_outgoing) || 0,
+          missed: Number(data[0].grand_missed) || 0,
+          talkSeconds: Number(data[0].grand_talk_seconds) || 0,
+          known: Number(data[0].grand_known) || 0,
+          unknown: Number(data[0].grand_unknown) || 0,
+        });
+      } else {
+        setTotalCount(0);
+        setSummary({ totalCalls: 0, incoming: 0, outgoing: 0, missed: 0, talkSeconds: 0, known: 0, unknown: 0 });
+      }
 
     } catch (err) {
       console.error(err);
       setQueryError(err.message || 'Communication data could not be loaded.');
-      setCalls([]);
+      setGroups([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const toggleRow = (phone) => {
+    setExpandedRows(prev => ({ ...prev, [phone]: !prev[phone] }));
+  };
+
   const handleIdentifySubmit = async (e) => {
     e.preventDefault();
-    if (!identifyModal.call) return;
+    if (!identifyModal.phone) return;
     setIdentifying(true);
     try {
       const { data, error } = await supabase.rpc('identify_unknown_number', {
-        p_norm_phone: identifyModal.call.normalized_phone,
+        p_norm_phone: identifyModal.phone,
         p_party_id: identifyModal.partyId || null,
         p_party_name: identifyModal.partyName || null
       });
 
       if (error) throw error;
 
-      // Close modal and refresh data
-      setIdentifyModal({ open: false, call: null, partyName: '', partyId: '' });
+      setIdentifyModal({ open: false, phone: '', displayPhone: '', partyName: '', partyId: '' });
       fetchData();
-      fetchCustomers(); // Refresh customers in case a new one was created
+      fetchCustomers(); 
     } catch (err) {
       console.error(err);
       alert('Failed to identify number: ' + err.message);
@@ -233,8 +207,14 @@ export default function CommunicationDashboard() {
 
   const { start: displayStart, end: displayEnd } = getDateRange();
   const dateDisplay = `${displayStart.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} - ${displayEnd.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`;
-
   const totalPages = Math.ceil(totalCount / pageSize);
+
+  const renderDirectionIcon = (dir, type) => {
+    if (type === 'MISSED') return <span style={{color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem'}}><PhoneMissed size={14}/> Missed</span>;
+    if (dir === 'INCOMING') return <span style={{color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem'}}><PhoneIncoming size={14}/> In</span>;
+    if (dir === 'OUTGOING') return <span style={{color: 'var(--success)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem'}}><PhoneOutgoing size={14}/> Out</span>;
+    return <span className="text-secondary" style={{display: 'inline-flex', alignItems: 'center', gap: '0.25rem'}}><PhoneCall size={14}/> {dir}</span>;
+  };
 
   return (
     <div className="animate-fade-in" style={{maxWidth: '1440px', margin: '0 auto', paddingBottom: '80px'}}>
@@ -245,7 +225,7 @@ export default function CommunicationDashboard() {
             <PhoneCall size={28} className="text-primary" />
             Communication Log
           </h1>
-          <p className="text-secondary" style={{marginTop: '0.5rem'}}>Authoritative record of all field staff communications</p>
+          <p className="text-secondary" style={{marginTop: '0.5rem'}}>Authoritative grouped record of all field staff communications</p>
         </div>
       </div>
 
@@ -357,13 +337,13 @@ export default function CommunicationDashboard() {
         </div>
         <div className="glass-panel" style={{padding: '1.25rem', borderLeft: '3px solid var(--success)'}}>
           <div className="text-secondary" style={{fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-            <Users size={14} /> Known
+            <Users size={14} /> Known (Calls)
           </div>
           <div style={{fontSize: '1.75rem', fontWeight: 700, margin: '0.5rem 0'}}>{loading ? '-' : summary.known}</div>
         </div>
         <div className="glass-panel" style={{padding: '1.25rem', borderLeft: '3px solid var(--warning)'}}>
           <div className="text-secondary" style={{fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-            <UserX size={14} /> Unknown
+            <UserX size={14} /> Unknown (Calls)
           </div>
           <div style={{fontSize: '1.75rem', fontWeight: 700, margin: '0.5rem 0'}}>{loading ? '-' : summary.unknown}</div>
         </div>
@@ -371,7 +351,7 @@ export default function CommunicationDashboard() {
 
       {/* SORT CONTROLS */}
       <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
-         <h3 style={{margin: 0}}>Call Records ({totalCount})</h3>
+         <h3 style={{margin: 0}}>Call Records ({summary.totalCalls} calls across {totalCount} numbers)</h3>
          <div>
            <select 
              className="form-control" 
@@ -394,61 +374,115 @@ export default function CommunicationDashboard() {
          </div>
       </div>
 
-      {/* DETAILED CALL TABLE */}
-      <div className="glass-panel" style={{padding: '0', overflowX: 'auto', marginBottom: '2rem'}}>
-        {calls.length === 0 && !loading && !queryError && (
+      {/* DETAILED CALL TABLE (GROUPED) */}
+      <div className="glass-panel" style={{padding: '0', marginBottom: '2rem'}}>
+        {groups.length === 0 && !loading && !queryError && (
           <div style={{padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)'}}>
             No communication recorded for this period.
           </div>
         )}
-        {calls.length > 0 && (
-          <table style={{width: '100%', minWidth: '1000px', borderCollapse: 'collapse'}}>
-            <thead>
-              <tr style={{borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)'}}>
-                <th style={{padding: '1rem', textAlign: 'left', fontWeight: 600}}>Date & Time</th>
-                <th style={{padding: '1rem', textAlign: 'left', fontWeight: 600}}>Staff</th>
-                <th style={{padding: '1rem', textAlign: 'left', fontWeight: 600}}>Customer / Person</th>
-                <th style={{padding: '1rem', textAlign: 'left', fontWeight: 600}}>Mobile Number</th>
-                <th style={{padding: '1rem', textAlign: 'center', fontWeight: 600}}>Direction</th>
-                <th style={{padding: '1rem', textAlign: 'center', fontWeight: 600}}>Duration</th>
-                <th style={{padding: '1rem', textAlign: 'center', fontWeight: 600}}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {calls.map(call => (
-                <tr key={call.id} style={{borderBottom: '1px solid var(--border)'}}>
-                  <td style={{padding: '1rem', whiteSpace: 'nowrap'}}>
-                     <div style={{fontWeight: 600}}>{formatDate(call.started_at)}</div>
-                     <div className="text-secondary" style={{fontSize: '0.85rem'}}>{formatTime(call.started_at)}</div>
-                  </td>
-                  <td style={{padding: '1rem'}}>{call.staff_name || 'Unknown Staff'}</td>
-                  <td style={{padding: '1rem', fontWeight: 600}}>
-                    {call.party_id ? (
-                      <Link to={`/customers/${call.party_id}`} style={{color: 'var(--primary)', textDecoration: 'none'}}>
-                         {call.party_name || 'Unknown Customer'}
-                      </Link>
-                    ) : (
-                       <span style={{color: 'var(--warning)'}}>Unknown</span>
-                    )}
-                  </td>
-                  <td style={{padding: '1rem', fontFamily: 'monospace', fontSize: '1.05rem'}}>{call.display_phone}</td>
-                  <td style={{padding: '1rem', textAlign: 'center'}}>
-                     {call.direction === 'INCOMING' && <span style={{color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem'}}><PhoneIncoming size={14}/> In</span>}
-                     {call.direction === 'OUTGOING' && <span style={{color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem'}}><PhoneOutgoing size={14}/> Out</span>}
-                     {call.call_type === 'MISSED' && <span style={{color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', marginTop: '0.25rem'}}><PhoneMissed size={14}/> Missed</span>}
-                  </td>
-                  <td style={{padding: '1rem', textAlign: 'center'}}>{formatDuration(call.duration_seconds)}</td>
-                  <td style={{padding: '1rem', textAlign: 'center'}}>
-                    {!call.party_id && (
-                       <button className="btn btn-outline btn-sm" onClick={() => setIdentifyModal({ open: true, call, partyName: '', partyId: '' })}>
-                          Identify Number
-                       </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {groups.length > 0 && (
+          <div style={{display: 'flex', flexDirection: 'column'}}>
+            {groups.map(group => {
+              const isExpanded = expandedRows[group.normalized_phone];
+              return (
+                <div key={group.normalized_phone} style={{borderBottom: '1px solid var(--border)'}}>
+                  
+                  {/* COLLAPSED HEADER ROW */}
+                  <div 
+                    onClick={() => toggleRow(group.normalized_phone)}
+                    style={{
+                      display: 'flex', alignItems: 'center', padding: '1rem 1.5rem', 
+                      cursor: 'pointer', background: isExpanded ? 'var(--bg-surface-hover)' : 'transparent',
+                      transition: 'background 0.2s ease'
+                    }}
+                    className="hover-bg-surface-hover"
+                  >
+                    <div style={{marginRight: '1rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center'}}>
+                      {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                    </div>
+                    
+                    <div style={{flex: '1', minWidth: '250px'}}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem'}}>
+                        <span style={{fontFamily: 'monospace', fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)'}}>
+                          {group.display_phone}
+                        </span>
+                        {group.party_id ? (
+                           <Link to={`/customers/${group.party_id}`} onClick={e => e.stopPropagation()} style={{color: 'var(--primary)', textDecoration: 'none', fontWeight: 600, fontSize: '1rem'}}>
+                             {group.party_name}
+                           </Link>
+                        ) : (
+                           <span style={{color: 'var(--warning)', fontWeight: 600, fontSize: '0.9rem', border: '1px solid var(--warning)', padding: '0.1rem 0.5rem', borderRadius: '12px'}}>Unknown</span>
+                        )}
+                      </div>
+                      <div className="text-secondary" style={{fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                        <strong>{group.total_calls} calls</strong> &middot; 
+                        {group.incoming_count} incoming &middot; 
+                        {group.outgoing_count} outgoing &middot; 
+                        {group.missed_count} missed
+                      </div>
+                    </div>
+
+                    <div style={{flex: '1', textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.35rem'}}>
+                      <div style={{fontSize: '0.9rem', color: 'var(--text-secondary)'}}>
+                         Last call: <strong style={{color: 'var(--text-primary)'}}>{formatDate(group.last_call_at)} {formatTime(group.last_call_at)}</strong>
+                      </div>
+                      <div>
+                         {renderDirectionIcon(group.last_call_direction, null)}
+                      </div>
+                    </div>
+
+                    <div style={{paddingLeft: '1.5rem', width: '140px', textAlign: 'right'}}>
+                       {!group.party_id && (
+                          <button 
+                            className="btn btn-outline btn-sm" 
+                            onClick={(e) => {
+                               e.stopPropagation();
+                               setIdentifyModal({ open: true, phone: group.normalized_phone, displayPhone: group.display_phone, partyName: '', partyId: '' });
+                            }}
+                          >
+                             Identify Number
+                          </button>
+                       )}
+                    </div>
+                  </div>
+
+                  {/* EXPANDED HISTORY */}
+                  {isExpanded && (
+                    <div style={{padding: '1rem 1.5rem 1.5rem 3.5rem', background: 'var(--bg-body)'}}>
+                       <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem'}}>
+                          <thead>
+                             <tr style={{borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)'}}>
+                                <th style={{padding: '0.5rem', textAlign: 'left', fontWeight: 500}}>Date & Time</th>
+                                <th style={{padding: '0.5rem', textAlign: 'left', fontWeight: 500}}>Direction</th>
+                                <th style={{padding: '0.5rem', textAlign: 'left', fontWeight: 500}}>Duration</th>
+                                <th style={{padding: '0.5rem', textAlign: 'left', fontWeight: 500}}>Staff</th>
+                             </tr>
+                          </thead>
+                          <tbody>
+                             {group.events_json.map(event => (
+                               <tr key={event.id} style={{borderBottom: '1px solid var(--border)'}}>
+                                  <td style={{padding: '0.5rem', whiteSpace: 'nowrap'}}>
+                                     {formatDate(event.started_at)} <span className="text-secondary">{formatTime(event.started_at)}</span>
+                                  </td>
+                                  <td style={{padding: '0.5rem'}}>
+                                     {renderDirectionIcon(event.direction, event.call_type)}
+                                  </td>
+                                  <td style={{padding: '0.5rem', color: 'var(--text-secondary)'}}>
+                                     {formatDuration(event.duration_seconds)}
+                                  </td>
+                                  <td style={{padding: '0.5rem'}}>{event.staff_name || 'Unknown Staff'}</td>
+                               </tr>
+                             ))}
+                          </tbody>
+                       </table>
+                    </div>
+                  )}
+
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -471,11 +505,11 @@ export default function CommunicationDashboard() {
           <div className="glass-panel animate-scale-in" style={{width: '90%', maxWidth: '500px', padding: '2rem', position: 'relative'}}>
             <button 
               style={{position: 'absolute', top: '1rem', right: '1rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}
-              onClick={() => setIdentifyModal({open: false, call: null})}
+              onClick={() => setIdentifyModal({open: false, phone: ''})}
             ><X size={20}/></button>
             
             <h2 style={{marginTop: 0}}>Identify Unknown Number</h2>
-            <p className="text-secondary">Number: <strong style={{fontFamily: 'monospace', color: 'var(--text-primary)'}}>{identifyModal.call?.display_phone}</strong></p>
+            <p className="text-secondary">Number: <strong style={{fontFamily: 'monospace', color: 'var(--text-primary)'}}>{identifyModal.displayPhone}</strong></p>
             
             <form onSubmit={handleIdentifySubmit} style={{marginTop: '1.5rem'}}>
                <div style={{marginBottom: '1rem'}}>
@@ -509,7 +543,7 @@ export default function CommunicationDashboard() {
                )}
 
                <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '2rem'}}>
-                 <button type="button" className="btn btn-secondary" onClick={() => setIdentifyModal({open: false, call: null})}>Cancel</button>
+                 <button type="button" className="btn btn-secondary" onClick={() => setIdentifyModal({open: false, phone: ''})}>Cancel</button>
                  <button type="submit" className="btn btn-primary" disabled={identifying}>
                     {identifying ? 'Processing...' : 'Identify & Link'}
                  </button>
