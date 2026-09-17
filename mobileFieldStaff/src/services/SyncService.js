@@ -13,6 +13,8 @@ const generateId = () => {
 
 export class SyncService {
   static onQueueChange = null;
+  static _queueLock = Promise.resolve();
+  static _isProcessing = false;
 
   static async getQueue(userId) {
     if (!userId) return [];
@@ -30,6 +32,30 @@ export class SyncService {
     await AsyncStorage.setItem(getQueueKey(userId), JSON.stringify(queue));
   }
 
+  static async _atomicQueueUpdate(userId, updateFn) {
+    if (!userId) return null;
+    
+    // Chain onto the lock to serialize all queue reads/writes
+    this._queueLock = this._queueLock.then(async () => {
+      try {
+        const queue = await this.getQueue(userId) || [];
+        const newQueue = await updateFn(queue);
+        if (newQueue) { 
+          await this.saveQueue(userId, newQueue);
+          if (this.onQueueChange) {
+            this.onQueueChange();
+          }
+        }
+      } catch (e) {
+        console.error('SyncService: Error in atomic update', e);
+      }
+    }).catch(e => {
+        console.error('SyncService: Lock error', e);
+    });
+    
+    return this._queueLock;
+  }
+
   /**
    * Adds an operation to the offline sync queue.
    * @param {string} table 
@@ -40,11 +66,6 @@ export class SyncService {
     if (!userId) {
       console.warn('SyncService: enqueueOperation called without userId');
       return null;
-    }
-    const queue = await this.getQueue(userId);
-    if (queue === null) {
-      console.error('SyncService: Critical failure loading queue, cannot enqueue');
-      throw new Error("Unable to read local sync queue. Operation aborted to prevent data loss.");
     }
 
     const guaranteedId = payload.id || generateId();
@@ -57,18 +78,15 @@ export class SyncService {
       created_at: new Date().toISOString()
     };
     
-    // Deduplication check: Do not re-enqueue if already in queue
-    const existing = queue.find(op => op.local_id === operation.local_id && op.table === table);
-    if (existing) {
-       return existing.payload;
-    }
-
-    queue.push(operation);
-    await this.saveQueue(userId, queue);
-    
-    if (this.onQueueChange) {
-      this.onQueueChange();
-    }
+    await this._atomicQueueUpdate(userId, (queue) => {
+      // Deduplication check: Do not re-enqueue if already in queue
+      const existing = queue.find(op => op.local_id === operation.local_id && op.table === table);
+      if (!existing) {
+        queue.push(operation);
+        return queue; // Return modified queue to trigger save
+      }
+      return null; // Return null to skip save (no changes)
+    });
 
     // Attempt sync immediately if online
     const net = await NetInfo.fetch();
@@ -84,90 +102,101 @@ export class SyncService {
     const net = await NetInfo.fetch();
     if (!net.isConnected) return;
 
-    let queue = await this.getQueue(userId);
-    if (!queue || queue.length === 0) return;
+    if (this._isProcessing) return;
+    this._isProcessing = true;
 
-    let queueUpdated = false;
-
-    for (let i = 0; i < queue.length; i++) {
-      const op = queue[i];
-      if (op.status === 'SYNCED') continue;
-
-      op.status = 'SYNCING';
-      console.log(`[DIAGNOSTIC] CALL_SYNC_ATTEMPT: table=${op.table} local_id=${op.local_id}`);
-      
-      try {
-        let error;
-        // Clean out unsupported fields if they accidentally made it into the payload
-        let safePayload = { ...op.payload };
-        delete safePayload.customerName; // Never sync ephemeral labels
-
-        // Safe recovery patch for existing queued items failing req_status_check
-        if (op.table === 'requirements' && safePayload.status === 'Open') {
-          safePayload.status = 'New';
-          op.payload.status = 'New'; // Persist the patch in memory
+    try {
+      while (true) {
+        let pendingOp = null;
+        
+        // Find next item to process
+        const queue = await this.getQueue(userId);
+        if (queue && queue.length > 0) {
+           pendingOp = queue.find(op => op.status !== 'SYNCED' && op.status !== 'SYNCING');
         }
         
-        if (op.action === 'update') {
-          const { error: updateError } = await supabase
-            .from(op.table)
-            .update(safePayload)
-            .eq('id', safePayload.id);
-          error = updateError;
-        } else {
-          const { error: insertError } = await supabase
-            .from(op.table)
-            .insert([safePayload]);
-          error = insertError;
+        if (!pendingOp) {
+          break; // Nothing left to process
         }
 
-        if (error) {
-          // Trap Unique Constraint violation (idempotency success)
-          if (error.code === '23505' || (error.message && error.message.includes('unique'))) {
-            console.log(`[DIAGNOSTIC] CALL_SYNC_SUCCESS (Idempotent): ${op.table} ${op.local_id} already exists.`);
-            op.status = 'SYNCED';
-          } else {
-            console.error(`[DIAGNOSTIC] CALL_SYNC_FAILURE: local_id=${op.local_id} code=${error.code} msg=${error.message}`);
-            op.status = 'FAILED';
-            op.last_error = error.message || 'Unknown database error';
-            op.last_attempted_at = new Date().toISOString();
+        // Atomically mark it as SYNCING so another loop/caller doesn't pick it up
+        await this._atomicQueueUpdate(userId, q => {
+          const item = q.find(x => x.local_id === pendingOp.local_id && x.table === pendingOp.table);
+          if (item) {
+            item.status = 'SYNCING';
+            return q;
           }
-        } else {
-          console.log(`[DIAGNOSTIC] CALL_SYNC_SUCCESS: local_id=${op.local_id} to ${op.table}`);
-          op.status = 'SYNCED';
+          return null;
+        });
+
+        console.log(`[DIAGNOSTIC] CALL_SYNC_ATTEMPT: table=${pendingOp.table} local_id=${pendingOp.local_id}`);
+        
+        let error = null;
+        try {
+          // Clean out unsupported fields if they accidentally made it into the payload
+          let safePayload = { ...pendingOp.payload };
+          delete safePayload.customerName; // Never sync ephemeral labels
+
+          // Safe recovery patch for existing queued items failing req_status_check
+          if (pendingOp.table === 'requirements' && safePayload.status === 'Open') {
+            safePayload.status = 'New';
+            pendingOp.payload.status = 'New'; // Persist the patch in memory
+          }
+          
+          if (pendingOp.action === 'update') {
+            const { error: updateError } = await supabase
+              .from(pendingOp.table)
+              .update(safePayload)
+              .eq('id', safePayload.id);
+            error = updateError;
+          } else {
+            const { error: insertError } = await supabase
+              .from(pendingOp.table)
+              .insert([safePayload]);
+            error = insertError;
+          }
+        } catch (err) {
+          error = err;
         }
-      } catch (err) {
-        console.error(`[DIAGNOSTIC] CALL_SYNC_FAILURE (Network): local_id=${op.local_id} err=${err.message}`);
-        op.status = 'FAILED';
-      }
-      queueUpdated = true;
-      
-      // Save progress so UI and app state are consistent
-      await this.saveQueue(userId, queue);
-      if (this.onQueueChange) {
-        this.onQueueChange();
-      }
-    }
 
-    if (queueUpdated) {
-      // Remove SYNCED items, retain FAILED/PENDING
-      const newQueue = queue.filter(op => op.status !== 'SYNCED');
-      
-      // We intentionally do NOT reset FAILED back to PENDING.
-      // This preserves the error state so the user can see what failed.
+        // Atomically record the result and cleanup
+        await this._atomicQueueUpdate(userId, q => {
+          const item = q.find(x => x.local_id === pendingOp.local_id && x.table === pendingOp.table);
+          if (!item) return null;
 
-      await this.saveQueue(userId, newQueue);
-      if (this.onQueueChange) {
-        this.onQueueChange();
+          if (error) {
+            // Trap Unique Constraint violation (idempotency success)
+            if (error.code === '23505' || (error.message && error.message.includes('unique'))) {
+              console.log(`[DIAGNOSTIC] CALL_SYNC_SUCCESS (Idempotent): ${pendingOp.table} ${pendingOp.local_id} already exists.`);
+              item.status = 'SYNCED';
+            } else {
+              console.error(`[DIAGNOSTIC] CALL_SYNC_FAILURE: local_id=${pendingOp.local_id} code=${error.code} msg=${error.message}`);
+              item.status = 'FAILED';
+              item.last_error = error.message || 'Unknown database error';
+              item.last_attempted_at = new Date().toISOString();
+              // Save the recovery patch if it failed
+              if (pendingOp.table === 'requirements' && item.payload.status === 'Open') {
+                  item.payload.status = 'New';
+              }
+            }
+          } else {
+            console.log(`[DIAGNOSTIC] CALL_SYNC_SUCCESS: local_id=${pendingOp.local_id} to ${pendingOp.table}`);
+            item.status = 'SYNCED';
+          }
+          
+          // Remove SYNCED items immediately, retain FAILED/PENDING
+          return q.filter(x => x.status !== 'SYNCED');
+        });
       }
+    } finally {
+      this._isProcessing = false;
     }
   }
 
   static async clearQueue(userId) {
     if (!userId) return;
-    await AsyncStorage.removeItem(getQueueKey(userId));
-    if (this.onQueueChange) {
-      this.onQueueChange();
-    }
+    await this._atomicQueueUpdate(userId, () => {
+      return []; // Return empty array to clear queue atomically
+    });
   }
 }
