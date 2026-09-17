@@ -9,6 +9,8 @@ import CallAction from '../../components/CallAction';
 import { logActivity } from '../../lib/activityLogger';
 import ConvertLeadModal from '../../components/ConvertLeadModal';
 import SectionErrorBoundary from '../../components/SectionErrorBoundary';
+import CustomerCommunicationPanel from '../../components/CustomerCommunicationPanel';
+import CustomerCommunicationTimeline from '../../components/CustomerCommunicationTimeline';
 
 export default function CustomerView({ isLeadMode = false }) {
   const { id } = useParams();
@@ -1100,6 +1102,11 @@ Please contact this customer and update Contact Information in CRM.`;
             Timeline <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{timelineEvents.length}</span>
           </button>
         )}
+        {!isLeadMode && (
+          <button className={`cv-tab ${activeTab==='calls'?'active':''}`} onClick={() => setActiveTab('calls')}>
+            Call Logs
+          </button>
+        )}
         {customer?.relationship_type === 'Dealer' && (
           <button className={`cv-tab ${activeTab==='execution'?'active':''}`} onClick={() => setActiveTab('execution')}>
             Execution Dashboard
@@ -1367,6 +1374,8 @@ Please contact this customer and update Contact Information in CRM.`;
               </div>
             )}
           </div>
+
+          {!isLeadMode && <CustomerCommunicationPanel partyId={id} />}
 
           {!isLeadMode && (
             <div className="cv-panel" style={{ padding: '2rem', borderTop: '4px solid var(--warning)' }}>
@@ -1953,6 +1962,10 @@ Please contact this customer and update Contact Information in CRM.`;
             </div>
           )}
         </div>
+      )}
+
+      {activeTab === 'calls' && !isLeadMode && (
+        <CustomerCommunicationTimeline partyId={id} />
       )}
 
     </div>

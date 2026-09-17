@@ -12,6 +12,7 @@ import { SyncProvider } from './src/context/SyncContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import './src/services/BackgroundLocationService';
+import { CallLogService } from './src/services/CallLogService';
 
 import {
   HomeScreen,
@@ -71,6 +72,20 @@ function RootNavigator() {
   if (!session || !staffProfile) {
     return <LoginScreen />;
   }
+
+  React.useEffect(() => {
+    // Request permissions and initialize background sync listener once authenticated
+    CallLogService.requestPermissions().then((granted) => {
+      if (granted) {
+        CallLogService.syncCallLogs(session.user.id);
+      }
+    });
+    CallLogService.initAppStateListener();
+
+    return () => {
+      CallLogService.destroy();
+    };
+  }, []);
 
   return (
     <Stack.Navigator

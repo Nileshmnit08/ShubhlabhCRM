@@ -46,6 +46,7 @@ import DispatchList from './pages/Dispatches/List';
 import DispatchDetail from './pages/Dispatches/Detail';
 
 import Logistics from './pages/Logistics';
+import CommunicationDashboard from './pages/CommunicationDashboard';
 
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
@@ -263,6 +264,7 @@ function App() {
                 <Route path="performance" element={<Performance />} />
                 <Route path="control-room" element={<ControlRoom />} />
                 <Route path="account-control" element={<AccountControl />} />
+                <Route path="communication" element={<CommunicationDashboard />} />
                 <Route path="dealer-control" element={<DealerControlTower />} />
                 <Route path="demand-signals" element={<DemandSignals />} />
                 <Route path="product-demand" element={<ProductDemand />} />

@@ -94,6 +94,7 @@ export class SyncService {
       if (op.status === 'SYNCED') continue;
 
       op.status = 'SYNCING';
+      console.log(`[DIAGNOSTIC] CALL_SYNC_ATTEMPT: table=${op.table} local_id=${op.local_id}`);
       
       try {
         let error;
@@ -123,20 +124,20 @@ export class SyncService {
         if (error) {
           // Trap Unique Constraint violation (idempotency success)
           if (error.code === '23505' || (error.message && error.message.includes('unique'))) {
-            // console.log(`Sync idempotency: ${op.table} ${op.local_id} already exists.`);
+            console.log(`[DIAGNOSTIC] CALL_SYNC_SUCCESS (Idempotent): ${op.table} ${op.local_id} already exists.`);
             op.status = 'SYNCED';
           } else {
-            console.error(`Sync error for ${op.local_id}:`, error.message);
+            console.error(`[DIAGNOSTIC] CALL_SYNC_FAILURE: local_id=${op.local_id} code=${error.code} msg=${error.message}`);
             op.status = 'FAILED';
             op.last_error = error.message || 'Unknown database error';
             op.last_attempted_at = new Date().toISOString();
           }
         } else {
-          // console.log(`Synced ${op.local_id} to ${op.table}`);
+          console.log(`[DIAGNOSTIC] CALL_SYNC_SUCCESS: local_id=${op.local_id} to ${op.table}`);
           op.status = 'SYNCED';
         }
       } catch (err) {
-        // console.error(`Network error syncing ${op.local_id}:`, err);
+        console.error(`[DIAGNOSTIC] CALL_SYNC_FAILURE (Network): local_id=${op.local_id} err=${err.message}`);
         op.status = 'FAILED';
       }
       queueUpdated = true;

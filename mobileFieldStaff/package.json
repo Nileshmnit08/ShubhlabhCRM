@@ -20,6 +20,7 @@
     "react": "19.2.3",
     "react-i18next": "^17.0.14",
     "react-native": "0.86.3",
+    "react-native-call-log": "^3.0.0",
     "react-native-get-random-values": "~1.11.0",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
@@ -36,5 +37,13 @@
   "devDependencies": {
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0"
+  },
+  "expo": {
+    "autolinking": {
+      "buildFromSource": [
+        "expo-task-manager",
+        "unimodules-app-loader"
+      ]
+    }
   }
 }
