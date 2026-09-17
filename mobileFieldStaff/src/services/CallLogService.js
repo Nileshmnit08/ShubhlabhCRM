@@ -102,7 +102,7 @@ export class CallLogService {
         }
 
         const duration = parseInt(call.duration || '0', 10);
-        const { direction, call_type } = mapCallType(call.type);
+        const { direction, call_type } = mapCallType(call.rawType);
         
         // Adjust OUTGOING type if duration is 0
         let finalType = call_type;
