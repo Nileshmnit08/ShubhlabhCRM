@@ -16,6 +16,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: mobileFieldStaff/package-lock.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -27,15 +28,17 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Install dependencies
+        working-directory: mobileFieldStaff
         run: npm ci
 
       - name: Verify Hermes is enabled
+        working-directory: mobileFieldStaff
         run: |
           grep -n "hermesEnabled" android/gradle.properties
           grep -q "hermesEnabled=true" android/gradle.properties
 
       - name: Build release APK
-        working-directory: android
+        working-directory: mobileFieldStaff/android
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
@@ -45,5 +48,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: shubhlabh-field-assistant-release
-          path: android/app/build/outputs/apk/release/app-release.apk
+          path: mobileFieldStaff/android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
