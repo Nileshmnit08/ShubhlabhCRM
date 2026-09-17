@@ -63,7 +63,7 @@ BEGIN
     GroupedEvents AS (
         SELECT 
             fe.normalized_phone,
-            MAX(fe.party_id) AS party_id, 
+            MAX(fe.party_id::TEXT)::UUID AS party_id, 
             MAX(fe.party_name) AS party_name,
             MAX(fe.display_phone) AS display_phone,
             COUNT(*) AS total_calls,
