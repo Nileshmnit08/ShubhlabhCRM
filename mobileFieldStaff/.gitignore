@@ -39,3 +39,10 @@ yarn-error.*
 # generated native folders
 /ios
 # /android
+
+# logs and temp
+*.log
+*.txt
+*.zip
+index.android.bundle
+temp_apk/

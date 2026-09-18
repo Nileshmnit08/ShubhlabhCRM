@@ -97,7 +97,7 @@ export class SyncService {
     return operation.payload;
   }
 
-  static async processQueue(userId) {
+  static async processQueue(userId, isManualRetry = false) {
     if (!userId) return;
     const net = await NetInfo.fetch();
     if (!net.isConnected) return;
@@ -106,18 +106,24 @@ export class SyncService {
     this._isProcessing = true;
 
     try {
+      const attemptedIds = new Set();
       while (true) {
         let pendingOp = null;
         
         // Find next item to process
         const queue = await this.getQueue(userId);
         if (queue && queue.length > 0) {
-           pendingOp = queue.find(op => op.status !== 'SYNCED' && op.status !== 'SYNCING');
+           pendingOp = queue.find(op => 
+             (op.status === 'PENDING' || (isManualRetry && op.status === 'FAILED')) && 
+             !attemptedIds.has(op.local_id)
+           );
         }
         
         if (!pendingOp) {
           break; // Nothing left to process
         }
+
+        attemptedIds.add(pendingOp.local_id);
 
         // Atomically mark it as SYNCING so another loop/caller doesn't pick it up
         await this._atomicQueueUpdate(userId, q => {

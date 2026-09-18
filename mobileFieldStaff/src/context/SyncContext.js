@@ -51,7 +51,7 @@ export const SyncProvider = ({ children }) => {
       setIsOnline(online);
       
       if (online && userId) {
-        triggerSync(userId);
+        triggerSync(userId, false);
       }
     });
 
@@ -79,12 +79,12 @@ export const SyncProvider = ({ children }) => {
     };
   }, [userId]);
 
-  const triggerSync = async (activeUserId = userId) => {
+  const triggerSync = async (activeUserId = userId, isManual = true) => {
     if (isSyncing || !activeUserId) return;
     
     setIsSyncing(true);
     try {
-      await SyncService.processQueue(activeUserId);
+      await SyncService.processQueue(activeUserId, isManual);
     } finally {
       setIsSyncing(false);
       await updatePendingCount();
