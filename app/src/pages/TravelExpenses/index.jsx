@@ -93,7 +93,8 @@ export default function TravelExpenses() {
       const { data, error } = await supabase
         .from('app_users')
         .select('id, display_name')
-        .eq('role', 'Field Assistant')
+        .eq('is_active', true)
+        .neq('role', 'Admin')
         .order('display_name');
       if (error) throw error;
       setStaffList(data || []);
