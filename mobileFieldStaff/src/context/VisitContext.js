@@ -26,29 +26,51 @@ export const VisitProvider = ({ children }) => {
   const isFinishingRef = useRef(false);
 
   // Helper to reliably fetch location without hanging
-  const getFastLocation = async () => {
+  const getFastLocation = async (requireFresh = true) => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
-      if (status !== 'granted') return { latitude: null, longitude: null };
+      if (status !== 'granted') {
+        throw new Error('Location permission is required.');
+      }
 
-      // Try current position with a strict timeout
+      // Try current position with a strict 10-second timeout for high accuracy
       try {
         const loc = await Promise.race([
-          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
         ]);
-        return { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+        
+        const locationAgeMs = Date.now() - loc.timestamp;
+        if (requireFresh && locationAgeMs > 300000) { // 5 minutes max age
+           throw new Error('Retrieved location is too old.');
+        }
+
+        return { 
+          latitude: loc.coords.latitude, 
+          longitude: loc.coords.longitude,
+          accuracy: loc.coords.accuracy,
+          timestamp: loc.timestamp
+        };
       } catch (err) {
-        // Fallback to last known position if current hangs/times out
+        // Fallback to last known position only if it is sufficiently fresh
         const lastLoc = await Location.getLastKnownPositionAsync();
         if (lastLoc) {
-          return { latitude: lastLoc.coords.latitude, longitude: lastLoc.coords.longitude };
+          const locationAgeMs = Date.now() - lastLoc.timestamp;
+          if (locationAgeMs <= 300000) { // 5 minutes max age
+            return { 
+              latitude: lastLoc.coords.latitude, 
+              longitude: lastLoc.coords.longitude,
+              accuracy: lastLoc.coords.accuracy,
+              timestamp: lastLoc.timestamp
+            };
+          }
         }
+        throw new Error('Fresh GPS location unavailable. Please step outside or wait for better signal.');
       }
     } catch (e) {
-      console.log('Location fetch failed safely:', e);
+      console.log('Location fetch failed:', e.message);
+      throw e; // Propagate so startVisit can explicitly reject
     }
-    return { latitude: null, longitude: null };
   };
 
   useEffect(() => {
@@ -119,8 +141,13 @@ export const VisitProvider = ({ children }) => {
     if (!userId) throw new Error('Authentication required to start a visit.');
     if (activeVisit) throw new Error('A visit is already active. Finish it first.');
 
-    // Fetch location if available
-    const { latitude, longitude } = await getFastLocation();
+    // Fetch fresh location, throw if unavailable
+    let location;
+    try {
+      location = await getFastLocation(true);
+    } catch (e) {
+      throw new Error(`Cannot start visit: ${e.message}`);
+    }
 
     const newVisit = {
       id: generateId(), // Guarantee ID exists for idempotency
@@ -128,8 +155,10 @@ export const VisitProvider = ({ children }) => {
       customerName: customerContext.customerName,
       staff_id: userId,
       started_at: new Date().toISOString(),
-      start_latitude: latitude,
-      start_longitude: longitude,
+      start_latitude: location.latitude,
+      start_longitude: location.longitude,
+      start_location_accuracy: location.accuracy,
+      start_location_timestamp: new Date(location.timestamp).toISOString(),
       requirements: [],
     };
 
@@ -155,8 +184,8 @@ export const VisitProvider = ({ children }) => {
         from_timestamp: destState.timestamp,
         to_type: 'VISIT',
         to_reference_id: newVisit.id,
-        to_latitude: latitude,
-        to_longitude: longitude,
+        to_latitude: location.latitude,
+        to_longitude: location.longitude,
         to_timestamp: newVisit.started_at,
         distance_km: segmentDistance > 0 ? segmentDistance : 0,
         status: 'COMPLETED'
@@ -190,10 +219,16 @@ export const VisitProvider = ({ children }) => {
       const ended_at = new Date().toISOString();
     const duration_seconds = Math.floor((new Date(ended_at) - new Date(activeVisit.started_at)) / 1000);
 
-    // Re-fetch location for checkout if available
-    const checkoutLoc = await getFastLocation();
-    const endLat = checkoutLoc.latitude || activeVisit.start_latitude;
-    const endLng = checkoutLoc.longitude || activeVisit.start_longitude;
+    // Re-fetch location for checkout if available, but don't strictly block completion if it fails
+    let checkoutLoc = null;
+    try {
+      checkoutLoc = await getFastLocation(false);
+    } catch (e) {
+      console.log('Checkout location failed, safely falling back to start location for checkout.');
+    }
+    
+    const endLat = checkoutLoc?.latitude || activeVisit.start_latitude;
+    const endLng = checkoutLoc?.longitude || activeVisit.start_longitude;
 
     const visitPayload = {
       id: activeVisit.id,
