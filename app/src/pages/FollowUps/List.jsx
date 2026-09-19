@@ -13,6 +13,7 @@ export default function FollowUpList() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('Today'); // Today, Overdue, Upcoming, Completed
+  const [callsToday, setCallsToday] = useState({});
   
   // Sticky Filters
   const [filterType, setFilterType] = useState('All');
@@ -49,7 +50,33 @@ export default function FollowUpList() {
   useEffect(() => {
     fetchFollowUps();
     fetchSummary();
+    fetchCallsToday();
   }, [activeTab]);
+
+  const fetchCallsToday = async () => {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0,0,0,0);
+      const { data } = await supabase.from('v_crm_call_events_enriched')
+        .select('*')
+        .gte('started_at', todayStart.toISOString());
+        
+      if (data) {
+         const group = {};
+         data.forEach(call => {
+            if (!call.party_id) return;
+            if (!group[call.party_id]) group[call.party_id] = { count: 0, latest: null };
+            group[call.party_id].count++;
+            if (!group[call.party_id].latest || new Date(call.started_at) > new Date(group[call.party_id].latest.started_at)) {
+               group[call.party_id].latest = call;
+            }
+         });
+         setCallsToday(group);
+      }
+    } catch (err) {
+      console.error('Error fetching calls today for indicators', err);
+    }
+  };
 
   const fetchSummary = async () => {
     // Quick separate query for summary stats just to be accurate across tabs
@@ -424,7 +451,7 @@ export default function FollowUpList() {
       {activeTab === 'Intelligence' ? (
         <FollowUpIntelligence />
       ) : activeTab === 'Report' ? (
-        <FollowUpReport searchQuery={searchQuery} />
+        <FollowUpReport searchQuery={searchQuery} callsToday={callsToday} />
       ) : loading ? (
         <div style={{padding: '3rem', textAlign: 'center'}}>Loading...</div>
       ) : filteredItems.length === 0 ? (
@@ -443,14 +470,14 @@ export default function FollowUpList() {
                           <Calendar size={18} /> {formatGroupHeader(dateKey)} ({groupedUpcoming[dateKey].length})
                       </h3>
                       <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-                          {groupedUpcoming[dateKey].map(item => <FollowUpCard key={item.id} item={item} financials={financials} updateStatus={updateStatus} activeTab={activeTab} todayStart={todayStart} t={t} />)}
+                          {groupedUpcoming[dateKey].map(item => <FollowUpCard key={item.id} item={item} financials={financials} updateStatus={updateStatus} activeTab={activeTab} todayStart={todayStart} t={t} callsToday={callsToday} />)}
                       </div>
                   </div>
               ))
           ) : (
               // Flat List
               <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-                  {filteredItems.map(item => <FollowUpCard key={item.id} item={item} financials={financials} updateStatus={updateStatus} activeTab={activeTab} todayStart={todayStart} t={t} />)}
+                  {filteredItems.map(item => <FollowUpCard key={item.id} item={item} financials={financials} updateStatus={updateStatus} activeTab={activeTab} todayStart={todayStart} t={t} callsToday={callsToday} />)}
               </div>
           )}
         </div>
@@ -520,7 +547,7 @@ export default function FollowUpList() {
   );
 }
 
-function FollowUpCard({ item, financials, updateStatus, activeTab, todayStart, t }) {
+function FollowUpCard({ item, financials, updateStatus, activeTab, todayStart, t, callsToday }) {
     const isOverdue = new Date(item.due_at) < todayStart && item.status !== 'Completed';
     const isReminderToday = item.reminder_at && new Date(item.reminder_at) >= todayStart && new Date(item.reminder_at) < new Date(todayStart.getTime() + 86400000);
     const amount = financials[item.party_id];
@@ -562,6 +589,17 @@ function FollowUpCard({ item, financials, updateStatus, activeTab, todayStart, t
                 <div style={{color: 'var(--danger)', fontWeight: 600, fontSize: '0.85rem', marginBottom: '0.5rem'}}>
                     Amount Pending: ₹{amount.toLocaleString('en-IN')}
                 </div>
+            )}
+            
+            {callsToday && callsToday[item.party_id] && (
+               <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(59,130,246,0.08)', borderLeft: '3px solid var(--primary)', borderRadius: '4px', marginBottom: '0.75rem' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                     <Phone size={14} /> Called Today &middot; {callsToday[item.party_id].count} call{callsToday[item.party_id].count !== 1 ? 's' : ''}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                     Latest call: {new Date(callsToday[item.party_id].latest.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+               </div>
             )}
             
             <div style={{display: 'flex', gap: '1.5rem', fontSize: '0.85rem', color: 'var(--text-muted)'}}>

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Calendar, User, Search, RefreshCw } from 'lucide-react';
 import DataTable from '../../components/DataTable';
 
-export default function FollowUpReport({ searchQuery }) {
+export default function FollowUpReport({ searchQuery, callsToday }) {
   // Date State (Defaults to 1st of current month to today)
   const [startDate, setStartDate] = useState(() => {
     const d = new Date();
@@ -64,12 +64,25 @@ export default function FollowUpReport({ searchQuery }) {
       id: 'customer',
       header: 'Customer',
       renderCell: (item) => (
-        <Link 
-          to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.party_id}` : `/customers/${item.party_id}`} 
-          className="font-semibold text-[14px] text-primary hover:underline"
-        >
-          {item.crm_parties?.display_name || 'Unknown'}
-        </Link>
+        <div className="flex flex-col gap-1">
+          <Link 
+            to={item.crm_parties?.crm_status === 'Lead' ? `/leads/${item.party_id}` : `/customers/${item.party_id}`} 
+            className="font-semibold text-[14px] text-primary hover:underline"
+          >
+            {item.crm_parties?.display_name || 'Unknown'}
+          </Link>
+          {callsToday && callsToday[item.party_id] && (
+            <div className="flex flex-col gap-0.5 text-[11px]">
+              <div className="font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 w-max flex items-center gap-1">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                 Called Today &middot; {callsToday[item.party_id].count} call{callsToday[item.party_id].count !== 1 ? 's' : ''}
+              </div>
+              <div className="text-slate-500">
+                 Latest call: {new Date(callsToday[item.party_id].latest.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          )}
+        </div>
       )
     },
     {
