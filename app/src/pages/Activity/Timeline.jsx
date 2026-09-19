@@ -4,7 +4,7 @@ import { AuthContext } from '../../AuthContext';
 import { LanguageContext } from '../../LanguageContext';
 import { Clock, Users, Calendar, Activity, CheckCircle, ChevronRight, User, Search, MapPin, ClipboardList, Briefcase, FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-
+import VisitDetailModal from './VisitDetailModal';
 export default function FieldActivityDashboard() {
   const { userProfile } = useContext(AuthContext);
   const { t } = useContext(LanguageContext);
@@ -21,6 +21,8 @@ export default function FieldActivityDashboard() {
   const [staffFilter, setStaffFilter] = useState('all');
   
   const [selectedStaffDetail, setSelectedStaffDetail] = useState(null);
+  const [selectedVisitId, setSelectedVisitId] = useState(null);
+  const [isVisitModalOpen, setIsVisitModalOpen] = useState(false);
 
   useEffect(() => {
     if (userProfile?.role === 'Admin') {
@@ -137,7 +139,10 @@ export default function FieldActivityDashboard() {
   };
 
   const handleEntityClick = (activity) => {
-    if (activity.party_id) {
+    if (activity.activity_type === 'Visit' && activity.source_id) {
+      setSelectedVisitId(activity.source_id);
+      setIsVisitModalOpen(true);
+    } else if (activity.party_id) {
       navigate(`/customers/${activity.party_id}`);
     }
   };
@@ -385,7 +390,15 @@ export default function FieldActivityDashboard() {
           </div>
         </>
       )}
-      
+      {isVisitModalOpen && selectedVisitId && (
+        <VisitDetailModal 
+          visitId={selectedVisitId} 
+          onClose={() => {
+            setIsVisitModalOpen(false);
+            setSelectedVisitId(null);
+          }} 
+        />
+      )}
     </div>
   );
 }
