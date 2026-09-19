@@ -5,6 +5,7 @@ import { Plus, Search, Calendar, Clock, AlertCircle, CheckCircle2, Phone, Messag
 import { LanguageContext } from '../../LanguageContext';
 import { logActivity } from '../../lib/activityLogger';
 import FollowUpReport from './FollowUpReport';
+import FollowUpIntelligence from './FollowUpIntelligence';
 
 export default function FollowUpList() {
   const [followUps, setFollowUps] = useState([]);
@@ -407,20 +408,22 @@ export default function FollowUpList() {
 
       {/* Tabs */}
       <div style={{display: 'flex', gap: '2rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', overflowX: 'auto'}}>
-        {['Today', 'Overdue', 'Upcoming', 'Completed', 'Report'].map(tab => (
+        {['Today', 'Overdue', 'Upcoming', 'Completed', 'Report', 'Intelligence'].map(tab => (
           <button 
             key={tab}
             className={`nav-item ${activeTab === tab ? 'active' : ''}`} 
             style={{borderRadius: 0, padding: '0.75rem 1rem', whiteSpace: 'nowrap'}} 
             onClick={() => { setActiveTab(tab); setFilterType('All'); setFilterPriority('All'); }}
           >
-            {tab === 'Report' ? 'Follow-Up Report' : t(`nav.${tab.toLowerCase()}`)}
+            {tab === 'Report' ? 'Follow-Up Report' : tab === 'Intelligence' ? 'Follow-up Intelligence' : t(`nav.${tab.toLowerCase()}`)}
           </button>
         ))}
       </div>
 
       {/* List */}
-      {activeTab === 'Report' ? (
+      {activeTab === 'Intelligence' ? (
+        <FollowUpIntelligence />
+      ) : activeTab === 'Report' ? (
         <FollowUpReport searchQuery={searchQuery} />
       ) : loading ? (
         <div style={{padding: '3rem', textAlign: 'center'}}>Loading...</div>
