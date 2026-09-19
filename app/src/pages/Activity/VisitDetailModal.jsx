@@ -27,7 +27,7 @@ export default function VisitDetailModal({ visitId, onClose }) {
         .from('crm_visits')
         .select(`
           *,
-          party:crm_parties(id, display_name, mobile_number, reference_code),
+          party:crm_parties(id, display_name, mobile),
           staff:app_users!crm_visits_staff_id_fkey(id, display_name, role)
         `)
         .eq('id', visitId)
@@ -171,8 +171,7 @@ export default function VisitDetailModal({ visitId, onClose }) {
                   <User size={14} /> Customer
                 </div>
                 <div style={{fontWeight: 600, fontSize: '1.1rem'}}>{visit.party?.display_name || 'Unknown'}</div>
-                {visit.party?.mobile_number && <div className="text-secondary" style={{fontSize: '0.9rem', marginTop: '0.25rem'}}>{visit.party.mobile_number}</div>}
-                {visit.party?.reference_code && <div className="text-secondary" style={{fontSize: '0.9rem'}}>{visit.party.reference_code}</div>}
+                {visit.party?.mobile && <div className="text-secondary" style={{fontSize: '0.9rem', marginTop: '0.25rem'}}>{visit.party.mobile}</div>}
                 
                 <button 
                   className="btn btn-outline" 
