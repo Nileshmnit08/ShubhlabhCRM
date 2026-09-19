@@ -1,8 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './AuthContext';
 import { SyncService } from '../services/SyncService';
 import * as Location from 'expo-location';
+import { getDestinationStateKey, getDistanceStateKey } from '../services/BackgroundLocationService';
 
 const VisitContext = createContext({});
 
@@ -20,6 +22,7 @@ export const VisitProvider = ({ children }) => {
   const userId = session?.user?.id;
   const [activeVisit, setActiveVisit] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [warningShown, setWarningShown] = useState(false);
   const isFinishingRef = useRef(false);
 
   // Helper to reliably fetch location without hanging
@@ -51,6 +54,45 @@ export const VisitProvider = ({ children }) => {
   useEffect(() => {
     loadActiveVisit();
   }, [userId]);
+
+  // FA-TRAVEL-04: Monitor active visit duration
+  useEffect(() => {
+    let interval;
+    if (activeVisit && !isFinishingRef.current) {
+      interval = setInterval(() => {
+        const elapsedMins = (Date.now() - new Date(activeVisit.started_at).getTime()) / 60000;
+        
+        if (elapsedMins >= 60 && elapsedMins < 75 && !warningShown) {
+          setWarningShown(true);
+          Alert.alert(
+            "Visit is still active / विज़िट अभी भी सक्रिय है",
+            "You have been on this visit for more than 1 hour. / आप इस विज़िट पर 1 घंटे से अधिक समय से हैं।",
+            [
+              {
+                text: "CONTINUE VISIT / जारी रखें",
+                style: "cancel",
+                onPress: () => {
+                  // Keep it open, warningAcknowledged is implicitly handled by warningShown state
+                }
+              },
+              {
+                text: "END VISIT / समाप्त करें",
+                onPress: () => {
+                  finishVisit([{ product_type: 'Manual Close', status: 'Closed after warning' }]);
+                }
+              }
+            ]
+          );
+        } else if (elapsedMins >= 75) {
+          // Auto-close after 75 minutes
+          finishVisit([{ product_type: 'System', status: 'Auto-closed due to 75+ mins inactivity' }], 'AUTO_CLOSED');
+        }
+      }, 60000); // Check every minute
+    } else {
+      setWarningShown(false);
+    }
+    return () => clearInterval(interval);
+  }, [activeVisit, warningShown]);
 
   const loadActiveVisit = async () => {
     if (!userId) {
@@ -91,6 +133,36 @@ export const VisitProvider = ({ children }) => {
       requirements: [],
     };
 
+    // FA-TRAVEL-03: Create Segment to this Visit
+    const destKey = getDestinationStateKey(userId);
+    const destStr = await AsyncStorage.getItem(destKey);
+    if (destStr) {
+      const destState = JSON.parse(destStr);
+      
+      const distanceKey = getDistanceStateKey(destState.tracking_session_id);
+      const distanceStr = await AsyncStorage.getItem(distanceKey);
+      const currentDistance = distanceStr ? JSON.parse(distanceStr).accumulatedDistanceKm : 0;
+      const segmentDistance = currentDistance - destState.distanceAtDestination;
+      
+      await SyncService.enqueueOperation('staff_travel_segments', {
+        id: generateId(),
+        tracking_session_id: destState.tracking_session_id,
+        staff_id: userId,
+        from_type: destState.type,
+        from_reference_id: destState.referenceId,
+        from_latitude: destState.latitude,
+        from_longitude: destState.longitude,
+        from_timestamp: destState.timestamp,
+        to_type: 'VISIT',
+        to_reference_id: newVisit.id,
+        to_latitude: latitude,
+        to_longitude: longitude,
+        to_timestamp: newVisit.started_at,
+        distance_km: segmentDistance > 0 ? segmentDistance : 0,
+        status: 'COMPLETED'
+      }, userId, 'insert');
+    }
+
     setActiveVisit(newVisit);
     await AsyncStorage.setItem(`${ACTIVE_VISIT_KEY}_${userId}`, JSON.stringify(newVisit));
     return newVisit;
@@ -108,7 +180,7 @@ export const VisitProvider = ({ children }) => {
     await AsyncStorage.setItem(`${ACTIVE_VISIT_KEY}_${userId}`, JSON.stringify(updatedVisit));
   };
 
-  const finishVisit = async (outcomes) => {
+  const finishVisit = async (outcomes, statusOverride = 'COMPLETED') => {
     if (!userId) throw new Error('Authentication required to finish a visit.');
     if (!activeVisit) throw new Error('No active visit to finish.');
     if (isFinishingRef.current) return;
@@ -127,7 +199,7 @@ export const VisitProvider = ({ children }) => {
       id: activeVisit.id,
       party_id: activeVisit.party_id,
       staff_id: activeVisit.staff_id,
-      status: 'COMPLETED',
+      status: statusOverride,
       started_at: activeVisit.started_at,
       ended_at,
       duration_seconds,
@@ -175,6 +247,27 @@ export const VisitProvider = ({ children }) => {
       metadata: { duration_seconds, outcomes, requirements_count: activeVisit.requirements?.length || 0 }
     };
     await SyncService.enqueueOperation('activity_logs', activityPayload, userId);
+
+    // FA-TRAVEL-03: Establish new destination boundary for next segment
+    const destKey = getDestinationStateKey(userId);
+    const destStr = await AsyncStorage.getItem(destKey);
+    if (destStr) {
+      const destState = JSON.parse(destStr);
+      const distanceKey = getDistanceStateKey(destState.tracking_session_id);
+      const distanceStr = await AsyncStorage.getItem(distanceKey);
+      const currentDistance = distanceStr ? JSON.parse(distanceStr).accumulatedDistanceKm : 0;
+      
+      const newDestState = {
+        tracking_session_id: destState.tracking_session_id,
+        type: 'VISIT',
+        referenceId: activeVisit.id,
+        latitude: endLat,
+        longitude: endLng,
+        timestamp: ended_at,
+        distanceAtDestination: currentDistance
+      };
+      await AsyncStorage.setItem(destKey, JSON.stringify(newDestState));
+    }
 
     // Clear active visit locally
     setActiveVisit(null);

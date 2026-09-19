@@ -47,6 +47,7 @@ import DispatchDetail from './pages/Dispatches/Detail';
 
 import Logistics from './pages/Logistics';
 import CommunicationDashboard from './pages/CommunicationDashboard';
+import TravelExpenses from './pages/TravelExpenses';
 
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
@@ -275,6 +276,7 @@ function App() {
                 <Route path="raw-material-prices/*" element={<RawMaterialPrices />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="logistics" element={<Logistics />} />
+                <Route path="travel-expenses" element={<TravelExpenses />} />
               </Route>
               
               <Route path="*" element={<Navigate to="/" replace />} />

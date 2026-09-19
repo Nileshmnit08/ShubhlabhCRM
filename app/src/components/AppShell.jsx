@@ -40,6 +40,7 @@ const allNavItems = [
   { path: '/raw-material-prices/configuration', label: 'Configuration', icon: Settings },
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/logistics', label: 'Logistics', icon: Truck },
+  { path: '/travel-expenses', label: 'Travel Expenses', icon: MapPin },
 ];
 
 const menuGroups = [
@@ -66,7 +67,7 @@ const menuGroups = [
   {
     id: 'settings',
     title: 'SETTINGS',
-    items: ['/settings', '/logistics']
+    items: ['/settings', '/logistics', '/travel-expenses']
   },
   {
     id: 'raw-material-prices',
