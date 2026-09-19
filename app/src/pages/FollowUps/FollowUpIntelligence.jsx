@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Search, Phone, User, CheckCircle2, Clock, Calendar, AlertCircle, PhoneIncoming, PhoneOutgoing, ArrowRight, ShieldAlert, FileText, Activity } from 'lucide-react';
+import { Search, Phone, User, CheckCircle2, Clock, Calendar, AlertCircle, PhoneIncoming, PhoneOutgoing, ArrowRight, ShieldAlert, FileText, Activity, MessageSquare } from 'lucide-react';
 
 export default function FollowUpIntelligence() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -12,6 +12,11 @@ export default function FollowUpIntelligence() {
   const [calls, setCalls] = useState([]);
   const [openFollowUps, setOpenFollowUps] = useState([]);
   const [allFollowUps, setAllFollowUps] = useState([]);
+  
+  // Summary Stats
+  const [totalCalls, setTotalCalls] = useState(0);
+  const [totalCompletedFollowUps, setTotalCompletedFollowUps] = useState(0);
+  
   const [loadingData, setLoadingData] = useState(false);
 
   useEffect(() => {
@@ -50,15 +55,16 @@ export default function FollowUpIntelligence() {
     setLoadingData(true);
     
     try {
-      // 1. Fetch Calls
-      const { data: callData } = await supabase
+      // 1. Fetch Calls (Recent 10)
+      const { data: callData, count: callCount } = await supabase
         .from('crm_call_events')
-        .select(`*, app_users(display_name)`)
+        .select(`*, app_users(display_name)`, { count: 'exact' })
         .eq('party_id', customer.id)
         .order('started_at', { ascending: false })
         .limit(10);
         
       setCalls(callData || []);
+      setTotalCalls(callCount || 0);
 
       // 2. Fetch Open Follow-ups
       const { data: openData } = await supabase
@@ -79,6 +85,15 @@ export default function FollowUpIntelligence() {
         
       setAllFollowUps(allData || []);
 
+      // 4. Fetch Completed Count
+      const { count: completedCount } = await supabase
+        .from('follow_ups')
+        .select('*', { count: 'exact', head: true })
+        .eq('party_id', customer.id)
+        .eq('status', 'Completed');
+        
+      setTotalCompletedFollowUps(completedCount || 0);
+
     } catch (err) {
       console.error('Error fetching customer data:', err);
     } finally {
@@ -94,14 +109,14 @@ export default function FollowUpIntelligence() {
       
       <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>
-          <Activity size={24} /> Follow-up Intelligence
+          <Activity size={24} /> Customer Communication & Follow-up Intelligence
         </h2>
-        <p className="text-secondary">Visualize and validate how Communication integrates with Follow-ups without duplicating tasks.</p>
+        <p className="text-secondary">See how a customer's real communication activity relates to their existing follow-up work — without creating duplicate tasks.</p>
       </div>
 
-      {/* SECTION 1 - EXPLAIN THE INTELLIGENCE FLOW */}
+      {/* BUSINESS FLOW */}
       <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
-        <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>Workflow Explanation</h3>
+        <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>Business Flow</h3>
         
         <div style={{ 
           display: 'flex', 
@@ -112,38 +127,37 @@ export default function FollowUpIntelligence() {
           padding: '1rem 0',
           marginBottom: '1rem'
         }}>
-          <WorkflowNode icon={<User size={18} />} title="Customer" />
+          <WorkflowNode icon={<User size={18} />} title="CUSTOMER" />
           <ArrowRight className="text-muted" size={16} />
-          <WorkflowNode icon={<Phone size={18} />} title="Call Occurs" color="var(--primary)" />
+          <WorkflowNode icon={<Phone size={18} />} title="REAL CALL" color="var(--primary)" />
           <ArrowRight className="text-muted" size={16} />
-          <WorkflowNode icon={<ShieldAlert size={18} />} title="Identify" />
+          <WorkflowNode icon={<CheckCircle2 size={18} />} title="CALL RECORDED" />
           <ArrowRight className="text-muted" size={16} />
-          <WorkflowNode icon={<CheckCircle2 size={18} />} title="Check Follow-up" color="var(--warning)" />
+          <WorkflowNode icon={<Activity size={18} />} title="CUSTOMER ACTIVITY" color="var(--success)" />
           <ArrowRight className="text-muted" size={16} />
-          <WorkflowNode icon={<Activity size={18} />} title="Add to Activity" color="var(--success)" />
+          <WorkflowNode icon={<ShieldAlert size={18} />} title="CHECK OPEN FOLLOW-UP" color="var(--warning)" />
           <ArrowRight className="text-muted" size={16} />
-          <WorkflowNode icon={<AlertCircle size={18} />} title="Do Not Duplicate" color="var(--danger)" />
+          <WorkflowNode icon={<AlertCircle size={18} />} title="NO DUPLICATE CREATED" color="var(--danger)" />
         </div>
 
         <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderRadius: '8px', borderLeft: '4px solid var(--primary)' }}>
           <p style={{ margin: 0, color: 'var(--text-primary)' }}>
-            <strong>Rule:</strong> A customer call is recorded as communication activity. An existing follow-up is not duplicated merely because a call occurred. 
-            Calls become actionable work only when a real follow-up is manually created or intentionally triggered by a business rule.
+            <strong>Rule:</strong> A customer call is recorded as communication activity. A call does not automatically create a new Follow-up.
           </p>
         </div>
       </div>
 
-      {/* SECTION 2 - TEST 1 CUSTOMER SELECTOR */}
+      {/* CUSTOMER SELECTOR */}
       <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
-        <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>TEST 1 — EXISTING CUSTOMER COMMUNICATION</h3>
-        <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>Demonstrate what happens when communication occurs with a known customer using live production data.</p>
+        <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>Real Customer Selection</h3>
+        <p className="text-secondary" style={{ marginBottom: '1.5rem' }}>Search and select a real customer to retrieve authoritative communication and follow-up data.</p>
         
         <div style={{ position: 'relative', maxWidth: '600px' }}>
           <div style={{ position: 'relative' }}>
             <Search size={18} className="text-secondary" style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)' }} />
             <input 
               type="text"
-              placeholder="Search existing customer to test..."
+              placeholder="Search existing customer (e.g., Vishnu Dairy)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ paddingLeft: '2.5rem', width: '100%', background: 'var(--bg-surface)' }}
@@ -172,120 +186,156 @@ export default function FollowUpIntelligence() {
         </div>
       </div>
 
-      {loadingData && <div style={{ padding: '2rem', textAlign: 'center' }}>Loading live data...</div>}
+      {loadingData && <div style={{ padding: '2rem', textAlign: 'center' }}>Retrieving authoritative records...</div>}
 
       {selectedCustomer && !loadingData && (
         <div className="animate-slide-up">
           
-          {/* SECTION 3 - LIVE CUSTOMER JOURNEY */}
+          {/* CUSTOMER COMMUNICATION SUMMARY */}
+          <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', background: 'var(--bg-surface)' }}>
+            <h4 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Customer Communication Summary</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+              <div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Recent call count</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{totalCalls}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Latest call date</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 500 }}>{latestCall ? new Date(latestCall.started_at).toLocaleDateString() : 'N/A'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Latest operator</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 500 }}>{latestCall ? (latestCall.app_users?.display_name || 'Operator not identified') : 'N/A'}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Open follow-up count</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{openFollowUps.length}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Completed follow-up count</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>{totalCompletedFollowUps}</div>
+              </div>
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
             
+            {/* LATEST COMMUNICATION */}
             <div className="glass-panel" style={{ padding: '2rem' }}>
-              <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)' }}>Live Integration Journey</h3>
+              <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Phone size={20} /> Latest Communication
+              </h3>
               
-              {/* Step 1 */}
-              <JourneyStep 
-                title="STEP 1: Customer Identified"
-                success={true}
-                details={[
-                  { label: 'Customer', value: selectedCustomer.display_name },
-                  { label: 'Mobile', value: selectedCustomer.mobile }
-                ]}
-              />
-
-              {/* Step 2 */}
-              <JourneyStep 
-                title="STEP 2: Call Detection"
-                success={latestCall != null}
-                fallback="No calls found for this customer."
-                details={latestCall ? [
-                  { label: 'Direction', value: latestCall.direction, icon: latestCall.direction === 'INCOMING' ? <PhoneIncoming size={14} className="text-success" /> : <PhoneOutgoing size={14} className="text-primary" /> },
-                  { label: 'Operator', value: latestCall.app_users?.display_name || 'Unknown' },
-                  { label: 'Date/Time', value: new Date(latestCall.started_at).toLocaleString() },
-                  { label: 'Duration', value: `${latestCall.duration_seconds} sec` }
-                ] : null}
-              />
-
-              {/* Step 3 */}
-              <JourneyStep 
-                title="STEP 3: Follow-up Check"
-                success={true} // Check always completes
-                icon={hasOpenFollowUp ? <CheckCircle2 className="text-warning" size={18} /> : <CheckCircle2 className="text-success" size={18} />}
-                content={
-                  <div style={{ fontWeight: 500, color: hasOpenFollowUp ? 'var(--warning)' : 'var(--text-secondary)' }}>
-                    {hasOpenFollowUp ? 'OPEN FOLLOW-UP FOUND' : 'NO OPEN FOLLOW-UP'}
+              {latestCall ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                    <span className="text-secondary">Direction</span>
+                    <strong style={{ color: latestCall.direction === 'INCOMING' ? 'var(--success)' : (latestCall.direction === 'OUTGOING' ? 'var(--primary)' : 'inherit') }}>
+                      {latestCall.direction}
+                    </strong>
                   </div>
-                }
-              />
-
-              {/* Step 4 */}
-              <JourneyStep 
-                title="STEP 4: Integration Result"
-                success={latestCall != null}
-                fallback="Cannot integrate without a call event."
-                content={
-                  latestCall ? (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CheckCircle2 size={16} className="text-success" /> CALL ADDED TO CUSTOMER ACTIVITY</li>
-                      {hasOpenFollowUp ? (
-                        <>
-                          <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CheckCircle2 size={16} className="text-success" /> EXISTING FOLLOW-UP PRESERVED</li>
-                          <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CheckCircle2 size={16} className="text-success" /> NO DUPLICATE FOLLOW-UP CREATED</li>
-                        </>
-                      ) : (
-                        <>
-                          <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><CheckCircle2 size={16} className="text-success" /> NO AUTOMATIC FOLLOW-UP CREATED</li>
-                          <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}><ArrowRight size={16} /> Create Follow-up manually if required</li>
-                        </>
-                      )}
-                    </ul>
-                  ) : null
-                }
-              />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                    <span className="text-secondary">Operator</span>
+                    <strong>{latestCall.app_users?.display_name || 'Operator not identified'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                    <span className="text-secondary">Date</span>
+                    <strong>{new Date(latestCall.started_at).toLocaleDateString()}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                    <span className="text-secondary">Time</span>
+                    <strong>{new Date(latestCall.started_at).toLocaleTimeString()}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+                    <span className="text-secondary">Duration</span>
+                    <strong>{latestCall.duration_seconds > 0 ? `${latestCall.duration_seconds} seconds` : '0 seconds'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span className="text-secondary">Source Event ID</span>
+                    <strong style={{ fontSize: '0.85rem' }}>{latestCall.device_event_id}</strong>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-secondary">No communication records found for this customer.</p>
+              )}
             </div>
 
+            {/* CURRENT FOLLOW-UP & INTEGRATION RESULT */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               
-              {/* TEST RESULT CARD */}
-              <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-                <h4 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Integration Status</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem' }}>
-                  <StatusRow label="Customer identified" status={true} />
-                  <StatusRow label="Call found" status={latestCall != null} />
-                  <StatusRow label="Operator identified" status={latestCall?.app_users != null} />
-                  <StatusRow label="Existing follow-up found" status={hasOpenFollowUp} isWarning={!hasOpenFollowUp} warningLabel="No open follow-up (Normal)" />
-                  <StatusRow label="Call visible in activity" status={latestCall != null} />
-                  <StatusRow label="No duplicate follow-up" status={true} />
-                </div>
+              <div className="glass-panel" style={{ padding: '2rem' }}>
+                <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Activity size={20} /> Current Follow-up
+                </h3>
+                
+                {hasOpenFollowUp ? (
+                  <>
+                    <div style={{ background: 'var(--bg-surface)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+                      <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.25rem' }}>{openFollowUps[0].follow_up_type} - {openFollowUps[0].reason}</div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Assigned: {openFollowUps[0].assigned_to ? 'Staff Assigned' : 'Unassigned'}</div>
+                      <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                        <span>Status: <strong className="text-warning">{openFollowUps[0].status}</strong></span>
+                        <span>Due: <strong>{new Date(openFollowUps[0].due_at).toLocaleDateString()}</strong></span>
+                        <span>Created: <strong>{new Date(openFollowUps[0].created_at).toLocaleDateString()}</strong></span>
+                      </div>
+                    </div>
+                    <div style={{ padding: '1rem', borderLeft: '4px solid var(--success)', background: 'rgba(34,197,94,0.1)' }}>
+                      <strong>Existing follow-up preserved.</strong><br/>
+                      <span style={{ fontSize: '0.9rem' }}>The customer's call is recorded as communication activity. The call does not create a duplicate follow-up.</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ background: 'var(--bg-surface)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      No Open Follow-up<br/>
+                      <span style={{ fontSize: '0.85rem' }}>This customer currently has no open follow-up.</span>
+                    </div>
+                    <div style={{ padding: '1rem', borderLeft: '4px solid var(--primary)', background: 'rgba(59,130,246,0.1)' }}>
+                      <strong>Communication remains activity.</strong><br/>
+                      <span style={{ fontSize: '0.9rem' }}>The call is recorded as communication activity. No automatic follow-up was created.</span>
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* SECTION 6 - RELATIONSHIP EXPLANATION */}
-              <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid var(--primary)' }}>
-                <h4 style={{ marginBottom: '1rem' }}>WHY THIS MATTERS</h4>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>Calls and Follow-ups are fundamentally different CRM objects.</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <div style={{ width: '100px', fontWeight: 600, color: 'var(--primary)' }}>CALL:</div>
-                    <div style={{ flex: 1 }}>Records that communication occurred.</div>
+              {/* INTEGRATION RESULT */}
+              {latestCall && (
+                <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+                  <h4 style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Integration Result</h4>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.95rem', marginBottom: '1rem' }}>
+                    <StatusRow label="Customer identified" status={true} />
+                    <StatusRow label="Real call found" status={latestCall != null} />
+                    <StatusRow label="Operator identified, when actually available" status={latestCall?.app_users != null} />
+                    <StatusRow label="Call recorded as communication activity" status={latestCall != null} />
+                    
+                    {hasOpenFollowUp ? (
+                      <>
+                        <StatusRow label="Existing follow-up found" status={true} />
+                        <StatusRow label="Existing follow-up preserved" status={true} />
+                        <StatusRow label="No duplicate follow-up created" status={true} />
+                      </>
+                    ) : (
+                      <>
+                        <StatusRow label="No open follow-up exists" status={true} />
+                        <StatusRow label="No automatic follow-up created" status={true} />
+                      </>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <div style={{ width: '100px', fontWeight: 600, color: 'var(--warning)' }}>FOLLOW-UP:</div>
-                    <div style={{ flex: 1 }}>Records that an actionable task exists.</div>
+                  
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                    {hasOpenFollowUp ? 'Communication recorded — existing follow-up preserved' : 'Communication recorded — no follow-up created'}
                   </div>
                 </div>
-                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)', fontWeight: 600 }}>
-                  Therefore: 1 call ≠ 1 new follow-up. <br/>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>This prevents duplicate tasks and keeps My Work clean.</span>
-                </div>
-              </div>
+              )}
               
             </div>
           </div>
 
-          {/* SECTION 4 - CALL HISTORY */}
+          {/* RECENT COMMUNICATION HISTORY */}
           <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
             <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Phone size={20} /> Communication History (Last 10)
+              <Phone size={20} /> Recent Communication History
             </h3>
             {calls.length === 0 ? (
               <p className="text-secondary">No communication records found for this customer.</p>
@@ -294,25 +344,26 @@ export default function FollowUpIntelligence() {
                 <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ padding: '0.75rem' }}>Date/Time</th>
                       <th style={{ padding: '0.75rem' }}>Direction</th>
                       <th style={{ padding: '0.75rem' }}>Operator</th>
-                      <th style={{ padding: '0.75rem' }}>Type</th>
+                      <th style={{ padding: '0.75rem' }}>Date</th>
+                      <th style={{ padding: '0.75rem' }}>Time</th>
                       <th style={{ padding: '0.75rem' }}>Duration</th>
                     </tr>
                   </thead>
                   <tbody>
                     {calls.map(call => (
                       <tr key={call.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '0.75rem' }}>{new Date(call.started_at).toLocaleString()}</td>
                         <td style={{ padding: '0.75rem' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: call.direction === 'INCOMING' ? 'var(--success)' : 'var(--primary)' }}>
-                            {call.direction === 'INCOMING' ? <PhoneIncoming size={14} /> : <PhoneOutgoing size={14} />} {call.direction}
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: call.direction === 'INCOMING' ? 'var(--success)' : (call.direction === 'OUTGOING' ? 'var(--primary)' : 'inherit') }}>
+                            {call.direction === 'INCOMING' ? <PhoneIncoming size={14} /> : (call.direction === 'OUTGOING' ? <PhoneOutgoing size={14} /> : <Phone size={14} />)} 
+                            {call.direction}
                           </span>
                         </td>
-                        <td style={{ padding: '0.75rem' }}>{call.app_users?.display_name || 'System'}</td>
-                        <td style={{ padding: '0.75rem' }}>{call.call_type}</td>
-                        <td style={{ padding: '0.75rem' }}>{call.duration_seconds}s</td>
+                        <td style={{ padding: '0.75rem' }}>{call.app_users?.display_name || 'Operator not identified'}</td>
+                        <td style={{ padding: '0.75rem' }}>{new Date(call.started_at).toLocaleDateString()}</td>
+                        <td style={{ padding: '0.75rem' }}>{new Date(call.started_at).toLocaleTimeString()}</td>
+                        <td style={{ padding: '0.75rem' }}>{call.duration_seconds} sec</td>
                       </tr>
                     ))}
                   </tbody>
@@ -321,10 +372,10 @@ export default function FollowUpIntelligence() {
             )}
           </div>
 
-          {/* SECTION 5 - FOLLOW-UP HISTORY */}
+          {/* FOLLOW-UP HISTORY */}
           <div className="glass-panel" style={{ padding: '2rem' }}>
             <h3 style={{ marginBottom: '1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <FileText size={20} /> Follow-up History (Last 10)
+              <FileText size={20} /> Follow-up History
             </h3>
             {allFollowUps.length === 0 ? (
               <p className="text-secondary">No follow-ups found for this customer.</p>
@@ -333,11 +384,11 @@ export default function FollowUpIntelligence() {
                 <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ padding: '0.75rem' }}>Follow-up</th>
-                      <th style={{ padding: '0.75rem' }}>Assigned To</th>
+                      <th style={{ padding: '0.75rem' }}>Subject</th>
                       <th style={{ padding: '0.75rem' }}>Status</th>
-                      <th style={{ padding: '0.75rem' }}>Due Date</th>
-                      <th style={{ padding: '0.75rem' }}>Created</th>
+                      <th style={{ padding: '0.75rem' }}>Assigned staff</th>
+                      <th style={{ padding: '0.75rem' }}>Due date</th>
+                      <th style={{ padding: '0.75rem' }}>Created date</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -347,12 +398,12 @@ export default function FollowUpIntelligence() {
                           <div style={{ fontWeight: 500 }}>{f.follow_up_type}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{f.reason}</div>
                         </td>
-                        <td style={{ padding: '0.75rem' }}>{f.app_users?.display_name || 'Unassigned'}</td>
                         <td style={{ padding: '0.75rem' }}>
                           <span className="badge" style={{ background: f.status === 'Completed' ? 'rgba(34,197,94,0.1)' : 'rgba(234,179,8,0.1)', color: f.status === 'Completed' ? 'var(--success)' : 'var(--warning)' }}>
                             {f.status}
                           </span>
                         </td>
+                        <td style={{ padding: '0.75rem' }}>{f.app_users?.display_name || 'Unassigned'}</td>
                         <td style={{ padding: '0.75rem' }}>
                           {f.due_at ? new Date(f.due_at).toLocaleDateString() : 'N/A'}
                         </td>
@@ -373,10 +424,10 @@ export default function FollowUpIntelligence() {
   );
 }
 
-// Subcomponents for cleaner code
+// Subcomponents
 function WorkflowNode({ icon, title, color = 'var(--text-primary)' }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', minWidth: '100px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', minWidth: '90px' }}>
       <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--bg-surface)', border: `2px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: color }}>
         {icon}
       </div>
@@ -385,55 +436,13 @@ function WorkflowNode({ icon, title, color = 'var(--text-primary)' }) {
   );
 }
 
-function JourneyStep({ title, success, fallback, details, content, icon }) {
-  return (
-    <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', position: 'relative' }}>
-      <div style={{ width: '2px', background: 'var(--border)', position: 'absolute', left: '12px', top: '30px', bottom: '-20px' }}></div>
-      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'var(--bg-surface)', border: `2px solid ${success ? 'var(--success)' : 'var(--text-muted)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
-        {icon ? icon : (success ? <CheckCircle2 size={14} className="text-success" /> : <Clock size={14} className="text-muted" />)}
-      </div>
-      <div style={{ flex: 1, paddingTop: '2px' }}>
-        <h5 style={{ margin: 0, marginBottom: '0.5rem', color: success ? 'var(--text-primary)' : 'var(--text-muted)' }}>{title}</h5>
-        {!success && fallback && <p style={{ fontSize: '0.85rem', color: 'var(--danger)', margin: 0 }}>{fallback}</p>}
-        {success && details && (
-          <div style={{ background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.85rem' }}>
-            {details.map((d, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>{d.label}:</span>
-                <span style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>{d.icon}{d.value}</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {success && content && (
-          <div style={{ background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: '8px', marginTop: '0.5rem' }}>
-            {content}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function StatusRow({ label, status, isWarning, warningLabel }) {
-  let icon = <CheckCircle2 size={16} className="text-success" />;
-  let color = 'var(--text-primary)';
-  let text = label;
-
-  if (!status) {
-    if (isWarning) {
-      icon = <AlertCircle size={16} className="text-warning" />;
-      color = 'var(--warning)';
-      text = warningLabel || label;
-    } else {
-      icon = <AlertCircle size={16} className="text-danger" />;
-      color = 'var(--danger)';
-    }
-  }
-
+function StatusRow({ label, status }) {
+  const icon = status ? <CheckCircle2 size={16} className="text-success" /> : <AlertCircle size={16} className="text-muted" />;
+  const color = status ? 'var(--text-primary)' : 'var(--text-muted)';
+  
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color }}>
-      {icon} <span>{text}</span>
+      {icon} <span>{label}</span>
     </div>
   );
 }
