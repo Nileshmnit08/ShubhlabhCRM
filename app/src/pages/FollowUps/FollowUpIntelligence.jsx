@@ -38,12 +38,8 @@ export default function FollowUpIntelligence() {
     setLoading(true);
     try {
       let query = supabase
-        .from('crm_call_events')
-        .select(`
-          *,
-          app_users!crm_call_events_staff_id_fkey(display_name),
-          crm_parties(display_name, mobile, city)
-        `)
+        .from('v_crm_call_events_enriched')
+        .select(`*`)
         .order('started_at', { ascending: false })
         .limit(300);
 
@@ -122,8 +118,8 @@ export default function FollowUpIntelligence() {
     if (customerSearchQuery.trim() !== '') {
       const q = customerSearchQuery.toLowerCase();
       result = result.filter(c => 
-        (c.crm_parties?.display_name || '').toLowerCase().includes(q) ||
-        (c.crm_parties?.mobile || '').includes(q)
+        (c.party_name || '').toLowerCase().includes(q) ||
+        (c.display_phone || c.normalized_phone || '').includes(q)
       );
     }
 
@@ -315,13 +311,13 @@ export default function FollowUpIntelligence() {
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{new Date(call.started_at).toLocaleDateString()}</div>
                           </td>
                           <td style={{ padding: '1rem' }}>
-                            {call.crm_parties ? (
-                              <div style={{ fontWeight: 600 }}>{call.crm_parties.display_name}</div>
+                            {call.party_id ? (
+                              <div style={{ fontWeight: 600 }}>{call.party_name}</div>
                             ) : (
                               <div style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Unknown Customer</div>
                             )}
                           </td>
-                          <td style={{ padding: '1rem' }}>{call.app_users?.display_name || 'Operator not identified'}</td>
+                          <td style={{ padding: '1rem' }}>{call.staff_name || 'Operator not identified'}</td>
                           <td style={{ padding: '1rem' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: call.direction === 'INCOMING' ? 'var(--success)' : (call.direction === 'OUTGOING' ? 'var(--primary)' : 'inherit') }}>
                               {call.direction === 'INCOMING' ? <PhoneIncoming size={14} /> : (call.direction === 'OUTGOING' ? <PhoneOutgoing size={14} /> : <Phone size={14} />)} 
@@ -369,10 +365,10 @@ export default function FollowUpIntelligence() {
               {/* Customer */}
               <div style={{ marginBottom: '2rem' }}>
                 <h4 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Customer</h4>
-                {selectedCall.crm_parties ? (
+                {selectedCall.party_id ? (
                   <div style={{ background: 'var(--bg-surface)', padding: '1rem', borderRadius: '8px' }}>
-                    <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.25rem' }}>{selectedCall.crm_parties.display_name}</div>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Phone size={14}/> {selectedCall.crm_parties.mobile || 'No Mobile'}</div>
+                    <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.25rem' }}>{selectedCall.party_name}</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Phone size={14}/> {selectedCall.display_phone || selectedCall.normalized_phone}</div>
                   </div>
                 ) : (
                   <div style={{ background: 'var(--bg-surface)', padding: '1rem', borderRadius: '8px', color: 'var(--text-secondary)' }}>
@@ -391,7 +387,7 @@ export default function FollowUpIntelligence() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span className="text-secondary">Staff</span>
-                    <strong>{selectedCall.app_users?.display_name || 'Operator not identified'}</strong>
+                    <strong>{selectedCall.staff_name || 'Operator not identified'}</strong>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span className="text-secondary">Date/Time</span>
