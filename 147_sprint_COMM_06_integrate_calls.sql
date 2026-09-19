@@ -1,19 +1,22 @@
 -- MICRO-SPRINT CRM-COMM-06
 -- Integrate Communication system with Customer Activity and Field Staff Activity Timeline
+-- FIXED: Removed dependency on v_crm_call_events_enriched to prevent 'relation does not exist' errors
+-- FIXED: Added explicit schema casting for the first UNION block to prevent Postgres strict type errors
+-- FIXED: Added explicit GRANT SELECT to ensure Supabase PostgREST API can access the recreated views
 
--- 1. Update v_customer_timeline to include crm_call_events (using v_crm_call_events_enriched to respect admin masking)
+-- 1. Update v_customer_timeline to include crm_call_events
 DROP VIEW IF EXISTS public.v_customer_timeline CASCADE;
 CREATE OR REPLACE VIEW public.v_customer_timeline WITH (security_invoker = true) AS
 
 -- Interactions
 SELECT 
-    party_id,
-    'Interaction' AS event_type,
-    created_at AS event_date,
-    channel AS title,
-    outcome || COALESCE(': ' || note, '') AS description,
+    party_id::uuid AS party_id,
+    'Interaction'::text AS event_type,
+    created_at::timestamptz AS event_date,
+    channel::text AS title,
+    (outcome || COALESCE(': ' || note, ''))::text AS description,
     id::text AS source_id,
-    false AS is_tally
+    false::boolean AS is_tally
 FROM public.interactions
 
 UNION ALL
@@ -58,22 +61,27 @@ FROM public.crm_issues
 
 UNION ALL
 
--- Calls
+-- Calls (Direct join to avoid view dependencies)
 SELECT 
-    party_id,
+    c.party_id,
     'Call' AS event_type,
-    started_at AS event_date,
+    c.started_at AS event_date,
     CASE 
-        WHEN direction = 'INCOMING' THEN 'Incoming call from Customer to Operator ' || staff_name
-        WHEN direction = 'OUTGOING' THEN 'Customer called by Operator ' || staff_name
-        WHEN direction = 'MISSED' THEN 'Missed call to/from Operator ' || staff_name
-        ELSE 'Call with ' || staff_name
+        WHEN c.direction = 'INCOMING' THEN 'Incoming call from Customer to Operator ' || COALESCE(u.display_name, 'Unknown')
+        WHEN c.direction = 'OUTGOING' THEN 'Customer called by Operator ' || COALESCE(u.display_name, 'Unknown')
+        WHEN c.direction = 'MISSED' THEN 'Missed call to/from Operator ' || COALESCE(u.display_name, 'Unknown')
+        ELSE 'Call with ' || COALESCE(u.display_name, 'Unknown')
     END AS title,
-    'Duration: ' || CASE WHEN duration_seconds > 0 THEN duration_seconds::text || 's' ELSE 'Unknown/Missed' END || ' | Number: ' || COALESCE(display_phone, 'Unknown') AS description,
-    id::text AS source_id,
+    'Duration: ' || CASE WHEN c.duration_seconds > 0 THEN c.duration_seconds::text || 's' ELSE 'Unknown/Missed' END || ' | Number: ' || 
+    CASE 
+        WHEN public.is_admin() THEN c.normalized_phone
+        ELSE CONCAT(SUBSTRING(c.normalized_phone, 1, 4), '*****', SUBSTRING(c.normalized_phone, length(c.normalized_phone) - 2, 3))
+    END AS description,
+    c.id::text AS source_id,
     false AS is_tally
-FROM public.v_crm_call_events_enriched
-WHERE party_id IS NOT NULL
+FROM public.crm_call_events c
+LEFT JOIN public.app_users u ON c.staff_id = u.id
+WHERE c.party_id IS NOT NULL
 
 UNION ALL
 
@@ -81,12 +89,17 @@ UNION ALL
 SELECT 
     crm_party_id AS party_id,
     'Tally Transaction' AS event_type,
-    voucher_date AS event_date,
+    voucher_date::timestamptz AS event_date,
     voucher_type || COALESCE(' #' || voucher_no, '') AS title,
     CASE WHEN is_credit THEN 'Cr. ₹' ELSE 'Dr. ₹' END || amount::text AS description,
     id::text AS source_id,
     true AS is_tally
 FROM public.tally_transactions;
+
+-- Ensure API has access
+GRANT SELECT ON public.v_customer_timeline TO authenticated;
+GRANT SELECT ON public.v_customer_timeline TO anon;
+
 
 -- 2. Update v_field_staff_activity_timeline to include crm_call_events
 DROP VIEW IF EXISTS public.v_field_staff_activity_timeline CASCADE;
@@ -94,15 +107,15 @@ CREATE OR REPLACE VIEW public.v_field_staff_activity_timeline WITH (security_inv
 
 -- VISITS
 SELECT 
-    v.staff_id,
-    v.party_id,
-    c.display_name AS party_name,
-    'Visit' AS activity_type,
-    v.started_at AS activity_time,
-    'Visit (' || COALESCE(v.status, 'COMPLETED') || ')' AS title,
-    COALESCE(v.notes, '') AS description,
+    v.staff_id::uuid AS staff_id,
+    v.party_id::uuid AS party_id,
+    c.display_name::text AS party_name,
+    'Visit'::text AS activity_type,
+    v.started_at::timestamptz AS activity_time,
+    ('Visit (' || COALESCE(v.status, 'COMPLETED') || ')')::text AS title,
+    COALESCE(v.notes, '')::text AS description,
     v.id::text AS source_id,
-    'crm_visits' AS source_table
+    'crm_visits'::text AS source_table
 FROM public.crm_visits v
 LEFT JOIN public.crm_parties c ON v.party_id = c.id
 WHERE v.staff_id IS NOT NULL
@@ -160,21 +173,31 @@ WHERE i.user_id IS NOT NULL
 
 UNION ALL
 
--- CALLS
+-- CALLS (Direct join to avoid view dependencies)
 SELECT 
-    staff_id,
-    party_id,
-    party_name,
+    c.staff_id,
+    c.party_id,
+    p.display_name AS party_name,
     'Call' AS activity_type,
-    started_at AS activity_time,
+    c.started_at AS activity_time,
     CASE 
-        WHEN direction = 'INCOMING' THEN 'Incoming call from Customer to Operator ' || staff_name
-        WHEN direction = 'OUTGOING' THEN 'Customer called by Operator ' || staff_name
-        WHEN direction = 'MISSED' THEN 'Missed call to/from Operator ' || staff_name
-        ELSE 'Call with ' || staff_name
+        WHEN c.direction = 'INCOMING' THEN 'Incoming call from Customer to Operator ' || COALESCE(u.display_name, 'Unknown')
+        WHEN c.direction = 'OUTGOING' THEN 'Customer called by Operator ' || COALESCE(u.display_name, 'Unknown')
+        WHEN c.direction = 'MISSED' THEN 'Missed call to/from Operator ' || COALESCE(u.display_name, 'Unknown')
+        ELSE 'Call with ' || COALESCE(u.display_name, 'Unknown')
     END AS title,
-    'Duration: ' || CASE WHEN duration_seconds > 0 THEN duration_seconds::text || 's' ELSE 'Unknown/Missed' END || ' | Number: ' || COALESCE(display_phone, 'Unknown') AS description,
-    id::text AS source_id,
+    'Duration: ' || CASE WHEN c.duration_seconds > 0 THEN c.duration_seconds::text || 's' ELSE 'Unknown/Missed' END || ' | Number: ' || 
+    CASE 
+        WHEN public.is_admin() THEN c.normalized_phone
+        ELSE CONCAT(SUBSTRING(c.normalized_phone, 1, 4), '*****', SUBSTRING(c.normalized_phone, length(c.normalized_phone) - 2, 3))
+    END AS description,
+    c.id::text AS source_id,
     'crm_call_events' AS source_table
-FROM public.v_crm_call_events_enriched
-WHERE staff_id IS NOT NULL AND party_id IS NOT NULL;
+FROM public.crm_call_events c
+LEFT JOIN public.app_users u ON c.staff_id = u.id
+LEFT JOIN public.crm_parties p ON c.party_id = p.id
+WHERE c.staff_id IS NOT NULL AND c.party_id IS NOT NULL;
+
+-- Ensure API has access
+GRANT SELECT ON public.v_field_staff_activity_timeline TO authenticated;
+GRANT SELECT ON public.v_field_staff_activity_timeline TO anon;
