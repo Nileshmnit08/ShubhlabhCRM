@@ -8,10 +8,12 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Linking
+  Linking,
+  Keyboard
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { chatService } from '../services/ChatService';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '../theme/tokens';
 import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
@@ -32,10 +34,12 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   const { conversationId, otherUser } = route.params;
   const { session } = useAuth();
   const { setActiveChatId } = useNotifications();
+  const insets = useSafeAreaInsets();
   
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   
   const flatListRef = useRef();
   
@@ -65,7 +69,10 @@ export const ChatConversationScreen = ({ route, navigation }) => {
         },
         (payload) => {
           setMessages(current => {
-            if (current.some(m => m.id === payload.new.id)) return current;
+            if (current.some(m => m.id === payload.new.id)) {
+               // If the message was pending, it is now successfully synced
+               return current.map(m => m.id === payload.new.id ? { ...payload.new, pending: false } : m);
+            }
             // Mark read if it's from the other person
             if (payload.new.sender_id !== currentUserId) {
               chatService.markMessagesAsRead(conversationId, currentUserId);
@@ -98,7 +105,7 @@ export const ChatConversationScreen = ({ route, navigation }) => {
 
   const fetchMessages = async () => {
     setLoading(true);
-    const { data, error } = await chatService.getMessages(conversationId);
+    const { data, error } = await chatService.getMessages(conversationId, currentUserId);
     if (!error && data) {
       setMessages(data);
     }
@@ -111,8 +118,9 @@ export const ChatConversationScreen = ({ route, navigation }) => {
     const textToSend = newMessage.trim();
     setNewMessage('');
     
+    const tempId = chatService.generateUUID ? chatService.generateUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); });
     const tempMessage = {
-      id: `temp-${Date.now()}`,
+      id: tempId,
       conversation_id: conversationId,
       sender_id: currentUserId,
       message_text: textToSend,
@@ -123,7 +131,7 @@ export const ChatConversationScreen = ({ route, navigation }) => {
     
     setMessages(current => [tempMessage, ...current]);
     
-    await chatService.sendMessage(conversationId, currentUserId, textToSend, otherUser?.id, senderName);
+    await chatService.sendMessage(conversationId, currentUserId, textToSend, otherUser?.id, senderName, tempId);
   };
 
   const handleCall = () => {
@@ -187,9 +195,9 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   return (
     <KeyboardAvoidingView 
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 8) }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
             <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
@@ -253,7 +261,7 @@ export const ChatConversationScreen = ({ route, navigation }) => {
         }
       />
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
@@ -287,11 +295,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 8,
-    height: 64,
+    minHeight: 64,
     backgroundColor: 'rgba(248, 249, 255, 0.9)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.04)',
-    paddingTop: 8,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -533,7 +540,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
     backgroundColor: 'rgba(248, 249, 255, 0.95)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.06)',

@@ -95,7 +95,7 @@ export const MessagesInboxScreen = ({ navigation }) => {
 
   const renderConversation = ({ item }) => (
     <TouchableOpacity
-      style={styles.chatCard}
+      style={[styles.chatCard, item.pending && { opacity: 0.8 }]}
       onPress={() => handleConversationPress(item)}
       activeOpacity={0.7}
     >
@@ -146,10 +146,12 @@ export const MessagesInboxScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.previewRow}>
-            <Text style={styles.previewText} numberOfLines={1}>
-              Last message preview would go here...
+            <Text style={[styles.previewText, (item.pending || item.latest_pending) && { fontStyle: 'italic' }]} numberOfLines={1}>
+              {item.latest_message || 'Started a new conversation'}
             </Text>
-            {item.unreadCount > 0 ? (
+            {item.pending || item.latest_pending ? (
+              <MaterialIcons name="schedule" size={16} color={colors.outline} />
+            ) : item.unreadCount > 0 ? (
               <View style={styles.unreadBadge}>
                 <Text style={styles.unreadBadgeText}>{item.unreadCount}</Text>
               </View>

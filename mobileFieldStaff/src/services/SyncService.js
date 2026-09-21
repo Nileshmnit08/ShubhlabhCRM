@@ -113,7 +113,42 @@ export class SyncService {
         // Find next item to process
         const queue = await this.getQueue(userId);
         if (queue && queue.length > 0) {
-           pendingOp = queue.find(op => 
+           // 1. Normalize legacy UUIDs immediately
+           const normalizedQueue = queue.map(op => {
+             if (op.table === 'chat_messages' && op.payload && op.payload.id && op.payload.id.startsWith('msg-')) {
+               const newId = generateId();
+               console.log(`[DIAGNOSTIC] Normalizing legacy ID ${op.payload.id} -> ${newId}`);
+               return {
+                 ...op,
+                 local_id: newId,
+                 payload: { ...op.payload, id: newId }
+               };
+             }
+             return op;
+           });
+
+           // Save normalization back to queue if it changed
+           const hasChanges = normalizedQueue.some((op, i) => op.local_id !== queue[i].local_id);
+           if (hasChanges) {
+             await this.saveQueue(userId, normalizedQueue);
+           }
+
+           const activeQueue = hasChanges ? normalizedQueue : queue;
+
+           // 2. Sort the queue to enforce Chat Dependencies
+           const priorityMap = {
+             'chat_conversations': 1,
+             'chat_participants': 2,
+             'chat_messages': 3
+           };
+           
+           const sortedQueue = [...activeQueue].sort((a, b) => {
+             const pA = priorityMap[a.table] || 99;
+             const pB = priorityMap[b.table] || 99;
+             return pA - pB;
+           });
+
+           pendingOp = sortedQueue.find(op => 
              (op.status === 'PENDING' || (isManualRetry && op.status === 'FAILED')) && 
              !attemptedIds.has(op.local_id)
            );

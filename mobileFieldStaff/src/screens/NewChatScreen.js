@@ -6,7 +6,8 @@ import {
   TouchableOpacity, 
   StyleSheet,
   TextInput,
-  Modal
+  Modal,
+  ActivityIndicator
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography } from '../theme/tokens';
@@ -39,23 +40,46 @@ export const NewChatScreen = ({ navigation }) => {
   };
 
   const startChat = async () => {
-    if (!selectedStaff || !session?.user?.id) return;
-    setCreatingChat(true);
-    const { data, error } = await chatService.getOrCreateConversation(
-      session.user.id,
-      selectedStaff.id
-    );
-    setCreatingChat(false);
-    setModalVisible(false);
+    if (!selectedStaff || !session?.user?.id) {
+      return;
+    }
     
-    if (!error && data) {
-      // Small delay to allow modal to close smoothly
-      setTimeout(() => {
-        navigation.replace('ChatConversation', {
-          conversationId: data.id,
-          otherUser: selectedStaff
-        });
-      }, 300);
+    if (selectedStaff.id === session.user.id) {
+      return;
+    }
+
+    setCreatingChat(true);
+    
+    try {
+      const { data, error } = await chatService.getOrCreateConversation(
+        session.user.id,
+        selectedStaff.id,
+        selectedStaff
+      );
+      
+      setCreatingChat(false);
+      setModalVisible(false);
+      
+      if (error) {
+        console.error(`Failed to create/get conversation!`, error);
+        return;
+      }
+      
+      if (data && data.id) {
+        // Small delay to allow modal to close smoothly
+        setTimeout(() => {
+          navigation.replace('ChatConversation', {
+            conversationId: data.id,
+            otherUser: selectedStaff
+          });
+        }, 300);
+      } else {
+        console.error(`Navigation failed: data.id is null!`);
+      }
+    } catch (ex) {
+      console.error(`Exception in startChat:`, ex);
+      setCreatingChat(false);
+      setModalVisible(false);
     }
   };
 
