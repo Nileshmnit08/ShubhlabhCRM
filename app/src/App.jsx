@@ -40,6 +40,7 @@ import Performance from './pages/Performance';
 import Settings from './pages/Settings';
 import FollowUpActivityReport from './pages/Activity/FollowUpActivityReport';
 import RawMaterialPrices from './pages/RawMaterialPrices';
+import StaffMessages from './pages/StaffMessages';
 
 import DispatchDashboard from './pages/Dispatches/Dashboard';
 import DispatchList from './pages/Dispatches/List';
@@ -261,6 +262,7 @@ function App() {
                 </Route>
                 
                 <Route path="activity" element={<ActivityTimeline />} />
+                <Route path="staff-messages" element={<StaffMessages />} />
                 <Route path="reports/follow-up-activity" element={<FollowUpActivityReport />} />
                 <Route path="performance" element={<Performance />} />
                 <Route path="control-room" element={<ControlRoom />} />

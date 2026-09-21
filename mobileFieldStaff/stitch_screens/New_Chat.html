@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#f8f9ff;}body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-bright": "#f8f9ff", "on-secondary-container": "#663500", "tertiary-container": "#465165", "on-primary-fixed-variant": "#005232", "secondary-container": "#fe932c", "inverse-on-surface": "#eaf1ff", "on-background": "#0b1c30", "surface-container-lowest": "#ffffff", "error": "#ba1a1a", "primary-fixed": "#a9f3c5", "surface-tint": "#226b47", "secondary": "#904d00", "surface-container": "#e5eeff", "primary": "#004328", "surface-variant": "#d3e4fe", "on-tertiary-container": "#b8c4db", "inverse-primary": "#8ed6aa", "background": "#f8f9ff", "on-surface": "#0b1c30", "primary-fixed-dim": "#8ed6aa", "tertiary-fixed-dim": "#bcc7de", "error-container": "#ffdad6", "on-tertiary-fixed-variant": "#3c475a", "surface": "#f8f9ff", "on-primary-container": "#8ad2a7", "on-surface-variant": "#404942", "tertiary": "#2f3a4d", "inverse-surface": "#213145", "on-primary-fixed": "#002111", "on-secondary-fixed": "#2f1500", "on-error": "#ffffff", "surface-dim": "#cbdbf5", "on-error-container": "#93000a", "outline-variant": "#bfc9c0", "on-secondary": "#ffffff", "on-primary": "#ffffff", "surface-container-low": "#eff4ff", "secondary-fixed-dim": "#ffb77d", "surface-container-high": "#dce9ff", "outline": "#707971", "secondary-fixed": "#ffdcc3", "on-tertiary-fixed": "#111c2d", "surface-container-highest": "#d3e4fe", "on-tertiary": "#ffffff", "tertiary-fixed": "#d8e3fb", "on-secondary-fixed-variant": "#6e3900", "primary-container": "#0d5c3a" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-md": "1rem", "margin": "1rem", "space-xl": "2rem", "space-xs": "0.25rem", "space-sm": "0.5rem", "gutter": "1rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-lg-mobile": ["Inter"], "currency-display": ["Inter"], "label-md": ["Inter"], "body-sm": ["Inter"], "body-md": ["Inter"], "headline-sm": ["Inter"], "body-lg": ["Inter"], "headline-lg": ["Inter"], "headline-md": ["Inter"], "label-lg": ["Inter"], "label-sm": ["Inter"] }, "fontSize": { "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}], "currency-display": ["26px", {"lineHeight": "32px", "fontWeight": "800"}], "label-md": ["13px", {"lineHeight": "16px", "fontWeight": "600"}], "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}], "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "headline-lg": ["30px", {"lineHeight": "38px", "fontWeight": "700"}], "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "700"}], "label-lg": ["15px", {"lineHeight": "20px", "fontWeight": "600"}], "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.04em", "fontWeight": "700"}] } } } };</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<meta content="mobile_stack" name="shell-type"/><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface font-body-md text-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-16 px-space-xs flex items-center justify-between gap-space-xs"><div class="flex items-center gap-space-xs min-w-0"><button aria-label="Back" class="w-11 h-11 rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-low transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><img alt="Shubh Labh Field Logo" class="h-7 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida/AEtjO1VFeo0JeRTn4GGZdG8TBreckFpRQioYJe7FbVmDALXC69lIkKqYjkvML0aqq3m0P49iSMJoCVzNezjwc1JGL-5fbSFqfjXAo169d0zgRObNa3hGY_4ji7T6pfhwtihOk_YhFZP9ji-GeXksuHWzew8NzcQeNHLB1TA_DnOvyXFW2l_-NBPFUUdg6pYSxVzFoa2E4gZSVylz2oLOmrJs_WphlQc6ozKoMqlh2orpzfSgEN7BjVQueOZYVe0"/><div class="flex flex-col min-w-0 pl-1"><span class="font-label-sm text-label-sm text-on-surface-variant truncate uppercase">SHUBH LABH FIELD</span><span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate leading-none">Add Customer — Quick Field Onboarding</span></div></div><div class="flex items-center gap-space-xs flex-shrink-0 pr-space-xs"><button aria-label="Sync" class="h-8 px-2 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span><span class="font-label-sm text-label-sm">Synced</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-16 pb-safe px-margin bg-surface flex-grow"><div class="flex flex-col w-full pb-10">
+<!-- Screen Context / Bilingual Sub-heading Banner -->
+<div class="flex flex-col pt-1 pb-3">
+<div class="flex items-center justify-between">
+<p class="font-label-md text-label-md text-on-surface-variant flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-primary">group_add</span>
+<span>Select Colleague • सहकर्मी चुनें</span>
+</p>
+<span class="font-label-sm text-label-sm text-primary font-bold bg-primary-fixed px-2 py-0.5 rounded-full">
+        8 Active
+      </span>
+</div>
+</div>
+<!-- Search Staff Bar with Tactile Inset Feel -->
+<div class="relative w-full mb-4">
+<div class="relative flex items-center bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+<div class="pl-3.5 pr-2 flex items-center justify-center text-on-surface-variant pointer-events-none">
+<span class="material-symbols-outlined text-[22px]">search</span>
+</div>
+<input class="w-full h-12 bg-transparent pr-10 text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none" id="staffSearchInput" placeholder="Type name or department... / नाम या विभाग" type="text"/>
+<button aria-label="Clear Search" class="hidden absolute right-2.5 w-7 h-7 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform" id="clearSearchBtn">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+</div>
+<!-- Section 1: Quick Connect / Supervisors -->
+<div class="flex flex-col mb-5">
+<div class="flex items-center justify-between mb-2.5">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-secondary text-[18px]" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<h2 class="font-label-lg text-label-lg text-on-surface font-bold">Quick Connect / Supervisors</h2>
+</div>
+<span class="font-label-sm text-label-sm text-secondary font-semibold">तुरंत संपर्क</span>
+</div>
+<!-- 2 Quick Horizontal Priority Cards -->
+<div class="grid grid-cols-2 gap-2.5">
+<!-- Supervisor 1: Vikram Rathore -->
+<button class="staff-pick-btn flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm active:translate-y-0.5 transition-all text-left group" data-dept="ASM Sales Lead Management" data-name="Vikram Rathore">
+<div class="flex items-start justify-between w-full mb-2">
+<div class="relative">
+<div class="w-10 h-10 rounded-lg bg-primary text-on-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold shadow-sm">
+              VR
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary-fixed ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</span>
+</div>
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm px-1.5 py-0.5 rounded flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]">verified_user</span>
+            Lead
+          </span>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface font-bold truncate w-full">Vikram Rathore</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate w-full">ASM • Sales Lead</span>
+<div class="flex items-center gap-1 mt-2 text-primary font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span class="truncate">Online • Mandi Field</span>
+</div>
+</button>
+<!-- Supervisor 2: Sunil Verma -->
+<button class="staff-pick-btn flex flex-col p-3 rounded-xl bg-surface-container-lowest shadow-sm active:translate-y-0.5 transition-all text-left group" data-dept="Depot Dispatch Lead Warehousing" data-name="Sunil Verma">
+<div class="flex items-start justify-between w-full mb-2">
+<div class="relative">
+<div class="w-10 h-10 rounded-lg bg-tertiary text-on-tertiary font-headline-sm text-headline-sm flex items-center justify-center font-bold shadow-sm">
+              SV
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary-fixed ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</span>
+</div>
+<span class="bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm px-1.5 py-0.5 rounded flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]">warehouse</span>
+            Depot
+          </span>
+</div>
+<span class="font-label-lg text-label-lg text-on-surface font-bold truncate w-full">Sunil Verma</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate w-full">Depot Dispatch Lead</span>
+<div class="flex items-center gap-1 mt-2 text-primary font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span class="truncate">Online • Hub Central</span>
+</div>
+</button>
+</div>
+</div>
+<!-- Section 2: All Staff Directory -->
+<div class="flex flex-col">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[18px]">badge</span>
+<h2 class="font-label-lg text-label-lg text-on-surface font-bold">All Staff Directory</h2>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">सभी सहकर्मी (8)</span>
+</div>
+<!-- Staff List Items Stack -->
+<div class="flex flex-col gap-2" id="staffListContainer">
+<!-- Staff Item 1: Amit Sharma -->
+<button class="staff-row flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container-low transition-colors text-left w-full min-h-[64px]" data-initials="AS" data-name="Amit Sharma" data-role="Senior Agronomist • Field Advisory" data-status="Online • Mandi Field">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative flex-shrink-0">
+<div class="w-11 h-11 rounded-lg bg-surface-container-high text-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold">
+              AS
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary-fixed ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Amit Sharma</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant truncate">Advisory</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Senior Agronomist • Field Advisory</span>
+<div class="flex items-center gap-1 text-primary font-label-sm text-label-sm mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="truncate">Online • Mandi Field</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 pl-2 text-outline">
+<span class="material-symbols-outlined text-[22px]">arrow_forward_ios</span>
+</div>
+</button>
+<!-- Staff Item 2: Anand Patidar -->
+<button class="staff-row flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container-low transition-colors text-left w-full min-h-[64px]" data-initials="AP" data-name="Anand Patidar" data-role="Field Sales Rep • Sanwer Beat" data-status="Active 10m ago">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative flex-shrink-0">
+<div class="w-11 h-11 rounded-lg bg-surface-container-high text-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold">
+              AP
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-surface-container ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Anand Patidar</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant truncate">Sales</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Field Sales Rep • Sanwer Beat</span>
+<div class="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm mt-0.5">
+<span class="material-symbols-outlined text-[13px]">schedule</span>
+<span class="truncate">Active 10m ago</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 pl-2 text-outline">
+<span class="material-symbols-outlined text-[22px]">arrow_forward_ios</span>
+</div>
+</button>
+<!-- Staff Item 3: Deepak Choudhary -->
+<button class="staff-row flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container-low transition-colors text-left w-full min-h-[64px]" data-initials="DC" data-name="Deepak Choudhary" data-role="Logistics Coordinator • Indore Hub" data-status="Online">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative flex-shrink-0">
+<div class="w-11 h-11 rounded-lg bg-surface-container-high text-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold">
+              DC
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary-fixed ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Deepak Choudhary</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant truncate">Logistics</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Logistics Coordinator • Indore Hub</span>
+<div class="flex items-center gap-1 text-primary font-label-sm text-label-sm mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="truncate">Online</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 pl-2 text-outline">
+<span class="material-symbols-outlined text-[22px]">arrow_forward_ios</span>
+</div>
+</button>
+<!-- Staff Item 4: Kavita Singhania -->
+<button class="staff-row flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container-low transition-colors text-left w-full min-h-[64px]" data-initials="KS" data-name="Kavita Singhania" data-role="Customer Support Desk • HQ" data-status="Available">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative flex-shrink-0">
+<div class="w-11 h-11 rounded-lg bg-surface-container-high text-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold">
+              KS
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary-fixed ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Kavita Singhania</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant truncate">Support</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Customer Support Desk • HQ</span>
+<div class="flex items-center gap-1 text-primary font-label-sm text-label-sm mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="truncate">Available</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 pl-2 text-outline">
+<span class="material-symbols-outlined text-[22px]">arrow_forward_ios</span>
+</div>
+</button>
+<!-- Staff Item 5: Pooja Mehta -->
+<button class="staff-row flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container-low transition-colors text-left w-full min-h-[64px]" data-initials="PM" data-name="Pooja Mehta" data-role="Accounts Officer • Ledger &amp; Billing" data-status="Active">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative flex-shrink-0">
+<div class="w-11 h-11 rounded-lg bg-surface-container-high text-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold">
+              PM
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary-fixed ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Pooja Mehta</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant truncate">Accounts</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Accounts Officer • Ledger &amp; Billing</span>
+<div class="flex items-center gap-1 text-primary font-label-sm text-label-sm mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="truncate">Active</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 pl-2 text-outline">
+<span class="material-symbols-outlined text-[22px]">arrow_forward_ios</span>
+</div>
+</button>
+<!-- Staff Item 6: Rajesh Joshi -->
+<button class="staff-row flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container-low transition-colors text-left w-full min-h-[64px]" data-initials="RJ" data-name="Rajesh Joshi" data-role="Field Sales Rep • Rau Beat" data-status="Active 1h ago">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative flex-shrink-0">
+<div class="w-11 h-11 rounded-lg bg-surface-container-high text-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold">
+              RJ
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-surface-container ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Rajesh Joshi</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant truncate">Sales</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Field Sales Rep • Rau Beat</span>
+<div class="flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm mt-0.5">
+<span class="material-symbols-outlined text-[13px]">schedule</span>
+<span class="truncate">Active 1h ago</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 pl-2 text-outline">
+<span class="material-symbols-outlined text-[22px]">arrow_forward_ios</span>
+</div>
+</button>
+<!-- Staff Item 7: Sunil Verma (All Staff list view) -->
+<button class="staff-row flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container-low transition-colors text-left w-full min-h-[64px]" data-initials="SV" data-name="Sunil Verma" data-role="Depot Incharge • Warehousing" data-status="Online">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative flex-shrink-0">
+<div class="w-11 h-11 rounded-lg bg-surface-container-high text-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold">
+              SV
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary-fixed ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Sunil Verma</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant truncate">Depot</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Depot Incharge • Warehousing</span>
+<div class="flex items-center gap-1 text-primary font-label-sm text-label-sm mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="truncate">Online</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 pl-2 text-outline">
+<span class="material-symbols-outlined text-[22px]">arrow_forward_ios</span>
+</div>
+</button>
+<!-- Staff Item 8: Vikram Rathore (All Staff list view) -->
+<button class="staff-row flex items-center justify-between p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container-low transition-colors text-left w-full min-h-[64px]" data-initials="VR" data-name="Vikram Rathore" data-role="Area Sales Manager • MP West" data-status="Online">
+<div class="flex items-center gap-3 min-w-0">
+<div class="relative flex-shrink-0">
+<div class="w-11 h-11 rounded-lg bg-surface-container-high text-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold">
+              VR
+            </div>
+<span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary-fixed ring-2 ring-surface-container-lowest flex items-center justify-center">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-2">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold truncate">Vikram Rathore</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-bold truncate">ASM</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Area Sales Manager • MP West</span>
+<div class="flex items-center gap-1 text-primary font-label-sm text-label-sm mt-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span class="truncate">Online</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 pl-2 text-outline">
+<span class="material-symbols-outlined text-[22px]">arrow_forward_ios</span>
+</div>
+</button>
+</div>
+<!-- Empty Filter State (Hidden by default) -->
+<div class="hidden flex-col items-center justify-center p-8 text-center bg-surface-container-lowest rounded-xl shadow-sm mt-2" id="emptySearchState">
+<div class="w-12 h-12 rounded-full bg-surface-container flex items-center justify-center text-outline mb-2">
+<span class="material-symbols-outlined text-[26px]">person_search</span>
+</div>
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">No Staff Found</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">कोई सहकर्मी नहीं मिला। Check the spelling or search by department name.</p>
+</div>
+</div>
+<!-- Bottom Drawer Preview Modal Triggered on Selection -->
+<div class="hidden fixed inset-0 z-50 flex items-end justify-center bg-inverse-surface/40 backdrop-blur-sm" id="selectionModal">
+<div class="w-full max-w-lg bg-surface-container-lowest rounded-t-2xl p-5 shadow-2xl animate-in slide-in-from-bottom duration-200">
+<div class="w-10 h-1 bg-outline-variant rounded-full mx-auto mb-4"></div>
+<div class="flex items-center gap-3 mb-4">
+<div class="w-12 h-12 rounded-xl bg-primary text-on-primary font-headline-md text-headline-md flex items-center justify-center font-bold" id="modalAvatar">
+          VR
+        </div>
+<div class="flex flex-col min-w-0">
+<h3 class="font-headline-md text-headline-md text-on-surface font-bold truncate" id="modalName">Staff Name</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate" id="modalRole">Staff Department / Role</p>
+</div>
+</div>
+<div class="p-3 bg-surface-container-low rounded-xl mb-4 flex items-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-primary text-[20px]">chat_bubble</span>
+<span class="font-body-sm text-body-sm">Initiating direct staff-to-staff chat thread / सीधा संवाद शुरू करें</span>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<button class="h-12 rounded-lg bg-surface-container text-on-surface font-label-lg text-label-lg font-bold flex items-center justify-center active:scale-95 transition-transform" id="cancelModalBtn">
+          Cancel / रद्द
+        </button>
+<button class="h-12 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg font-bold flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-transform" id="startChatBtn">
+<span>Start Chat</span>
+<span class="material-symbols-outlined text-[18px]">send</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const searchInput = document.getElementById('staffSearchInput');
+    const clearBtn = document.getElementById('clearSearchBtn');
+    const rows = document.querySelectorAll('.staff-row');
+    const quickCards = document.querySelectorAll('.staff-pick-btn');
+    const emptyState = document.getElementById('emptySearchState');
+    const modal = document.getElementById('selectionModal');
+    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const startChatBtn = document.getElementById('startChatBtn');
+    const modalAvatar = document.getElementById('modalAvatar');
+    const modalName = document.getElementById('modalName');
+    const modalRole = document.getElementById('modalRole');
+
+    function filterStaff() {
+      const q = searchInput.value.toLowerCase().trim();
+      let matches = 0;
+
+      if (q.length > 0) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+
+      rows.forEach(row => {
+        const name = (row.getAttribute('data-name') || '').toLowerCase();
+        const role = (row.getAttribute('data-role') || '').toLowerCase();
+        if (name.includes(q) || role.includes(q)) {
+          row.classList.remove('hidden');
+          matches++;
+        } else {
+          row.classList.add('hidden');
+        }
+      });
+
+      if (matches === 0) {
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+      } else {
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('flex');
+      }
+    }
+
+    searchInput.addEventListener('input', filterStaff);
+
+    clearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      filterStaff();
+      searchInput.focus();
+    });
+
+    function openChatPrompt(name, role, initials) {
+      modalName.textContent = name;
+      modalRole.textContent = role;
+      modalAvatar.textContent = initials;
+      modal.classList.remove('hidden');
+    }
+
+    rows.forEach(row => {
+      row.addEventListener('click', () => {
+        const name = row.getAttribute('data-name');
+        const role = row.getAttribute('data-role');
+        const initials = row.getAttribute('data-initials');
+        openChatPrompt(name, role, initials);
+      });
+    });
+
+    quickCards.forEach(card => {
+      card.addEventListener('click', () => {
+        const name = card.getAttribute('data-name');
+        const dept = card.getAttribute('data-dept');
+        const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2);
+        openChatPrompt(name, dept, initials);
+      });
+    });
+
+    cancelModalBtn.addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.add('hidden');
+      }
+    });
+
+    startChatBtn.addEventListener('click', () => {
+      startChatBtn.innerHTML = '<span class="material-symbols-outlined animate-spin text-[20px]">progress_activity</span> Opening...';
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        startChatBtn.innerHTML = '<span>Start Chat</span><span class="material-symbols-outlined text-[18px]">send</span>';
+      }, 500);
+    });
+  })();
+</script></main></body></html>

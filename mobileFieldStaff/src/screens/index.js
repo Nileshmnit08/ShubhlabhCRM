@@ -11,3 +11,6 @@ export { LoginScreen } from './LoginScreen';
 export { NotificationsScreen } from './NotificationsScreen';
 export { VisitSummaryScreen } from './VisitSummaryScreen';
 export { SchemeDetailScreen } from './SchemeDetailScreen';
+export { MessagesInboxScreen } from './MessagesInboxScreen';
+export { NewChatScreen } from './NewChatScreen';
+export { ChatConversationScreen } from './ChatConversationScreen';

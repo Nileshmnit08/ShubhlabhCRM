@@ -27,7 +27,10 @@ import {
   LoginScreen,
   NotificationsScreen,
   VisitSummaryScreen,
-  SchemeDetailScreen
+  SchemeDetailScreen,
+  MessagesInboxScreen,
+  NewChatScreen,
+  ChatConversationScreen
 } from './src/screens';
 import { NotificationProvider } from './src/context/NotificationContext';
 import { VisitProvider } from './src/context/VisitContext';
@@ -45,6 +48,7 @@ function MainTabs() {
           else if (route.name === 'Customers') iconName = 'people';
           else if (route.name === 'Nearby') iconName = 'radar';
           else if (route.name === 'My Work') iconName = 'assignment';
+          else if (route.name === 'Messages') iconName = 'chat';
           else if (route.name === 'Profile') iconName = 'person';
           
           return <MaterialIcons name={iconName} size={size} color={color} />;
@@ -58,6 +62,7 @@ function MainTabs() {
       <Tab.Screen name="Customers" component={CustomersScreen} />
       <Tab.Screen name="Nearby" component={NearbyScreen} />
       <Tab.Screen name="My Work" component={MyWorkScreen} />
+      <Tab.Screen name="Messages" component={MessagesInboxScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
@@ -135,9 +140,20 @@ function RootNavigator() {
         component={SchemeDetailScreen} 
         options={{ headerShown: false }} 
       />
+      <Stack.Screen 
+        name="NewChat" 
+        component={NewChatScreen} 
+        options={{ title: 'New Chat' }} 
+      />
+      <Stack.Screen 
+        name="ChatConversation" 
+        component={ChatConversationScreen} 
+      />
     </Stack.Navigator>
   );
 }
+
+import { navigationRef } from './src/navigation/RootNavigation';
 
 export default function App() {
   React.useEffect(() => {
@@ -163,7 +179,7 @@ export default function App() {
       <NotificationProvider>
         <SyncProvider>
           <VisitProvider>
-            <NavigationContainer>
+            <NavigationContainer ref={navigationRef}>
               <RootNavigator />
               <StatusBar style="auto" />
             </NavigationContainer>

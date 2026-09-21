@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map, MapPin, Zap, AlertTriangle, ChevronDown, ChevronRight, Pin, PinOff, Truck, PhoneCall } from 'lucide-react';
+import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map, MapPin, Zap, AlertTriangle, ChevronDown, ChevronRight, Pin, PinOff, Truck, PhoneCall, MessageSquare } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -28,6 +28,7 @@ const allNavItems = [
   { path: '/control-room', label: 'Control Room', icon: BarChart },
   { path: '/account-control', label: 'Account Control', icon: ShieldAlert },
   { path: '/communication', label: 'Communication', icon: PhoneCall },
+  { path: '/staff-messages', label: 'Staff Messages', icon: MessageSquare },
   { path: '/dealer-control', label: 'Dealer Growth Hub', icon: Map },
   { path: '/dispatches', label: 'Dispatch Dashboard', icon: Map },
   { path: '/coverage', label: 'Coverage Gaps', icon: Map },
@@ -57,7 +58,7 @@ const menuGroups = [
   {
     id: 'operations',
     title: 'OPERATIONS',
-    items: ['/activity', '/performance', '/control-room', '/account-control', '/communication']
+    items: ['/activity', '/performance', '/control-room', '/account-control', '/communication', '/staff-messages']
   },
   {
     id: 'data-automation',
