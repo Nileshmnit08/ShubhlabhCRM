@@ -164,7 +164,13 @@ export default function StaffMessages() {
       setFilteredConversations(formattedConvs);
     } catch (err) {
       console.error(err);
-      setError("Failed to load staff messages.");
+      let errorDetails = '';
+      if (err.message) errorDetails = err.message;
+      else if (err.details) errorDetails = err.details;
+      else if (typeof err === 'object') errorDetails = JSON.stringify(err);
+      else errorDetails = String(err);
+      
+      setError(`Failed to load staff messages: ${errorDetails}`);
     } finally {
       setLoading(false);
     }
