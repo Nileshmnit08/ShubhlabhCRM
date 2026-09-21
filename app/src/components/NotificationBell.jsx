@@ -1,15 +1,20 @@
-import React, { useEffect, useState, useContext, useRef } from 'react';
+import React, { useEffect, useState, useContext, useRef, forwardRef, useImperativeHandle } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthContext } from '../AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Bell, CheckCircle2 } from 'lucide-react';
 
-export default function NotificationBell() {
+const NotificationBell = forwardRef(function NotificationBell(_props, ref) {
   const { userProfile } = useContext(AuthContext);
   const [notifications, setNotifications] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+
+  // Expose openDropdown so AppShell can trigger from sidebar Notifications item
+  useImperativeHandle(ref, () => ({
+    openDropdown: () => setIsOpen(true),
+  }));
 
   useEffect(() => {
     if (userProfile) {
@@ -138,4 +143,6 @@ export default function NotificationBell() {
       )}
     </div>
   );
-}
+});
+
+export default NotificationBell;

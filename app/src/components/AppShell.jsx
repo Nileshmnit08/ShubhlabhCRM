@@ -1,310 +1,109 @@
-import React, { useContext } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, ClipboardList, Clock, Activity, Settings, Menu, Database, Globe, LogOut, Target, RefreshCw, BarChart, ShieldAlert, Rocket, TrendingUp, DollarSign, Layers, Map, MapPin, Zap, AlertTriangle, ChevronDown, ChevronRight, Pin, PinOff, Truck, PhoneCall, MessageSquare } from 'lucide-react';
+/**
+ * AppShell — main layout shell.
+ *
+ * Wires together the new Sidebar, topbar, and Outlet.
+ * All navigation logic has moved to Sidebar.jsx + lib/navConfig.js.
+ * Badge data is fetched in useNavBadges.js.
+ *
+ * CRM-NAV-02: Sidebar redesign applied.
+ */
+
+import React, { useContext, useState, useRef } from 'react';
+import { Outlet } from 'react-router-dom';
+import { Menu, Globe, LogOut, Bell } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
 import { logActivity } from '../lib/activityLogger';
+import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
-
-const allNavItems = [
-  { path: '/', label: 'Today', icon: LayoutDashboard },
-  { path: '/demand-control-tower', label: 'Demand Control Tower', icon: Target },
-  { path: '/leads', label: 'Leads', icon: Target },
-  { path: '/opportunities', label: 'Opportunities', icon: Rocket },
-  { path: '/demand-signals', label: 'Demand Signals', icon: Activity },
-  { path: '/product-demand', label: 'Product Demand', icon: Layers },
-  { path: '/territory-demand', label: 'Territory Demand', icon: Map },
-  { path: '/customers', label: 'Customers', icon: Users },
-  { path: '/dormant', label: 'Dormant', icon: AlertTriangle },
-  { path: '/reactivation', label: 'Reactivation', icon: RefreshCw },
-  { path: '/data', label: 'Data & Sync', icon: Database },
-  { path: '/data/quality', label: 'Data Quality', icon: ShieldAlert },
-  { path: '/requirements', label: 'Requirements', icon: ClipboardList },
-  { path: '/follow-ups', label: 'Follow-ups', icon: Clock },
-  { path: '/payments', label: 'Payments', icon: DollarSign },
-  { path: '/activity', label: 'Field Activity', icon: Activity },
-  { path: '/performance', label: 'My Performance', icon: TrendingUp },
-  { path: '/control-room', label: 'Control Room', icon: BarChart },
-  { path: '/account-control', label: 'Account Control', icon: ShieldAlert },
-  { path: '/communication', label: 'Communication', icon: PhoneCall },
-  { path: '/staff-messages', label: 'Staff Messages', icon: MessageSquare },
-  { path: '/dealer-control', label: 'Dealer Growth Hub', icon: Map },
-  { path: '/dispatches', label: 'Dispatch Dashboard', icon: Map },
-  { path: '/coverage', label: 'Coverage Gaps', icon: Map },
-  { path: '/automation-control', label: 'Automation Control', icon: Zap },
-  { path: '/raw-material-prices', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/raw-material-prices/daily-entry', label: 'Daily Price Entry', icon: TrendingUp },
-  { path: '/raw-material-prices/history', label: 'Price History', icon: Activity },
-  { path: '/raw-material-prices/analysis', label: 'Price Analysis', icon: BarChart },
-  { path: '/raw-material-prices/whatsapp', label: 'WhatsApp Update', icon: Zap },
-  { path: '/raw-material-prices/configuration', label: 'Configuration', icon: Settings },
-  { path: '/settings', label: 'Settings', icon: Settings },
-  { path: '/logistics', label: 'Logistics', icon: Truck },
-  { path: '/travel-expenses', label: 'Travel Expenses', icon: MapPin },
-];
-
-const menuGroups = [
-  {
-    id: 'customers-growth',
-    title: 'CUSTOMERS & GROWTH',
-    items: ['/dealer-control', '/dormant', '/reactivation', '/leads', '/opportunities']
-  },
-  {
-    id: 'demand-insights',
-    title: 'DEMAND INSIGHTS',
-    items: ['/demand-control-tower', '/demand-signals', '/product-demand', '/territory-demand', '/coverage']
-  },
-  {
-    id: 'operations',
-    title: 'OPERATIONS',
-    items: ['/activity', '/performance', '/control-room', '/account-control', '/communication', '/staff-messages']
-  },
-  {
-    id: 'data-automation',
-    title: 'DATA & AUTOMATION',
-    items: ['/data', '/data/quality', '/automation-control']
-  },
-  {
-    id: 'settings',
-    title: 'SETTINGS',
-    items: ['/settings', '/logistics', '/travel-expenses']
-  },
-  {
-    id: 'raw-material-prices',
-    title: 'RAW MATERIAL PRICES',
-    items: [
-      '/raw-material-prices',
-      '/raw-material-prices/daily-entry',
-      '/raw-material-prices/history',
-      '/raw-material-prices/analysis',
-      '/raw-material-prices/whatsapp',
-      '/raw-material-prices/configuration'
-    ]
-  }
-];
-
-const defaultPinned = ['/', '/requirements', '/follow-ups', '/activity', '/payments', '/dispatches', '/customers'];
-
-const getBadge = (path) => {
-  if (path === '/requirements') return { count: 3, type: 'amber' };
-  if (path === '/follow-ups') return { count: 5, type: 'amber' };
-  if (path === '/payments') return { count: 2, type: 'red' };
-  if (path === '/dispatches') return { count: 1, type: 'red' };
-  return null;
-};
+import useNavBadges from '../lib/useNavBadges';
 
 export default function AppShell() {
   const { userProfile, crmSettings } = useContext(AuthContext);
-  const { language, setLanguage, t } = useContext(LanguageContext);
-  const [sidebarOpen, setSidebarOpen] = React.useState(false);
-  const location = useLocation();
-  const pathname = location.pathname;
+  const { language, setLanguage } = useContext(LanguageContext);
 
-  const isRawMaterialPricesRoute = pathname === '/raw-material-prices' || pathname.startsWith('/raw-material-prices/');
+  // Mobile drawer state
+  const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Notification panel — NotificationBell controls its own dropdown
+  // We expose a trigger ref so Sidebar "Notifications" item can open it
+  const notifBellRef = useRef(null);
 
-
-  const [pinnedItems, setPinnedItems] = React.useState(() => {
-    try {
-      const saved = localStorage.getItem('shublabh_pinned_nav');
-      let items = saved ? JSON.parse(saved) : defaultPinned;
-      if (!items.includes('/')) {
-         items = ['/', ...items]; // Restore Today if it was removed
-      }
-      // Force Field Activity into pinned items for visibility during this sprint review
-      if (!items.includes('/activity')) {
-         items = [...items, '/activity'];
-      }
-      return items;
-    } catch {
-      return defaultPinned;
-    }
-  });
-
-  const [expandedGroups, setExpandedGroups] = React.useState({
-    'pinned': true,
-    'customers-growth': false,
-    'demand-insights': false,
-    'operations': false,
-    'data-automation': false,
-    'settings': false,
-    'raw-material-prices': isRawMaterialPricesRoute
-  });
-
-  React.useEffect(() => {
-    if (isRawMaterialPricesRoute) {
-      setExpandedGroups(prev => ({ ...prev, 'raw-material-prices': true }));
-    }
-  }, [pathname, isRawMaterialPricesRoute]);
-
-  React.useEffect(() => {
-    localStorage.setItem('shublabh_pinned_nav', JSON.stringify(pinnedItems));
-  }, [pinnedItems]);
-
-  const togglePin = (e, path) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (path === '/') return; // Prevent unpinning the homepage
-    setPinnedItems(prev => 
-      prev.includes(path) 
-        ? prev.filter(p => p !== path) 
-        : [...prev, path]
-    );
-  };
-
-  const toggleGroup = (groupId) => {
-    setExpandedGroups(prev => ({
-      ...prev,
-      [groupId]: !prev[groupId]
-    }));
-  };
+  // Real badge data
+  const { badges } = useNavBadges();
 
   const handleLogout = async () => {
     await logActivity({
       module: 'Auth',
       actionType: 'LOGOUT',
-      summary: `User logged out.`
+      summary: 'User logged out.',
     });
     await supabase.auth.signOut();
   };
 
-
-
-  const renderNavItem = (path) => {
-    // Only allow specific operational areas for non-Admins
-    if (userProfile?.role !== 'Admin' && !defaultPinned.includes(path)) return null;
-    
-    // Existing admin-specific hiding (redundant now but safe to keep)
-    if (['/data', '/data/quality', '/control-room', '/account-control', '/dealer-control', '/automation-control'].includes(path) && userProfile?.role !== 'Admin') return null;
-    
-    const itemInfo = allNavItems.find(item => item.path === path);
-    if (!itemInfo) return null;
-    
-    const Icon = itemInfo.icon;
-    const isPinned = pinnedItems.includes(path);
-    const badge = getBadge(path);
-    
-
-    return (
-      <NavLink
-        key={itemInfo.path}
-        to={itemInfo.path}
-        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-        onClick={() => setSidebarOpen(false)}
-        title={sidebarOpen ? '' : itemInfo.label}
-      >
-        <div className="nav-item-content">
-          <Icon size={20} className="nav-icon" />
-          <span className="nav-label">{itemInfo.label}</span>
-          {badge && (
-            <span className={`nav-badge nav-badge-${badge.type}`}>
-              {badge.count}
-            </span>
-          )}
-        </div>
-        {path !== '/' && (
-          <button 
-            className={`pin-btn ${isPinned ? 'is-pinned' : ''}`}
-            onClick={(e) => togglePin(e, path)}
-            title={isPinned ? 'Unpin' : 'Pin to top'}
-          >
-            {isPinned ? <PinOff size={16} /> : <Pin size={16} />}
-          </button>
-        )}
-      </NavLink>
-    );
+  const handleNotifClick = () => {
+    // Trigger the NotificationBell dropdown programmatically
+    notifBellRef.current?.openDropdown?.();
   };
 
   return (
     <div className="app-container">
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <div className="sidebar-brand" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {crmSettings?.app_logo_url ? (
-              <img src={crmSettings.app_logo_url} alt="Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-            ) : (
-              <div style={{width: 24, height: 24, background: 'var(--primary)', borderRadius: '6px'}} />
-            )}
-            <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>
-              {crmSettings?.crm_name || 'Feed CRM'}
-            </span>
-          </div>
-        </div>
-        <nav className="sidebar-nav">
-          <div className="nav-group">
-            <button 
-              className="nav-section-header" 
-              onClick={() => toggleGroup('pinned')}
-            >
-              <span>PINNED / DAILY WORK</span>
-              {expandedGroups['pinned'] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </button>
-            {expandedGroups['pinned'] && (
-              <div className="nav-group-items">
-                {pinnedItems.map(path => renderNavItem(path))}
-                {pinnedItems.length === 0 && (
-                  <div className="nav-empty-state">No items pinned</div>
-                )}
-              </div>
-            )}
-          </div>
+      {/* ── Sidebar ── */}
+      <Sidebar
+        isOpen={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        badges={badges}
+        onNotifClick={handleNotifClick}
+        crmSettings={crmSettings}
+      />
 
-          {userProfile?.role === 'Admin' && menuGroups.map(group => (
-            <div key={group.id} className="nav-group">
-              <button 
-                className="nav-section-header" 
-                onClick={() => toggleGroup(group.id)}
-              >
-                <span>{group.title}</span>
-                {expandedGroups[group.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-              </button>
-              {expandedGroups[group.id] && (
-                <div className="nav-group-items">
-                  {group.items.map(path => renderNavItem(path))}
-                </div>
-              )}
-            </div>
-          ))}
-
-        </nav>
-      </aside>
-
+      {/* ── Main content ── */}
       <main className="main-content">
         <header className="topbar">
-          <button 
-            className="btn-icon" 
-            style={{display: 'none'}} // In a full implementation, use media queries to show this on mobile
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+          {/* Mobile hamburger — shown on mobile via CSS */}
+          <button
+            className="btn-icon topbar-menu-btn"
+            onClick={() => setMobileOpen(true)}
+            aria-label="Open navigation menu"
+            aria-expanded={mobileOpen}
           >
-            <Menu />
+            <Menu size={22} />
           </button>
-          
-          <div style={{marginLeft: 'auto', display: 'flex', gap: '1rem', alignItems: 'center'}}>
-             <NotificationBell />
-             <button 
-               className="btn-icon" 
-               style={{display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.85rem', fontWeight: 600}} 
-               onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
-               title="Toggle Language (English/Hindi)"
-             >
-               <Globe size={18} /> {language.toUpperCase()}
-             </button>
-             <div style={{
-               width: 36, height: 36, borderRadius: '50%', 
-               background: 'var(--bg-surface-hover)', display: 'flex', 
-               alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
-             }} title={userProfile?.role}>
-               {userProfile?.role === 'Admin' ? 'AD' : 'OP'}
-             </div>
-             <button 
-               className="btn-icon" 
-               onClick={handleLogout}
-               title="Log Out"
-               style={{color: 'var(--danger)'}}
-             >
-               <LogOut size={18} />
-             </button>
+
+          <div className="topbar-right">
+            {/* Notification Bell */}
+            <NotificationBell ref={notifBellRef} />
+
+            {/* Language toggle */}
+            <button
+              className="btn-icon topbar-lang-btn"
+              onClick={() => setLanguage(language === 'en' ? 'hi' : 'en')}
+              title="Toggle Language (English/Hindi)"
+              aria-label={`Current language: ${language === 'en' ? 'English' : 'Hindi'}. Click to switch.`}
+            >
+              <Globe size={18} />
+              <span className="topbar-lang-label">{language.toUpperCase()}</span>
+            </button>
+
+            {/* Avatar / role */}
+            <div
+              className="topbar-avatar"
+              title={userProfile?.full_name || userProfile?.role}
+              aria-label={`Logged in as ${userProfile?.role}`}
+            >
+              {userProfile?.role === 'Admin' ? 'AD' : 'OP'}
+            </div>
+
+            {/* Logout */}
+            <button
+              className="btn-icon topbar-logout-btn"
+              onClick={handleLogout}
+              title="Log Out"
+              aria-label="Log Out"
+            >
+              <LogOut size={18} />
+            </button>
           </div>
         </header>
 
