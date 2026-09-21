@@ -27,10 +27,10 @@ class ChatService {
           conversation_id,
           chat_conversations (
             id,
-            updated_at
-          ),
-          other_participants:chat_participants (
-            user_id
+            updated_at,
+            chat_participants (
+              user_id
+            )
           )
         `)
         .eq('user_id', userId)
@@ -41,7 +41,8 @@ class ChatService {
       } else if (data) {
         const otherUserIds = new Set();
         data.forEach(item => {
-          const other = item.other_participants?.find(p => p.user_id !== userId);
+          const participants = item.chat_conversations?.chat_participants || [];
+          const other = participants.find(p => p.user_id !== userId);
           if (other) otherUserIds.add(other.user_id);
         });
 
@@ -58,7 +59,8 @@ class ChatService {
         }
 
         onlineData = data.map(item => {
-          const otherParticipant = item.other_participants?.find(p => p.user_id !== userId);
+          const participants = item.chat_conversations?.chat_participants || [];
+          const otherParticipant = participants.find(p => p.user_id !== userId);
           return {
             id: item.conversation_id,
             updated_at: item.chat_conversations?.updated_at,
