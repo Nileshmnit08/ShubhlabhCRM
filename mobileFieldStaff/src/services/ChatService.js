@@ -7,8 +7,6 @@ class ChatService {
   async getConversations(userId) {
     if (!userId) return { data: null, error: 'No user ID provided' };
 
-    // Need to fetch conversations where the current user is a participant.
-    // Also fetch the other participant's profile to display their name.
     const { data, error } = await supabase
       .from('chat_participants')
       .select(`
@@ -18,8 +16,7 @@ class ChatService {
           updated_at
         ),
         other_participants:chat_participants (
-          user_id,
-          staff:user_id (id, full_name, role)
+          user_id
         )
       `)
       .eq('user_id', userId)
@@ -30,14 +27,30 @@ class ChatService {
       return { data: null, error };
     }
 
-    // Process data to format it nicely for the UI
+    const otherUserIds = new Set();
+    data.forEach(item => {
+      const other = item.other_participants?.find(p => p.user_id !== userId);
+      if (other) otherUserIds.add(other.user_id);
+    });
+
+    const { data: usersData } = await supabase
+      .from('app_users')
+      .select('id, display_name, role')
+      .in('id', Array.from(otherUserIds));
+
+    const userMap = {};
+    if (usersData) {
+      usersData.forEach(u => {
+        userMap[u.id] = { ...u, full_name: u.display_name };
+      });
+    }
+
     const formattedData = data.map(item => {
-      // Find the other participant in the same conversation
-      const otherParticipant = item.other_participants.find(p => p.user_id !== userId);
+      const otherParticipant = item.other_participants?.find(p => p.user_id !== userId);
       return {
         id: item.conversation_id,
         updated_at: item.chat_conversations?.updated_at,
-        otherUser: otherParticipant?.staff || { full_name: 'Unknown User' }
+        otherUser: (otherParticipant && userMap[otherParticipant.user_id]) || { full_name: 'Unknown User', role: 'Staff' }
       };
     }).sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
 
@@ -136,12 +149,17 @@ class ChatService {
   /**
    * Get all staff members (excluding current user) to start a new chat
    */
-  async getAvailableStaff(currentUserId) {
+  async getStaffDirectory(currentUserId) {
     const { data, error } = await supabase
-      .from('staff')
-      .select('id, full_name, role, phone_number')
+      .from('app_users')
+      .select('id, display_name, role')
       .neq('id', currentUserId)
       .eq('is_active', true);
+
+    if (data) {
+      const mapped = data.map(u => ({ ...u, full_name: u.display_name }));
+      return { data: mapped, error: null };
+    }
 
     return { data, error };
   }
@@ -149,7 +167,7 @@ class ChatService {
   /**
    * Create or get an existing conversation between two users
    */
-  async createOrGetConversation(userId1, userId2) {
+  async getOrCreateConversation(userId1, userId2) {
     // 1. Check if conversation already exists between these two users
     // Since RLS is strict, we might need a stored procedure, but let's try with multiple queries.
     // Find all conversations for user1

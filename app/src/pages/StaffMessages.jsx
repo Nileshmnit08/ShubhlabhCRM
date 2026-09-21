@@ -112,22 +112,39 @@ export default function StaffMessages() {
           id,
           updated_at,
           chat_participants (
-            user_id,
-            app_users:user_id ( display_name )
+            user_id
           )
         `)
         .order('updated_at', { ascending: false });
 
       if (convError) throw convError;
 
+      // Extract all unique user IDs to fetch their display names
+      const userIds = new Set();
+      convData.forEach(conv => {
+        conv.chat_participants.forEach(p => userIds.add(p.user_id));
+      });
+
+      const { data: usersData, error: usersError } = await supabase
+        .from('app_users')
+        .select('id, display_name')
+        .in('id', Array.from(userIds));
+
+      if (usersError) throw usersError;
+
+      const userMap = {};
+      usersData.forEach(u => {
+        userMap[u.id] = u.display_name;
+      });
+
       const formattedConvs = await Promise.all(convData.map(async (conv) => {
         const names = conv.chat_participants
-          .map(p => p.app_users?.display_name || 'Unknown')
+          .map(p => userMap[p.user_id] || 'Unknown')
           .join(' & ');
 
         const { data: latestMsgData } = await supabase
           .from('chat_messages')
-          .select('message_text, created_at, read_at')
+          .select('message_text, created_at, read_at, sender_id')
           .eq('conversation_id', conv.id)
           .order('created_at', { ascending: false })
           .limit(1);
@@ -164,14 +181,34 @@ export default function StaffMessages() {
           message_text,
           created_at,
           read_at,
-          sender_id,
-          app_users:sender_id ( display_name, role )
+          sender_id
         `)
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true });
 
       if (msgError) throw msgError;
-      setMessages(msgData || []);
+
+      // Extract unique sender IDs to fetch their profiles
+      const senderIds = new Set(msgData?.map(m => m.sender_id) || []);
+      
+      const { data: sendersData } = await supabase
+        .from('app_users')
+        .select('id, display_name, role')
+        .in('id', Array.from(senderIds));
+
+      const senderMap = {};
+      if (sendersData) {
+        sendersData.forEach(u => {
+          senderMap[u.id] = u;
+        });
+      }
+
+      const completeMessages = msgData?.map(msg => ({
+        ...msg,
+        app_users: senderMap[msg.sender_id] || { display_name: 'Unknown', role: 'Staff' }
+      })) || [];
+
+      setMessages(completeMessages);
       
       // Mark unread as read
       markMessagesAsRead(conversationId, userProfile.id);
