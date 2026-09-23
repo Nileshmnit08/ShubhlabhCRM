@@ -149,7 +149,7 @@ class ChatService {
   async getMessages(conversationId, userId) {
     const { data, error } = await supabase
       .from('chat_messages')
-      .select('*')
+      .select('*, chat_reactions(*)')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false });
 
@@ -168,9 +168,33 @@ class ChatService {
               created_at: op.created_at || new Date().toISOString()
             }));
             
+          // Inject pending chat reactions
+          const pendingReactions = queue.filter(op => op.table === 'chat_reactions');
+          
+          finalData.forEach(m => {
+            if (!m.chat_reactions) m.chat_reactions = [];
+            pendingReactions.forEach(pr => {
+              if (pr.payload.message_id === m.id) {
+                // If it's a delete, remove it from local state
+                if (pr.action === 'delete') {
+                  m.chat_reactions = m.chat_reactions.filter(r => !(r.message_id === pr.payload.message_id && r.user_id === pr.payload.user_id));
+                } else if (pr.action === 'upsert') {
+                  // If it's an upsert, replace or add
+                  const existingIdx = m.chat_reactions.findIndex(r => r.message_id === pr.payload.message_id && r.user_id === pr.payload.user_id);
+                  if (existingIdx >= 0) {
+                    m.chat_reactions[existingIdx] = pr.payload;
+                  } else {
+                    m.chat_reactions.push(pr.payload);
+                  }
+                }
+              }
+            });
+          });
+
           // Add pending messages that don't already exist in server data
           pendingMessages.forEach(pm => {
              if (!finalData.find(m => m.id === pm.id)) {
+                if (!pm.chat_reactions) pm.chat_reactions = [];
                 finalData.push(pm);
              }
           });
@@ -194,7 +218,7 @@ class ChatService {
   /**
    * Send a new message and dispatch in-app notification (Offline First)
    */
-  async sendMessage(conversationId, senderId, text, recipientId = null, senderName = 'Staff', existingId = null) {
+  async sendMessage(conversationId, senderId, text, recipientId = null, senderName = 'Staff', existingId = null, options = {}) {
     const messageId = existingId || generateUUID();
     
     // 1. Enqueue the chat message
@@ -203,6 +227,8 @@ class ChatService {
       conversation_id: conversationId,
       sender_id: senderId,
       message_text: text,
+      reply_to_id: options.reply_to_id || null,
+      is_forwarded: options.is_forwarded || false
     };
     
     await SyncService.enqueueOperation('chat_messages', messagePayload, senderId);
@@ -224,6 +250,43 @@ class ChatService {
 
     return { data: [messagePayload], error: null };
   }
+
+  /**
+   * Delete a message (soft delete)
+   */
+  async deleteMessage(messageId, userId) {
+    const payload = {
+      id: messageId,
+      deleted_at: new Date().toISOString()
+    };
+    await SyncService.enqueueOperation('chat_messages', payload, userId, 'update');
+    return { error: null };
+  }
+
+  /**
+   * Add, change, or remove a reaction to a message
+   */
+  async reactToMessage(messageId, userId, emoji) {
+    if (!emoji) {
+      // It's a delete
+      const payload = { message_id: messageId, user_id: userId };
+      // Passing random id to satisfy SyncService payload structure, but match will use payload fields
+      payload.id = generateUUID(); 
+      await SyncService.enqueueOperation('chat_reactions', payload, userId, 'delete');
+    } else {
+      // It's an upsert
+      const payload = {
+        id: generateUUID(),
+        message_id: messageId,
+        user_id: userId,
+        emoji: emoji,
+        created_at: new Date().toISOString()
+      };
+      await SyncService.enqueueOperation('chat_reactions', payload, userId, 'upsert', 'message_id,user_id');
+    }
+    return { error: null };
+  }
+
 
   /**
    * Mark messages as read in a conversation

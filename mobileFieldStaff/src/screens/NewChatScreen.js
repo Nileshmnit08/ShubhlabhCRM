@@ -14,11 +14,12 @@ import { colors, typography } from '../theme/tokens';
 import { MaterialIcons } from '@expo/vector-icons';
 import { chatService } from '../services/ChatService';
 
-export const NewChatScreen = ({ navigation }) => {
+export const NewChatScreen = ({ route, navigation }) => {
   const { session } = useAuth();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [recentStaffIds, setRecentStaffIds] = useState([]);
   
   // Modal state
   const [selectedStaff, setSelectedStaff] = useState(null);
@@ -36,6 +37,15 @@ export const NewChatScreen = ({ navigation }) => {
     if (!error && data) {
       setStaff(data);
     }
+
+    try {
+      const { data: convData } = await chatService.getConversations(session.user.id);
+      if (convData) {
+        const recents = convData.map(c => c.otherUser?.id).filter(Boolean);
+        setRecentStaffIds([...new Set(recents)]);
+      }
+    } catch (e) {}
+
     setLoading(false);
   };
 
@@ -66,6 +76,17 @@ export const NewChatScreen = ({ navigation }) => {
       }
       
       if (data && data.id) {
+        if (route?.params?.forwardMessage) {
+           await chatService.sendMessage(
+             data.id,
+             session.user.id,
+             route.params.forwardMessage.message_text,
+             selectedStaff.id,
+             session.user.user_metadata?.full_name || 'Staff',
+             null,
+             { is_forwarded: true }
+           );
+        }
         // Small delay to allow modal to close smoothly
         setTimeout(() => {
           navigation.replace('ChatConversation', {
@@ -93,81 +114,70 @@ export const NewChatScreen = ({ navigation }) => {
     (user.role || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const quickConnectStaff = filteredStaff.slice(0, 2);
-  const remainingStaff = filteredStaff; // Or slice(2) if we don't want them in both
+  let listData = [];
+  if (searchQuery.length > 0) {
+    if (filteredStaff.length > 0) {
+      listData = [{ id: 'HEADER_SEARCH', isHeader: true, title: 'SEARCH RESULTS' }, ...filteredStaff];
+    }
+  } else {
+    const recents = recentStaffIds.map(id => staff.find(s => s.id === id)).filter(Boolean);
+    const uniqueRecents = [...new Map(recents.map(item => [item.id, item])).values()];
+    
+    listData.push({ id: 'HEADER_RECENT', isHeader: true, title: 'RECENT' });
+    if (uniqueRecents.length > 0) {
+      listData.push(...uniqueRecents);
+    } else {
+      listData.push({ id: 'EMPTY_RECENT', isEmptyRecent: true });
+    }
+
+    const allOthers = staff.filter(s => !uniqueRecents.find(ur => ur.id === s.id));
+    if (allOthers.length > 0) {
+      listData.push({ id: 'HEADER_ALL', isHeader: true, title: 'ALL STAFF' });
+      listData.push(...allOthers);
+    }
+  }
 
   const handleStaffPress = (user) => {
     setSelectedStaff(user);
     setModalVisible(true);
   };
 
-  const renderQuickCard = (user, index) => {
-    const isFirst = index === 0;
+  const renderStaffRow = ({ item }) => {
+    if (item.isHeader) {
+      return (
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{item.title}</Text>
+        </View>
+      );
+    }
+    if (item.isEmptyRecent) {
+      return (
+        <View style={styles.emptyRecentContainer}>
+          <Text style={styles.emptyRecentText}>No recent chats</Text>
+        </View>
+      );
+    }
     return (
       <TouchableOpacity 
-        key={user.id} 
-        style={styles.quickCard}
-        onPress={() => handleStaffPress(user)}
+        style={styles.staffRow}
+        onPress={() => handleStaffPress(item)}
         activeOpacity={0.7}
       >
-        <View style={styles.quickCardTop}>
-          <View>
-            <View style={[styles.quickAvatar, isFirst ? styles.quickAvatarPrimary : styles.quickAvatarTertiary]}>
-              <Text style={styles.quickAvatarText}>{getInitials(user.full_name)}</Text>
-            </View>
-            <View style={styles.quickOnlineDotWrapper}>
-              <View style={styles.quickOnlineDot} />
+        <View style={styles.staffRowLeft}>
+          <View style={styles.staffAvatarWrapper}>
+            <View style={styles.staffAvatar}>
+              <Text style={styles.staffAvatarText}>{getInitials(item.full_name)}</Text>
             </View>
           </View>
-          <View style={[styles.quickRolePill, isFirst ? styles.quickRolePillSecondary : styles.quickRolePillTertiary]}>
-            <MaterialIcons name={isFirst ? "verified-user" : "warehouse"} size={12} color={isFirst ? colors.onSecondaryFixed || '#2f1500' : colors.onTertiaryFixed || '#111c2d'} />
-            <Text style={[styles.quickRoleText, isFirst ? {color: colors.onSecondaryFixed} : {color: colors.onTertiaryFixed}]}>
-              {isFirst ? 'Lead' : 'Depot'}
-            </Text>
+          <View style={styles.staffInfo}>
+            <Text style={styles.staffName} numberOfLines={1}>{item.full_name || 'Unknown'}</Text>
+            <Text style={styles.staffRole} numberOfLines={1}>{item.role || 'Staff'} · Online</Text>
           </View>
         </View>
-        <Text style={styles.quickName} numberOfLines={1}>{user.full_name}</Text>
-        <Text style={styles.quickRoleDesc} numberOfLines={1}>{user.role || 'Staff'}</Text>
-        <View style={styles.quickStatusRow}>
-          <View style={styles.quickOnlineDotSmall} />
-          <Text style={styles.quickStatusText} numberOfLines={1}>Online</Text>
-        </View>
+        <MaterialIcons name="chevron-right" size={24} color={colors.outlineVariant} />
       </TouchableOpacity>
     );
   };
-
-  const renderStaffRow = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.staffRow}
-      onPress={() => handleStaffPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.staffRowLeft}>
-        <View style={styles.staffAvatarWrapper}>
-          <View style={styles.staffAvatar}>
-            <Text style={styles.staffAvatarText}>{getInitials(item.full_name)}</Text>
-          </View>
-          <View style={styles.staffOnlineDotWrapper}>
-            <View style={styles.staffOnlineDot} />
-          </View>
-        </View>
-        <View style={styles.staffInfo}>
-          <View style={styles.staffNameRow}>
-            <Text style={styles.staffName} numberOfLines={1}>{item.full_name || 'Unknown'}</Text>
-            <View style={styles.staffTag}>
-              <Text style={styles.staffTagText}>Staff</Text>
-            </View>
-          </View>
-          <Text style={styles.staffRole} numberOfLines={1}>{item.role || 'Field Staff'}</Text>
-          <View style={styles.staffStatusRow}>
-            <View style={styles.staffOnlineDotSmall} />
-            <Text style={styles.staffStatusText} numberOfLines={1}>Online</Text>
-          </View>
-        </View>
-      </View>
-      <MaterialIcons name="arrow-forward-ios" size={18} color={colors.outline} />
-    </TouchableOpacity>
-  );
 
   return (
     <View style={styles.container}>
@@ -177,8 +187,7 @@ export const NewChatScreen = ({ navigation }) => {
             <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerSubtitleText}>SHUBH LABH FIELD</Text>
-            <Text style={styles.headerTitleText}>New Chat — Staff Directory</Text>
+            <Text style={styles.headerTitleText}>New Chat</Text>
           </View>
         </View>
         <View style={styles.headerRight}>
@@ -190,30 +199,19 @@ export const NewChatScreen = ({ navigation }) => {
       </View>
 
       <FlatList
-        data={remainingStaff}
+        data={listData}
         keyExtractor={(item) => item.id}
         renderItem={renderStaffRow}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
-            <View style={styles.contextHeader}>
-              <View style={styles.contextHeaderRow}>
-                <View style={styles.contextIconRow}>
-                  <MaterialIcons name="group-add" size={16} color={colors.primary} />
-                  <Text style={styles.contextTitle}>Select Colleague • सहकर्मी चुनें</Text>
-                </View>
-                <View style={styles.activeBadge}>
-                  <Text style={styles.activeBadgeText}>{filteredStaff.length} Active</Text>
-                </View>
-              </View>
-            </View>
 
             <View style={styles.searchContainer}>
               <View style={styles.searchBar}>
                 <MaterialIcons name="search" size={22} color={colors.onSurfaceVariant} />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Type name or department... / नाम या विभाग"
+                  placeholder="Search colleagues..."
                   placeholderTextColor={colors.outline}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -225,41 +223,12 @@ export const NewChatScreen = ({ navigation }) => {
                 )}
               </View>
             </View>
-
-            {quickConnectStaff.length > 0 && (
-              <View style={styles.sectionContainer}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionTitleRow}>
-                    <MaterialIcons name="bolt" size={18} color={colors.secondary} />
-                    <Text style={styles.sectionTitle}>Quick Connect / Supervisors</Text>
-                  </View>
-                  <Text style={styles.sectionSubtitle}>तुरंत संपर्क</Text>
-                </View>
-                <View style={styles.quickGrid}>
-                  {quickConnectStaff.map((user, index) => renderQuickCard(user, index))}
-                </View>
-              </View>
-            )}
-
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeader}>
-                <View style={styles.sectionTitleRow}>
-                  <MaterialIcons name="badge" size={18} color={colors.primary} />
-                  <Text style={styles.sectionTitle}>All Staff Directory</Text>
-                </View>
-                <Text style={styles.sectionSubtitleText}>सभी सहकर्मी ({remainingStaff.length})</Text>
-              </View>
-            </View>
           </>
         }
         ListEmptyComponent={
           !loading && (
             <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconBg}>
-                <MaterialIcons name="person-search" size={26} color={colors.outline} />
-              </View>
-              <Text style={styles.emptyTitle}>No Staff Found</Text>
-              <Text style={styles.emptySubtitle}>कोई सहकर्मी नहीं मिला। Check the spelling or search by department name.</Text>
+              <Text style={styles.emptyTitle}>No colleagues found</Text>
             </View>
           )
         }
@@ -619,6 +588,15 @@ const styles = StyleSheet.create({
   staffAvatarText: {
     ...typography.headlineSm,
     color: colors.primary,
+  },
+  emptyRecentContainer: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  emptyRecentText: {
+    ...typography.bodyMd,
+    color: colors.onSurfaceVariant,
+    fontStyle: 'italic',
   },
   staffOnlineDotWrapper: {
     position: 'absolute',

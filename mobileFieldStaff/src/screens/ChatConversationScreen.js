@@ -12,9 +12,8 @@ import {
   Keyboard,
   ActivityIndicator,
   Alert,
-  Clipboard,
 } from 'react-native';
-import { BottomSheetFoundation } from '../components/BottomSheet';
+import { MessageContextMenu } from '../components/MessageContextMenu';
 import { useAuth } from '../context/AuthContext';
 import { chatService } from '../services/ChatService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -71,6 +70,19 @@ const MessageBubble = memo(({ item, nextItem, index, currentUserId, searchActive
   const nextDate = nextItem ? formatSeparatorDate(nextItem.created_at) : null;
   const showDateSeparator = currentDate !== nextDate;
 
+  const bubbleRef = useRef(null);
+
+  const handleLongPress = () => {
+    if (bubbleRef.current) {
+      bubbleRef.current.measureInWindow((x, y, width, height) => {
+        onLongPress(item, { x, y, width, height });
+      });
+    } else {
+      // Fallback
+      onLongPress(item, null);
+    }
+  };
+
   return (
     <>
       {showDateSeparator && (
@@ -86,9 +98,11 @@ const MessageBubble = memo(({ item, nextItem, index, currentUserId, searchActive
           isMe ? styles.messageWrapperMe : styles.messageWrapperOther,
         ]}
       >
-        <TouchableOpacity
-          onLongPress={() => onLongPress(item)}
-          activeOpacity={0.8}
+        <View ref={bubbleRef} collapsable={false}>
+          <TouchableOpacity
+            delayLongPress={250}
+            onLongPress={handleLongPress}
+            activeOpacity={0.8}
           style={[
             styles.messageBubble,
             isMe ? styles.messageBubbleMe : styles.messageBubbleOther,
@@ -140,6 +154,27 @@ const MessageBubble = memo(({ item, nextItem, index, currentUserId, searchActive
             )}
           </View>
         </TouchableOpacity>
+        
+        {item.chat_reactions && item.chat_reactions.length > 0 && (
+          <View style={[
+            styles.reactionsContainer,
+            isMe ? styles.reactionsContainerMe : styles.reactionsContainerOther
+          ]}>
+            {Object.entries(
+              item.chat_reactions.reduce((acc, r) => {
+                acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                return acc;
+              }, {})
+            ).map(([emoji, count]) => (
+              <View key={emoji} style={styles.reactionPill}>
+                <Text style={styles.reactionEmoji}>{emoji}</Text>
+                {count > 1 && <Text style={styles.reactionCount}>{count}</Text>}
+              </View>
+            ))}
+          </View>
+        )}
+        
+        </View>
       </View>
     </>
   );
@@ -167,13 +202,17 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
 
   // otherUser can be resolved lazily if the notification only provided conversationId
   const [otherUser, setOtherUser] = useState(paramOtherUser || null);
   const [resolvingUser, setResolvingUser] = useState(!paramOtherUser);
 
-  const [actionSheetVisible, setActionSheetVisible] = useState(false);
-  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [contextMenu, setContextMenu] = useState({
+    visible: false,
+    message: null,
+    layout: null,
+  });
 
   const [searchActive, setSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -356,6 +395,46 @@ export const ChatConversationScreen = ({ route, navigation }) => {
           );
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_reactions',
+        },
+        (payload) => {
+          setMessages(current => {
+            return current.map(m => {
+              if (payload.eventType === 'DELETE') {
+                if (m.chat_reactions?.some(r => r.id === payload.old.id || (r.message_id === payload.old.message_id && r.user_id === payload.old.user_id))) {
+                  return {
+                    ...m,
+                    chat_reactions: m.chat_reactions.filter(r => r.id !== payload.old.id && !(r.message_id === payload.old.message_id && r.user_id === payload.old.user_id))
+                  };
+                }
+              } else if (payload.eventType === 'INSERT') {
+                if (m.id === payload.new.message_id) {
+                  const exists = m.chat_reactions?.some(r => r.id === payload.new.id || r.user_id === payload.new.user_id);
+                  if (!exists) {
+                    return {
+                      ...m,
+                      chat_reactions: [...(m.chat_reactions || []), payload.new]
+                    };
+                  }
+                }
+              } else if (payload.eventType === 'UPDATE') {
+                if (m.id === payload.new.message_id) {
+                  return {
+                    ...m,
+                    chat_reactions: (m.chat_reactions || []).map(r => r.id === payload.new.id ? payload.new : r)
+                  };
+                }
+              }
+              return m;
+            });
+          });
+        }
+      )
       .subscribe();
 
     return () => {
@@ -417,8 +496,10 @@ export const ChatConversationScreen = ({ route, navigation }) => {
       textToSend,
       otherUser?.id,
       senderName,
-      tempId
+      tempId,
+      { reply_to_id: replyingTo?.id }
     );
+    setReplyingTo(null);
   };
 
   const handleCall = () => {
@@ -448,21 +529,111 @@ export const ChatConversationScreen = ({ route, navigation }) => {
       .toUpperCase();
   };
 
-  const handleLongPress = (message) => {
-    setSelectedMessage(message);
-    setActionSheetVisible(true);
+  const handleLongPress = (message, layout) => {
+    setContextMenu({
+      visible: true,
+      message,
+      layout,
+    });
   };
 
   const closeActionSheet = () => {
-    setActionSheetVisible(false);
-    setSelectedMessage(null);
+    setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
   const executeAction = (actionFn) => {
+    actionFn();
+  };
+
+  const handleContextAction = (action, message, emoji = null) => {
+    if (action === 'react') {
+      closeActionSheet();
+      const existingReaction = message.chat_reactions?.find(r => r.user_id === currentUserId);
+      const newEmoji = existingReaction?.emoji === emoji ? null : emoji;
+      chatService.reactToMessage(message.id, currentUserId, newEmoji);
+      
+      // Optimistic update
+      setMessages(current => current.map(m => {
+        if (m.id === message.id) {
+          const reactions = m.chat_reactions ? [...m.chat_reactions] : [];
+          if (newEmoji) {
+            const idx = reactions.findIndex(r => r.user_id === currentUserId);
+            if (idx >= 0) reactions[idx].emoji = newEmoji;
+            else reactions.push({ message_id: message.id, user_id: currentUserId, emoji: newEmoji });
+          } else {
+            return { ...m, chat_reactions: reactions.filter(r => r.user_id !== currentUserId) };
+          }
+          return { ...m, chat_reactions: reactions };
+        }
+        return m;
+      }));
+      return;
+    }
+
+    if (action === 'reply') {
+      closeActionSheet();
+      setReplyingTo(message);
+    } else if (action === 'copy') {
+      handleCopy();
+    } else if (action === 'forward') {
+      closeActionSheet();
+      navigation.navigate('NewChat', { forwardMessage: message });
+    } else if (action === 'delete') {
+      handleDelete(message);
+    } else if (action === 'info') {
+      handleInfo();
+    } else if (action === 'star') {
+      handleBlocked('Star');
+    } else if (action === 'pin') {
+      handleBlocked('Pin');
+    } else if (action === 'note') {
+      handleBlocked('Add to Note');
+    } else if (action === 'translate') {
+      handleBlocked('Translate');
+    } else if (action === 'edit') {
+      handleBlocked('Edit');
+    }
+  };
+
+  const handleDelete = async (message) => {
+    if (message.sender_id !== currentUserId) return;
     closeActionSheet();
-    setTimeout(() => {
-      actionFn();
-    }, 250);
+    await chatService.deleteMessage(message.id, currentUserId);
+    setMessages(current => current.map(m => m.id === message.id ? { ...m, deleted_at: new Date().toISOString(), message_text: 'This message was deleted' } : m));
+  };
+
+  const renderMessageClone = (msg) => {
+    const isMe = msg.sender_id === currentUserId;
+    return (
+      <View
+        style={[
+          styles.messageBubble,
+          isMe ? styles.messageBubbleMe : styles.messageBubbleOther,
+        ]}
+      >
+        <Text
+          style={[
+            styles.messageText,
+            isMe ? styles.messageTextMe : styles.messageTextOther,
+          ]}
+        >
+          {msg.message_text}
+        </Text>
+        <View style={[styles.metaRow, isMe ? styles.metaRowMe : styles.metaRowOther]}>
+          <Text style={[styles.timeText, isMe ? styles.timeTextMe : styles.timeTextOther]}>
+            {formatTime(msg.created_at)}
+          </Text>
+          {isMe && (
+            <MaterialIcons
+              name={msg.read_at ? 'done-all' : 'done'}
+              size={14}
+              color={msg.read_at ? colors.primaryFixed || '#a9f3c5' : colors.onPrimaryContainer || '#ffffff'}
+              style={styles.statusIcon}
+            />
+          )}
+        </View>
+      </View>
+    );
   };
 
   const handleCopy = () => {
@@ -665,7 +836,18 @@ export const ChatConversationScreen = ({ route, navigation }) => {
       />
 
       {/* ── Input bar ── */}
-      <View style={styles.inputContainer}>
+      {replyingTo && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, backgroundColor: 'rgba(248, 249, 255, 0.95)', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flex: 1, borderLeftWidth: 4, borderLeftColor: colors.primary, paddingLeft: 8 }}>
+            <Text style={{ fontSize: 12, color: colors.primary, fontWeight: 'bold' }}>Replying to {replyingTo.sender_id === currentUserId ? 'yourself' : otherUser?.full_name}</Text>
+            <Text style={{ fontSize: 14, color: colors.onSurfaceVariant }} numberOfLines={1}>{replyingTo.message_text}</Text>
+          </View>
+          <TouchableOpacity onPress={() => setReplyingTo(null)}>
+            <MaterialIcons name="close" size={20} color={colors.onSurfaceVariant} />
+          </TouchableOpacity>
+        </View>
+      )}
+      <View style={[styles.inputContainer, replyingTo && { borderTopWidth: 0, paddingTop: 4 }]}>
         <View style={styles.inputWrapper}>
           <TextInput
             style={styles.input}
@@ -732,73 +914,16 @@ export const ChatConversationScreen = ({ route, navigation }) => {
         </View>
       ) : null}
 
-      {/* ── Action Sheet ── */}
-      <BottomSheetFoundation
-        visible={actionSheetVisible}
+      {/* ── Context Menu ── */}
+      <MessageContextMenu
+        visible={contextMenu.visible}
+        message={contextMenu.message}
+        layout={contextMenu.layout}
         onClose={closeActionSheet}
-        title="Message Actions"
-      >
-        {selectedMessage && (
-          <View style={{ marginTop: 8, paddingBottom: insets.bottom || 16 }}>
-            {/* Primary Actions */}
-            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Reply')}>
-              <MaterialIcons name="reply" size={24} color={colors.onSurface} style={styles.actionIcon} />
-              <Text style={styles.actionText}>Reply</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.actionItem} onPress={handleCopy}>
-              <MaterialIcons name="content-copy" size={24} color={colors.onSurface} style={styles.actionIcon} />
-              <Text style={styles.actionText}>Copy</Text>
-            </TouchableOpacity>
-
-            {selectedMessage.sender_id === currentUserId && (
-              <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Edit')}>
-                <MaterialIcons name="edit" size={24} color={colors.onSurface} style={styles.actionIcon} />
-                <Text style={styles.actionText}>Edit</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Forward')}>
-              <MaterialIcons name="shortcut" size={24} color={colors.onSurface} style={styles.actionIcon} />
-              <Text style={styles.actionText}>Forward</Text>
-            </TouchableOpacity>
-
-            <View style={styles.actionDivider} />
-
-            {/* Secondary Actions */}
-            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Star')}>
-              <MaterialIcons name="star-outline" size={24} color={colors.onSurface} style={styles.actionIcon} />
-              <Text style={styles.actionText}>Star</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Pin')}>
-              <MaterialIcons name="push-pin" size={24} color={colors.onSurface} style={styles.actionIcon} />
-              <Text style={styles.actionText}>Pin</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionItem} onPress={handleInfo}>
-              <MaterialIcons name="info-outline" size={24} color={colors.onSurface} style={styles.actionIcon} />
-              <Text style={styles.actionText}>Info</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Translate')}>
-              <MaterialIcons name="translate" size={24} color={colors.onSurface} style={styles.actionIcon} />
-              <Text style={styles.actionText}>Translate</Text>
-            </TouchableOpacity>
-
-            {/* Destructive Actions */}
-            {selectedMessage.sender_id === currentUserId && (
-              <>
-                <View style={styles.actionDivider} />
-                <TouchableOpacity style={[styles.actionItem, { borderBottomWidth: 0 }]} onPress={() => handleBlocked('Delete')}>
-                  <MaterialIcons name="delete-outline" size={24} color={colors.error} style={styles.actionIcon} />
-                  <Text style={[styles.actionText, { color: colors.error }]}>Delete</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        )}
-      </BottomSheetFoundation>
+        isMe={contextMenu.message?.sender_id === currentUserId}
+        onAction={handleContextAction}
+        renderClone={renderMessageClone}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -1023,6 +1148,46 @@ const styles = StyleSheet.create({
   },
   statusIcon: {
     marginLeft: 4,
+  },
+  reactionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: -8,
+    marginBottom: -8,
+    zIndex: 10,
+  },
+  reactionsContainerMe: {
+    alignSelf: 'flex-end',
+    marginRight: 8,
+  },
+  reactionsContainerOther: {
+    alignSelf: 'flex-start',
+    marginLeft: 8,
+  },
+  reactionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginRight: 4,
+    borderWidth: 1,
+    borderColor: colors.surfaceContainerLowest,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+  },
+  reactionEmoji: {
+    fontSize: 12,
+  },
+  reactionCount: {
+    fontSize: 10,
+    color: colors.onSurfaceVariant,
+    marginLeft: 4,
+    fontWeight: 'bold',
   },
   inputContainer: {
     flexDirection: 'row',

@@ -62,7 +62,7 @@ export class SyncService {
    * @param {object} payload - Must contain a predefined client UUID 'id'
    * @param {string} userId - Authenticated user's ID
    */
-  static async enqueueOperation(table, payload, userId, action = 'insert') {
+  static async enqueueOperation(table, payload, userId, action = 'insert', conflictTarget = null) {
     if (!userId) {
       console.warn('SyncService: enqueueOperation called without userId');
       return null;
@@ -73,6 +73,7 @@ export class SyncService {
       local_id: guaranteedId, // Guarantee ID exists for idempotency
       table,
       action,
+      conflictTarget,
       payload: { ...payload, id: guaranteedId },
       status: 'PENDING',
       created_at: new Date().toISOString()
@@ -190,6 +191,17 @@ export class SyncService {
               .update(safePayload)
               .eq('id', safePayload.id);
             error = updateError;
+          } else if (pendingOp.action === 'upsert') {
+            const { error: upsertError } = await supabase
+              .from(pendingOp.table)
+              .upsert([safePayload], { onConflict: pendingOp.conflictTarget || 'id' });
+            error = upsertError;
+          } else if (pendingOp.action === 'delete') {
+            const { error: deleteError } = await supabase
+              .from(pendingOp.table)
+              .delete()
+              .match(safePayload);
+            error = deleteError;
           } else {
             const { error: insertError } = await supabase
               .from(pendingOp.table)

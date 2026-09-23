@@ -22,6 +22,11 @@ export function BottomSheetFoundation({
   const slideAnim = useRef(new Animated.Value(screenHeight)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // Synchronously update mounted state if visible becomes true
+  if (visible && !mounted) {
+    setMounted(true);
+  }
+
   // Handle Hardware Back Button
   useEffect(() => {
     if (visible) {
@@ -71,10 +76,10 @@ export function BottomSheetFoundation({
     }
   }, [visible]);
 
-  if (!mounted) return null;
+  if (!mounted && !visible) return null;
 
   return (
-    <View style={styles.overlay}>
+    <View style={[styles.overlay, !mounted && { display: 'none' }]}>
       <TouchableWithoutFeedback onPress={onClose}>
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} />
       </TouchableWithoutFeedback>

@@ -152,7 +152,7 @@ function RootNavigator() {
       <Stack.Screen 
         name="NewChat" 
         component={NewChatScreen} 
-        options={{ title: 'New Chat' }} 
+        options={{ headerShown: false }} 
       />
       <Stack.Screen 
         name="ChatConversation" 
