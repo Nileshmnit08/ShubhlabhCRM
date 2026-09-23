@@ -58,6 +58,22 @@ class ChatService {
           });
         }
 
+        // Fetch real unread counts
+        const conversationIds = data.map(item => item.conversation_id);
+        const { data: unreadData } = await supabase
+          .from('chat_messages')
+          .select('conversation_id')
+          .in('conversation_id', conversationIds)
+          .is('read_at', null)
+          .neq('sender_id', userId);
+        
+        const unreadCounts = {};
+        if (unreadData) {
+          unreadData.forEach(msg => {
+            unreadCounts[msg.conversation_id] = (unreadCounts[msg.conversation_id] || 0) + 1;
+          });
+        }
+
         onlineData = data.map(item => {
           const participants = item.chat_conversations?.chat_participants || [];
           const otherParticipant = participants.find(p => p.user_id !== userId);
@@ -65,6 +81,7 @@ class ChatService {
             id: item.conversation_id,
             updated_at: item.chat_conversations?.updated_at,
             otherUser: (otherParticipant && userMap[otherParticipant.user_id]) || { full_name: 'Unknown User', role: 'Staff' },
+            unreadCount: unreadCounts[item.conversation_id] || 0,
             pending: false
           };
         });

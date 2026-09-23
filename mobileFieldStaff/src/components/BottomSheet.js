@@ -1,43 +1,119 @@
-import React from 'react';
-import { View, StyleSheet, Text, Modal, TouchableWithoutFeedback, Animated } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  StyleSheet,
+  TouchableWithoutFeedback,
+  Animated,
+  BackHandler,
+  Keyboard,
+  Dimensions,
+} from 'react-native';
 import { colors, rounded, elevation } from '../theme/tokens';
 
-export function BottomSheetFoundation({ children, visible, onClose, height = '40%' }) {
-  if (!visible) return null;
+const { height: screenHeight } = Dimensions.get('window');
+
+export function BottomSheetFoundation({
+  children,
+  visible,
+  onClose,
+  height = '50%',
+}) {
+  const [mounted, setMounted] = useState(visible);
+  const slideAnim = useRef(new Animated.Value(screenHeight)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Handle Hardware Back Button
+  useEffect(() => {
+    if (visible) {
+      const backAction = () => {
+        onClose();
+        return true; // Intercept
+      };
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+      return () => backHandler.remove();
+    }
+  }, [visible, onClose]);
+
+  // Handle Animation Lifecycle
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      // Dismiss keyboard when sheet opens
+      Keyboard.dismiss();
+
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else if (mounted) {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: screenHeight,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setMounted(false);
+      });
+    }
+  }, [visible]);
+
+  if (!mounted) return null;
 
   return (
-    <Modal visible={visible} transparent={true} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={styles.backdrop} />
-        </TouchableWithoutFeedback>
-        <View style={[styles.container, elevation.level3, { height }]}>
-          <View style={styles.dragPillContainer}>
-            <View style={styles.dragPill} />
-          </View>
-          <View style={styles.content}>
-            {children}
-          </View>
+    <View style={styles.overlay}>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} />
+      </TouchableWithoutFeedback>
+      
+      <Animated.View
+        style={[
+          styles.container,
+          elevation.level3,
+          { transform: [{ translateY: slideAnim }] },
+        ]}
+      >
+        <View style={styles.dragPillContainer}>
+          <View style={styles.dragPill} />
         </View>
-      </View>
-    </Modal>
+        <View style={styles.content}>
+          {children}
+        </View>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999, // Ensure it sits on top of everything
+    elevation: 9999,
     justifyContent: 'flex-end',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   container: {
     backgroundColor: colors.surfaceContainerLowest,
     borderTopLeftRadius: rounded.lg,
     borderTopRightRadius: rounded.lg,
     paddingBottom: 24,
+    minHeight: 200,
   },
   dragPillContainer: {
     alignItems: 'center',
@@ -50,7 +126,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#CBD5E1',
   },
   content: {
-    flex: 1,
     paddingHorizontal: 16,
-  }
+  },
 });

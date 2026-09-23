@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import {
   Keyboard,
   ActivityIndicator,
   Alert,
+  Clipboard,
 } from 'react-native';
+import { BottomSheetFoundation } from '../components/BottomSheet';
 import { useAuth } from '../context/AuthContext';
 import { chatService } from '../services/ChatService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,11 +34,125 @@ const formatTime = (dateString) => {
   return `${hours}:${minutes} ${ampm}`;
 };
 
+const formatSeparatorDate = (dateString) => {
+  if (!dateString) return null;
+  const date = new Date(dateString);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) {
+    return 'Today';
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  } else {
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  }
+};
+
 // Validate UUID shape to guard against accidental misrouting
 function isValidUUID(value) {
   if (!value) return false;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
+
+// ─────────────────────────────────────────────────────────────────
+// MEMOIZED MESSAGE BUBBLE
+// ─────────────────────────────────────────────────────────────────
+const MessageBubble = memo(({ item, nextItem, index, currentUserId, searchActive, searchResults, searchIndex, onLongPress }) => {
+  const isMe = item.sender_id === currentUserId;
+  const isSearchMatch = searchActive && searchResults.length > 0 && searchResults[searchIndex]?.index === index;
+  
+  const currentDate = formatSeparatorDate(item.created_at);
+  const nextDate = nextItem ? formatSeparatorDate(nextItem.created_at) : null;
+  const showDateSeparator = currentDate !== nextDate;
+
+  return (
+    <>
+      {showDateSeparator && (
+        <View style={styles.datePillContainer}>
+          <View style={styles.datePill}>
+            <Text style={styles.datePillText}>{currentDate}</Text>
+          </View>
+        </View>
+      )}
+      <View
+        style={[
+          styles.messageWrapper,
+          isMe ? styles.messageWrapperMe : styles.messageWrapperOther,
+        ]}
+      >
+        <TouchableOpacity
+          onLongPress={() => onLongPress(item)}
+          activeOpacity={0.8}
+          style={[
+            styles.messageBubble,
+            isMe ? styles.messageBubbleMe : styles.messageBubbleOther,
+            isSearchMatch && { borderWidth: 2, borderColor: colors.primary, backgroundColor: isMe ? '#0a462c' : '#e0e0e0' }
+          ]}
+        >
+          <Text
+            style={[
+              styles.messageText,
+              isMe ? styles.messageTextMe : styles.messageTextOther,
+            ]}
+          >
+            {item.message_text}
+          </Text>
+
+          <View
+            style={[
+              styles.metaRow,
+              isMe ? styles.metaRowMe : styles.metaRowOther,
+            ]}
+          >
+            <Text
+              style={[
+                styles.timeText,
+                isMe ? styles.timeTextMe : styles.timeTextOther,
+              ]}
+            >
+              {formatTime(item.created_at)}
+            </Text>
+            {isMe && !item.pending && (
+              <MaterialIcons
+                name={item.read_at ? 'done-all' : 'done'}
+                size={14}
+                color={
+                  item.read_at
+                    ? colors.primaryFixed || '#a9f3c5'
+                    : colors.onPrimaryContainer || '#ffffff'
+                }
+                style={styles.statusIcon}
+              />
+            )}
+            {isMe && item.pending && (
+              <MaterialIcons
+                name="schedule"
+                size={14}
+                color={colors.onPrimaryContainer || '#ffffff'}
+                style={styles.statusIcon}
+              />
+            )}
+          </View>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison to minimize re-renders
+  if (prevProps.item.id !== nextProps.item.id) return false;
+  if (prevProps.item.read_at !== nextProps.item.read_at) return false;
+  if (prevProps.item.pending !== nextProps.item.pending) return false;
+  if (prevProps.nextItem?.created_at !== nextProps.nextItem?.created_at) return false;
+  if (prevProps.searchActive !== nextProps.searchActive) return false;
+  if (prevProps.searchActive && prevProps.searchIndex !== nextProps.searchIndex) return false;
+  return true;
+});
 
 export const ChatConversationScreen = ({ route, navigation }) => {
   // conversationId is the authoritative routing key from navigation params.
@@ -44,7 +160,7 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   const { conversationId, otherUser: paramOtherUser } = route.params;
 
   const { session } = useAuth();
-  const { setActiveChatId } = useNotifications();
+  const { setActiveChatId, markEntityAsRead } = useNotifications();
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState([]);
@@ -55,6 +171,14 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   // otherUser can be resolved lazily if the notification only provided conversationId
   const [otherUser, setOtherUser] = useState(paramOtherUser || null);
   const [resolvingUser, setResolvingUser] = useState(!paramOtherUser);
+
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+
+  const [searchActive, setSearchActive] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchIndex, setSearchIndex] = useState(0);
 
   const flatListRef = useRef();
 
@@ -190,6 +314,7 @@ export const ChatConversationScreen = ({ route, navigation }) => {
 
     if (currentUserId) {
       chatService.markMessagesAsRead(validConversationId, currentUserId);
+      markEntityAsRead(validConversationId);
     }
 
     const channel = supabase
@@ -211,6 +336,7 @@ export const ChatConversationScreen = ({ route, navigation }) => {
             }
             if (payload.new.sender_id !== currentUserId) {
               chatService.markMessagesAsRead(validConversationId, currentUserId);
+              markEntityAsRead(validConversationId);
             }
             return [payload.new, ...current];
           });
@@ -322,6 +448,91 @@ export const ChatConversationScreen = ({ route, navigation }) => {
       .toUpperCase();
   };
 
+  const handleLongPress = (message) => {
+    setSelectedMessage(message);
+    setActionSheetVisible(true);
+  };
+
+  const closeActionSheet = () => {
+    setActionSheetVisible(false);
+    setSelectedMessage(null);
+  };
+
+  const executeAction = (actionFn) => {
+    closeActionSheet();
+    setTimeout(() => {
+      actionFn();
+    }, 250);
+  };
+
+  const handleCopy = () => {
+    if (selectedMessage) {
+      const textToCopy = selectedMessage.message_text;
+      executeAction(() => {
+        Clipboard.setString(textToCopy);
+        Alert.alert('Copied', 'Message copied to clipboard.');
+      });
+    }
+  };
+
+  const handleInfo = () => {
+    if (selectedMessage) {
+      const created = formatTime(selectedMessage.created_at);
+      const read = selectedMessage.read_at ? formatTime(selectedMessage.read_at) : 'Not read yet';
+      const pending = selectedMessage.pending ? 'Yes' : 'No';
+      executeAction(() => {
+        Alert.alert('Message Info', `Sent: ${created}\nRead: ${read}\nPending: ${pending}`);
+      });
+    }
+  };
+
+  const handleBlocked = (actionName) => {
+    executeAction(() => {
+      Alert.alert('Not Available', `${actionName} is pending Product Owner database migration approval.`);
+    });
+  };
+
+  // ─────────────────────────────────────────────────────────────────
+  // SEARCH LOGIC
+  // ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!searchActive || !searchQuery.trim()) {
+      setSearchResults([]);
+      setSearchIndex(0);
+      return;
+    }
+    const query = searchQuery.toLowerCase();
+    const results = messages
+      .map((msg, index) => ({ msg, index }))
+      .filter(({ msg }) => msg.message_text.toLowerCase().includes(query));
+    
+    setSearchResults(results);
+    setSearchIndex(0);
+  }, [searchQuery, searchActive, messages]);
+
+  useEffect(() => {
+    if (searchActive && searchResults.length > 0) {
+      const match = searchResults[searchIndex];
+      try {
+        flatListRef.current?.scrollToIndex({ index: match.index, animated: true, viewPosition: 0.5 });
+      } catch (e) {
+        console.warn('Scroll to search result failed', e);
+      }
+    }
+  }, [searchIndex, searchResults, searchActive]);
+
+  const handleSearchNext = () => {
+    if (searchResults.length > 0) {
+      setSearchIndex((prev) => (prev + 1) % searchResults.length);
+    }
+  };
+
+  const handleSearchPrev = () => {
+    if (searchResults.length > 0) {
+      setSearchIndex((prev) => (prev - 1 + searchResults.length) % searchResults.length);
+    }
+  };
+
   // ─────────────────────────────────────────────────────────────────
   // INVALID CONVERSATION GUARD
   // ─────────────────────────────────────────────────────────────────
@@ -343,70 +554,20 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   // ─────────────────────────────────────────────────────────────────
   // RENDER MESSAGE BUBBLE
   // ─────────────────────────────────────────────────────────────────
-  const renderMessage = ({ item }) => {
-    const isMe = item.sender_id === currentUserId;
-
+  const renderMessage = useCallback(({ item, index }) => {
     return (
-      <View
-        style={[
-          styles.messageWrapper,
-          isMe ? styles.messageWrapperMe : styles.messageWrapperOther,
-        ]}
-      >
-        <View
-          style={[
-            styles.messageBubble,
-            isMe ? styles.messageBubbleMe : styles.messageBubbleOther,
-          ]}
-        >
-          <Text
-            style={[
-              styles.messageText,
-              isMe ? styles.messageTextMe : styles.messageTextOther,
-            ]}
-          >
-            {item.message_text}
-          </Text>
-
-          <View
-            style={[
-              styles.metaRow,
-              isMe ? styles.metaRowMe : styles.metaRowOther,
-            ]}
-          >
-            <Text
-              style={[
-                styles.timeText,
-                isMe ? styles.timeTextMe : styles.timeTextOther,
-              ]}
-            >
-              {formatTime(item.created_at)}
-            </Text>
-            {isMe && !item.pending && (
-              <MaterialIcons
-                name={item.read_at ? 'done-all' : 'done'}
-                size={14}
-                color={
-                  item.read_at
-                    ? colors.primaryFixed || '#a9f3c5'
-                    : colors.onPrimaryContainer || '#ffffff'
-                }
-                style={styles.statusIcon}
-              />
-            )}
-            {isMe && item.pending && (
-              <MaterialIcons
-                name="schedule"
-                size={14}
-                color={colors.onPrimaryContainer || '#ffffff'}
-                style={styles.statusIcon}
-              />
-            )}
-          </View>
-        </View>
-      </View>
+      <MessageBubble
+        item={item}
+        nextItem={messages[index + 1]}
+        index={index}
+        currentUserId={currentUserId}
+        searchActive={searchActive}
+        searchResults={searchResults}
+        searchIndex={searchIndex}
+        onLongPress={handleLongPress}
+      />
     );
-  };
+  }, [messages, currentUserId, searchActive, searchResults, searchIndex]);
 
   // ─────────────────────────────────────────────────────────────────
   // MAIN RENDER
@@ -417,53 +578,78 @@ export const ChatConversationScreen = ({ route, navigation }) => {
       <View
         style={[styles.topStickyHeader, { paddingTop: Math.max(insets.top, 8) }]}
       >
-        <View style={styles.contactCard}>
-          <View style={styles.contactCardLeft}>
-            <TouchableOpacity
-              onPress={() => navigation.goBack()}
-              style={[styles.backBtn, { marginRight: 4, width: 32, height: 32 }]}
-            >
-              <MaterialIcons
-                name="arrow-back"
-                size={24}
-                color={colors.onSurface}
-              />
-            </TouchableOpacity>
+        {!searchActive ? (
+          <View style={styles.contactCard}>
+            <View style={styles.contactCardLeft}>
+              <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={[styles.backBtn, { marginRight: 4, width: 32, height: 32 }]}
+              >
+                <MaterialIcons
+                  name="arrow-back"
+                  size={24}
+                  color={colors.onSurface}
+                />
+              </TouchableOpacity>
 
-            <View style={styles.contactAvatarWrapper}>
-              <View style={styles.contactAvatar}>
-                {resolvingUser ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  <Text style={styles.contactAvatarText}>
-                    {getInitials(otherUser?.full_name)}
-                  </Text>
-                )}
-              </View>
-              <View style={styles.contactOnlineDotWrapper}>
-                <View style={styles.contactOnlineDot} />
-              </View>
-            </View>
-
-            <View style={styles.contactInfo}>
-              <View style={styles.contactNameRow}>
-                <Text style={styles.contactName} numberOfLines={1}>
-                  {resolvingUser ? 'Loading…' : otherUser?.full_name || 'Staff'}
-                </Text>
-                <View style={styles.contactTag}>
-                  <Text style={styles.contactTagText}>ASM</Text>
+              <View style={styles.contactAvatarWrapper}>
+                <View style={styles.contactAvatar}>
+                  {resolvingUser ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text style={styles.contactAvatarText}>
+                      {getInitials(otherUser?.full_name)}
+                    </Text>
+                  )}
+                </View>
+                <View style={styles.contactOnlineDotWrapper}>
+                  <View style={styles.contactOnlineDot} />
                 </View>
               </View>
-              <Text style={styles.contactRole} numberOfLines={1}>
-                {otherUser?.role || 'Staff Member'} • Online
-              </Text>
-            </View>
-          </View>
 
-          <TouchableOpacity style={styles.callBtn} onPress={handleCall}>
-            <MaterialIcons name="call" size={20} color={colors.primary} />
-          </TouchableOpacity>
-        </View>
+              <View style={styles.contactInfo}>
+                <View style={styles.contactNameRow}>
+                  <Text style={styles.contactName} numberOfLines={1}>
+                    {resolvingUser ? 'Loading…' : otherUser?.full_name || 'Staff'}
+                  </Text>
+                  <View style={styles.contactTag}>
+                    <Text style={styles.contactTagText}>ASM</Text>
+                  </View>
+                </View>
+                <Text style={styles.contactRole} numberOfLines={1}>
+                  {otherUser?.role || 'Staff Member'} • Online
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={[styles.callBtn, { marginRight: 8 }]} onPress={() => setSearchActive(true)}>
+              <MaterialIcons name="search" size={20} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.callBtn} onPress={handleCall}>
+              <MaterialIcons name="call" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.searchHeader}>
+            <TouchableOpacity onPress={() => setSearchActive(false)} style={[styles.backBtn, { marginRight: 8, width: 32, height: 32 }]}>
+              <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search conversation..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            {searchResults.length > 0 && (
+              <View style={styles.searchNav}>
+                <Text style={styles.searchCount}>{searchResults.length - searchIndex} / {searchResults.length}</Text>
+                <TouchableOpacity onPress={handleSearchPrev} style={{ padding: 4 }}><MaterialIcons name="keyboard-arrow-up" size={24} color={colors.onSurface} /></TouchableOpacity>
+                <TouchableOpacity onPress={handleSearchNext} style={{ padding: 4 }}><MaterialIcons name="keyboard-arrow-down" size={24} color={colors.onSurface} /></TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       {/* ── Messages ── */}
@@ -476,20 +662,6 @@ export const ChatConversationScreen = ({ route, navigation }) => {
         inverted={true}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        ListFooterComponent={
-          <View style={styles.datePillContainer}>
-            <View style={styles.datePill}>
-              <Text style={styles.datePillText}>
-                Today •{' '}
-                {new Date().toLocaleDateString('en-GB', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })}
-              </Text>
-            </View>
-          </View>
-        }
       />
 
       {/* ── Input bar ── */}
@@ -559,6 +731,74 @@ export const ChatConversationScreen = ({ route, navigation }) => {
           <Text style={styles.voiceErrorText}>{voiceError}</Text>
         </View>
       ) : null}
+
+      {/* ── Action Sheet ── */}
+      <BottomSheetFoundation
+        visible={actionSheetVisible}
+        onClose={closeActionSheet}
+        title="Message Actions"
+      >
+        {selectedMessage && (
+          <View style={{ marginTop: 8, paddingBottom: insets.bottom || 16 }}>
+            {/* Primary Actions */}
+            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Reply')}>
+              <MaterialIcons name="reply" size={24} color={colors.onSurface} style={styles.actionIcon} />
+              <Text style={styles.actionText}>Reply</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.actionItem} onPress={handleCopy}>
+              <MaterialIcons name="content-copy" size={24} color={colors.onSurface} style={styles.actionIcon} />
+              <Text style={styles.actionText}>Copy</Text>
+            </TouchableOpacity>
+
+            {selectedMessage.sender_id === currentUserId && (
+              <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Edit')}>
+                <MaterialIcons name="edit" size={24} color={colors.onSurface} style={styles.actionIcon} />
+                <Text style={styles.actionText}>Edit</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Forward')}>
+              <MaterialIcons name="shortcut" size={24} color={colors.onSurface} style={styles.actionIcon} />
+              <Text style={styles.actionText}>Forward</Text>
+            </TouchableOpacity>
+
+            <View style={styles.actionDivider} />
+
+            {/* Secondary Actions */}
+            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Star')}>
+              <MaterialIcons name="star-outline" size={24} color={colors.onSurface} style={styles.actionIcon} />
+              <Text style={styles.actionText}>Star</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Pin')}>
+              <MaterialIcons name="push-pin" size={24} color={colors.onSurface} style={styles.actionIcon} />
+              <Text style={styles.actionText}>Pin</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionItem} onPress={handleInfo}>
+              <MaterialIcons name="info-outline" size={24} color={colors.onSurface} style={styles.actionIcon} />
+              <Text style={styles.actionText}>Info</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Translate')}>
+              <MaterialIcons name="translate" size={24} color={colors.onSurface} style={styles.actionIcon} />
+              <Text style={styles.actionText}>Translate</Text>
+            </TouchableOpacity>
+
+            {/* Destructive Actions */}
+            {selectedMessage.sender_id === currentUserId && (
+              <>
+                <View style={styles.actionDivider} />
+                <TouchableOpacity style={[styles.actionItem, { borderBottomWidth: 0 }]} onPress={() => handleBlocked('Delete')}>
+                  <MaterialIcons name="delete-outline" size={24} color={colors.error} style={styles.actionIcon} />
+                  <Text style={[styles.actionText, { color: colors.error }]}>Delete</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        )}
+      </BottomSheetFoundation>
     </KeyboardAvoidingView>
   );
 };
@@ -862,4 +1102,47 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  actionIcon: {
+    marginRight: 16,
+  },
+  actionDivider: {
+    height: 1,
+    backgroundColor: colors.surfaceContainerHighest,
+    marginVertical: 4,
+  },
+  actionText: {
+    ...typography.bodyLg,
+    color: colors.onSurface,
+  },
+  searchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceContainerLowest,
+    padding: 8,
+    borderRadius: 12,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.bodyLg,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    backgroundColor: colors.surfaceContainer,
+    borderRadius: 8,
+  },
+  searchNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  searchCount: {
+    ...typography.bodySm,
+    marginRight: 8,
+    color: colors.onSurfaceVariant,
+  }
 });

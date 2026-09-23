@@ -291,6 +291,15 @@ export const NotificationProvider = ({ children }) => {
     await InAppNotificationService.markAsRead(userId, notificationId);
   }, [userId, notifications]);
 
+  const markEntityAsRead = useCallback(async (entityId) => {
+    if (!userId) return;
+    const updated = notifications.map(n =>
+      n.entity_id === entityId ? { ...n, is_read: true } : n
+    );
+    updateState(updated);
+    await InAppNotificationService.markEntityAsRead(userId, entityId);
+  }, [userId, notifications]);
+
   const updateState = (data) => {
     setNotifications(data);
     setUnreadCount(data.filter(n => !n.is_read).length);
@@ -316,6 +325,7 @@ export const NotificationProvider = ({ children }) => {
         unreadCount,
         syncNotifications: syncWithBackend,
         markAsRead,
+        markEntityAsRead,
         setActiveChatId,
         routePendingColdStart,
         setPendingColdStart: (notif) => { pendingColdStartRef.current = notif; },

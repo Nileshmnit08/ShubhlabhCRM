@@ -6,13 +6,15 @@ import {
   TouchableOpacity, 
   StyleSheet, 
   ActivityIndicator,
-  TextInput
+  TextInput,
+  Alert
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography } from '../theme/tokens';
 import { MaterialIcons } from '@expo/vector-icons';
 import { chatService } from '../services/ChatService';
 import { useIsFocused } from '@react-navigation/native';
+import { BottomSheetFoundation } from '../components/BottomSheet';
 
 const getRelativeTime = (dateString) => {
   if (!dateString) return '';
@@ -43,16 +45,39 @@ export const MessagesInboxScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
 
+  const [actionSheetVisible, setActionSheetVisible] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+
+  const handleLongPress = (conversation) => {
+    setSelectedConversation(conversation);
+    setActionSheetVisible(true);
+  };
+
+  const closeActionSheet = () => {
+    setActionSheetVisible(false);
+    setSelectedConversation(null);
+  };
+
+  const handleBlocked = (actionName) => {
+    Alert.alert('Not Available', `${actionName} is pending Product Owner database migration approval.`);
+    closeActionSheet();
+  };
+
+  const handleMarkAsRead = async () => {
+    if (selectedConversation) {
+      await chatService.markMessagesAsRead(selectedConversation.id, session?.user?.id);
+      fetchConversations();
+    }
+    closeActionSheet();
+  };
+
   const fetchConversations = async () => {
     if (!session?.user?.id) return;
     setLoading(true);
     const { data, error } = await chatService.getConversations(session.user.id);
     if (!error && data) {
-      // In a real app, we might fetch unread counts per conversation.
-      // For now, we'll just mock unread counts for the design fidelity.
       const mappedData = data.map((conv, idx) => ({
         ...conv,
-        unreadCount: idx === 0 ? 2 : (idx === 1 ? 1 : 0),
         category: idx === 0 ? 'hq' : 'depot',
         isOnline: idx < 2
       }));
@@ -97,6 +122,7 @@ export const MessagesInboxScreen = ({ navigation }) => {
     <TouchableOpacity
       style={[styles.chatCard, item.pending && { opacity: 0.8 }]}
       onPress={() => handleConversationPress(item)}
+      onLongPress={() => handleLongPress(item)}
       activeOpacity={0.7}
     >
       <View style={[
@@ -184,8 +210,12 @@ export const MessagesInboxScreen = ({ navigation }) => {
                 <Text style={styles.headerSubtitle}>Internal Field Network • आंतरिक स्टाफ संवाद</Text>
               </View>
               <View style={styles.totalUnreadBadge}>
-                <View style={styles.pulseDot} />
-                <Text style={styles.totalUnreadText}>3 Unread</Text>
+                {filteredConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0) > 0 && (
+                  <View style={styles.pulseDot} />
+                )}
+                <Text style={styles.totalUnreadText}>
+                  {filteredConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0)} Unread
+                </Text>
               </View>
             </View>
 
@@ -235,9 +265,12 @@ export const MessagesInboxScreen = ({ navigation }) => {
         ListEmptyComponent={
           !loading && (
             <View style={styles.emptyContainer}>
-              <MaterialIcons name="search-off" size={48} color={colors.outline} />
-              <Text style={styles.emptyTitle}>No staff found</Text>
-              <Text style={styles.emptySubtitle}>कोई सहकर्मी नहीं मिला। नाम या पद दोबारा जांचें।</Text>
+              <MaterialIcons name="chat-bubble-outline" size={48} color={colors.outline} />
+              <Text style={styles.emptyTitle}>No conversations yet</Text>
+              <Text style={styles.emptySubtitle}>Start a chat to connect with staff.</Text>
+              <TouchableOpacity style={styles.emptyActionBtn} onPress={() => navigation.navigate('NewChat')}>
+                <Text style={styles.emptyActionText}>Start a chat</Text>
+              </TouchableOpacity>
             </View>
           )
         }
@@ -254,6 +287,42 @@ export const MessagesInboxScreen = ({ navigation }) => {
           <Text style={styles.fabTextSub}>नया संदेश</Text>
         </View>
       </TouchableOpacity>
+
+      <BottomSheetFoundation
+        visible={actionSheetVisible}
+        onClose={closeActionSheet}
+        title="Conversation Actions"
+      >
+        {selectedConversation && (
+          <View style={{ marginTop: 8 }}>
+            <Text style={{ ...typography.titleMd, marginBottom: 16 }}>{selectedConversation.otherUser?.full_name}</Text>
+            
+            <TouchableOpacity style={styles.actionItem} onPress={() => { closeActionSheet(); handleConversationPress(selectedConversation); }}>
+              <Text style={styles.actionText}>Open Conversation</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionItem} onPress={handleMarkAsRead}>
+              <Text style={styles.actionText}>Mark as read</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Mark as unread')}>
+              <Text style={styles.actionText}>Mark as unread</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Mute')}>
+              <Text style={styles.actionText}>Mute</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Pin')}>
+              <Text style={styles.actionText}>📌 Pin</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionItem} onPress={() => handleBlocked('Archive')}>
+              <Text style={styles.actionText}>Archive</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </BottomSheetFoundation>
     </View>
   );
 };
@@ -554,5 +623,25 @@ const styles = StyleSheet.create({
   fabTextSub: {
     fontSize: 10,
     color: colors.onPrimaryContainer || colors.onPrimary,
+  },
+  actionItem: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceContainerHighest,
+  },
+  actionText: {
+    ...typography.bodyLg,
+    color: colors.onSurface,
+  },
+  emptyActionBtn: {
+    marginTop: 16,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  emptyActionText: {
+    ...typography.labelLg,
+    color: colors.onPrimary,
   }
 });

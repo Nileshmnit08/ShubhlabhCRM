@@ -121,4 +121,33 @@ export class InAppNotificationService {
       }, userId, 'update');
     }
   }
+
+  /**
+   * Marks all notifications for a specific entity as read locally and syncs them.
+   */
+  static async markEntityAsRead(userId, entityId) {
+    if (!userId || !entityId) return;
+
+    let local = await this.getLocalNotifications(userId);
+    let updated = false;
+
+    local = local.map(n => {
+      if (n.entity_id === entityId && !n.is_read) {
+        updated = true;
+        
+        // Enqueue the backend mutation for this specific notification
+        SyncService.enqueueOperation('crm_notifications', {
+          id: n.id,
+          is_read: true
+        }, userId, 'update');
+
+        return { ...n, is_read: true };
+      }
+      return n;
+    });
+
+    if (updated) {
+      await this.saveLocalNotifications(userId, local);
+    }
+  }
 }
