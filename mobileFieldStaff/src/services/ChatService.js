@@ -48,7 +48,7 @@ class ChatService {
 
         const { data: usersData } = await supabase
           .from('app_users')
-          .select('id, display_name, role')
+          .select('id, display_name, role, whatsapp')
           .in('id', Array.from(otherUserIds));
 
         const userMap = {};
@@ -134,7 +134,7 @@ class ChatService {
       .from('chat_messages')
       .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false });
 
     let finalData = data || [];
 
@@ -158,8 +158,8 @@ class ChatService {
              }
           });
           
-          // Sort again to ensure pending ones sit at the bottom properly
-          finalData.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+          // Sort again to ensure pending ones sit at the bottom properly (inverted FlatList means newest at index 0)
+          finalData.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         }
       } catch (e) {
         console.warn('Error reading pending messages', e);
@@ -250,7 +250,7 @@ class ChatService {
   async getStaffDirectory(currentUserId) {
     const { data, error } = await supabase
       .from('app_users')
-      .select('id, display_name, role')
+      .select('id, display_name, role, whatsapp')
       .neq('id', currentUserId)
       .eq('is_active', true);
 

@@ -13,6 +13,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import './src/services/BackgroundLocationService';
 import { CallLogService } from './src/services/CallLogService';
+import { BackgroundNotificationService } from './src/services/BackgroundNotificationService';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 import {
   HomeScreen,
@@ -32,7 +35,7 @@ import {
   NewChatScreen,
   ChatConversationScreen
 } from './src/screens';
-import { NotificationProvider } from './src/context/NotificationContext';
+import { NotificationProvider, useNotifications } from './src/context/NotificationContext';
 import { VisitProvider } from './src/context/VisitContext';
 
 const Stack = createNativeStackNavigator();
@@ -70,16 +73,16 @@ function MainTabs() {
 
 function RootNavigator() {
   const { session, staffProfile, loading } = useAuth();
+  const { routePendingColdStart } = useNotifications();
 
-  // If loading or resolving identity, LoginScreen will handle showing the loading/error state if needed,
-  // but we can also just let LoginScreen mount because it checks `loading` inside it.
-  
+  // If loading or resolving identity, LoginScreen handles loading/error state
   if (!session || !staffProfile) {
     return <LoginScreen />;
   }
 
+  // After successful auth, attempt to route any cold-start pending notification.
+  // This runs once per authenticated session mount.
   React.useEffect(() => {
-    // Request permissions and initialize background sync listener once authenticated
     CallLogService.requestPermissions().then((granted) => {
       if (granted) {
         CallLogService.syncCallLogs(session.user.id);
@@ -87,8 +90,14 @@ function RootNavigator() {
     });
     CallLogService.initAppStateListener();
 
+    // Route any cold-start notification that was stored before nav was ready
+    const timer = setTimeout(() => {
+      routePendingColdStart();
+    }, 600); // slight delay to ensure nav stack is fully mounted
+
     return () => {
       CallLogService.destroy();
+      clearTimeout(timer);
     };
   }, []);
 
@@ -148,6 +157,7 @@ function RootNavigator() {
       <Stack.Screen 
         name="ChatConversation" 
         component={ChatConversationScreen} 
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
@@ -161,7 +171,6 @@ export default function App() {
       try {
         const lang = await AsyncStorage.getItem('@app_language');
         if (lang) {
-          // i18n is initialized in './src/i18n'
           const i18next = require('i18next').default;
           if (i18next && i18next.changeLanguage) {
             i18next.changeLanguage(lang);
@@ -172,6 +181,25 @@ export default function App() {
       }
     };
     loadLanguage();
+
+    const setupNotifications = async () => {
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('chat_messages', {
+          name: 'Shubh Labh Messages',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#0061A4',
+        });
+      }
+      
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      if (existingStatus !== 'granted') {
+        await Notifications.requestPermissionsAsync();
+      }
+
+      BackgroundNotificationService.registerTask();
+    };
+    setupNotifications();
   }, []);
 
   return (

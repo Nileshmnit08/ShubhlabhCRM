@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, rounded, elevation } from '../theme/tokens';
@@ -11,6 +11,7 @@ export function LoginScreen() {
   const { login, loading: authLoading, authError, logout } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -107,15 +108,34 @@ export function LoginScreen() {
 
             <View style={styles.formGroup}>
               <Text style={styles.label}>{t('auth.label.password')}</Text>
-              <TextInput 
-                style={styles.input} 
-                placeholder={t('auth.placeholder.password')} 
-                placeholderTextColor={colors.onSurfaceVariant}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-                editable={!isSubmitting}
-              />
+              <View style={[styles.input, { paddingHorizontal: 0, paddingLeft: 16, paddingRight: 2, flexDirection: 'row', alignItems: 'center' }]}>
+                <TextInput 
+                  style={{ flex: 1, height: '100%', color: colors.onSurface, ...typography.bodyLg }} 
+                  placeholder={t('auth.placeholder.password')} 
+                  placeholderTextColor={colors.onSurfaceVariant}
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={!isSubmitting}
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={{
+                    height: 44,
+                    width: 44,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                  accessibilityLabel={showPassword ? "Hide password" : "Show password"}
+                  accessibilityRole="button"
+                >
+                  <MaterialIcons 
+                    name={showPassword ? "visibility-off" : "visibility"} 
+                    size={24} 
+                    color={colors.onSurfaceVariant} 
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.actionContainer}>
