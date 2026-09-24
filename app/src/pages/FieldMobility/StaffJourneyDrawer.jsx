@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { X, PlayCircle, StopCircle, Building2, MapPin, IndianRupee, Truck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
+import VisitDetailModal from '../Activity/VisitDetailModal';
 
 export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClose }) {
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
   const [unlinkedEvents, setUnlinkedEvents] = useState([]);
+  const [selectedVisitId, setSelectedVisitId] = useState(null);
   const [summary, setSummary] = useState({
     sessions: 0,
     km: 0,
@@ -89,19 +91,35 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       const visitMap = {};
       if (visitIds.length > 0) {
         const { data: vData } = await supabase.from('crm_visits')
-          .select('id, latitude, longitude')
+          .select('id, latitude, longitude, notes, outcomes, started_at, ended_at, party_id')
           .in('id', visitIds);
         vData?.forEach(v => visitMap[v.id] = v);
       }
 
-      // Inject locations
+      const { data: reqData } = await supabase.from('requirements')
+         .select('id, party_id, created_at').eq('assigned_to', user.id).gte('created_at', startStr).lte('created_at', endStr);
+      const { data: fuData } = await supabase.from('follow_ups')
+         .select('id, party_id, created_at').eq('assigned_to', user.id).gte('created_at', startStr).lte('created_at', endStr);
+
+      // Inject locations and activities
       (events || []).forEach(evt => {
         if (evt.event_type === 'SESSION_START') {
            evt.location = { lat: sessionMap[evt.id]?.started_latitude, lng: sessionMap[evt.id]?.started_longitude, acc: sessionMap[evt.id]?.started_accuracy };
         } else if (evt.event_type === 'SESSION_END') {
            evt.location = { lat: sessionMap[evt.id]?.ended_latitude, lng: sessionMap[evt.id]?.ended_longitude, acc: sessionMap[evt.id]?.ended_accuracy };
         } else if (evt.event_type === 'VISIT') {
-           evt.location = { lat: visitMap[evt.id]?.latitude, lng: visitMap[evt.id]?.longitude };
+           const v = visitMap[evt.id];
+           if (v) {
+             evt.location = { lat: v.latitude, lng: v.longitude };
+             evt.notes = v.notes;
+             evt.outcomes = v.outcomes;
+             
+             // Calculate 2-hour buffer as done in VisitDetailModal
+             const vStart = new Date(v.started_at).getTime() - 7200000;
+             const vEnd = new Date(v.ended_at || v.started_at).getTime() + 7200000;
+             evt.reqCount = (reqData || []).filter(r => r.party_id === v.party_id && new Date(r.created_at).getTime() >= vStart && new Date(r.created_at).getTime() <= vEnd).length;
+             evt.fuCount = (fuData || []).filter(r => r.party_id === v.party_id && new Date(r.created_at).getTime() >= vStart && new Date(r.created_at).getTime() <= vEnd).length;
+           }
         }
       });
 
@@ -195,6 +213,39 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
                 <span className="badge badge-success">Completed</span>
               </div>
+              
+              {evt.notes && (
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.75rem', padding: '0.5rem', background: 'var(--bg-base)', borderRadius: '6px' }}>
+                  <span style={{fontWeight: 600}}>Discussion:</span> {evt.notes}
+                </div>
+              )}
+              {evt.outcomes && Object.keys(evt.outcomes).some(k => evt.outcomes[k]) && (
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                  <span style={{fontWeight: 600}}>Outcome:</span> {
+                    Object.entries(evt.outcomes)
+                      .filter(([_, v]) => v)
+                      .map(([k, _]) => {
+                        const labels = {
+                          metCustomer: 'Met Customer', demandAdded: 'Demand Added', paymentTalk: 'Payment Talk', priceList: 'Price List Given', mandiIntel: 'Mandi Intel', ownerUnavailable: 'Owner Unavailable'
+                        };
+                        return labels[k] || k;
+                      }).join(', ')
+                  }
+                </div>
+              )}
+              {(evt.reqCount > 0 || evt.fuCount > 0) && (
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'flex', gap: '1rem' }}>
+                  {evt.reqCount > 0 && <span><span style={{fontWeight: 600}}>Requirements:</span> {evt.reqCount}</span>}
+                  {evt.fuCount > 0 && <span><span style={{fontWeight: 600}}>Follow-ups:</span> {evt.fuCount}</span>}
+                </div>
+              )}
+              <button 
+                className="btn btn-outline btn-sm" 
+                style={{ marginTop: '0.75rem', fontSize: '0.75rem', padding: '0.25rem 0.75rem', borderRadius: '15px' }}
+                onClick={() => setSelectedVisitId(evt.id)}
+              >
+                View Completed Visit Detail
+              </button>
             </div>
           </div>
           {hasMissingTravel && (
@@ -360,6 +411,13 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
           </div>
         )}
       </div>
+
+      {selectedVisitId && (
+        <VisitDetailModal 
+          visitId={selectedVisitId} 
+          onClose={() => setSelectedVisitId(null)} 
+        />
+      )}
     </div>
   );
 }
