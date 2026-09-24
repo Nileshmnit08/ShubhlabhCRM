@@ -371,6 +371,15 @@ export const NAV_SECTIONS = [
         permissionKey: 'admin',
         pinEligible: true,
       },
+      {
+        id: 'field-mobility',
+        label: 'Mobility & Expenses',
+        href: '/field-mobility',
+        icon: Map,
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
     ],
   },
 
