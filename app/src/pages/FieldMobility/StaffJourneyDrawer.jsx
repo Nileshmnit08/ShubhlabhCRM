@@ -91,7 +91,7 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       const visitMap = {};
       if (visitIds.length > 0) {
         const { data: vData } = await supabase.from('crm_visits')
-          .select('id, latitude, longitude, notes, outcomes, started_at, ended_at, party_id')
+          .select('id, latitude, longitude, notes, outcomes, started_at, ended_at, party_id, start_latitude, start_longitude, start_location_accuracy, ended_latitude, ended_longitude, ended_location_accuracy')
           .in('id', visitIds);
         vData?.forEach(v => visitMap[v.id] = v);
       }
@@ -110,7 +110,9 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
         } else if (evt.event_type === 'VISIT') {
            const v = visitMap[evt.id];
            if (v) {
-             evt.location = { lat: v.latitude, lng: v.longitude };
+             // Fallback to legacy latitude if start_latitude is not yet populated
+             evt.location = { lat: v.start_latitude || v.latitude, lng: v.start_longitude || v.longitude, acc: v.start_location_accuracy };
+             evt.end_location = { lat: v.ended_latitude, lng: v.ended_longitude, acc: v.ended_location_accuracy };
              evt.notes = v.notes;
              evt.outcomes = v.outcomes;
              
@@ -209,7 +211,12 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
             <div style={{ flex: 1, paddingBottom: '1.5rem' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>CUSTOMER VISIT</div>
               <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>{evt.description.replace('Customer Visit: ', '')}</div>
-              <LocationLink lat={evt.location?.lat} lng={evt.location?.lng} acc={evt.location?.acc} />
+              
+              <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>Start Location:</span>
+                <LocationLink lat={evt.location?.lat} lng={evt.location?.lng} acc={evt.location?.acc} />
+              </div>
+              
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
                 <span className="badge badge-success">Completed</span>
               </div>
@@ -260,6 +267,13 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
                 View Completed Visit Detail
                 <ChevronRight size={14} />
               </button>
+
+              {evt.end_location?.lat && (
+                <div style={{ marginTop: '1rem', borderTop: '1px dashed var(--border)', paddingTop: '0.75rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>End Location:</span>
+                  <LocationLink lat={evt.end_location.lat} lng={evt.end_location.lng} acc={evt.end_location.acc} />
+                </div>
+              )}
             </div>
           </div>
           {hasMissingTravel && (

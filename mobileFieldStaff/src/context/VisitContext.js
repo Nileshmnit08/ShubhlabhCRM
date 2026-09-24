@@ -26,47 +26,39 @@ export const VisitProvider = ({ children }) => {
   const isFinishingRef = useRef(false);
 
   // Helper to reliably fetch location without hanging
-  const getFastLocation = async (requireFresh = true) => {
+  const getFastLocation = async () => {
     try {
       const { status } = await Location.getForegroundPermissionsAsync();
       if (status !== 'granted') {
         throw new Error('Location permission is required.');
       }
 
-      // Try current position with a strict 10-second timeout for high accuracy
+      let latestLoc = null;
       try {
-        const loc = await Promise.race([
+        latestLoc = await Promise.race([
           Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
         ]);
-        
-        const locationAgeMs = Date.now() - loc.timestamp;
-        if (requireFresh && locationAgeMs > 300000) { // 5 minutes max age
-           throw new Error('Retrieved location is too old.');
-        }
-
-        return { 
-          latitude: loc.coords.latitude, 
-          longitude: loc.coords.longitude,
-          accuracy: loc.coords.accuracy,
-          timestamp: loc.timestamp
-        };
       } catch (err) {
-        // Fallback to last known position only if it is sufficiently fresh
-        const lastLoc = await Location.getLastKnownPositionAsync();
-        if (lastLoc) {
-          const locationAgeMs = Date.now() - lastLoc.timestamp;
-          if (locationAgeMs <= 300000) { // 5 minutes max age
-            return { 
-              latitude: lastLoc.coords.latitude, 
-              longitude: lastLoc.coords.longitude,
-              accuracy: lastLoc.coords.accuracy,
-              timestamp: lastLoc.timestamp
-            };
-          }
-        }
-        throw new Error('Fresh GPS location unavailable. Please step outside or wait for better signal.');
+        latestLoc = await Location.getLastKnownPositionAsync();
       }
+
+      if (!latestLoc) {
+         throw new Error('GPS location unavailable. Please step outside or check settings.');
+      }
+
+      const locationAgeMs = Date.now() - latestLoc.timestamp;
+      // FM-LOCATION-FIX-01: Strict 60-second freshness rule
+      if (locationAgeMs > 60000) { 
+         throw new Error('Fresh GPS location unavailable (cache is stale). Please step outside or wait for better signal.');
+      }
+
+      return { 
+        latitude: latestLoc.coords.latitude, 
+        longitude: latestLoc.coords.longitude,
+        accuracy: latestLoc.coords.accuracy,
+        timestamp: latestLoc.timestamp
+      };
     } catch (e) {
       console.log('Location fetch failed:', e.message);
       throw e; // Propagate so startVisit can explicitly reject
@@ -144,7 +136,7 @@ export const VisitProvider = ({ children }) => {
     // Fetch fresh location, throw if unavailable
     let location;
     try {
-      location = await getFastLocation(true);
+      location = await getFastLocation();
     } catch (e) {
       throw new Error(`Cannot start visit: ${e.message}`);
     }
@@ -222,14 +214,11 @@ export const VisitProvider = ({ children }) => {
     // Re-fetch location for checkout if available, but don't strictly block completion if it fails
     let checkoutLoc = null;
     try {
-      checkoutLoc = await getFastLocation(false);
+      checkoutLoc = await getFastLocation();
     } catch (e) {
-      console.log('Checkout location failed, safely falling back to start location for checkout.');
+      console.log('Checkout location failed, safely allowing checkout without End location.', e.message);
     }
     
-    const endLat = checkoutLoc?.latitude || activeVisit.start_latitude;
-    const endLng = checkoutLoc?.longitude || activeVisit.start_longitude;
-
     const visitPayload = {
       id: activeVisit.id,
       party_id: activeVisit.party_id,
@@ -238,8 +227,22 @@ export const VisitProvider = ({ children }) => {
       started_at: activeVisit.started_at,
       ended_at,
       duration_seconds,
-      latitude: endLat,
-      longitude: endLng,
+      
+      // Backward compatibility: keep generic latitude/longitude pointing to start
+      latitude: activeVisit.start_latitude,
+      longitude: activeVisit.start_longitude,
+      
+      // New authoritative independent fields
+      start_latitude: activeVisit.start_latitude,
+      start_longitude: activeVisit.start_longitude,
+      start_location_accuracy: activeVisit.start_location_accuracy,
+      start_location_timestamp: activeVisit.start_location_timestamp,
+      
+      ended_latitude: checkoutLoc?.latitude || null,
+      ended_longitude: checkoutLoc?.longitude || null,
+      ended_location_accuracy: checkoutLoc?.accuracy || null,
+      ended_location_timestamp: checkoutLoc ? new Date(checkoutLoc.timestamp).toISOString() : null,
+      
       outcomes,
       notes: ''
     };

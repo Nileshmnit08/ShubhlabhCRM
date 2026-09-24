@@ -72,12 +72,30 @@ export function FieldSessionCard() {
       return null;
     }
     
+    let latestLoc = null;
     try {
-      return await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      latestLoc = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+      ]);
     } catch (e) {
       console.warn("Could not get current position, falling back to last known", e);
-      return await Location.getLastKnownPositionAsync();
+      latestLoc = await Location.getLastKnownPositionAsync();
     }
+    
+    if (!latestLoc) {
+       Alert.alert('Error', 'GPS location unavailable.');
+       return null;
+    }
+    
+    const locationAgeMs = Date.now() - latestLoc.timestamp;
+    // FM-LOCATION-FIX-01: Strict 60-second freshness rule for tracking
+    if (locationAgeMs > 60000) {
+       Alert.alert('Error', 'Fresh GPS location unavailable (cache is stale). Please step outside or wait for better signal.');
+       return null;
+    }
+    
+    return latestLoc;
   };
 
   const handleStartSession = async () => {
