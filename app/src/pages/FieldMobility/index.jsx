@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { startOfMonth, endOfMonth, format } from 'date-fns';
-import { Map, MapPin, Search, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { startOfMonth, endOfMonth, format, startOfWeek, endOfWeek, startOfDay, endOfDay } from 'date-fns';
+import { Map, MapPin, Search, AlertCircle, CheckCircle2, X, ChevronRight } from 'lucide-react';
 import DataTable from '../../components/DataTable';
+import StaffJourneyDrawer from './StaffJourneyDrawer';
 
 // Reusable KPI Card (mimics Today.jsx)
 function KpiCard({ title, value, colorClass = 'primary', icon: Icon }) {
@@ -23,10 +24,13 @@ export default function FieldMobilityDashboard() {
   const [sessions, setSessions] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [staffUsers, setStaffUsers] = useState({});
+  const [filterMode, setFilterMode] = useState('Month'); // Day, Week, Month, Custom
   const [dateRange, setDateRange] = useState({
     start: startOfMonth(new Date()),
     end: endOfMonth(new Date())
   });
+  
+  const [selectedStaff, setSelectedStaff] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -119,7 +123,7 @@ export default function FieldMobilityDashboard() {
   const staffArray = Object.values(staffSummary);
 
   const staffColumns = [
-    { id: 'staff', header: 'Staff Member', renderCell: row => <div className="font-medium">{row.name}</div> },
+    { id: 'staff', header: 'Staff Member', renderCell: row => <div className="font-medium" style={{cursor:'pointer', color:'var(--primary)'}} onClick={() => setSelectedStaff(row)}>{row.name}</div> },
     { id: 'sessions', header: 'Sessions', renderCell: row => row.sessions },
     { id: 'days', header: 'Days Active', renderCell: row => row.days.size },
     { id: 'km', header: 'Verif. KM', renderCell: row => row.km.toFixed(1) },
@@ -128,6 +132,7 @@ export default function FieldMobilityDashboard() {
     { id: 'complete', header: 'Evidence (Complete)', renderCell: row => (
         <span className={row.complete > 0 ? "text-primary font-medium" : "text-muted"}>{row.complete}</span>
     )},
+    { id: 'action', header: '', align: 'right', renderCell: row => <div style={{cursor:'pointer', color:'var(--text-secondary)'}} onClick={() => setSelectedStaff(row)}><ChevronRight size={18} /></div> }
   ];
 
   return (
@@ -144,19 +149,74 @@ export default function FieldMobilityDashboard() {
 
       {/* 2. Filter Bar */}
       <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem'}}>
+        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div>
-            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Filter Month</label>
-            <input 
-              type="month" 
-              value={format(dateRange.start, 'yyyy-MM')} 
-              onChange={(e) => {
+            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Filter Period</label>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {['Day', 'Week', 'Month', 'Custom'].map(range => (
+                <button 
+                  key={range} 
+                  onClick={() => {
+                    setFilterMode(range);
+                    const now = new Date();
+                    if (range === 'Day') setDateRange({ start: startOfDay(now), end: endOfDay(now) });
+                    if (range === 'Week') setDateRange({ start: startOfWeek(now, {weekStartsOn:1}), end: endOfWeek(now, {weekStartsOn:1}) });
+                    if (range === 'Month') setDateRange({ start: startOfMonth(now), end: endOfMonth(now) });
+                  }}
+                  className={`btn ${filterMode === range ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{
+                    background: filterMode === range ? 'var(--primary)' : 'var(--bg-base)', 
+                    color: filterMode === range ? 'white' : 'var(--text-primary)',
+                    border: `1px solid ${filterMode === range ? 'var(--primary)' : 'var(--border)'}`,
+                    padding: '0.4rem 1rem', borderRadius: '20px', fontSize: '0.85rem', height: '38px'
+                  }}
+                >
+                  {range}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div style={{ flex: 1, minWidth: '200px', maxWidth: '300px' }}>
+            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>
+              {filterMode === 'Custom' ? 'Select Date Range' : 'Selected Date'}
+            </label>
+            {filterMode === 'Day' && (
+              <input type="date" value={format(dateRange.start, 'yyyy-MM-dd')} onChange={(e) => {
                 if (!e.target.value) return;
-                const newDate = new Date(e.target.value);
-                setDateRange({ start: startOfMonth(newDate), end: endOfMonth(newDate) });
-              }} 
-              style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} 
-            />
+                const d = new Date(e.target.value);
+                setDateRange({ start: startOfDay(d), end: endOfDay(d) });
+              }} style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} />
+            )}
+            {filterMode === 'Week' && (
+              <input type="week" value={format(dateRange.start, "yyyy-'W'ww")} onChange={(e) => {
+                if (!e.target.value) return;
+                // Parse "2026-W39"
+                const [yyyy, w] = e.target.value.split('-W');
+                // Getting the start of that ISO week
+                const d = new Date(parseInt(yyyy), 0, 1 + (parseInt(w) - 1) * 7);
+                setDateRange({ start: startOfWeek(d, {weekStartsOn:1}), end: endOfWeek(d, {weekStartsOn:1}) });
+              }} style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} />
+            )}
+            {filterMode === 'Month' && (
+              <input type="month" value={format(dateRange.start, 'yyyy-MM')} onChange={(e) => {
+                if (!e.target.value) return;
+                const d = new Date(e.target.value);
+                setDateRange({ start: startOfMonth(d), end: endOfMonth(d) });
+              }} style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} />
+            )}
+            {filterMode === 'Custom' && (
+              <div style={{display: 'flex', gap: '0.5rem'}}>
+                <input type="date" value={format(dateRange.start, 'yyyy-MM-dd')} onChange={(e) => {
+                  if (!e.target.value) return;
+                  setDateRange(prev => ({ ...prev, start: startOfDay(new Date(e.target.value)) }));
+                }} style={{flex: 1, width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} />
+                <input type="date" value={format(dateRange.end, 'yyyy-MM-dd')} onChange={(e) => {
+                  if (!e.target.value) return;
+                  setDateRange(prev => ({ ...prev, end: endOfDay(new Date(e.target.value)) }));
+                }} style={{flex: 1, width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -241,6 +301,15 @@ export default function FieldMobilityDashboard() {
             </div>
           </div>
         </>
+      )}
+      
+      {selectedStaff && (
+        <StaffJourneyDrawer 
+          user={selectedStaff} 
+          dateRange={dateRange} 
+          filterMode={filterMode} 
+          onClose={() => setSelectedStaff(null)} 
+        />
       )}
     </div>
   );
