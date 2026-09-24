@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, PlayCircle, StopCircle, Building2, MapPin, IndianRupee, Truck } from 'lucide-react';
+import { X, PlayCircle, StopCircle, Building2, MapPin, IndianRupee, Truck, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { format } from 'date-fns';
 import VisitDetailModal from '../Activity/VisitDetailModal';
@@ -240,11 +240,25 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
                 </div>
               )}
               <button 
-                className="btn btn-outline btn-sm" 
-                style={{ marginTop: '0.75rem', fontSize: '0.75rem', padding: '0.25rem 0.75rem', borderRadius: '15px' }}
+                className="btn btn-sm" 
+                style={{ 
+                  marginTop: '0.75rem', 
+                  fontSize: '0.75rem', 
+                  padding: '0.4rem 0.85rem', 
+                  borderRadius: '15px',
+                  backgroundColor: 'var(--primary-light)',
+                  color: 'var(--primary)',
+                  border: '1px solid var(--primary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s'
+                }}
                 onClick={() => setSelectedVisitId(evt.id)}
               >
                 View Completed Visit Detail
+                <ChevronRight size={14} />
               </button>
             </div>
           </div>
