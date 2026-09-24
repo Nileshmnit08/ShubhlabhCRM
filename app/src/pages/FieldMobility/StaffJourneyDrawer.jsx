@@ -15,6 +15,22 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
     expenseTotal: 0
   });
 
+  const LocationLink = ({ lat, lng, acc }) => {
+    if (!lat || !lng) {
+      return <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Location unavailable</div>;
+    }
+    const url = `https://www.google.com/maps?q=${lat},${lng}`;
+    return (
+      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <MapPin size={12} />
+        <a href={url} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
+          {lat}, {lng}
+        </a>
+        {acc && <span style={{ color: 'var(--text-muted)' }}>(±{Math.round(acc)}m)</span>}
+      </div>
+    );
+  };
+
   useEffect(() => {
     fetchTimeline();
   }, [user.id, dateRange.start, dateRange.end]);
@@ -58,7 +74,38 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       };
       setSummary(sum);
 
-      // 3. Group by Session
+      // 3. Fetch Additional Location Data
+      const sessionIds = (events || []).filter(e => e.event_type === 'SESSION_START' || e.event_type === 'SESSION_END').map(e => e.id);
+      const visitIds = (events || []).filter(e => e.event_type === 'VISIT').map(e => e.id);
+
+      const sessionMap = {};
+      if (sessionIds.length > 0) {
+        const { data: sData } = await supabase.from('staff_tracking_sessions')
+          .select('id, started_latitude, started_longitude, started_accuracy, ended_latitude, ended_longitude, ended_accuracy')
+          .in('id', sessionIds);
+        sData?.forEach(s => sessionMap[s.id] = s);
+      }
+
+      const visitMap = {};
+      if (visitIds.length > 0) {
+        const { data: vData } = await supabase.from('crm_visits')
+          .select('id, latitude, longitude')
+          .in('id', visitIds);
+        vData?.forEach(v => visitMap[v.id] = v);
+      }
+
+      // Inject locations
+      (events || []).forEach(evt => {
+        if (evt.event_type === 'SESSION_START') {
+           evt.location = { lat: sessionMap[evt.id]?.started_latitude, lng: sessionMap[evt.id]?.started_longitude, acc: sessionMap[evt.id]?.started_accuracy };
+        } else if (evt.event_type === 'SESSION_END') {
+           evt.location = { lat: sessionMap[evt.id]?.ended_latitude, lng: sessionMap[evt.id]?.ended_longitude, acc: sessionMap[evt.id]?.ended_accuracy };
+        } else if (evt.event_type === 'VISIT') {
+           evt.location = { lat: visitMap[evt.id]?.latitude, lng: visitMap[evt.id]?.longitude };
+        }
+      });
+
+      // 4. Group by Session
       const groupedSessions = [];
       let currentSession = null;
       const unlinked = [];
@@ -144,6 +191,7 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
             <div style={{ flex: 1, paddingBottom: '1.5rem' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>CUSTOMER VISIT</div>
               <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>{evt.description.replace('Customer Visit: ', '')}</div>
+              <LocationLink lat={evt.location?.lat} lng={evt.location?.lng} acc={evt.location?.acc} />
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
                 <span className="badge badge-success">Completed</span>
               </div>
@@ -275,7 +323,7 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
                       </div>
                       <div style={{ flex: 1, paddingBottom: '1.5rem' }}>
                         <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Session Started</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Starting location captured</div>
+                        <LocationLink lat={session.startEvent.location?.lat} lng={session.startEvent.location?.lng} acc={session.startEvent.location?.acc} />
                       </div>
                     </div>
                     
@@ -292,7 +340,7 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
                         </div>
                         <div style={{ flex: 1, paddingBottom: '0.5rem' }}>
                           <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Session Ended</div>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Ending location captured</div>
+                          <LocationLink lat={session.endEvent.location?.lat} lng={session.endEvent.location?.lng} acc={session.endEvent.location?.acc} />
                         </div>
                       </div>
                     )}
