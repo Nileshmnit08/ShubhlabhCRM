@@ -49,6 +49,7 @@ import DispatchDetail from './pages/Dispatches/Detail';
 import Logistics from './pages/Logistics';
 import CommunicationDashboard from './pages/CommunicationDashboard';
 import TravelExpenses from './pages/TravelExpenses';
+import FieldMobility from './pages/FieldMobility';
 
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
@@ -279,6 +280,7 @@ function App() {
                 <Route path="settings" element={<Settings />} />
                 <Route path="logistics" element={<Logistics />} />
                 <Route path="travel-expenses" element={<TravelExpenses />} />
+                <Route path="field-mobility" element={<FieldMobility />} />
               </Route>
               
               <Route path="*" element={<Navigate to="/" replace />} />

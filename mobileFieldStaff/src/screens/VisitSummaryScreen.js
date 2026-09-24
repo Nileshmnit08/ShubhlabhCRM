@@ -84,6 +84,17 @@ export function VisitSummaryScreen({ navigation, route }) {
           </View>
         </View>
 
+        {/* Field Mobility Evidence */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>FIELD MOBILITY</Text>
+          <View style={styles.locCard}>
+            <MaterialIcons name="timeline" size={20} color={colors.onSurfaceVariant} />
+            <Text style={styles.locText} style={[{flex: 1}, typography.bodyMd, {color: colors.onSurfaceVariant}]}>
+              Mobility link unavailable
+            </Text>
+          </View>
+        </View>
+
         {/* Captured Activities */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>CAPTURED FIELD WORK</Text>

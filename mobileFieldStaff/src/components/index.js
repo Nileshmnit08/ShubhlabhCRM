@@ -10,3 +10,4 @@ export * from './VoiceCaptureBar';
 export * from './VisitOutcomeSheet';
 export * from './NativeSelectors';
 export * from './States';
+export * from './FieldSessionCard';

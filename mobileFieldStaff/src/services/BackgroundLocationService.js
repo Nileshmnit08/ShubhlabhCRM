@@ -78,10 +78,20 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       
       const loc = locations[0];
       
-      // 1. Log continuous location update (FA-09)
+      // FM-02: Require ACTIVE FIELD SESSION to capture GPS points
+      const fieldSessionStr = await AsyncStorage.getItem('@active_field_session');
+      if (!fieldSessionStr) {
+        console.warn("Location update discarded: No active field session.");
+        return;
+      }
+      
+      const activeFieldSession = JSON.parse(fieldSessionStr);
+
+      // 1. Log continuous location update (FA-09 / FM-02)
       try {
         await SyncService.enqueueOperation('staff_location_history', {
           staff_id: session.user.id,
+          session_id: activeFieldSession.id,
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
           accuracy: loc.coords.accuracy,
@@ -166,59 +176,8 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
         await AsyncStorage.setItem(storageKey, JSON.stringify(geofenceState));
       }
 
-      // FA-TRAVEL-02: GPS Travel Distance Engine
-      if (loc.coords.accuracy <= MIN_ACCURACY_M) {
-        const sessionKey = getSessionStorageKey(session.user.id);
-        const activeSessionId = await AsyncStorage.getItem(sessionKey);
-        
-        if (activeSessionId) {
-          const distanceStateKey = getDistanceStateKey(activeSessionId);
-          const stateStr = await AsyncStorage.getItem(distanceStateKey);
-          
-          let state = stateStr ? JSON.parse(stateStr) : {
-            lastValidLat: loc.coords.latitude,
-            lastValidLon: loc.coords.longitude,
-            lastValidTimestamp: loc.timestamp,
-            accumulatedDistanceKm: 0
-          };
-
-          const distanceKm = calculateDistanceKm(
-            state.lastValidLat, state.lastValidLon,
-            loc.coords.latitude, loc.coords.longitude
-          );
-
-          if (distanceKm != null && distanceKm >= MIN_DISTANCE_KM) {
-            const timeDiffHours = (loc.timestamp - state.lastValidTimestamp) / (1000 * 60 * 60);
-            
-            if (timeDiffHours > 0) {
-              const speed = distanceKm / timeDiffHours;
-              
-              if (speed <= MAX_SPEED_KM_H) {
-                // Valid movement
-                state.accumulatedDistanceKm += distanceKm;
-                state.lastValidLat = loc.coords.latitude;
-                state.lastValidLon = loc.coords.longitude;
-                state.lastValidTimestamp = loc.timestamp;
-                
-                await AsyncStorage.setItem(distanceStateKey, JSON.stringify(state));
-                
-                // Enqueue update to staff_tracking_sessions
-                // SyncService naturally throttles and deduplicates these updates by local_id
-                await SyncService.enqueueOperation('staff_tracking_sessions', {
-                  id: activeSessionId,
-                  total_distance_km: state.accumulatedDistanceKm,
-                  updated_at: new Date(loc.timestamp).toISOString()
-                }, session.user.id, 'update');
-              } else {
-                console.warn(`GPS Jump rejected. Speed: ${speed} km/h`);
-              }
-            }
-          } else if (!stateStr) {
-            // First time saving initial state
-            await AsyncStorage.setItem(distanceStateKey, JSON.stringify(state));
-          }
-        }
-      }
+      // Removed FA-TRAVEL-02 client-side distance engine.
+      // FM-03 now calculates verified distance authoritatively on the Supabase backend.
 
     } catch (err) {
       console.error("Task Manager Execution Error:", err);
@@ -274,52 +233,8 @@ export const startBackgroundLocationTracking = async (userId) => {
     }
   });
 
-  // FA-TRAVEL-01: Create an authoritative tracking session
-  const sessionId = generateId();
-  await AsyncStorage.setItem(getSessionStorageKey(activeUserId), sessionId);
-  
-  let currentLoc = null;
-  try {
-    currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-  } catch (e) {
-    currentLoc = await Location.getLastKnownPositionAsync();
-  }
-
-  const businessDate = new Date().toISOString().split('T')[0]; // Simple local-ish date for business_date
-  
-  await SyncService.enqueueOperation('staff_tracking_sessions', {
-    id: sessionId,
-    staff_id: activeUserId,
-    business_date: businessDate,
-    started_at: new Date().toISOString(),
-    started_latitude: currentLoc?.coords?.latitude || null,
-    started_longitude: currentLoc?.coords?.longitude || null,
-    started_accuracy: currentLoc?.coords?.accuracy || null,
-    total_distance_km: 0,
-    status: 'OPEN'
-  }, activeUserId, 'insert');
-
-  if (currentLoc && currentLoc.coords.accuracy <= MIN_ACCURACY_M) {
-    const initialState = {
-      lastValidLat: currentLoc.coords.latitude,
-      lastValidLon: currentLoc.coords.longitude,
-      lastValidTimestamp: currentLoc.timestamp,
-      accumulatedDistanceKm: 0
-    };
-    await AsyncStorage.setItem(getDistanceStateKey(sessionId), JSON.stringify(initialState));
-  }
-  
-  // FA-TRAVEL-03: Initialize Day Start Destination
-  const destState = {
-    tracking_session_id: sessionId,
-    type: 'DAY_START',
-    referenceId: sessionId,
-    latitude: currentLoc?.coords?.latitude || null,
-    longitude: currentLoc?.coords?.longitude || null,
-    timestamp: new Date().toISOString(),
-    distanceAtDestination: 0
-  };
-  await AsyncStorage.setItem(getDestinationStateKey(activeUserId), JSON.stringify(destState));
+  // Removed duplicate FA-TRAVEL-01 and FA-TRAVEL-03 logic.
+  // FieldSessionCard.js now handles staff_tracking_sessions.
 
   return monitoredCount;
 };
@@ -334,66 +249,8 @@ export const stopBackgroundLocationTracking = async () => {
       // Clear geofence state
       await AsyncStorage.removeItem(getGeofenceStorageKey(activeUserId));
       
-      // FA-TRAVEL-01: Close the authoritative tracking session
-      const sessionKey = getSessionStorageKey(activeUserId);
-      const travelSessionId = await AsyncStorage.getItem(sessionKey);
-      
-      if (travelSessionId) {
-        let currentLoc = null;
-        try {
-          currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        } catch (e) {
-          currentLoc = await Location.getLastKnownPositionAsync();
-        }
-        
-        // Final flush of total_distance_km
-        const distanceStateKey = getDistanceStateKey(travelSessionId);
-        const stateStr = await AsyncStorage.getItem(distanceStateKey);
-        const finalDistance = stateStr ? JSON.parse(stateStr).accumulatedDistanceKm : 0;
-        
-        const nowIso = new Date().toISOString();
-        
-        await SyncService.enqueueOperation('staff_tracking_sessions', {
-          id: travelSessionId,
-          ended_at: nowIso,
-          ended_latitude: currentLoc?.coords?.latitude || null,
-          ended_longitude: currentLoc?.coords?.longitude || null,
-          ended_accuracy: currentLoc?.coords?.accuracy || null,
-          total_distance_km: finalDistance,
-          status: 'CLOSED'
-        }, activeUserId, 'update');
-        
-        // FA-TRAVEL-03: Create Day End Segment
-        const destKey = getDestinationStateKey(activeUserId);
-        const destStr = await AsyncStorage.getItem(destKey);
-        if (destStr) {
-          const destState = JSON.parse(destStr);
-          const segmentDistance = finalDistance - destState.distanceAtDestination;
-          
-          await SyncService.enqueueOperation('staff_travel_segments', {
-            id: generateId(),
-            tracking_session_id: destState.tracking_session_id,
-            staff_id: activeUserId,
-            from_type: destState.type,
-            from_reference_id: destState.referenceId,
-            from_latitude: destState.latitude,
-            from_longitude: destState.longitude,
-            from_timestamp: destState.timestamp,
-            to_type: 'DAY_END',
-            to_reference_id: travelSessionId,
-            to_latitude: currentLoc?.coords?.latitude || null,
-            to_longitude: currentLoc?.coords?.longitude || null,
-            to_timestamp: nowIso,
-            distance_km: segmentDistance > 0 ? segmentDistance : 0,
-            status: 'COMPLETED'
-          }, activeUserId, 'insert');
-          
-          await AsyncStorage.removeItem(destKey);
-        }
-
-        await AsyncStorage.removeItem(sessionKey);
-        await AsyncStorage.removeItem(distanceStateKey);
-      }
+      // FieldSessionCard.js manages staff_tracking_sessions close logic.
+      // Removed duplicate FA-TRAVEL-01 and FA-TRAVEL-03 end logic here.
     }
   }
 };
