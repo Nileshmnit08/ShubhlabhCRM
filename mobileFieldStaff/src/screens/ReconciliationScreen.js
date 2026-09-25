@@ -101,7 +101,7 @@ export function ReconciliationScreen({ navigation }) {
       ) : (
         <FlatList
           data={timeline}
-          keyExtractor={(item, idx) => item.id ? item.id.toString() : idx.toString()}
+          keyExtractor={(item, idx) => item.id && item.event_type ? `${item.event_type}_${item.id}` : idx.toString()}
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           ListEmptyComponent={

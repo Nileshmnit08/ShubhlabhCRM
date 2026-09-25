@@ -11,3 +11,4 @@ export * from './VisitOutcomeSheet';
 export * from './NativeSelectors';
 export * from './States';
 export * from './FieldSessionCard';
+export * from './OrderSummaryView';

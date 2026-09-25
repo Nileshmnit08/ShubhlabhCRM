@@ -103,7 +103,7 @@ export default function RequirementList() {
     try {
       let query = supabase
         .from('v_board_requirements')
-        .select('*')
+        .select('*, requirement_items(*)')
         .order('created_at', { ascending: false });
 
       if (!includeCompleted) {
@@ -328,7 +328,11 @@ export default function RequirementList() {
       const group = map.get(pid);
       group.requirements.push(req);
       group.total_qty += Number(req.required_quantity) || 0;
-      group.products.add(req.product_type);
+            if (req.requirement_items && req.requirement_items.length > 0) {
+        req.requirement_items.forEach(item => group.products.add(item.product_name));
+      } else if (req.product_type) {
+        group.products.add(req.product_type);
+      }
       
       const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && req.is_pending;
       if (isOverdue) group.has_overdue = true;
@@ -621,7 +625,7 @@ export default function RequirementList() {
                             const isReqOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && req.is_pending;
                             return (
                               <tr key={req.id} style={{borderBottom: '1px solid #E5E7EB', transition: 'background 0.2s', cursor: 'default'}} onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                <td style={{padding: '12px'}}><Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>{req.product_type}</Link></td>
+                                <td style={{padding: '12px'}}><Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>{req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : req.product_type}</Link></td>
                                 <td style={{padding: '12px', fontWeight: 500}}>{req.required_quantity} {req.unit}</td>
                                 <td style={{padding: '12px'}}>{formatRate(req.expected_rate)}</td>
                                 <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>{getFriendlyDate(req.expected_date)}</td>

@@ -13,38 +13,38 @@ export default function MyCustomersScreen({ navigation, route }) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [customers, setCustomers] = useState([]);
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedId, setExpandedId] = useState(null);
 
   const staffId = route?.params?.staffId;
   const staffName = route?.params?.staffName;
 
-  const fetchMyCustomers = async () => {
+  const fetchMyCustomers = async (search = searchQuery) => {
     try {
-      let query;
-      if (staffId) {
-        // When filtered by staff, query crm_parties directly since v_customer_360 doesn't expose assigned_owner_id
-        query = supabase
-          .from('crm_parties')
-          .select('id, name:display_name, city, mobile, status:crm_status')
-          .eq('assigned_owner_id', staffId)
-          .order('id', { ascending: false });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData?.session?.user?.id;
+      const effectiveStaffId = staffId || currentUserId;
+
+      if (!effectiveStaffId) return;
+
+      let query = supabase
+        .from('crm_parties')
+        .select('id, name:display_name, city, mobile, status:crm_status, is_priority, customer_code')
+        .eq('assigned_owner_id', effectiveStaffId)
+        .order('id', { ascending: false });
+
+      if (search.trim()) {
+        query = query.or(`display_name.ilike.%${search}%,mobile.ilike.%${search}%,customer_code.ilike.%${search}%`);
       } else {
-        // Default behavior (relies on RLS)
-        query = supabase
-          .from('v_customer_360')
-          .select('id:customer_id, name:crm_display_name, city:crm_city, mobile:crm_mobile, status:crm_status')
-          .order('customer_id', { ascending: false });
+        query = query.eq('is_priority', true);
       }
 
       const { data, error } = await query;
-
       if (error) console.error(error);
       else {
         setCustomers(data || []);
-        setFilteredCustomers(data || []);
       }
     } catch (err) {
       console.error(err);
@@ -55,26 +55,15 @@ export default function MyCustomersScreen({ navigation, route }) {
   };
 
   useEffect(() => {
-    fetchMyCustomers();
-  }, [staffId]);
+    const timer = setTimeout(() => {
+      fetchMyCustomers();
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery, staffId]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchMyCustomers();
-  };
-
-  const handleSearch = (text) => {
-    setSearchQuery(text);
-    if (!text) {
-      setFilteredCustomers(customers);
-    } else {
-      const lower = text.toLowerCase();
-      setFilteredCustomers(customers.filter(c => 
-        (c.name && c.name.toLowerCase().includes(lower)) || 
-        (c.city && c.city.toLowerCase().includes(lower)) ||
-        (c.mobile && c.mobile.includes(lower))
-      ));
-    }
   };
 
   const initiateCall = (mobile) => {
@@ -85,39 +74,69 @@ export default function MyCustomersScreen({ navigation, route }) {
     Linking.openURL(`tel:${mobile}`);
   };
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('CustomerDetail', { customerId: item.id })}>
-      <Card style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={styles.headerLeft}>
-            <View style={styles.nameRow}>
-              <Text style={styles.itemTitle} numberOfLines={1}>{item.name}</Text>
-              {item.status === 'Active' ? (
-                <Badge label="ACTIVE" status="success" />
-              ) : (
-                <Badge label={(item.status || 'PENDING').toUpperCase()} status="warning" />
-              )}
+  const toggleExpand = (id) => {
+    setExpandedId(prev => prev === id ? null : id);
+  };
+
+  const renderItem = ({ item }) => {
+    const isExpanded = expandedId === item.id;
+    return (
+      <TouchableOpacity activeOpacity={0.8} onPress={() => toggleExpand(item.id)}>
+        <Card style={styles.card}>
+          <View style={styles.cardHeader}>
+            <View style={styles.headerLeft}>
+              <View style={styles.nameRow}>
+                <Text style={styles.itemTitle} numberOfLines={1}>{item.name}</Text>
+                {item.is_priority && (
+                  <Badge label="PRIORITY" status="warning" style={{ marginRight: 6 }} />
+                )}
+                {item.status === 'Active' ? (
+                  <Badge label="ACTIVE" status="success" />
+                ) : (
+                  <Badge label={(item.status || 'PENDING').toUpperCase()} status="neutral" />
+                )}
+              </View>
+              <View style={styles.metaRow}>
+                <MapPin size={14} color={theme.colors.onSurfaceVariant} />
+                <Text style={styles.itemSubtitle}>{item.city || t('no_city', 'No city')}</Text>
+                {item.customer_code && (
+                  <Text style={[styles.itemSubtitle, { marginLeft: 8 }]}>| {item.customer_code}</Text>
+                )}
+              </View>
             </View>
-            <View style={styles.metaRow}>
-              <MapPin size={14} color={theme.colors.onSurfaceVariant} />
-              <Text style={styles.itemSubtitle}>{item.city || t('no_city', 'No city')}</Text>
-            </View>
-          </View>
-        </View>
-        
-        <View style={styles.cardFooter}>
-          <View style={styles.contactInfo}>
-            <User size={16} color={theme.colors.onSurfaceVariant} />
-            <Text style={styles.contactText}>Primary Contact</Text>
           </View>
           
-          <TouchableOpacity style={styles.iconButton} onPress={() => initiateCall(item.mobile)}>
-            <Phone color={theme.colors.onPrimaryContainer} size={18} />
-          </TouchableOpacity>
-        </View>
-      </Card>
-    </TouchableOpacity>
-  );
+          <View style={styles.cardFooter}>
+            <View style={styles.contactInfo}>
+              <User size={16} color={theme.colors.onSurfaceVariant} />
+              <Text style={styles.contactText}>{item.mobile || 'No Contact'}</Text>
+            </View>
+            
+            <TouchableOpacity style={styles.iconButton} onPress={() => initiateCall(item.mobile)}>
+              <Phone color={theme.colors.onPrimaryContainer} size={18} />
+            </TouchableOpacity>
+          </View>
+
+          {isExpanded && (
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AddActivity', { partyId: item.id, partyName: item.name })}>
+                <Text style={styles.actionBtnText}>Start Visit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AddRequirement', { partyId: item.id, partyName: item.name })}>
+                <Text style={styles.actionBtnText}>Add Order</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('AddFollowUp', { partyId: item.id, partyName: item.name })}>
+                <Text style={styles.actionBtnText}>Follow-up</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnOutline]} onPress={() => navigation.navigate('CustomerDetail', { customerId: item.id })}>
+                <Text style={[styles.actionBtnText, { color: theme.colors.primary }]}>History</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </Card>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -126,7 +145,7 @@ export default function MyCustomersScreen({ navigation, route }) {
         showBack={!!staffId} 
         rightElement={
           <View style={styles.countBadge}>
-            <Text style={styles.countText}>{filteredCustomers.length}</Text>
+            <Text style={styles.countText}>{customers.length}</Text>
           </View>
         }
       />
@@ -136,10 +155,10 @@ export default function MyCustomersScreen({ navigation, route }) {
           <Search color={theme.colors.onSurfaceVariant} size={20} />
           <TextInput
             style={styles.searchInput}
-            placeholder={t('search_customers', 'Search customers by name, city, or phone...')}
+            placeholder={t('search_customers', 'Search by name, mobile, or code...')}
             placeholderTextColor={theme.colors.onSurfaceVariant}
             value={searchQuery}
-            onChangeText={handleSearch}
+            onChangeText={setSearchQuery}
           />
         </View>
       </View>
@@ -148,17 +167,17 @@ export default function MyCustomersScreen({ navigation, route }) {
         <View style={styles.center}>
           <ActivityIndicator color={theme.colors.secondary} size="large" />
         </View>
-      ) : filteredCustomers.length === 0 ? (
+      ) : customers.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Search size={48} color={theme.colors.outlineVariant} />
           <Text style={styles.emptyTitle}>{t('no_customers_found', 'No customers found')}</Text>
           <Text style={styles.emptySubtext}>
-            {searchQuery ? t('no_search_results', 'No matches for your search') : t('no_assigned_customers', 'You have no active customers assigned')}
+            {searchQuery ? t('no_search_results', 'No matches for your search') : t('no_assigned_customers', 'You have no priority customers. Search to find others.')}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={filteredCustomers}
+          data={customers}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={{ padding: theme.spacing['screen-edge'], paddingBottom: 100 }}
@@ -240,6 +259,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     ...theme.shadows.sm
+  },
+
+  actionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.surfaceContainerHigh,
+  },
+  actionBtn: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: theme.borders.radius.sm,
+    flex: 1,
+    alignItems: 'center',
+    minWidth: '45%',
+  },
+  actionBtnOutline: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  actionBtnText: {
+    color: '#ffffff',
+    fontSize: theme.typography.sizes.labelMd,
+    fontWeight: theme.typography.weights.semibold,
   },
 
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: theme.spacing.xl },

@@ -33,7 +33,14 @@ import {
   SchemeDetailScreen,
   MessagesInboxScreen,
   NewChatScreen,
-  ChatConversationScreen
+  ChatConversationScreen,
+  MyVisitsScreen,
+  MyOrdersScreen,
+  OrderDetailScreen,
+  MyActivityScreen,
+  ExpenseListScreen,
+  ReconciliationScreen,
+  OrderConfirmationScreen
 } from './src/screens';
 import { NotificationProvider, useNotifications } from './src/context/NotificationContext';
 import { VisitProvider } from './src/context/VisitContext';
@@ -75,14 +82,10 @@ function RootNavigator() {
   const { session, staffProfile, loading } = useAuth();
   const { routePendingColdStart } = useNotifications();
 
-  // If loading or resolving identity, LoginScreen handles loading/error state
-  if (!session || !staffProfile) {
-    return <LoginScreen />;
-  }
-
   // After successful auth, attempt to route any cold-start pending notification.
-  // This runs once per authenticated session mount.
   React.useEffect(() => {
+    if (!session || !staffProfile) return;
+
     CallLogService.requestPermissions().then((granted) => {
       if (granted) {
         CallLogService.syncCallLogs(session.user.id);
@@ -99,7 +102,12 @@ function RootNavigator() {
       CallLogService.destroy();
       clearTimeout(timer);
     };
-  }, []);
+  }, [session, staffProfile]);
+
+  // If loading or resolving identity, LoginScreen handles loading/error state
+  if (!session || !staffProfile) {
+    return <LoginScreen />;
+  }
 
   return (
     <Stack.Navigator
@@ -135,6 +143,11 @@ function RootNavigator() {
         options={{ headerShown: false }} 
       />
       <Stack.Screen 
+        name="OrderConfirmation" 
+        component={OrderConfirmationScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
         name="VisitSummary" 
         component={VisitSummaryScreen} 
         options={{ headerShown: false }} 
@@ -158,6 +171,36 @@ function RootNavigator() {
         name="ChatConversation" 
         component={ChatConversationScreen} 
         options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="MyVisits" 
+        component={MyVisitsScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="MyOrders" 
+        component={MyOrdersScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="OrderDetail" 
+        component={OrderDetailScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="MyActivity" 
+        component={MyActivityScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="ExpenseList" 
+        component={ExpenseListScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="Reconciliation" 
+        component={ReconciliationScreen} 
+        options={{ headerShown: false }} 
       />
     </Stack.Navigator>
   );

@@ -75,6 +75,21 @@ export function CustomerProfileScreen({ navigation, route }) {
 
       let mergedDemands = reqData || [];
       const serverReqIds = new Set(mergedDemands.map(r => r.id));
+      
+      // Explicitly fetch requirement_items to avoid embedded join issues
+      if (mergedDemands.length > 0) {
+          const reqIds = mergedDemands.map(r => r.id);
+          const { data: itemsData } = await supabase
+              .from('requirement_items')
+              .select('*')
+              .in('requirement_id', reqIds);
+              
+          if (itemsData && itemsData.length > 0) {
+              mergedDemands.forEach(d => {
+                  d.requirement_items = itemsData.filter(i => i.requirement_id === d.id);
+              });
+          }
+      }
 
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -88,12 +103,48 @@ export function CustomerProfileScreen({ navigation, route }) {
             
           mergedActivity = [...pendingActivity, ...mergedActivity].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
+          const pendingDemandItems = queue
+            .filter(op => op.table === 'requirement_items' && (op.status === 'PENDING' || op.status === 'FAILED' || op.status === 'SYNCING'))
+            .map(op => op.payload);
+
           const pendingDemands = queue
             .filter(op => op.table === 'requirements' && op.payload?.party_id === customerId && (op.status === 'PENDING' || op.status === 'FAILED' || op.status === 'SYNCING'))
-            .map(op => ({ ...op.payload, _isPending: true, _syncStatus: op.status }))
-            .filter(req => !serverReqIds.has(req.id));
+            .map(op => ({ ...op.payload, _isPending: true, _syncStatus: op.status, requirement_items: pendingDemandItems.filter(i => i.requirement_id === op.payload.id) }));
 
-          mergedDemands = [...pendingDemands, ...mergedDemands].sort((a, b) => new Date(b.created_at || b.expected_date || Date.now()) - new Date(a.created_at || a.expected_date || Date.now()));
+          const newPendingDemands = pendingDemands.filter(req => !serverReqIds.has(req.id));
+
+          mergedDemands = mergedDemands.map(d => {
+             const pendingUpdate = pendingDemands.find(req => req.id === d.id);
+             return pendingUpdate ? { ...d, ...pendingUpdate } : d;
+          });
+
+          mergedDemands.forEach(d => {
+             const localItems = pendingDemandItems.filter(i => i.requirement_id === d.id);
+             if (localItems.length > 0) {
+                 let updatedItems = [...(d.requirement_items || [])];
+                 localItems.forEach(opItem => {
+                     // We check the raw queue to know the action if we want, but since pendingDemandItems are just payloads,
+                     // we can just upsert by ID.
+                     const existingIdx = updatedItems.findIndex(i => i.id === opItem.id);
+                     if (existingIdx >= 0) {
+                         // We assume it's an update, so merge it
+                         updatedItems[existingIdx] = { ...updatedItems[existingIdx], ...opItem };
+                     } else {
+                         updatedItems.push(opItem);
+                     }
+                 });
+                 // To handle deletions, we can look at the raw queue
+                 const deleteItemOps = queue.filter(op => op.table === 'requirement_items' && op.action === 'delete' && (updatedItems.find(i => i.id === op.payload?.id)));
+                 if (deleteItemOps.length > 0) {
+                     const deleteIds = new Set(deleteItemOps.map(op => op.payload.id));
+                     updatedItems = updatedItems.filter(i => !deleteIds.has(i.id));
+                 }
+
+                 d.requirement_items = updatedItems;
+             }
+          });
+
+          mergedDemands = [...newPendingDemands, ...mergedDemands].sort((a, b) => new Date(b.created_at || b.expected_date || Date.now()) - new Date(a.created_at || a.expected_date || Date.now()));
         }
       } catch (e) {
         console.log('Error fetching local sync queue', e);
@@ -238,14 +289,15 @@ export function CustomerProfileScreen({ navigation, route }) {
             <Text style={styles.startVisitSub}>• GPS Auto-Checkin</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.addOrderBtn} onPress={() => navigation.navigate('QuickRequirement', { customerId: customer.id, customerName: customer.display_name, customerMobile: customer.mobile })}>
+            <MaterialIcons name="add-shopping-cart" size={22} color={colors.primary} />
+            <Text style={styles.addOrderBtnText}>ADD ORDER (नया ऑर्डर)</Text>
+          </TouchableOpacity>
+
           <View style={styles.quickGrid}>
             <TouchableOpacity style={styles.quickBtn} onPress={() => Linking.openURL(`tel:${customer.mobile || ''}`)}>
               <MaterialIcons name="call" size={20} color={colors.primary} />
               <Text style={styles.quickBtnText}>Call / कॉल</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.quickBtn} onPress={() => navigation.navigate('QuickRequirement', { customerId: customer.id, customerName: customer.display_name })}>
-              <MaterialIcons name="add-shopping-cart" size={20} color="#904d00" />
-              <Text style={styles.quickBtnText}>+ Demand</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.quickBtn, voiceActive && {backgroundColor: colors.error}]} onPress={() => setVoiceActive(!voiceActive)}>
               <MaterialIcons name="mic" size={20} color={voiceActive ? colors.onError : colors.error} />
@@ -266,7 +318,7 @@ export function CustomerProfileScreen({ navigation, route }) {
                   <MaterialIcons name="shopping-cart" size={18} color="#904d00" />
                 </View>
                 <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>{req.product_type || 'General Requirement'}</Text>
+                  <Text style={styles.activityTitle}>{req.demand_ref || req.product_type || 'Customer Demand'}</Text>
                   
                   <View style={{flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4}}>
                     <Text style={styles.activityDate}>
@@ -281,26 +333,41 @@ export function CustomerProfileScreen({ navigation, route }) {
                       </View>
                     ) : (
                       <View style={[styles.pendingTag, {backgroundColor: '#e5eeff'}]}>
-                         <Text style={[styles.pendingTagText, {color: colors.primary}]}>{req.status || 'Open'}</Text>
+                         <Text style={[styles.pendingTagText, {color: colors.primary}]}>{req.status || 'New'}</Text>
                       </View>
                     )}
                   </View>
 
-                  {(req.quantity || req.notes) && (
-                    <View style={styles.activityMetaRow}>
-                       {req.quantity ? (
-                         <View style={styles.metaChip}>
-                           <MaterialIcons name="inventory" size={12} color={colors.onSurfaceVariant} />
-                           <Text style={styles.metaChipText}>{req.quantity} Qty</Text>
-                         </View>
-                       ) : null}
-                       {req.notes ? (
-                         <View style={styles.metaChip}>
-                           <Text style={styles.metaChipText}>{req.notes}</Text>
-                         </View>
-                       ) : null}
-                    </View>
-                  )}
+                  <View style={{marginTop: 8}}>
+                    {req.requirement_items && req.requirement_items.length > 0 ? (
+                      req.requirement_items.map((item, i) => (
+                        <View key={item.id || i} style={styles.activityMetaRow}>
+                          <View style={[styles.metaChip, {backgroundColor: '#f1f8ff', borderColor: '#cce0ff'}]}>
+                            <Text style={[styles.metaChipText, {fontWeight: 'bold', color: colors.primary}]}>{item.product_name}</Text>
+                          </View>
+                          <View style={styles.metaChip}>
+                            <Text style={styles.metaChipText}>{item.quantity} {item.unit || 'Bags'}</Text>
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      (req.quantity || req.notes) && (
+                        <View style={styles.activityMetaRow}>
+                          {req.quantity ? (
+                            <View style={styles.metaChip}>
+                              <MaterialIcons name="inventory" size={12} color={colors.onSurfaceVariant} />
+                              <Text style={styles.metaChipText}>{req.quantity} {req.unit || 'Qty'}</Text>
+                            </View>
+                          ) : null}
+                          {req.notes ? (
+                            <View style={styles.metaChip}>
+                              <Text style={styles.metaChipText}>{req.notes}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      )
+                    )}
+                  </View>
                 </View>
               </View>
             ))
@@ -419,7 +486,9 @@ const styles = StyleSheet.create({
   duesLabel: { ...typography.labelSm, color: '#93000a', textTransform: 'uppercase' },
   duesAmount: { fontFamily: 'Inter', fontSize: 26, fontWeight: '800', color: colors.error, marginTop: 2 },
   actionSection: { marginBottom: 16 },
-  startVisitBtn: { width: '100%', height: 52, backgroundColor: colors.primary, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 2, marginBottom: 8 },
+  addOrderBtn: { width: '100%', height: 52, backgroundColor: '#f0e6d2', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 1, marginBottom: 8, borderWidth: 1, borderColor: colors.primary },
+    addOrderBtnText: { ...typography.labelLg, color: colors.primary, fontWeight: 'bold', marginLeft: 8 },
+    startVisitBtn: { width: '100%', height: 52, backgroundColor: colors.primary, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 2, marginBottom: 8 },
   startVisitDotContainer: { relative: true, width: 12, height: 12, marginRight: 4, alignItems: 'center', justifyContent: 'center' },
   startVisitDotPing: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5', opacity: 0.75 },
   startVisitDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5' },

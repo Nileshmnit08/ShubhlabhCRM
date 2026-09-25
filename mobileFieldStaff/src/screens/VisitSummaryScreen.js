@@ -1,11 +1,62 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, typography, rounded } from '../theme/tokens';
 import { EmptyState } from '../components';
+import { supabase } from '../lib/supabase';
 
 export function VisitSummaryScreen({ navigation, route }) {
-  const visit = route.params?.visit;
+  const paramVisit = route.params?.visit || route.params?.cachedVisit;
+  const visitId = route.params?.visitId || paramVisit?.id;
+
+  const [visit, setVisit] = useState(paramVisit);
+  const [loading, setLoading] = useState(!paramVisit && !!visitId);
+
+  useEffect(() => {
+    if (!visit && visitId) {
+      fetchVisit();
+    } else if (visit && !visit.requirements) {
+      // If we have a cached visit but no requirements attached, we should fetch them
+      // to fulfill the "Also verify completed visits with Order/Requirement information" requirement.
+      fetchVisit();
+    }
+  }, [visitId]);
+
+  const fetchVisit = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('crm_visits')
+        .select(`
+          *,
+          crm_parties ( display_name, city ),
+          requirements (
+            id, quantity, expected_date,
+            requirement_items (
+              quantity, unit, product_name
+            )
+          )
+        `)
+        .eq('id', visitId)
+        .single();
+        
+      if (data && !error) {
+        setVisit(data);
+      }
+    } catch (e) {
+      console.warn("Error fetching full visit details:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safe, {justifyContent: 'center', alignItems: 'center'}]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </SafeAreaView>
+    );
+  }
 
   if (!visit) {
     return (
@@ -46,8 +97,10 @@ export function VisitSummaryScreen({ navigation, route }) {
         {/* Customer Context */}
         <View style={styles.customerBox}>
           <MaterialIcons name="check-circle" size={48} color={colors.primary} style={{ marginBottom: 8 }} />
-          <Text style={styles.visitCompleteText}>Visit Completed</Text>
-          <Text style={styles.customerName}>{visit.customerName}</Text>
+          <Text style={styles.visitCompleteText}>{visit.status === 'Completed' ? 'Visit Completed' : 'Visit Status: ' + (visit.status || 'Unknown')}</Text>
+          <Text style={styles.customerName}>
+            {visit.customerName || visit.crm_parties?.display_name || 'Unknown Customer'}
+          </Text>
         </View>
 
         {/* Timing */}
@@ -116,17 +169,30 @@ export function VisitSummaryScreen({ navigation, route }) {
             </View>
           )}
 
-          {/* Requirements */}
+          {/* Requirements / Order Summary */}
           {hasRequirements && (
             <View style={styles.activityBox}>
               <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8}}>
                 <MaterialIcons name="bolt" size={18} color={colors.onSurface} />
-                <Text style={styles.activityTitle}>Requirements Captured</Text>
+                <Text style={styles.activityTitle}>
+                  {visit.outcomes?.demandAdded ? "ORDER SUMMARY" : "Requirements Captured"}
+                </Text>
               </View>
               {visit.requirements.map((req, idx) => (
-                <View key={req.id || idx} style={styles.reqRow}>
-                  <Text style={styles.reqText}>{req.quantity} {req.product_type}</Text>
-                  <Text style={styles.reqDate}>Delivery: {req.expected_date}</Text>
+                <View key={req.id || idx}>
+                  {req.requirement_items && req.requirement_items.length > 0 ? (
+                    req.requirement_items.map((item, itemIdx) => (
+                      <View key={itemIdx} style={styles.reqRow}>
+                        <Text style={styles.reqText}>{item.quantity} {item.unit} - {item.product_name}</Text>
+                        <Text style={styles.reqDate}>Expected: {req.expected_date}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <View style={styles.reqRow}>
+                      <Text style={styles.reqText}>{req.quantity} {req.product_type}</Text>
+                      <Text style={styles.reqDate}>Delivery: {req.expected_date}</Text>
+                    </View>
+                  )}
                 </View>
               ))}
             </View>

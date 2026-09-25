@@ -283,7 +283,15 @@ export function VisitModeScreen({ navigation, route }) {
               <View key={req.id || i} style={styles.feedItem}>
                 <MaterialIcons name="shopping-cart" size={16} color={colors.primary} />
                 <View style={{flex: 1, marginLeft: 8}}>
-                  <Text style={styles.feedItemTitle}>{req.quantity} {req.product_type}</Text>
+                  {req.requirement_items && req.requirement_items.length > 0 ? (
+                    req.requirement_items.map((item, itemIdx) => (
+                      <Text key={itemIdx} style={styles.feedItemTitle}>
+                        {item.quantity} {item.unit} - {item.product_name}
+                      </Text>
+                    ))
+                  ) : (
+                    <Text style={styles.feedItemTitle}>{req.quantity} {req.product_type}</Text>
+                  )}
                   <Text style={styles.feedItemSub}>Expected: {req.expected_date}</Text>
                 </View>
               </View>

@@ -125,6 +125,36 @@ export class SyncService {
                  payload: { ...op.payload, id: newId }
                };
              }
+             
+             // Normalize non-UUID requirement IDs
+             const isUUID = (str) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+             
+             if (op.table === 'requirements' && op.payload && op.payload.id && !isUUID(op.payload.id)) {
+                const newId = generateId();
+                console.log(`[DIAGNOSTIC] Normalizing non-UUID requirement ID ${op.payload.id} -> ${newId}`);
+                // Also update any child items in the queue that reference this old ID
+                queue.forEach(childOp => {
+                   if (childOp.table === 'requirement_items' && childOp.payload && childOp.payload.requirement_id === op.payload.id) {
+                       childOp.payload.requirement_id = newId;
+                   }
+                });
+                return {
+                  ...op,
+                  local_id: newId,
+                  payload: { ...op.payload, id: newId }
+                };
+             }
+             
+             // Normalize non-UUID requirement_items IDs
+             if (op.table === 'requirement_items' && op.payload && op.payload.id && !isUUID(op.payload.id)) {
+                const newId = generateId();
+                return {
+                  ...op,
+                  local_id: newId,
+                  payload: { ...op.payload, id: newId }
+                };
+             }
+             
              return op;
            });
 
@@ -138,9 +168,12 @@ export class SyncService {
 
            // 2. Sort the queue to enforce Chat Dependencies
            const priorityMap = {
-             'chat_conversations': 1,
-             'chat_participants': 2,
-             'chat_messages': 3
+             'crm_parties': 1,
+             'requirements': 2,
+             'requirement_items': 3,
+             'chat_conversations': 4,
+             'chat_participants': 5,
+             'chat_messages': 6
            };
            
            const sortedQueue = [...activeQueue].sort((a, b) => {
@@ -149,10 +182,31 @@ export class SyncService {
              return pA - pB;
            });
 
-           pendingOp = sortedQueue.find(op => 
-             (op.status === 'PENDING' || (isManualRetry && op.status === 'FAILED')) && 
-             !attemptedIds.has(op.local_id)
-           );
+           pendingOp = sortedQueue.find(op => {
+             if (!(op.status === 'PENDING' || (isManualRetry && op.status === 'FAILED'))) return false;
+             if (attemptedIds.has(op.local_id)) return false;
+             
+             // Enforce Queue Dependencies
+             if (op.table === 'requirement_items') {
+                 // Check if parent requirement is still in the queue (meaning it hasn't synced successfully)
+                 const parentId = op.payload?.requirement_id;
+                 if (parentId) {
+                     const parentInQueue = activeQueue.find(parentOp => 
+                         parentOp.table === 'requirements' && 
+                         (parentOp.payload?.id === parentId || parentOp.local_id === parentId)
+                     );
+                     
+                     // If parent is still in the queue (FAILED, PENDING, SYNCING), block the child.
+                     // The child will remain PENDING and will not be attempted.
+                     if (parentInQueue) {
+                         console.log(`[DIAGNOSTIC] Blocking requirement_items ${op.local_id} because parent ${parentId} is still in queue with status ${parentInQueue.status}`);
+                         return false;
+                     }
+                 }
+             }
+             
+             return true;
+           });
         }
         
         if (!pendingOp) {
@@ -178,11 +232,32 @@ export class SyncService {
           // Clean out unsupported fields if they accidentally made it into the payload
           let safePayload = { ...pendingOp.payload };
           delete safePayload.customerName; // Never sync ephemeral labels
+          
+          if (pendingOp.table === 'requirement_items') {
+            delete safePayload.weight;
+          }
 
           // Safe recovery patch for existing queued items failing req_status_check
-          if (pendingOp.table === 'requirements' && safePayload.status === 'Open') {
-            safePayload.status = 'New';
-            pendingOp.payload.status = 'New'; // Persist the patch in memory
+          if (pendingOp.table === 'requirements') {
+            if (safePayload.status === 'Open') {
+              safePayload.status = 'New';
+              pendingOp.payload.status = 'New'; // Persist the patch in memory
+            }
+            if (!safePayload.quantity || safePayload.quantity <= 0) {
+              safePayload.quantity = 1;
+              pendingOp.payload.quantity = 1; // Satisfy req_positive_values constraint
+            }
+            if (!safePayload.product_type) {
+              safePayload.product_type = 'General Requirement';
+              pendingOp.payload.product_type = 'General Requirement';
+            }
+
+            // Fix for old failed payloads: remove weight from nested requirement_items
+            if (safePayload.requirement_items && Array.isArray(safePayload.requirement_items)) {
+              safePayload.requirement_items.forEach(item => {
+                delete item.weight;
+              });
+            }
           }
           
           if (pendingOp.action === 'update') {
@@ -212,6 +287,26 @@ export class SyncService {
           error = err;
         }
 
+        let recoveredParentId = null;
+        if (error && error.code === '23503' && pendingOp.table === 'requirement_items') {
+             console.warn(`[DIAGNOSTIC] FK Violation on requirement_items. Fetching recent parent to recover orphan...`);
+             try {
+                 const { data: recentReq } = await supabase
+                     .from('requirements')
+                     .select('id')
+                     .eq('assigned_to', userId)
+                     .order('created_at', { ascending: false })
+                     .limit(1);
+                 
+                 if (recentReq && recentReq.length > 0) {
+                     recoveredParentId = recentReq[0].id;
+                     console.log(`[DIAGNOSTIC] Found recovery parent: ${recoveredParentId}`);
+                 }
+             } catch (fetchErr) {
+                 console.error('Failed to fetch recovery parent', fetchErr);
+             }
+        }
+
         // Atomically record the result and cleanup
         await this._atomicQueueUpdate(userId, q => {
           const item = q.find(x => x.local_id === pendingOp.local_id && x.table === pendingOp.table);
@@ -224,12 +319,24 @@ export class SyncService {
               item.status = 'SYNCED';
             } else {
               console.error(`[DIAGNOSTIC] CALL_SYNC_FAILURE: local_id=${pendingOp.local_id} code=${error.code} msg=${error.message}`);
-              item.status = 'FAILED';
-              item.last_error = error.message || 'Unknown database error';
-              item.last_attempted_at = new Date().toISOString();
-              // Save the recovery patch if it failed
-              if (pendingOp.table === 'requirements' && item.payload.status === 'Open') {
-                  item.payload.status = 'New';
+              
+              if (error.code === '23503' && pendingOp.table === 'requirement_items') {
+                 if (recoveredParentId) {
+                     item.payload.requirement_id = recoveredParentId;
+                     item.status = 'PENDING'; 
+                     console.log(`[DIAGNOSTIC] Orphan recovered locally. Will retry in next loop.`);
+                 } else {
+                     item.status = 'FAILED';
+                     item.last_error = error.message || 'No parent found for recovery';
+                 }
+              } else {
+                 item.status = 'FAILED';
+                 item.last_error = error.message || 'Unknown database error';
+                 item.last_attempted_at = new Date().toISOString();
+                 // Save the recovery patch if it failed
+                 if (pendingOp.table === 'requirements' && item.payload.status === 'Open') {
+                     item.payload.status = 'New';
+                 }
               }
             }
           } else {

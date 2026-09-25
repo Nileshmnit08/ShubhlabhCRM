@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/tokens';
-import { EmptyState } from '../components';
 import { useVisit } from '../context/VisitContext';
 import { useAuth } from '../context/AuthContext';
 import { SyncService } from '../services/SyncService';
@@ -16,33 +15,79 @@ const generateId = () => {
   });
 };
 
+const DEFAULT_CATEGORIES = ['Mix', 'Pallet', 'Churi', 'Daliya'];
+const DEFAULT_PRODUCTS = [
+    {name: 'Dry Mix', category: 'Mix'},
+    {name: 'Lapti Mix', category: 'Mix'},
+    {name: 'Naman', category: 'Pallet'},
+    {name: 'Gori', category: 'Pallet'},
+    {name: 'Shubh Labh', category: 'Pallet'},
+    {name: 'Diamond', category: 'Pallet'},
+    {name: '8000', category: 'Pallet'},
+    {name: 'Chana Churi', category: 'Churi'},
+    {name: 'Soya Churi', category: 'Churi'},
+    {name: 'Makka Daliya', category: 'Daliya'},
+    {name: 'Wheat Daliya', category: 'Daliya'}
+];
+
 export function QuickRequirementScreen({ navigation, route }) {
-  const { saveRequirement, activeVisit } = useVisit();
+  const { activeVisit, saveRequirement } = useVisit();
   const { session } = useAuth();
   const userId = session?.user?.id;
 
-  const [qty, setQty] = useState(50);
-  const [activeDate, setActiveDate] = useState('friday');
-  const [activeUnit, setActiveUnit] = useState('bags');
-  const [weight, setWeight] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-
-  const WEIGHT_OPTIONS = [35, 40, 45, 50, 60];
-
   const customerName = route.params?.customerName || 'Customer';
   const customerId = route.params?.customerId || null;
+  const existingOrder = route.params?.existingOrder || null;
 
+  const initialItem = existingOrder?.requirement_items?.[0];
+
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [allProducts, setAllProducts] = useState(DEFAULT_PRODUCTS);
+  const [selectedCategory, setSelectedCategory] = useState(initialItem?.category || DEFAULT_CATEGORIES[0]);
+  const [selectedProduct, setSelectedProduct] = useState(
+    initialItem ? (initialItem.product_name.includes(' (') ? initialItem.product_name.split(' (')[0] : initialItem.product_name) : null
+  );
+  
+  const [qty, setQty] = useState(initialItem?.quantity || 10);
+  const [activeUnit, setActiveUnit] = useState(initialItem?.unit || 'Bags');
+  const [items, setItems] = useState([]);
+  const [weight, setWeight] = useState(initialItem?.weight || 50);
+  const [editingItemIndex, setEditingItemIndex] = useState(existingOrder?.requirement_items?.length > 0 ? 0 : null);
   useEffect(() => {
     fetchProducts();
+    if (existingOrder && existingOrder.requirement_items) {
+      setItems(existingOrder.requirement_items.map(item => ({
+        id: item.id,
+        category: item.category,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit: item.unit,
+        weight: item.weight
+      })));
+    }
   }, []);
+
+  useEffect(() => {
+    // Select first product of category automatically if category changes
+    // Only overwrite if current product is not in the newly selected category
+    const catProducts = allProducts.filter(p => p.category === selectedCategory);
+    if (catProducts.length > 0) {
+      const isValidCurrent = catProducts.find(p => p.name === selectedProduct);
+      if (!isValidCurrent) {
+        setSelectedProduct(catProducts[0].name);
+      }
+    } else {
+      setSelectedProduct(null);
+    }
+  }, [selectedCategory, allProducts]);
 
   const fetchProducts = async () => {
     try {
       const { data, error } = await supabase.from('products').select('*').eq('active', true).order('name');
       if (data && data.length > 0) {
-        setProducts(data);
-        setSelectedProduct(data[0].name);
+        setAllProducts(data);
+        const uniqueCategories = [...new Set(data.map(p => p.category).filter(Boolean))];
+        if (uniqueCategories.length > 0) setCategories(uniqueCategories);
         await AsyncStorage.setItem('@catalog_products', JSON.stringify(data));
       } else {
         await loadCachedProducts();
@@ -57,59 +102,162 @@ export function QuickRequirementScreen({ navigation, route }) {
       const cached = await AsyncStorage.getItem('@catalog_products');
       if (cached) {
         const parsed = JSON.parse(cached);
-        setProducts(parsed);
-        if (parsed.length > 0) setSelectedProduct(parsed[0].name);
+        setAllProducts(parsed);
+        const uniqueCategories = [...new Set(parsed.map(p => p.category).filter(Boolean))];
+        if (uniqueCategories.length > 0) setCategories(uniqueCategories);
       }
     } catch (e) {
       console.log('Failed to load cached products');
     }
   };
 
+  const WEIGHT_OPTIONS = [35, 40, 45, 50, 60];
+
+  const handleAddProduct = () => {
+    if (!selectedProduct) {
+      alert('Please select a product.');
+      return;
+    }
+    if (qty <= 0) {
+      alert('Quantity must be greater than zero.');
+      return;
+    }
+    
+    const pNameWithWeight = `${selectedProduct} (${weight} kg)`;
+    const newItems = [...items];
+
+    if (editingItemIndex !== null && newItems[editingItemIndex]) {
+        // Update the explicitly selected item
+        newItems[editingItemIndex].category = selectedCategory;
+        newItems[editingItemIndex].product_name = pNameWithWeight;
+        newItems[editingItemIndex].quantity = qty;
+        newItems[editingItemIndex].unit = activeUnit;
+        newItems[editingItemIndex].weight = weight;
+        setEditingItemIndex(null); // Clear after updating
+    } else {
+        // Check for duplicates
+        const existingIndex = items.findIndex(i => i.product_name === pNameWithWeight || i.product_name === selectedProduct || i.product_name.startsWith(selectedProduct + ' ('));
+        if (existingIndex >= 0) {
+           newItems[existingIndex].quantity = qty;
+           newItems[existingIndex].unit = activeUnit;
+           newItems[existingIndex].weight = weight;
+           newItems[existingIndex].product_name = pNameWithWeight;
+        } else {
+           newItems.push({
+             category: selectedCategory,
+             product_name: pNameWithWeight,
+             quantity: qty,
+             unit: activeUnit,
+             weight: weight
+           });
+        }
+    }
+    
+    setItems(newItems);
+    setQty(10);
+  };
+  
+  const handleRemoveItem = (index) => {
+    const newItems = [...items];
+    newItems.splice(index, 1);
+    setItems(newItems);
+  };
+
   const handleSave = async () => {
-    if (!weight) {
-      alert('Please select a weight.');
+    let finalItems = [...items];
+    
+    // Auto-update the currently editing item if the user didn't explicitly press "UPDATE ITEM"
+    // This allows true edit-in-place without requiring the user to tap ADD PRODUCT
+    if (editingItemIndex !== null && finalItems[editingItemIndex]) {
+        const pNameWithWeight = `${selectedProduct} (${weight} kg)`;
+        finalItems[editingItemIndex].category = selectedCategory;
+        finalItems[editingItemIndex].product_name = pNameWithWeight;
+        finalItems[editingItemIndex].quantity = qty;
+        finalItems[editingItemIndex].unit = activeUnit;
+        finalItems[editingItemIndex].weight = weight;
+    } else if (finalItems.length === 0 && selectedProduct) {
+         finalItems.push({
+             category: selectedCategory,
+             product_name: `${selectedProduct} (${weight} kg)`,
+             quantity: qty,
+             unit: activeUnit,
+             weight: weight
+         });
+    }
+
+    if (finalItems.length === 0) {
+      alert('Please add at least one product to the order.');
       return;
     }
     
     try {
-      const expectedDate = new Date();
-      if (activeDate === 'friday') {
-        expectedDate.setDate(expectedDate.getDate() + 5);
+      const headerId = existingOrder ? existingOrder.id : generateId();
+      const party_id = existingOrder ? existingOrder.party_id : (customerId || activeVisit?.party_id);
+      
+      if (!userId || !party_id) {
+        alert('Missing user or customer context. Cannot save order.');
+        return;
       }
       
-      const req = {
-        party_id: customerId || activeVisit?.party_id,
-        product_type: selectedProduct ? `${selectedProduct} (${weight} kg - ${activeUnit.toUpperCase()})` : `Generic Requirement (${weight} kg - ${activeUnit.toUpperCase()})`,
-        quantity: qty,
-        expected_date: expectedDate.toISOString().split('T')[0],
-        notes: `${qty} * ${weight} kg`
+      const reqPayload = {
+        id: headerId,
+        party_id: party_id,
+        status: 'New',
+        expected_date: existingOrder ? existingOrder.expected_date : new Date().toISOString().split('T')[0],
+        requirement_items: finalItems.map(item => ({
+            id: item.id || generateId(),
+            requirement_id: headerId,
+            category: item.category,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            unit: item.unit,
+            weight: item.weight
+        }))
       };
-      
-      if (activeVisit) {
-        await saveRequirement(req);
+
+      if (activeVisit && !existingOrder) {
+         // Part of a visit AND it's a new order: defer to finishVisit
+         await saveRequirement(reqPayload);
       } else {
-        if (!userId || !req.party_id) {
-          alert('Missing user or customer context. Cannot save requirement.');
-          return;
-        }
-        const reqPayload = {
-          id: generateId(),
-          party_id: req.party_id,
-          product_type: req.product_type,
-          quantity: req.quantity,
-          expected_date: req.expected_date,
-          status: 'Open',
-          assigned_to: userId,
-          notes: req.notes
-        };
-        await SyncService.enqueueOperation('requirements', reqPayload, userId);
+         const actionType = existingOrder ? 'update' : 'upsert';
+         // Standalone demand or Edit: enqueue directly
+         await SyncService.enqueueOperation('requirements', {
+            id: reqPayload.id,
+            party_id: reqPayload.party_id,
+            status: reqPayload.status,
+            expected_date: reqPayload.expected_date,
+            quantity: 1, // Satisfy req_positive_values constraint
+            product_type: 'General Requirement',
+            assigned_to: userId
+         }, userId, actionType);
+         for (const item of reqPayload.requirement_items) {
+            await SyncService.enqueueOperation('requirement_items', item, userId, 'upsert');
+         }
+         
+         if (existingOrder && existingOrder.requirement_items) {
+             const finalItemIds = new Set(reqPayload.requirement_items.map(i => i.id));
+             for (const oldItem of existingOrder.requirement_items) {
+                 if (!finalItemIds.has(oldItem.id)) {
+                     await SyncService.enqueueOperation('requirement_items', { id: oldItem.id }, userId, 'delete');
+                 }
+             }
+         }
       }
       
-      navigation.goBack();
+      // Success feedback
+      navigation.replace('OrderConfirmation', {
+        order: reqPayload,
+        customerName: customerName,
+        customerMobile: route.params?.customerMobile || existingOrder?.crm_parties?.mobile
+      });
     } catch (e) {
       console.error(e);
+      alert('Failed to save order');
     }
   };
+
+
+  const currentCategoryProducts = allProducts.filter(p => p.category === selectedCategory);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -121,11 +269,8 @@ export function QuickRequirementScreen({ navigation, route }) {
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
             <Text style={styles.headerLogoText}>SHUBH LABH FIELD</Text>
-            <Text style={styles.headerPageTitle}>Add Requirement</Text>
+            <Text style={styles.headerPageTitle}>New Order</Text>
           </View>
-        </View>
-        <View style={styles.headerRight}>
-          <View style={styles.userIcon}><MaterialIcons name="person" size={18} color={colors.onPrimary} /></View>
         </View>
       </View>
 
@@ -133,17 +278,10 @@ export function QuickRequirementScreen({ navigation, route }) {
         {/* Context Background Simulator */}
         <View style={styles.contextBox}>
           <View style={styles.contextTop}>
-            {activeVisit ? (
-              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                <View style={styles.contextPulse} />
-                <Text style={styles.contextActive}>ACTIVE VISIT</Text>
-              </View>
-            ) : (
-              <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
+             <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
                 <MaterialIcons name="person" size={14} color={colors.primary} />
-                <Text style={styles.contextActive}>CUSTOMER DEMAND</Text>
-              </View>
-            )}
+                <Text style={styles.contextActive}>CUSTOMER ORDER</Text>
+             </View>
           </View>
           <View style={styles.contextContent}>
             <View>
@@ -157,46 +295,97 @@ export function QuickRequirementScreen({ navigation, route }) {
         <View style={styles.sheetFrame}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetScroll}>
             
-            {/* Sheet Header */}
-            <View style={styles.sheetHeader}>
-              <View style={styles.dragPill} />
-              <View style={styles.sheetHeaderRow}>
-                <View style={{flex: 1, paddingRight: 8}}>
-                  <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                    <MaterialIcons name="bolt" size={20} color={colors.primary} />
-                    <Text style={styles.sheetTitle}>Quick Requirement / त्वरित मांग</Text>
+            {/* Added Items Section */}
+            {items.length > 0 && (
+              <View style={styles.cartSection}>
+                <Text style={styles.sectionLabel}>Order Items ({items.length})</Text>
+                {items.map((item, idx) => (
+                  <TouchableOpacity key={idx} style={[styles.cartItem, editingItemIndex === idx && styles.cartItemEditing]} onPress={() => {
+                      setEditingItemIndex(idx);
+                      setSelectedCategory(item.category);
+                      setSelectedProduct(item.product_name.split(' (')[0]);
+                      setQty(item.quantity);
+                      setActiveUnit(item.unit);
+                      if (item.weight) setWeight(item.weight);
+                  }}>
+                    <View style={{flex: 1}}>
+                      <Text style={styles.cartItemCategory}>{item.category}</Text>
+                      <Text style={styles.cartItemTitle}>{item.product_name}</Text>
+                      <Text style={styles.cartItemQty}>{item.quantity} {item.unit}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => handleRemoveItem(idx)}>
+                       <MaterialIcons name="delete-outline" size={24} color={colors.error} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Category Selection */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>Select Category</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 16}}>
+              {categories.map(c => (
+                <TouchableOpacity 
+                  key={c} 
+                  style={selectedCategory === c ? styles.dateChipActive : styles.dateChipInactive}
+                  onPress={() => setSelectedCategory(c)}
+                >
+                  <Text style={selectedCategory === c ? styles.dateTextActive : styles.dateTextInactive}>{c}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Product Selection */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>Select Product</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 16}}>
+              {currentCategoryProducts.length > 0 ? currentCategoryProducts.map(p => (
+                <TouchableOpacity 
+                  key={p.name} 
+                  style={selectedProduct === p.name ? styles.dateChipActive : styles.dateChipInactive}
+                  onPress={() => setSelectedProduct(p.name)}
+                >
+                  <Text style={selectedProduct === p.name ? styles.dateTextActive : styles.dateTextInactive}>{p.name}</Text>
+                </TouchableOpacity>
+              )) : (
+                <Text style={{color: colors.onSurfaceVariant}}>No products in this category.</Text>
+              )}
+            </ScrollView>
+
+            {/* Quantity Stepper */}
+            <View style={styles.qtySection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionLabel}>Quantity & Unit</Text>
+                <View style={styles.unitToggle}>
+                  <TouchableOpacity onPress={() => setActiveUnit('Bags')} style={activeUnit === 'Bags' ? styles.unitActive : styles.unitInactive}><Text style={activeUnit === 'Bags' ? styles.unitTextActive : styles.unitTextInactive}>Bags</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={() => setActiveUnit('MT')} style={activeUnit === 'MT' ? styles.unitActive : styles.unitInactive}><Text style={activeUnit === 'MT' ? styles.unitTextActive : styles.unitTextInactive}>MT</Text></TouchableOpacity>
+                </View>
+              </View>
+              
+              <View style={styles.stepperBox}>
+                <TouchableOpacity style={styles.stepperBtn} onPress={() => setQty(Math.max(1, qty - 5))}>
+                  <MaterialIcons name="remove" size={24} color={colors.onSurface} />
+                </TouchableOpacity>
+                <View style={styles.stepperValueBox}>
+                  <View style={{flexDirection: 'row', alignItems: 'baseline', gap: 4}}>
+                    <Text style={styles.stepperValue}>{qty}</Text>
+                    <Text style={styles.stepperLabel}>{activeUnit}</Text>
                   </View>
                 </View>
-                <TouchableOpacity style={styles.closeBtn} onPress={() => navigation.goBack()}>
-                  <MaterialIcons name="close" size={20} color={colors.onSurfaceVariant} />
+                <TouchableOpacity style={[styles.stepperBtn, {backgroundColor: colors.primary}]} onPress={() => setQty(qty + 5)}>
+                  <MaterialIcons name="add" size={24} color={colors.onPrimary} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>Product Catalog / उत्पाद</Text>
-            </View>
-            {products.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 8}}>
-                {products.map(p => (
-                  <TouchableOpacity 
-                    key={p.id} 
-                    style={selectedProduct === p.name ? styles.dateChipActive : styles.dateChipInactive}
-                    onPress={() => setSelectedProduct(p.name)}
-                  >
-                    <Text style={selectedProduct === p.name ? styles.dateTextActive : styles.dateTextInactive}>{p.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : (
-              <Text style={{...typography.bodySm, color: colors.onSurfaceVariant, marginBottom: 8}}>Catalog offline. Using generic requirement.</Text>
-            )}
-
             {/* Weight Selection */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>Weight / वज़न</Text>
+              <Text style={styles.sectionLabel}>Weight (kg)</Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 8}}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 16}}>
               {WEIGHT_OPTIONS.map(w => (
                 <TouchableOpacity 
                   key={w} 
@@ -208,60 +397,16 @@ export function QuickRequirementScreen({ navigation, route }) {
               ))}
             </ScrollView>
 
-            {/* Quantity Stepper & Quick Presets */}
-            <View style={styles.qtySection}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionLabel}>Quantity & Unit / मात्रा और इकाई</Text>
-                <View style={styles.unitToggle}>
-                  <TouchableOpacity onPress={() => setActiveUnit('bags')} style={activeUnit === 'bags' ? styles.unitActive : styles.unitInactive}><Text style={activeUnit === 'bags' ? styles.unitTextActive : styles.unitTextInactive}>Bags (बोरी)</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveUnit('mt')} style={activeUnit === 'mt' ? styles.unitActive : styles.unitInactive}><Text style={activeUnit === 'mt' ? styles.unitTextActive : styles.unitTextInactive}>MT / Ton</Text></TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.stepperBox}>
-                <TouchableOpacity style={styles.stepperBtn} onPress={() => setQty(Math.max(1, qty - 5))}>
-                  <MaterialIcons name="remove" size={24} color={colors.onSurface} />
-                </TouchableOpacity>
-                <View style={styles.stepperValueBox}>
-                  <View style={{flexDirection: 'row', alignItems: 'baseline', gap: 4}}>
-                    <Text style={styles.stepperValue}>{qty}</Text>
-                    <Text style={styles.stepperLabel}>Bags</Text>
-                  </View>
-                  <Text style={styles.stepperSub}>बोरी</Text>
-                </View>
-                <TouchableOpacity style={[styles.stepperBtn, {backgroundColor: colors.primary}]} onPress={() => setQty(qty + 5)}>
-                  <MaterialIcons name="add" size={24} color={colors.onPrimary} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Delivery / Expected Date */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionLabel}>Delivery Expected / डिलीवरी कब चाहिए?</Text>
-              </View>
-              
-              <View style={styles.dateGrid}>
-                <TouchableOpacity style={activeDate === 'immediate' ? styles.dateChipActive : styles.dateChipInactive} onPress={() => setActiveDate('immediate')}>
-                  <View style={{flex: 1}}>
-                    <Text style={activeDate === 'immediate' ? styles.dateTextActive : styles.dateTextInactive}>Immediate</Text>
-                  </View>
-                  <MaterialIcons name="bolt" size={18} color={activeDate === 'immediate' ? colors.onPrimary : colors.outline} />
-                </TouchableOpacity>
-                <TouchableOpacity style={activeDate === 'friday' ? styles.dateChipActive : styles.dateChipInactive} onPress={() => setActiveDate('friday')}>
-                  <View style={{flex: 1}}>
-                    <Text style={activeDate === 'friday' ? styles.dateTextActive : styles.dateTextInactive}>This Week</Text>
-                  </View>
-                  <MaterialIcons name="check-circle" size={18} color={activeDate === 'friday' ? colors.onPrimary : colors.outline} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Primary Action Button Block */}
+            {/* Action Buttons */}
             <View style={styles.actionBlock}>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+              <TouchableOpacity style={styles.addBtn} onPress={handleAddProduct}>
+                <MaterialIcons name={editingItemIndex !== null ? "edit" : "add-shopping-cart"} size={20} color={colors.primary} />
+                <Text style={styles.addBtnText}>{editingItemIndex !== null ? "UPDATE ITEM" : "ADD LINE"}</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={[styles.saveBtn, items.length === 0 && !selectedProduct && {opacity: 0.5}]} onPress={handleSave}>
                 <MaterialIcons name="check-circle" size={22} color={colors.onPrimary} />
-                <Text style={styles.saveBtnText}>SAVE REQUIREMENT</Text>
+                <Text style={styles.saveBtnText}>save order</Text>
               </TouchableOpacity>
             </View>
 
@@ -280,51 +425,47 @@ const styles = StyleSheet.create({
   headerTitleBox: { flexDirection: 'col' },
   headerLogoText: { ...typography.labelSm, color: colors.onSurfaceVariant, textTransform: 'uppercase' },
   headerPageTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 8 },
-  userIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   
   mainContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  contextBox: { backgroundColor: '#e5eeff', borderRadius: 12, padding: 16, marginBottom: 8 },
+  contextBox: { backgroundColor: '#e5eeff', borderRadius: 12, padding: 16, marginBottom: 12 },
   contextTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  contextPulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary },
   contextActive: { ...typography.labelSm, fontWeight: 'bold', color: colors.primary, letterSpacing: 0.5 },
   contextContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   contextTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
 
-  sheetFrame: { flex: 1, backgroundColor: '#ffffff', borderRadius: 12, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, overflow: 'hidden' },
+  sheetFrame: { flex: 1, backgroundColor: '#ffffff', borderRadius: 12, elevation: 5, overflow: 'hidden' },
   sheetScroll: { padding: 16, paddingBottom: 40 },
-  sheetHeader: { marginBottom: 16 },
-  dragPill: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.outlineVariant, alignSelf: 'center', marginBottom: 4 },
-  sheetHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  sheetTitle: { ...typography.headlineMd, fontWeight: 'bold', color: colors.onSurface },
-  closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#eff4ff', alignItems: 'center', justifyContent: 'center' },
   
-  section: { marginBottom: 16, marginTop: 16 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   sectionLabel: { ...typography.labelMd, fontWeight: 'bold', color: colors.onSurface },
 
-  qtySection: { backgroundColor: '#eff4ff', borderRadius: 12, padding: 12, marginBottom: 16, marginTop: 16 },
+  cartSection: { backgroundColor: '#fff8f1', borderRadius: 12, padding: 12, marginBottom: 16, borderColor: '#ffd8a8', borderWidth: 1 },
+  cartItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 8, elevation: 1 },
+  cartItemEditing: { borderWidth: 2, borderColor: colors.primary },
+  cartItemCategory: { fontSize: 10, color: colors.primary, fontWeight: 'bold', textTransform: 'uppercase' },
+  cartItemTitle: { fontSize: 16, fontWeight: 'bold', color: colors.onSurface, marginVertical: 2 },
+  cartItemQty: { fontSize: 14, color: colors.onSurfaceVariant },
+
+  qtySection: { backgroundColor: '#eff4ff', borderRadius: 12, padding: 12, marginBottom: 16, marginTop: 8 },
   unitToggle: { flexDirection: 'row', backgroundColor: '#e5eeff', borderRadius: 12, padding: 2 },
   unitActive: { backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   unitInactive: { paddingHorizontal: 8, paddingVertical: 2 },
   unitTextActive: { fontSize: 11, fontWeight: 'bold', color: colors.onPrimary },
   unitTextInactive: { fontSize: 11, color: colors.onSurfaceVariant },
-  stepperBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ffffff', borderRadius: 12, padding: 6, elevation: 1, marginBottom: 12 },
+  stepperBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ffffff', borderRadius: 12, padding: 6, elevation: 1, marginBottom: 4 },
   stepperBtn: { width: 52, height: 52, borderRadius: 8, backgroundColor: '#e5eeff', alignItems: 'center', justifyContent: 'center' },
   stepperValueBox: { alignItems: 'center' },
   stepperValue: { fontSize: 26, fontWeight: '800', color: colors.onSurface },
   stepperLabel: { ...typography.labelMd, fontWeight: '600', color: colors.onSurfaceVariant },
-  stepperSub: { ...typography.bodySm, color: colors.onSurfaceVariant },
 
-  dateGrid: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  dateChipActive: { flex: 1, minHeight: 48, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 1 },
-  dateChipInactive: { flex: 1, minHeight: 44, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: '#eff4ff', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dateChipActive: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: colors.primary, justifyContent: 'center', elevation: 1 },
+  dateChipInactive: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: '#eff4ff', justifyContent: 'center' },
   dateTextActive: { ...typography.labelMd, fontWeight: 'bold', color: colors.onPrimary },
   dateTextInactive: { ...typography.labelMd, color: colors.onSurface },
-  dateSubActive: { ...typography.bodySm, color: '#8ad2a7' },
-  dateSubInactive: { ...typography.bodySm, color: colors.onSurfaceVariant },
 
-  actionBlock: { gap: 8 },
+  actionBlock: { gap: 12, marginTop: 8 },
+  addBtn: { height: 50, backgroundColor: '#e5eeff', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#cce0ff' },
+  addBtnText: { ...typography.labelLg, fontWeight: 'bold', color: colors.primary },
   saveBtn: { height: 56, backgroundColor: colors.primary, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 2 },
   saveBtnText: { ...typography.labelLg, fontWeight: 'bold', color: colors.onPrimary },
 });

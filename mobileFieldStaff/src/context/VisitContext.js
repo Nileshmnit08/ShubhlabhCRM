@@ -194,7 +194,7 @@ export const VisitProvider = ({ children }) => {
     
     const updatedVisit = {
       ...activeVisit,
-      requirements: [...(activeVisit.requirements || []), { ...requirement, id: generateId() }]
+      requirements: [...(activeVisit.requirements || []), { ...requirement, id: requirement.id || generateId() }]
     };
     
     setActiveVisit(updatedVisit);
@@ -261,12 +261,20 @@ export const VisitProvider = ({ children }) => {
           id: req.id,
           party_id: activeVisit.party_id,
           product_type: req.product_type || 'General Requirement',
-          quantity: req.quantity,
+          quantity: req.quantity || 1,
           expected_date: req.expected_date,
           status: 'New', // Complies with req_status_check
           assigned_to: userId
         };
         await SyncService.enqueueOperation('requirements', reqPayload, userId);
+        
+        // Push items if they exist
+        if (req.requirement_items && req.requirement_items.length > 0) {
+            for (const item of req.requirement_items) {
+                item.requirement_id = req.id; // GUARANTEE IT MATCHES
+                await SyncService.enqueueOperation('requirement_items', item, userId);
+            }
+        }
       }
     }
 
