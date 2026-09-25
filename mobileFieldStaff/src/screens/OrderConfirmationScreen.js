@@ -29,44 +29,8 @@ export function OrderConfirmationScreen({ navigation, route }) {
   const orderTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   const handleWhatsAppShare = async () => {
-    if (!customerMobile) {
-      Alert.alert('No Mobile Number', 'Customer does not have a registered mobile number for WhatsApp.');
-      return;
-    }
-
-    let message = `*Shubh Labh Order Confirmation*\n\n`;
-    message += `*Customer:* ${customerName}\n`;
-    message += `*Order Number:* ${orderIdShort}\n`;
-    message += `*Date:* ${orderDate} ${orderTime}\n\n`;
-    message += `*Products:*\n`;
-
-    order.requirement_items.forEach(item => {
-      message += `\n*${item.category || 'Product'}*\n`;
-      message += `${item.product_name}\n`;
-      if (item.unit === 'Bags' && item.weight) {
-        message += `${item.weight} kg × ${item.quantity} Bags\n`;
-        message += `Total: ${(item.weight * item.quantity).toLocaleString()} kg\n`;
-      } else {
-        message += `${item.quantity} ${item.unit}\n`;
-      }
-    });
-
-    if (canCalculateWeight && totalWeightKg > 0) {
-      message += `\n*TOTAL ORDER WEIGHT*\n${totalWeightKg.toLocaleString()} kg\n`;
-    }
-
-    const url = `whatsapp://send?phone=${customerMobile.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
-
-    try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('WhatsApp Not Installed', 'WhatsApp does not appear to be installed on this device.');
-      }
-    } catch (e) {
-      Alert.alert('Error', 'Failed to open WhatsApp. The order has been saved.');
-    }
+    const { WhatsAppService } = require('../services/WhatsAppService');
+    await WhatsAppService.shareOrder(order, order.requirement_items, { id: order.party_id });
   };
 
   return (

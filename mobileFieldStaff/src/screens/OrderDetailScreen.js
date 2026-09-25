@@ -111,58 +111,8 @@ export function OrderDetailScreen({ navigation, route }) {
   }
 
   const handleWhatsAppShare = async () => {
-    let customerMobile = orderData?.crm_parties?.mobile;
-    const customerName = orderData?.crm_parties?.display_name || 'Customer';
-
-    if (!customerMobile && orderData?.party_id) {
-       try {
-         const { data } = await supabase.from('crm_parties').select('mobile').eq('id', orderData.party_id).single();
-         if (data && data.mobile) {
-            customerMobile = data.mobile;
-         }
-       } catch (err) {
-         console.warn("Failed to fetch customer mobile for WhatsApp", err);
-       }
-    }
-
-    if (!customerMobile) {
-      Alert.alert('No Mobile Number', 'Customer does not have a registered mobile number for WhatsApp.');
-      return;
-    }
-
-    let message = `*Shubh Labh Order Confirmation*\n\n`;
-    message += `*Customer:* ${customerName}\n`;
-    message += `*Order Number:* ${orderRef}\n`;
-    message += `*Date:* ${orderData?.created_at ? formatDateFull(orderData.created_at) : 'Unknown'}\n\n`;
-    message += `*Products:*\n`;
-
-    items.forEach(item => {
-      message += `\n*${item.category || 'Product'}*\n`;
-      message += `${item.product_name}\n`;
-      if (item.unit === 'Bags' && item.weight) {
-        message += `${item.weight} kg × ${item.quantity} Bags\n`;
-        message += `Total: ${(item.weight * item.quantity).toLocaleString()} kg\n`;
-      } else {
-        message += `${item.quantity} ${item.unit}\n`;
-      }
-    });
-
-    if (canCalculateWeight && totalWeightKg > 0) {
-      message += `\n*TOTAL ORDER WEIGHT*\n${totalWeightKg.toLocaleString()} kg\n`;
-    }
-
-    const url = `whatsapp://send?phone=${customerMobile.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
-
-    try {
-      const canOpen = await Linking.canOpenURL(url);
-      if (canOpen) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert('WhatsApp Not Installed', 'WhatsApp does not appear to be installed on this device.');
-      }
-    } catch (e) {
-      Alert.alert('Error', 'Failed to open WhatsApp.');
-    }
+    const { WhatsAppService } = require('../services/WhatsAppService');
+    await WhatsAppService.shareOrder(orderData, items, orderData?.crm_parties);
   };
 
   return (
