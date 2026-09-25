@@ -327,7 +327,11 @@ export default function RequirementList() {
       }
       const group = map.get(pid);
       group.requirements.push(req);
-      group.total_qty += Number(req.required_quantity) || 0;
+      if (req.requirement_items && req.requirement_items.length > 0) {
+        group.total_qty += req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
+      } else {
+        group.total_qty += Number(req.required_quantity) || 0;
+      }
             if (req.requirement_items && req.requirement_items.length > 0) {
         req.requirement_items.forEach(item => group.products.add(item.product_name));
       } else if (req.product_type) {
@@ -626,7 +630,7 @@ export default function RequirementList() {
                             return (
                               <tr key={req.id} style={{borderBottom: '1px solid #E5E7EB', transition: 'background 0.2s', cursor: 'default'}} onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                                 <td style={{padding: '12px'}}><Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>{req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : req.product_type}</Link></td>
-                                <td style={{padding: '12px', fontWeight: 500}}>{req.required_quantity} {req.unit}</td>
+                                <td style={{padding: '12px', fontWeight: 500}}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : req.required_quantity} {req.requirement_items?.length > 0 ? req.requirement_items[0].unit : req.unit}</td>
                                 <td style={{padding: '12px'}}>{formatRate(req.expected_rate)}</td>
                                 <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>{getFriendlyDate(req.expected_date)}</td>
                                 <td style={{padding: '12px'}}><span className={getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '2px 6px'}}>{req.status}</span></td>
@@ -692,7 +696,9 @@ export default function RequirementList() {
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem'}}>
           {filteredRequirements.map(req => {
             const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && req.is_pending;
-            const isPartiallyDispatched = req.dispatch_progress === 'Partially Dispatched' && req.total_dispatched_quantity > 0;
+            const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : req.required_quantity;
+            const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
+            const isPartiallyDispatched = (req.total_dispatched_quantity > 0 && actualPending > 0);
             
             return (
               <div 
@@ -737,8 +743,8 @@ export default function RequirementList() {
                 {/* 2. Main requirement summary */}
                 <div style={{display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px'}}>
                   <div style={{display: 'flex', alignItems: 'baseline', gap: '6px'}}>
-                    <span style={{fontSize: '2rem', fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)'}}>{req.required_quantity}</span>
-                    <span className="text-muted" style={{fontSize: '0.9rem'}}>{req.unit} (Est.)</span>
+                    <span style={{fontSize: '2rem', fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)'}}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : req.required_quantity}</span>
+                    <span className="text-muted" style={{fontSize: '0.9rem'}}>{req.requirement_items?.length > 0 ? req.requirement_items[0].unit : req.unit}</span>
                   </div>
                   <div style={{fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)'}}>{req.product_type}</div>
                   <div style={{marginTop: '4px'}}>
@@ -749,7 +755,7 @@ export default function RequirementList() {
                   {isPartiallyDispatched && (
                     <div style={{ fontSize: '0.8rem', padding: '6px 10px', background: '#ECFDF5', borderRadius: '4px', border: '1px solid #D1FAE5', color: '#065F46', display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
                       <span>Dispatched: {req.total_dispatched_quantity}</span>
-                      <strong style={{color: '#B45309'}}>Pending: {req.pending_quantity}</strong>
+                      <strong style={{color: '#B45309'}}>Pending: {actualPending}</strong>
                     </div>
                   )}
                 </div>
