@@ -176,6 +176,9 @@ class ChatService {
 
     let finalData = data || [];
 
+    // Fetch user details for all senders
+    const senderIds = new Set(finalData.map(m => m.sender_id));
+    
     // Inject pending messages from SyncService queue
     if (userId) {
       try {
@@ -189,6 +192,8 @@ class ChatService {
               created_at: op.created_at || new Date().toISOString()
             }));
             
+          pendingMessages.forEach(pm => senderIds.add(pm.sender_id));
+          
           // Inject pending chat reactions
           const pendingReactions = queue.filter(op => op.table === 'chat_reactions');
           
@@ -231,6 +236,20 @@ class ChatService {
     if (error && !data) {
       console.error('Error fetching messages:', error);
       return { data: finalData.length > 0 ? finalData : null, error };
+    }
+
+    // Map sender names
+    if (senderIds.size > 0) {
+      const { data: usersData } = await supabase
+        .from('app_users')
+        .select('id, display_name')
+        .in('id', Array.from(senderIds));
+        
+      if (usersData) {
+        const userMap = {};
+        usersData.forEach(u => userMap[u.id] = u.display_name);
+        finalData.forEach(m => m.sender_name = userMap[m.sender_id] || 'Staff');
+      }
     }
 
     return { data: finalData, error: null };

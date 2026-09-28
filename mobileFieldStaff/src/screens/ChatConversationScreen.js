@@ -62,7 +62,7 @@ function isValidUUID(value) {
 // ─────────────────────────────────────────────────────────────────
 // MEMOIZED MESSAGE BUBBLE
 // ─────────────────────────────────────────────────────────────────
-const MessageBubble = memo(({ item, nextItem, index, currentUserId, searchActive, searchResults, searchIndex, onLongPress }) => {
+const MessageBubble = memo(({ item, nextItem, index, currentUserId, searchActive, searchResults, searchIndex, onLongPress, isGroup }) => {
   const isMe = item.sender_id === currentUserId;
   const isSearchMatch = searchActive && searchResults.length > 0 && searchResults[searchIndex]?.index === index;
   
@@ -103,13 +103,18 @@ const MessageBubble = memo(({ item, nextItem, index, currentUserId, searchActive
             delayLongPress={250}
             onLongPress={handleLongPress}
             activeOpacity={0.8}
-          style={[
-            styles.messageBubble,
-            isMe ? styles.messageBubbleMe : styles.messageBubbleOther,
-            isSearchMatch && { borderWidth: 2, borderColor: colors.primary, backgroundColor: isMe ? '#0a462c' : '#e0e0e0' }
-          ]}
-        >
-          <Text
+            style={[
+              styles.messageBubble,
+              isMe ? styles.messageBubbleMe : styles.messageBubbleOther,
+              isSearchMatch && { borderWidth: 2, borderColor: colors.primary, backgroundColor: isMe ? '#0a462c' : '#e0e0e0' }
+            ]}
+          >
+            {!isMe && isGroup && (
+              <Text style={styles.senderNameText}>
+                {item.sender_name || 'Staff'}
+              </Text>
+            )}
+            <Text
             style={[
               styles.messageText,
               isMe ? styles.messageTextMe : styles.messageTextOther,
@@ -736,9 +741,10 @@ export const ChatConversationScreen = ({ route, navigation }) => {
         searchResults={searchResults}
         searchIndex={searchIndex}
         onLongPress={handleLongPress}
+        isGroup={otherUser?.isGroup}
       />
     );
-  }, [messages, currentUserId, searchActive, searchResults, searchIndex]);
+  }, [messages, currentUserId, searchActive, searchResults, searchIndex, otherUser?.isGroup]);
 
   // ─────────────────────────────────────────────────────────────────
   // MAIN RENDER
@@ -1089,6 +1095,12 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     marginBottom: 8,
     maxWidth: '85%',
+  },
+  senderNameText: {
+    ...typography.labelSm,
+    color: colors.primary,
+    marginBottom: 2,
+    fontWeight: '600',
   },
   messageWrapperMe: {
     alignSelf: 'flex-end',
