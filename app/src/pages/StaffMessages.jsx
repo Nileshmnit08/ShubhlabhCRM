@@ -41,6 +41,11 @@ export default function StaffMessages() {
   const [existingCustomerFollowUps, setExistingCustomerFollowUps] = useState([]);
   const [followUpSuccess, setFollowUpSuccess] = useState(false);
   
+  const [filterMode, setFilterMode] = useState('All');
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+  const [globalSearchResults, setGlobalSearchResults] = useState([]);
+  const [highlightMessageId, setHighlightMessageId] = useState(null);
+  
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -50,22 +55,51 @@ export default function StaffMessages() {
   }, []);
 
   useEffect(() => {
+    if (highlightMessageId) {
+      const timer = setTimeout(() => setHighlightMessageId(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightMessageId]);
+
+  useEffect(() => {
     if (userProfile?.role === 'Admin') {
       fetchConversations();
     }
   }, [userProfile]);
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredConversations(conversations);
-    } else {
+    if (searchQuery.trim().length > 2) {
       const lowerQuery = searchQuery.toLowerCase();
       setFilteredConversations(
-        conversations.filter(c => 
-          c.participantNames.toLowerCase().includes(lowerQuery) || 
-          (c.latestMessage && c.latestMessage.message_text.toLowerCase().includes(lowerQuery))
-        )
+        conversations.filter(c => c.participantNames.toLowerCase().includes(lowerQuery))
       );
+      
+      const searchMessages = async () => {
+        setGlobalSearchLoading(true);
+        try {
+          const convIds = conversations.map(c => c.id);
+          if (convIds.length === 0) {
+            setGlobalSearchResults([]);
+            return;
+          }
+          const { data, error } = await supabase.from('chat_messages')
+            .select('id, message_text, created_at, conversation_id, sender_id, app_users:sender_id(display_name)')
+            .ilike('message_text', `%${searchQuery}%`)
+            .in('conversation_id', convIds)
+            .order('created_at', { ascending: false })
+            .limit(20);
+          if (error) throw error;
+          setGlobalSearchResults(data || []);
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setGlobalSearchLoading(false);
+        }
+      };
+      searchMessages();
+    } else {
+      setFilteredConversations(conversations);
+      setGlobalSearchResults([]);
     }
   }, [searchQuery, conversations]);
 
@@ -393,6 +427,15 @@ export default function StaffMessages() {
       .eq('conversation_id', conversationId)
       .neq('sender_id', adminId)
       .is('read_at', null);
+
+    // Suppress active notifications
+    await supabase
+      .from('crm_notifications')
+      .update({ is_read: true })
+      .eq('entity_type', 'CHAT_MESSAGE')
+      .eq('entity_id', conversationId)
+      .eq('user_id', adminId)
+      .eq('is_read', false);
   }
 
   const handleOpenStaffModal = async () => {
@@ -575,6 +618,33 @@ export default function StaffMessages() {
     });
   };
 
+  const handleMessageResultClick = async (msg) => {
+    if (selectedConversation !== msg.conversation_id) {
+       await fetchMessages(msg.conversation_id);
+    }
+    setHighlightMessageId(msg.id);
+    setTimeout(() => {
+       const el = document.getElementById(`msg-${msg.id}`);
+       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 500);
+  };
+
+  const renderMessageSearchResult = (msg) => {
+    const conv = conversations.find(c => c.id === msg.conversation_id);
+    const staffName = conv?.participantNames || 'Unknown';
+    return (
+      <div key={msg.id} onClick={() => handleMessageResultClick(msg)} style={{ padding: '1rem', borderBottom: '1px solid var(--border)', cursor: 'pointer', background: 'var(--bg-base)', transition: 'background 0.2s' }} onMouseEnter={e => e.currentTarget.style.background='var(--bg-surface-hover)'} onMouseLeave={e => e.currentTarget.style.background='var(--bg-base)'}>
+        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem', marginBottom: '0.25rem' }}>{staffName}</div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+           "{msg.message_text}"
+        </div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+           {formatDate(msg.created_at)}, {formatTime(msg.created_at)}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Staff Messages...</div>;
   if (error) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{error}</div>;
 
@@ -665,31 +735,57 @@ export default function StaffMessages() {
               </div>
             </div>
             
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              {filteredConversations.length === 0 ? (
-                <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                  <div style={{ fontWeight: 500, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>No conversations yet</div>
-                  <div style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Start a conversation with a staff member.</div>
-                  <button className="btn btn-primary btn-sm" onClick={handleOpenStaffModal} style={{ padding: '0.5rem 1rem' }}>
-                    Start Conversation
-                  </button>
-                </div>
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+              {searchQuery.trim().length > 2 ? (
+                <>
+                  <div style={{ padding: '1rem 1rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>STAFF MATCHES</div>
+                  {filteredConversations.length === 0 ? <div style={{ padding: '0 1rem 1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>No staff found.</div> : filteredConversations.map(conv => renderConversationCard(conv))}
+                  
+                  <div style={{ padding: '1rem 1rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: '1px solid var(--border)' }}>MESSAGE MATCHES</div>
+                  {globalSearchLoading ? <div style={{ padding: '0 1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Searching...</div> : 
+                    globalSearchResults.length === 0 ? <div style={{ padding: '0 1rem 1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>No messages found.</div> :
+                    globalSearchResults.map(msg => renderMessageSearchResult(msg))
+                  }
+                </>
               ) : (
                 <>
-                  {unreadConvs.length > 0 && (
-                    <div style={{ padding: '1rem 1rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      UNREAD
+                  <div style={{ display: 'flex', gap: '0.5rem', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)' }}>
+                     <button className={`btn btn-sm ${filterMode === 'All' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFilterMode('All')} style={{ padding: '0.25rem 0.75rem' }}>All</button>
+                     <button className={`btn btn-sm ${filterMode === 'Unread' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFilterMode('Unread')} style={{ padding: '0.25rem 0.75rem' }}>Unread</button>
+                     <button className={`btn btn-sm ${filterMode === 'Recent' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFilterMode('Recent')} style={{ padding: '0.25rem 0.75rem' }}>Recent</button>
+                  </div>
+                  
+                  {filteredConversations.length === 0 ? (
+                    <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                      <div style={{ fontWeight: 500, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>No conversations yet</div>
+                      <div style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Start a conversation with a staff member.</div>
+                      <button className="btn btn-primary btn-sm" onClick={handleOpenStaffModal} style={{ padding: '0.5rem 1rem' }}>
+                        Start Conversation
+                      </button>
                     </div>
+                  ) : (
+                    <>
+                      {filterMode === 'All' && (
+                        <>
+                          {unreadConvs.length > 0 && <div style={{ padding: '1rem 1rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>UNREAD</div>}
+                          {unreadConvs.map(conv => renderConversationCard(conv))}
+                          {recentConvs.length > 0 && <div style={{ padding: '1rem 1rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: unreadConvs.length > 0 ? '1px solid var(--border)' : 'none' }}>RECENT</div>}
+                          {recentConvs.map(conv => renderConversationCard(conv))}
+                        </>
+                      )}
+                      {filterMode === 'Unread' && (
+                        <>
+                          {unreadConvs.length === 0 ? <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No unread conversations.</div> : unreadConvs.map(conv => renderConversationCard(conv))}
+                        </>
+                      )}
+                      {filterMode === 'Recent' && (
+                        <>
+                           {recentConvs.length === 0 && unreadConvs.length === 0 ? <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No recent conversations.</div> : [...unreadConvs, ...recentConvs].map(conv => renderConversationCard(conv))}
+                        </>
+                      )}
+                    </>
                   )}
-                  {unreadConvs.map(conv => renderConversationCard(conv))}
-
-                  {recentConvs.length > 0 && (
-                    <div style={{ padding: '1rem 1rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: unreadConvs.length > 0 ? '1px solid var(--border)' : 'none' }}>
-                      RECENT
-                    </div>
-                  )}
-                  {recentConvs.map(conv => renderConversationCard(conv))}
                 </>
               )}
             </div>
@@ -751,12 +847,15 @@ export default function StaffMessages() {
                                 </span>
                               </div>
                             )}
-                            <div style={{ 
+                            <div id={`msg-${msg.id}`} style={{ 
                               alignSelf: isMine ? 'flex-end' : 'flex-start', 
                               maxWidth: '85%',
                               display: 'flex',
                               flexDirection: 'column',
-                              alignItems: isMine ? 'flex-end' : 'flex-start'
+                              alignItems: isMine ? 'flex-end' : 'flex-start',
+                              transition: 'box-shadow 0.5s ease-in-out',
+                              boxShadow: highlightMessageId === msg.id ? '0 0 0 4px rgba(245, 158, 11, 0.4)' : 'none',
+                              borderRadius: '12px'
                             }}>
                               {!isMine && (
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem', paddingLeft: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>

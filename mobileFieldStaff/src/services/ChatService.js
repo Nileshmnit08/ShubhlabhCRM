@@ -300,6 +300,15 @@ class ChatService {
       .neq('sender_id', userId)
       .is('read_at', null);
 
+    // Suppress active notifications for this conversation
+    await supabase
+      .from('crm_notifications')
+      .update({ is_read: true })
+      .eq('entity_type', 'CHAT_MESSAGE')
+      .eq('entity_id', conversationId)
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
     return { data, error };
   }
 
