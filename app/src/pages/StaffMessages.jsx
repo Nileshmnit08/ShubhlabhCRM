@@ -28,36 +28,85 @@ export default function StaffMessages() {
   
   const [staffContext, setStaffContext] = useState({ visits: 0, orders: 0, followUps: 0, currentWork: [] });
   const [loadingContext, setLoadingContext] = useState(false);
-  const [relatedRecord, setRelatedRecordState] = useState(null);
+  const [conversationContexts, setConversationContextsState] = useState([]);
   const [selectingContextType, setSelectingContextType] = useState(null);
   const [contextSearchQuery, setContextSearchQuery] = useState('');
   const [contextSearchResults, setContextSearchResults] = useState([]);
   const [contextSearching, setContextSearching] = useState(false);
 
-  const setRelatedRecord = (val) => {
-     setRelatedRecordState(val);
-     if (val && selectedConversation) {
-        localStorage.setItem(`chat_context_${selectedConversation}`, JSON.stringify(val));
-     } else if (selectedConversation) {
-        localStorage.removeItem(`chat_context_${selectedConversation}`);
-     }
+  const addConversationContext = (val) => {
+     setConversationContextsState(prev => {
+        if (prev.some(p => p.id === val.id && p.type === val.type)) return prev;
+        const newCtx = [...prev, val];
+        if (selectedConversation) {
+           localStorage.setItem(`chat_context_arr_${selectedConversation}`, JSON.stringify(newCtx));
+        }
+        return newCtx;
+     });
+  };
+
+  const removeConversationContext = (index) => {
+     setConversationContextsState(prev => {
+        const newCtx = prev.filter((_, i) => i !== index);
+        if (selectedConversation) {
+           if (newCtx.length > 0) localStorage.setItem(`chat_context_arr_${selectedConversation}`, JSON.stringify(newCtx));
+           else localStorage.removeItem(`chat_context_arr_${selectedConversation}`);
+        }
+        return newCtx;
+     });
   };
 
   useEffect(() => {
      if (selectedConversation) {
        try {
-         const saved = localStorage.getItem(`chat_context_${selectedConversation}`);
-         if (saved) setRelatedRecordState(JSON.parse(saved));
-         else setRelatedRecordState(null);
+         // check for legacy single record first, then array
+         const savedArr = localStorage.getItem(`chat_context_arr_${selectedConversation}`);
+         if (savedArr) {
+            setConversationContextsState(JSON.parse(savedArr));
+         } else {
+            const savedSingle = localStorage.getItem(`chat_context_${selectedConversation}`);
+            if (savedSingle) setConversationContextsState([JSON.parse(savedSingle)]);
+            else setConversationContextsState([]);
+         }
        } catch (e) {
-         setRelatedRecordState(null);
+         setConversationContextsState([]);
        }
      } else {
-       setRelatedRecordState(null);
+       setConversationContextsState([]);
      }
      setSelectingContextType(null);
      setContextSearchQuery('');
   }, [selectedConversation]);
+
+  // Dynamically refresh Follow-up statuses
+  useEffect(() => {
+     const fetchStatuses = async () => {
+        const fuContexts = conversationContexts.filter(c => c.type === 'Follow-up');
+        if (fuContexts.length === 0) return;
+        
+        const ids = fuContexts.map(c => c.id);
+        const { data } = await supabase.from('follow_ups').select('id, status').in('id', ids);
+        
+        if (data && data.length > 0) {
+           setConversationContextsState(prev => {
+              const updated = prev.map(c => {
+                 if (c.type === 'Follow-up') {
+                    const match = data.find(d => d.id === c.id);
+                    if (match && match.status !== c.status) return { ...c, status: match.status };
+                 }
+                 return c;
+              });
+              // Avoid infinite loops by only updating state if it actually changed
+              if (JSON.stringify(updated) !== JSON.stringify(prev)) {
+                  if (selectedConversation) localStorage.setItem(`chat_context_arr_${selectedConversation}`, JSON.stringify(updated));
+                  return updated;
+              }
+              return prev;
+           });
+        }
+     };
+     fetchStatuses();
+  }, [conversationContexts.length, selectedConversation]);
 
   useEffect(() => {
     if (selectingContextType && contextSearchQuery.trim().length > 2) {
@@ -96,7 +145,7 @@ export default function StaffMessages() {
   }, [contextSearchQuery, selectingContextType]);
 
   const handleSelectContextResult = (res) => {
-    setRelatedRecord(res);
+    addConversationContext(res);
     setSelectingContextType(null);
     setContextSearchQuery('');
   };
@@ -217,10 +266,11 @@ export default function StaffMessages() {
   };
 
   useEffect(() => {
-    if (relatedRecord?.party_id) {
-      setFuCustomer({ id: relatedRecord.party_id, display_name: relatedRecord.party_name || 'Customer' });
+    if (conversationContexts.some(c => c.party_id)) {
+      const p = conversationContexts.find(c => c.party_id);
+      setFuCustomer({ id: p.party_id, display_name: p.party_name || 'Customer' });
     }
-  }, [relatedRecord]);
+  }, [conversationContexts]);
 
   useEffect(() => {
     if (fuCustomer?.id) {
@@ -266,7 +316,7 @@ export default function StaffMessages() {
       const conv = conversations.find(c => c.id === selectedConversation);
       const staffUser = conv?.participants.find(p => p.user_id !== userProfile.id);
       
-      const { error } = await supabase.from('follow_ups').insert({
+      const { data, error } = await supabase.from('follow_ups').insert({
         party_id: fuCustomer.id,
         reason: fuNotes,
         follow_up_date: fuDate,
@@ -274,18 +324,31 @@ export default function StaffMessages() {
         priority: 'Normal',
         follow_up_type: 'Commercial',
         assigned_to: staffUser?.user_id || null
-      });
+      }).select();
       
       if (error) throw error;
       
       setFollowUpSuccess(true);
       setTimeout(() => setFollowUpSuccess(false), 3000);
       
+      // Auto-add follow-up to discussion context
+      const newFuId = data?.[0]?.id; 
+      if (newFuId) {
+         addConversationContext({
+            type: 'Follow-up',
+            id: newFuId,
+            display: `Follow-up on ${fuDate}`,
+            label: `Follow-up: ${fuCustomer.display_name}`,
+            link: `/follow-ups/${newFuId}/edit`,
+            status: 'Pending'
+         });
+      }
+      
       setShowFollowUpForm(false);
       setFuNotes('');
       setFuDate('');
       
-      if (!relatedRecord) {
+      if (conversationContexts.length === 0) {
         setFuCustomer(null);
         setFuCustomerSearch('');
       }
@@ -594,13 +657,9 @@ export default function StaffMessages() {
 
     setIsSending(true);
     let textToSend = newMessageText.trim();
-    if (relatedRecord) {
-      textToSend = `[${relatedRecord.label}](${relatedRecord.link})\n────────────────\n${textToSend}`;
-    }
+    // In Sprint 08/09, we don't aggressively inject on every single message 
+    // unless explicit, to keep chat clean.
     setNewMessageText(''); 
-    // Sprint 07: Do not reset context automatically so Admin can stay in it.
-    // We also do not aggressively inject it into every message unless needed,
-    // but we leave it injected here once to notify Staff of the reference.
 
     try {
       const { data, error } = await supabase
@@ -937,16 +996,27 @@ export default function StaffMessages() {
                     </div>
                   )}
 
-                  {/* Related Context Banner */}
-                  {relatedRecord && !selectingContextType && (
-                    <div style={{ padding: '0.5rem 1.5rem', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Related To:</span>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{relatedRecord.label}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => setRelatedRecord(null)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Clear</button>
-                        <Link to={relatedRecord.link} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>Open {relatedRecord.type}</Link>
+                  {/* Related Context Banner (Multiple) */}
+                  {conversationContexts.length > 0 && !selectingContextType && (
+                    <div style={{ padding: '0.75rem 1.5rem', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Discussion Context:</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {conversationContexts.map((ctx, index) => (
+                           <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                               <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{ctx.label}</span>
+                               {ctx.type === 'Follow-up' && ctx.status && (
+                                 <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '10px', background: ctx.status === 'Completed' ? 'var(--success-light)' : 'var(--warning-light)', color: ctx.status === 'Completed' ? 'var(--success)' : 'var(--warning)' }}>
+                                   {ctx.status}
+                                 </span>
+                               )}
+                             </div>
+                             <div style={{ display: 'flex', gap: '0.5rem' }}>
+                               <button className="btn btn-ghost btn-sm" onClick={() => removeConversationContext(index)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Remove</button>
+                               <Link to={ctx.link} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>Open {ctx.type}</Link>
+                             </div>
+                           </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -1083,7 +1153,7 @@ export default function StaffMessages() {
                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                {staffContext.currentWork.map((work, i) => (
                                  <div key={i} style={{ fontSize: '0.8rem', padding: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', transition: 'border-color 0.2s' }} 
-                                      onClick={() => setRelatedRecord(work)}
+                                      onClick={() => addConversationContext(work)}
                                       onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
                                       onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
                                       title="Click to discuss in chat"
