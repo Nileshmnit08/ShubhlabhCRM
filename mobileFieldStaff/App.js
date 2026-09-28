@@ -40,7 +40,8 @@ import {
   MyActivityScreen,
   ExpenseListScreen,
   ReconciliationScreen,
-  OrderConfirmationScreen
+  OrderConfirmationScreen,
+  NewGroupScreen
 } from './src/screens';
 import { NotificationProvider, useNotifications } from './src/context/NotificationContext';
 import { VisitProvider } from './src/context/VisitContext';
@@ -165,6 +166,11 @@ function RootNavigator() {
       <Stack.Screen 
         name="NewChat" 
         component={NewChatScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="NewGroup" 
+        component={NewGroupScreen} 
         options={{ headerShown: false }} 
       />
       <Stack.Screen 

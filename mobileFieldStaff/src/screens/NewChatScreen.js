@@ -205,7 +205,16 @@ export const NewChatScreen = ({ route, navigation }) => {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <>
-
+            <TouchableOpacity 
+              style={styles.newGroupBtn}
+              onPress={() => navigation.navigate('NewGroup')}
+              activeOpacity={0.7}
+            >
+              <View style={styles.newGroupIconWrapper}>
+                <MaterialIcons name="group-add" size={24} color={colors.onPrimary} />
+              </View>
+              <Text style={styles.newGroupText}>New Group</Text>
+            </TouchableOpacity>
             <View style={styles.searchContainer}>
               <View style={styles.searchBar}>
                 <MaterialIcons name="search" size={22} color={colors.onSurfaceVariant} />
@@ -393,6 +402,28 @@ const styles = StyleSheet.create({
   activeBadgeText: {
     ...typography.labelSm,
     color: colors.primary,
+    fontWeight: 'bold',
+  },
+  newGroupBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceContainer,
+  },
+  newGroupIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  newGroupText: {
+    ...typography.bodyLg,
+    color: colors.onSurface,
     fontWeight: 'bold',
   },
   searchContainer: {

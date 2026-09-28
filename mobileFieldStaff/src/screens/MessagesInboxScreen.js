@@ -131,17 +131,23 @@ export const MessagesInboxScreen = ({ navigation }) => {
       
       <View style={styles.cardContent}>
         <View style={styles.avatarWrapper}>
-          <View style={[
-            styles.avatar, 
-            item.unreadCount > 0 && item.type === 'ADMIN_STAFF' ? styles.avatarPrimary : styles.avatarSecondary
-          ]}>
-            <Text style={[
-              styles.avatarText,
-              item.unreadCount > 0 && item.type === 'ADMIN_STAFF' ? styles.avatarTextPrimary : styles.avatarTextSecondary
+          {item.otherUser?.isGroup ? (
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <MaterialIcons name="groups" size={24} color={colors.onPrimary} />
+            </View>
+          ) : (
+            <View style={[
+              styles.avatar, 
+              item.unreadCount > 0 && item.type === 'ADMIN_STAFF' ? styles.avatarPrimary : styles.avatarSecondary
             ]}>
-              {getInitials(item.otherUser?.full_name)}
-            </Text>
-          </View>
+              <Text style={[
+                styles.avatarText,
+                item.unreadCount > 0 && item.type === 'ADMIN_STAFF' ? styles.avatarTextPrimary : styles.avatarTextSecondary
+              ]}>
+                {getInitials(item.otherUser?.full_name)}
+              </Text>
+            </View>
+          )}
           {item.isOnline && (
             <View style={styles.onlineDotWrapper}>
               <View style={styles.onlineDot} />
@@ -162,13 +168,15 @@ export const MessagesInboxScreen = ({ navigation }) => {
             </Text>
           </View>
 
-          <View style={styles.roleRow}>
-            <View style={styles.rolePill}>
-              <Text style={styles.rolePillText}>
-                {item.otherUser?.role || 'Staff'}
-              </Text>
+          {!item.otherUser?.isGroup && (
+            <View style={styles.roleRow}>
+              <View style={styles.rolePill}>
+                <Text style={styles.rolePillText}>
+                  {item.otherUser?.role || 'Staff'}
+                </Text>
+              </View>
             </View>
-          </View>
+          )}
 
           <View style={styles.previewRow}>
             <Text style={[styles.previewText, (item.pending || item.latest_pending) && { fontStyle: 'italic' }]} numberOfLines={1}>

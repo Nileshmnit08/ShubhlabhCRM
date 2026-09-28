@@ -27,6 +27,8 @@ class ChatService {
           conversation_id,
           chat_conversations (
             id,
+            type,
+            title,
             updated_at,
             chat_participants (
               user_id
@@ -78,19 +80,27 @@ class ChatService {
         }
 
         onlineData = data.map(item => {
-          const participants = item.chat_conversations?.chat_participants || [];
+          const convData = item.chat_conversations || {};
+          const participants = convData.chat_participants || [];
           const otherParticipant = participants.find(p => p.user_id !== userId);
           const otherUserObj = (otherParticipant && userMap[otherParticipant.user_id]) || { full_name: 'Unknown User', role: 'Staff' };
           const currentUserObj = userMap[userId] || { role: 'Staff' };
           
-          const isOwnerAdmin = currentUserObj.role === 'Admin';
-          const isOtherAdmin = otherUserObj.role === 'Admin';
-          const type = (isOwnerAdmin || isOtherAdmin) ? 'ADMIN_STAFF' : 'TEAM';
+          let type = convData.type;
+          let finalOtherUser = otherUserObj;
+
+          if (type === 'TEAM_GROUP') {
+             finalOtherUser = { id: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
+          } else {
+             const isOwnerAdmin = currentUserObj.role === 'Admin';
+             const isOtherAdmin = otherUserObj.role === 'Admin';
+             type = (isOwnerAdmin || isOtherAdmin) ? 'ADMIN_STAFF' : 'TEAM';
+          }
 
           return {
             id: item.conversation_id,
-            updated_at: item.chat_conversations?.updated_at,
-            otherUser: otherUserObj,
+            updated_at: convData.updated_at,
+            otherUser: finalOtherUser,
             type,
             unreadCount: unreadCounts[item.conversation_id] || 0,
             pending: false
@@ -507,6 +517,64 @@ class ChatService {
       return { data: { id: newConvId }, error: null };
     } catch (qErr) {
       console.error(`[DIAGNOSTIC] Failed to enqueue offline conversation:`, qErr);
+      return { data: null, error: qErr };
+    }
+  }
+
+  async createGroupConversation(creatorId, participantIds, title) {
+    console.log(`[DIAGNOSTIC] Creating group conversation offline...`);
+    const newConvId = generateUUID();
+    
+    try {
+      // 1. Queue conversation creation with group metadata
+      await SyncService.enqueueOperation('chat_conversations', { 
+        id: newConvId,
+        type: 'TEAM_GROUP',
+        title: title,
+        created_by: creatorId,
+        is_active: true
+      }, creatorId);
+      
+      // 2. Add creator
+      await SyncService.enqueueOperation('chat_participants', { 
+        id: generateUUID(),
+        conversation_id: newConvId, 
+        user_id: creatorId 
+      }, creatorId);
+
+      // 3. Add other members
+      for (const pId of participantIds) {
+        if (pId !== creatorId) {
+          await SyncService.enqueueOperation('chat_participants', { 
+            id: generateUUID(),
+            conversation_id: newConvId, 
+            user_id: pId 
+          }, creatorId);
+        }
+      }
+
+      // 4. Update local cache
+      try {
+        const cacheKey = `@chat_conversations_${creatorId}`;
+        const cachedStr = await AsyncStorage.getItem(cacheKey);
+        let convs = cachedStr ? JSON.parse(cachedStr) : [];
+        
+        convs.unshift({
+          id: newConvId,
+          type: 'TEAM_GROUP',
+          updated_at: new Date().toISOString(),
+          otherUser: { id: newConvId, full_name: title, isGroup: true },
+          pending: true
+        });
+        
+        await AsyncStorage.setItem(cacheKey, JSON.stringify(convs));
+      } catch (cacheErr) {
+        console.error(`Failed to update local cache for group:`, cacheErr);
+      }
+
+      return { data: { id: newConvId }, error: null };
+    } catch (qErr) {
+      console.error(`[DIAGNOSTIC] Failed to enqueue offline group conversation:`, qErr);
       return { data: null, error: qErr };
     }
   }
