@@ -242,15 +242,17 @@ export default function StaffMessages() {
         supabase.from('crm_visits').select('*', { count: 'exact', head: true }).eq('staff_id', staffId).gte('started_at', startOfDay).lte('started_at', endOfDay),
         supabase.from('requirements').select('*', { count: 'exact', head: true }).eq('assigned_to', staffId).gte('created_at', startOfDay).lte('created_at', endOfDay),
         supabase.from('follow_ups').select('*', { count: 'exact', head: true }).eq('assigned_to', staffId).eq('follow_up_date', dateStr),
-        supabase.from('requirements').select('id, product_type, customer_name, party_id').eq('assigned_to', staffId).eq('is_pending', true).order('created_at', { ascending: false }).limit(2),
-        supabase.from('crm_visits').select('id, crm_parties(id, display_name)').eq('staff_id', staffId).gte('started_at', startOfDay).lte('started_at', endOfDay).order('started_at', { ascending: false }).limit(2),
-        supabase.from('follow_ups').select('id, reason, crm_parties(display_name)').eq('assigned_to', staffId).eq('follow_up_date', dateStr).order('created_at', { ascending: false }).limit(2)
+        supabase.from('requirements').select('id, product_type, customer_name, party_id, created_at').eq('assigned_to', staffId).order('created_at', { ascending: false }).limit(5),
+        supabase.from('crm_visits').select('id, crm_parties(id, display_name), created_at').eq('staff_id', staffId).order('created_at', { ascending: false }).limit(5),
+        supabase.from('follow_ups').select('id, reason, crm_parties(display_name), created_at').eq('assigned_to', staffId).order('created_at', { ascending: false }).limit(5)
       ]);
 
       const workItems = [];
-      if (recentReqs) recentReqs.forEach(r => workItems.push({ type: 'Order', id: r.id, party_id: r.party_id, party_name: r.customer_name, label: `Order: ${r.product_type} - ${r.customer_name}`, link: `/requirements/${r.id}` }));
-      if (recentVisits) recentVisits.forEach(v => workItems.push({ type: 'Visit', id: v.id, party_id: v.crm_parties?.id, party_name: v.crm_parties?.display_name, label: `Visit: ${v.crm_parties?.display_name || 'Customer'}`, link: `/customers/${v.crm_parties?.id || ''}` }));
-      if (todaysFollowups) todaysFollowups.forEach(f => workItems.push({ type: 'Follow-up', id: f.id, party_id: f.crm_parties?.id, party_name: f.crm_parties?.display_name, label: `Follow-up: ${f.crm_parties?.display_name || 'Customer'}`, link: `/follow-ups/${f.id}/edit` }));
+      if (recentReqs) recentReqs.forEach(r => workItems.push({ type: 'Order', id: r.id, created_at: r.created_at, party_id: r.party_id, party_name: r.customer_name, label: `Order: ${r.product_type} - ${r.customer_name}`, link: `/requirements/${r.id}` }));
+      if (recentVisits) recentVisits.forEach(v => workItems.push({ type: 'Visit', id: v.id, created_at: v.created_at, party_id: v.crm_parties?.id, party_name: v.crm_parties?.display_name, label: `Visit: ${v.crm_parties?.display_name || 'Customer'}`, link: `/customers/${v.crm_parties?.id || ''}` }));
+      if (todaysFollowups) todaysFollowups.forEach(f => workItems.push({ type: 'Follow-up', id: f.id, created_at: f.created_at, party_id: f.crm_parties?.id, party_name: f.crm_parties?.display_name, label: `Follow-up: ${f.crm_parties?.display_name || 'Customer'}`, link: `/follow-ups/${f.id}/edit` }));
+      
+      workItems.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
       setStaffContext({
         visits: visitsCount || 0,
@@ -425,6 +427,25 @@ export default function StaffMessages() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const timelineItems = React.useMemo(() => {
+     let items = [...messages];
+     if (staffContext.currentWork) {
+         staffContext.currentWork.forEach(w => {
+            if (w.created_at) {
+               items.push({
+                  isActivity: true,
+                  id: `act_${w.id}`,
+                  type: w.type,
+                  label: w.label,
+                  link: w.link,
+                  created_at: w.created_at
+               });
+            }
+         });
+     }
+     return items.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  }, [messages, staffContext.currentWork]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -999,7 +1020,7 @@ export default function StaffMessages() {
                   {/* Related Context Banner (Multiple) */}
                   {conversationContexts.length > 0 && !selectingContextType && (
                     <div style={{ padding: '0.75rem 1.5rem', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Discussion Context:</div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Discussion Summary:</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {conversationContexts.map((ctx, index) => (
                            <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
@@ -1028,8 +1049,30 @@ export default function StaffMessages() {
                     ) : messages.length === 0 ? (
                       <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem' }}>No messages in this conversation. Send one below!</div>
                     ) : (
-                      messages.map((msg, index) => {
-                        const showDate = index === 0 || formatDate(messages[index - 1].created_at) !== formatDate(msg.created_at);
+                      timelineItems.map((msg, index) => {
+                        const showDate = index === 0 || formatDate(timelineItems[index - 1].created_at) !== formatDate(msg.created_at);
+                        
+                        if (msg.isActivity) {
+                           return (
+                             <React.Fragment key={msg.id || index}>
+                               {showDate && (
+                                 <div style={{ textAlign: 'center', margin: '1rem 0' }}>
+                                   <span style={{ background: 'var(--bg-base)', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                     {formatDate(msg.created_at)}
+                                   </span>
+                                 </div>
+                               )}
+                               <div style={{ textAlign: 'center', margin: '0.75rem 0' }}>
+                                 <div style={{ display: 'inline-block', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.5rem 1rem', fontSize: '0.8rem' }}>
+                                   <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '0.25rem', letterSpacing: '0.05em' }}>CRM ACTIVITY</div>
+                                   <div style={{ color: 'var(--text-primary)', marginBottom: '0.25rem', fontWeight: 500 }}>{msg.label}</div>
+                                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}><Clock size={10} style={{ display: 'inline', verticalAlign: 'text-bottom' }}/> {formatTime(msg.created_at)}</div>
+                                 </div>
+                               </div>
+                             </React.Fragment>
+                           );
+                        }
+
                         const isMine = msg.sender_id === userProfile.id;
                         const isAdmin = msg.app_users?.role === 'Admin';
                         
@@ -1144,7 +1187,7 @@ export default function StaffMessages() {
                          </div>
 
                          <div>
-                           <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.75rem' }}>CURRENT WORK</div>
+                           <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.75rem' }}>RECENT ACTIVITY</div>
                            {staffContext.currentWork.length === 0 ? (
                              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '0.75rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px' }}>
                                No current activity
