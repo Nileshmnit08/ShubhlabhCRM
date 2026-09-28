@@ -28,7 +28,78 @@ export default function StaffMessages() {
   
   const [staffContext, setStaffContext] = useState({ visits: 0, orders: 0, followUps: 0, currentWork: [] });
   const [loadingContext, setLoadingContext] = useState(false);
-  const [relatedRecord, setRelatedRecord] = useState(null);
+  const [relatedRecord, setRelatedRecordState] = useState(null);
+  const [selectingContextType, setSelectingContextType] = useState(null);
+  const [contextSearchQuery, setContextSearchQuery] = useState('');
+  const [contextSearchResults, setContextSearchResults] = useState([]);
+  const [contextSearching, setContextSearching] = useState(false);
+
+  const setRelatedRecord = (val) => {
+     setRelatedRecordState(val);
+     if (val && selectedConversation) {
+        localStorage.setItem(`chat_context_${selectedConversation}`, JSON.stringify(val));
+     } else if (selectedConversation) {
+        localStorage.removeItem(`chat_context_${selectedConversation}`);
+     }
+  };
+
+  useEffect(() => {
+     if (selectedConversation) {
+       try {
+         const saved = localStorage.getItem(`chat_context_${selectedConversation}`);
+         if (saved) setRelatedRecordState(JSON.parse(saved));
+         else setRelatedRecordState(null);
+       } catch (e) {
+         setRelatedRecordState(null);
+       }
+     } else {
+       setRelatedRecordState(null);
+     }
+     setSelectingContextType(null);
+     setContextSearchQuery('');
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    if (selectingContextType && contextSearchQuery.trim().length > 2) {
+      const search = async () => {
+        setContextSearching(true);
+        try {
+          if (selectingContextType === 'Customer') {
+            const { data } = await supabase.from('crm_parties').select('id, display_name').ilike('display_name', `%${contextSearchQuery}%`).limit(5);
+            setContextSearchResults(data?.map(d => ({ type: 'Customer', id: d.id, display: d.display_name, label: d.display_name, link: `/customers/${d.id}` })) || []);
+          } else if (selectingContextType === 'Order') {
+            const { data } = await supabase.from('requirements').select('id, customer_name, product_type').or(`customer_name.ilike.%${contextSearchQuery}%,product_type.ilike.%${contextSearchQuery}%`).limit(5);
+            setContextSearchResults(data?.map(d => ({ type: 'Order', id: d.id, display: `${d.customer_name} - ${d.product_type}`, label: `Order: ${d.product_type} - ${d.customer_name}`, link: `/requirements/${d.id}` })) || []);
+          }
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setContextSearching(false);
+        }
+      };
+      const timer = setTimeout(search, 300);
+      return () => clearTimeout(timer);
+    } else if (selectingContextType === 'Visit') {
+      const fetchVisits = async () => {
+        setContextSearching(true);
+        try {
+          const { data } = await supabase.from('crm_visits').select('id, started_at, status, crm_parties(id, display_name)').order('started_at', { ascending: false }).limit(5);
+          setContextSearchResults(data?.map(d => ({ type: 'Visit', id: d.id, display: `Visit on ${d.started_at ? d.started_at.substring(0,10) : ''} - ${d.crm_parties?.display_name || ''} (${d.status})`, label: `Visit: ${d.crm_parties?.display_name || 'Customer'}`, link: `/visits/${d.id}` })) || []);
+        } finally {
+          setContextSearching(false);
+        }
+      };
+      fetchVisits();
+    } else {
+      setContextSearchResults([]);
+    }
+  }, [contextSearchQuery, selectingContextType]);
+
+  const handleSelectContextResult = (res) => {
+    setRelatedRecord(res);
+    setSelectingContextType(null);
+    setContextSearchQuery('');
+  };
   
   // Follow-up creation state
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
@@ -527,7 +598,9 @@ export default function StaffMessages() {
       textToSend = `[${relatedRecord.label}](${relatedRecord.link})\n────────────────\n${textToSend}`;
     }
     setNewMessageText(''); 
-    setRelatedRecord(null);
+    // Sprint 07: Do not reset context automatically so Admin can stay in it.
+    // We also do not aggressively inject it into every message unless needed,
+    // but we leave it injected here once to notify Staff of the reference.
 
     try {
       const { data, error } = await supabase
@@ -816,7 +889,7 @@ export default function StaffMessages() {
                     <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>
                       <User size={20} />
                     </div>
-                    <div style={{ overflow: 'hidden' }}>
+                    <div style={{ overflow: 'hidden', flex: 1 }}>
                       <div style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {conversations.find(c => c.id === selectedConversation)?.participantNames}
                       </div>
@@ -824,7 +897,59 @@ export default function StaffMessages() {
                         {conversations.find(c => c.id === selectedConversation)?.participantRoles || 'Staff'}
                       </div>
                     </div>
+                    {/* Quick Actions top-right */}
+                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                       <button className="btn btn-ghost btn-sm" onClick={() => setSelectingContextType('Customer')} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>+ Customer</button>
+                       <button className="btn btn-ghost btn-sm" onClick={() => setSelectingContextType('Order')} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>+ Order</button>
+                       <button className="btn btn-ghost btn-sm" onClick={() => setSelectingContextType('Visit')} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>+ Visit</button>
+                    </div>
                   </div>
+                  
+                  {/* Context Selection Modal */}
+                  {selectingContextType && (
+                    <div style={{ padding: '1rem 1.5rem', background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', alignItems: 'center' }}>
+                         <h4 style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-primary)' }}>Select {selectingContextType}</h4>
+                         <button className="btn btn-ghost btn-sm" onClick={() => setSelectingContextType(null)} style={{ padding: '0.25rem' }}><X size={16} /></button>
+                       </div>
+                       {selectingContextType !== 'Visit' && (
+                         <input 
+                           type="text" 
+                           placeholder={`Search ${selectingContextType}s...`} 
+                           value={contextSearchQuery}
+                           onChange={e => setContextSearchQuery(e.target.value)}
+                           autoFocus
+                           style={{ width: '100%', padding: '0.5rem', marginBottom: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+                         />
+                       )}
+                       <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                         {contextSearching ? <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Searching...</div> : 
+                          contextSearchResults.map(res => (
+                            <div key={res.id} onClick={() => handleSelectContextResult(res)} style={{ padding: '0.5rem', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: '0.8rem', color: 'var(--text-primary)' }}>
+                              {res.display}
+                            </div>
+                          ))
+                         }
+                         {contextSearchQuery.length > 2 && !contextSearching && contextSearchResults.length === 0 && selectingContextType !== 'Visit' && (
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No matches found.</div>
+                         )}
+                       </div>
+                    </div>
+                  )}
+
+                  {/* Related Context Banner */}
+                  {relatedRecord && !selectingContextType && (
+                    <div style={{ padding: '0.5rem 1.5rem', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Related To:</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{relatedRecord.label}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setRelatedRecord(null)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Clear</button>
+                        <Link to={relatedRecord.link} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>Open {relatedRecord.type}</Link>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Message List */}
                   <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -891,19 +1016,6 @@ export default function StaffMessages() {
 
                   {/* Chat Input */}
                   <div style={{ padding: '1rem', borderTop: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
-                    {relatedRecord && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-base)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border)', marginBottom: '0.75rem' }}>
-                        <div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Related to</div>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <LinkIcon size={14} /> {relatedRecord.label}
-                          </div>
-                        </div>
-                        <button type="button" onClick={() => setRelatedRecord(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Remove link">
-                          <X size={16} />
-                        </button>
-                      </div>
-                    )}
                     <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
                       <input
                         type="text"
