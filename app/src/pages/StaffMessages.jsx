@@ -824,7 +824,27 @@ export default function StaffMessages() {
   const unreadConvs = filteredConversations.filter(c => c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id);
   const recentConvs = filteredConversations.filter(c => !(c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id));
 
-  const renderConversationCard = (conv) => (
+  const renderConversationCard = (conv) => {
+    let ctxBadges = [];
+    try {
+      const stored = localStorage.getItem(`chat_context_arr_${conv.id}`);
+      if (stored) {
+         const parsed = JSON.parse(stored);
+         if (Array.isArray(parsed)) {
+            parsed.forEach(p => {
+               if (p.type === 'Follow-up') {
+                 ctxBadges.push({ label: `Follow-up: ${p.status || 'Due'}`, color: 'var(--warning)', bg: 'var(--warning-light)' });
+               } else if (p.type === 'Customer') {
+                 ctxBadges.push({ label: `Customer`, color: 'var(--text-secondary)', bg: 'var(--bg-base)' });
+               } else if (p.type === 'Order') {
+                 ctxBadges.push({ label: `Order`, color: 'var(--text-secondary)', bg: 'var(--bg-base)' });
+               }
+            });
+         }
+      }
+    } catch(e) {}
+    
+    return (
     <div 
       key={conv.id}
       onClick={() => fetchMessages(conv.id)}
@@ -847,7 +867,7 @@ export default function StaffMessages() {
           </div>
         )}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: ctxBadges.length > 0 ? '0.4rem' : '0' }}>
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {conv.latestMessage ? conv.latestMessage.message_text : <span style={{fontStyle: 'italic'}}>No messages yet</span>}
         </div>
@@ -855,8 +875,18 @@ export default function StaffMessages() {
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', marginLeft: '0.5rem' }}></div>
         )}
       </div>
+      {ctxBadges.length > 0 && (
+         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+           {ctxBadges.map((badge, i) => (
+              <span key={i} style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: badge.bg, color: badge.color, border: '1px solid var(--border)', fontWeight: 500 }}>
+                 {badge.label}
+              </span>
+           ))}
+         </div>
+      )}
     </div>
-  );
+    );
+  };
 
   return (
     <div className="animate-fade-in" style={{ paddingBottom: '2rem', height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
