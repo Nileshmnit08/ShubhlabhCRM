@@ -149,11 +149,7 @@ export default function RequirementView() {
       return;
     }
 
-    // Intercept 'Dispatched' status
-    if (newStatus === 'Dispatched') {
-       setShowDispatchModal(true);
-       return;
-    }
+    // Intercept removed
 
     setStatusUpdating(true);
     
@@ -175,6 +171,9 @@ export default function RequirementView() {
       setReq({ ...req, status: newStatus });
       if (historyRow) setHistory([historyRow, ...history]);
       setStatusNote('');
+      if (newStatus === 'Dispatched') {
+         setShowDispatchModal(true);
+      }
       
     } catch (err) {
       alert("Failed to update status");

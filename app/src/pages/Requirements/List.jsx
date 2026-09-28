@@ -7,7 +7,7 @@ import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
 
-const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, openDispatchModal, menuPosition }) => {
+const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, executeDispatch, menuPosition }) => {
   if (openMenuId !== req.id) return null;
   return createPortal(
     <>
@@ -19,7 +19,7 @@ const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal,
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ClipboardList size={14} /> View details</button>
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}/edit`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><Edit size={14} /> Edit requirement</button>
         {req.status !== 'Dispatched' ? (
-          <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
+          <button onClick={(e) => { setOpenMenuId(null); executeDispatch(req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
         ) : (
           <button onClick={() => { setOpenMenuId(null); navigate(`/dispatches/list?requirement_id=${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ListIcon size={14} /> View Dispatches</button>
         )}
@@ -54,8 +54,6 @@ export default function RequirementList() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   
-  const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
-  const [reqToDispatch, setReqToDispatch] = useState(null);
   const [isDispatching, setIsDispatching] = useState(false);
 
   const [toast, setToast] = useState(null);
@@ -324,32 +322,17 @@ export default function RequirementList() {
   };
 
   // --- Dispatch Flow ---
-  const openDispatchModal = (e, req) => {
-    e.preventDefault();
-    e.stopPropagation();
-    triggerRef.current = e.currentTarget;
-    setReqToDispatch(req);
-    setDispatchModalOpen(true);
-    setOpenMenuId(null);
-  };
-
-  const closeDispatchModal = () => {
-    setDispatchModalOpen(false);
-    setReqToDispatch(null);
-    if (triggerRef.current) triggerRef.current.focus();
-  };
-
-  const executeDispatch = async () => {
-    if (!reqToDispatch) return;
+  const executeDispatch = async (req) => {
+    if (!req) return;
     setIsDispatching(true);
     try {
-      const { error } = await supabase.from('requirements').update({ status: 'Dispatched' }).eq('id', reqToDispatch.id);
+      const { error } = await supabase.from('requirements').update({ status: 'Dispatched' }).eq('id', req.id);
       if (error) throw error;
       
       if (userProfile?.id) {
          await supabase.from('requirement_status_history').insert({
-            requirement_id: reqToDispatch.id,
-            old_status: reqToDispatch.status,
+            requirement_id: req.id,
+            old_status: req.status,
             new_status: 'Dispatched',
             note: 'Marked as dispatched from requirements list.',
             changed_by: userProfile.id
@@ -359,11 +342,10 @@ export default function RequirementList() {
       setToast({ type: 'success', message: 'Requirement marked as dispatched.' });
       
       if (!includeCompleted) {
-        setRequirements(prev => prev.filter(r => r.id !== reqToDispatch.id));
+        setRequirements(prev => prev.filter(r => r.id !== req.id));
       } else {
         fetchRequirements();
       }
-      closeDispatchModal();
     } catch (err) {
       console.error("Dispatch Error:", err);
       setToast({ type: 'error', message: 'Could not mark as dispatched. Please try again.' });
@@ -752,7 +734,7 @@ export default function RequirementList() {
                                       <ActionMenu 
                                         req={req} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} 
                                         navigate={navigate} openCancelModal={openCancelModal} openDeleteModal={openDeleteModal} 
-                                        openDispatchModal={openDispatchModal} menuPosition={menuPosition}
+                                        executeDispatch={executeDispatch} menuPosition={menuPosition}
                                       />
                                     </div>
                                   </div>
@@ -819,7 +801,7 @@ export default function RequirementList() {
                       <ActionMenu 
                         req={req} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} 
                         navigate={navigate} openCancelModal={openCancelModal} openDeleteModal={openDeleteModal} 
-                        openDispatchModal={openDispatchModal} menuPosition={menuPosition}
+                        executeDispatch={executeDispatch} menuPosition={menuPosition}
                       />
                     </div>
                   </div>
@@ -933,28 +915,6 @@ export default function RequirementList() {
               <button type="button" className="btn btn-secondary" onClick={closeDeleteModal} disabled={isDeleting}>Cancel</button>
               <button type="button" className="btn btn-primary" style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={executeDelete} disabled={isDeleting}>
                 {isDeleting ? 'Deleting...' : 'Delete requirement'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Dispatch Modal */}
-      {dispatchModalOpen && reqToDispatch && (
-        <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={closeDispatchModal}>
-          <div style={{ background: 'var(--bg-card)', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') closeDispatchModal(); }} tabIndex={-1} ref={el => el && el.focus()}>
-            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--success)', fontSize: '1.25rem' }}>Mark this order as dispatched?</h3>
-            <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              <div><strong>Customer:</strong> {reqToDispatch.customer_name}</div>
-              <div><strong>Product:</strong> {reqToDispatch.product_type}</div>
-              <div><strong>Quantity:</strong> {reqToDispatch.required_quantity} {reqToDispatch.unit}</div>
-            </div>
-            <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
-              You can add logistics details later.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={closeDispatchModal} disabled={isDispatching}>Cancel</button>
-              <button type="button" className="btn btn-primary" style={{ background: 'var(--success)', borderColor: 'var(--success)', color: '#fff' }} onClick={executeDispatch} disabled={isDispatching}>
-                {isDispatching ? 'Marking...' : 'Mark as Dispatched'}
               </button>
             </div>
           </div>
