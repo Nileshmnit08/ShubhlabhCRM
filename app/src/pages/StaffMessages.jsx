@@ -159,6 +159,7 @@ export default function StaffMessages() {
   const [fuCustomerSearch, setFuCustomerSearch] = useState('');
   const [fuCustomerList, setFuCustomerList] = useState([]);
   const [existingCustomerFollowUps, setExistingCustomerFollowUps] = useState([]);
+  const [recentCustomerWork, setRecentCustomerWork] = useState({ orders: [], visits: [] });
   const [followUpSuccess, setFollowUpSuccess] = useState(false);
   
   const [filterMode, setFilterMode] = useState('All');
@@ -276,19 +277,38 @@ export default function StaffMessages() {
 
   useEffect(() => {
     if (fuCustomer?.id) {
-      const fetchFu = async () => {
-         const { data } = await supabase.from('follow_ups')
-           .select('id, reason, follow_up_date, status')
-           .eq('party_id', fuCustomer.id)
-           .in('status', ['Pending'])
-           .gte('follow_up_date', new Date().toISOString().split('T')[0])
-           .order('follow_up_date', { ascending: true })
-           .limit(3);
-         setExistingCustomerFollowUps(data || []);
+      const fetchCustomerData = async () => {
+         const [
+           { data: fuData },
+           { data: orderData },
+           { data: visitData }
+         ] = await Promise.all([
+           supabase.from('follow_ups')
+             .select('id, reason, follow_up_date, status')
+             .eq('party_id', fuCustomer.id)
+             .in('status', ['Pending'])
+             .gte('follow_up_date', new Date().toISOString().split('T')[0])
+             .order('follow_up_date', { ascending: true })
+             .limit(3),
+           supabase.from('requirements')
+             .select('id, product_type, created_at')
+             .eq('party_id', fuCustomer.id)
+             .order('created_at', { ascending: false })
+             .limit(2),
+           supabase.from('crm_visits')
+             .select('id, started_at, status')
+             .eq('party_id', fuCustomer.id)
+             .order('started_at', { ascending: false })
+             .limit(2)
+         ]);
+         
+         setExistingCustomerFollowUps(fuData || []);
+         setRecentCustomerWork({ orders: orderData || [], visits: visitData || [] });
       };
-      fetchFu();
+      fetchCustomerData();
     } else {
       setExistingCustomerFollowUps([]);
+      setRecentCustomerWork({ orders: [], visits: [] });
     }
   }, [fuCustomer]);
 
@@ -1022,21 +1042,55 @@ export default function StaffMessages() {
                     <div style={{ padding: '0.75rem 1.5rem', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }}>
                       <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Discussion Summary:</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {conversationContexts.map((ctx, index) => (
-                           <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                               <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{ctx.label}</span>
-                               {ctx.type === 'Follow-up' && ctx.status && (
-                                 <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '10px', background: ctx.status === 'Completed' ? 'var(--success-light)' : 'var(--warning-light)', color: ctx.status === 'Completed' ? 'var(--success)' : 'var(--warning)' }}>
-                                   {ctx.status}
-                                 </span>
-                               )}
-                             </div>
-                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                               <button className="btn btn-ghost btn-sm" onClick={() => removeConversationContext(index)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Remove</button>
-                               <Link to={ctx.link} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>Open {ctx.type}</Link>
-                             </div>
-                           </div>
+                         {conversationContexts.map((ctx, index) => (
+                           <React.Fragment key={index}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{ctx.label}</span>
+                                {ctx.type === 'Follow-up' && ctx.status && (
+                                  <span style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '10px', background: ctx.status === 'Completed' ? 'var(--success-light)' : 'var(--warning-light)', color: ctx.status === 'Completed' ? 'var(--success)' : 'var(--warning)' }}>
+                                    {ctx.status}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button className="btn btn-ghost btn-sm" onClick={() => removeConversationContext(index)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Remove</button>
+                                <Link to={ctx.link} className="btn btn-primary btn-sm" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }}>Open {ctx.type}</Link>
+                              </div>
+                            </div>
+                            
+                           {/* Sprint 11: Display Recent Orders/Visits if it's a Customer */}
+                           {ctx.type === 'Customer' && (recentCustomerWork.orders.length > 0 || recentCustomerWork.visits.length > 0) && (
+                              <div style={{ background: 'var(--bg-card)', padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '6px', marginTop: '-0.25rem', marginBottom: '0.5rem' }}>
+                                 {recentCustomerWork.orders.length > 0 && (
+                                   <div style={{ marginBottom: '0.5rem' }}>
+                                     <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Recent Orders</div>
+                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                       {recentCustomerWork.orders.map(o => (
+                                          <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                                             <span>Order: {o.product_type}</span>
+                                             <Link to={`/requirements/${o.id}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>Open</Link>
+                                          </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                 )}
+                                 {recentCustomerWork.visits.length > 0 && (
+                                   <div>
+                                     <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Recent Visits</div>
+                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                       {recentCustomerWork.visits.map(v => (
+                                          <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                                             <span>Visit on {v.started_at?.substring(0,10)} ({v.status})</span>
+                                             <Link to={`/visits/${v.id}`} style={{ color: 'var(--primary)', textDecoration: 'none' }}>Open</Link>
+                                          </div>
+                                       ))}
+                                     </div>
+                                   </div>
+                                 )}
+                              </div>
+                           )}
+                           </React.Fragment>
                         ))}
                       </div>
                     </div>
