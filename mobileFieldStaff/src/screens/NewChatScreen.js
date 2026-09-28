@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { colors, typography } from '../theme/tokens';
 import { MaterialIcons } from '@expo/vector-icons';
 import { chatService } from '../services/ChatService';
+import { Alert } from 'react-native';
 
 export const NewChatScreen = ({ route, navigation }) => {
   const { session } = useAuth();
@@ -72,6 +73,7 @@ export const NewChatScreen = ({ route, navigation }) => {
       
       if (error) {
         console.error(`Failed to create/get conversation!`, error);
+        Alert.alert('Error', 'Could not create conversation. Please try again.');
         return;
       }
       
@@ -96,11 +98,13 @@ export const NewChatScreen = ({ route, navigation }) => {
         }, 300);
       } else {
         console.error(`Navigation failed: data.id is null!`);
+        Alert.alert('Error', 'Invalid conversation returned.');
       }
     } catch (ex) {
       console.error(`Exception in startChat:`, ex);
       setCreatingChat(false);
       setModalVisible(false);
+      Alert.alert('Error', 'An unexpected error occurred while starting the chat.');
     }
   };
 

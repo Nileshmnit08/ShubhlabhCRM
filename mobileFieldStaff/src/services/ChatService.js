@@ -436,12 +436,13 @@ class ChatService {
 
           if (convIds.length > 0) {
             console.log(`[DIAGNOSTIC] Querying shared convs for user2...`);
-            // Find if user2 is in any of these conversations
+            // Find if user2 is in any of these conversations (excluding group chats)
             const { data: sharedConvs, error: err2 } = await supabase
               .from('chat_participants')
-              .select('conversation_id')
+              .select('conversation_id, chat_conversations!inner(type)')
               .eq('user_id', userId2)
-              .in('conversation_id', convIds);
+              .in('conversation_id', convIds)
+              .neq('chat_conversations.type', 'TEAM_GROUP');
               
             if (err2) {
               console.error('[DIAGNOSTIC] Supabase err2:', err2);
@@ -454,10 +455,20 @@ class ChatService {
 
           if (!onlineFailed) {
             console.log(`[DIAGNOSTIC] Creating new conversation online...`);
+            
+            // Infer type
+            let convType = 'TEAM';
+            const { data: myData } = await supabase.from('app_users').select('role').eq('id', userId1).single();
+            const myRole = myData?.role || 'Staff';
+            const otherRole = otherUserObj?.role || 'Staff';
+            if (myRole === 'Admin' || otherRole === 'Admin' || myRole === 'Owner' || otherRole === 'Owner') {
+                convType = 'ADMIN_STAFF';
+            }
+
             // If no conversation exists online, create a new one
             const { data: newConv, error: createErr } = await supabase
               .from('chat_conversations')
-              .insert([{}])
+              .insert([{ type: convType, created_by: userId1 }])
               .select()
               .single();
 
@@ -496,8 +507,17 @@ class ChatService {
     console.log(`[DIAGNOSTIC] Generated offline UUID:`, newConvId);
     
     try {
+      // Infer type
+      let convType = 'TEAM';
+      if (otherUserObj) {
+        const otherRole = otherUserObj?.role || 'Staff';
+        if (otherRole === 'Admin' || otherRole === 'Owner') {
+            convType = 'ADMIN_STAFF';
+        }
+      }
+
       // Queue conversation creation
-      await SyncService.enqueueOperation('chat_conversations', { id: newConvId }, userId1);
+      await SyncService.enqueueOperation('chat_conversations', { id: newConvId, type: convType, created_by: userId1 }, userId1);
       console.log(`[DIAGNOSTIC] Enqueued chat_conversations`);
       
       // Queue participant links
