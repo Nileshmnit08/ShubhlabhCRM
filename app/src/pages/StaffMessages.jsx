@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthContext } from '../AuthContext';
-import { MessageSquare, Search, Clock, User, Send, Shield } from 'lucide-react';
+import { MessageSquare, Search, Clock, User, Send, Shield, ChevronLeft, Link as LinkIcon, X, CheckCircle, Calendar } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function StaffMessages() {
   const { userProfile } = useContext(AuthContext);
@@ -18,7 +19,35 @@ export default function StaffMessages() {
   const [newMessageText, setNewMessageText] = useState('');
   const [isSending, setIsSending] = useState(false);
   
+  const [showStaffModal, setShowStaffModal] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+  const [staffSearch, setStaffSearch] = useState('');
+  const [startingChat, setStartingChat] = useState(false);
+  
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  const [staffContext, setStaffContext] = useState({ visits: 0, orders: 0, followUps: 0, currentWork: [] });
+  const [loadingContext, setLoadingContext] = useState(false);
+  const [relatedRecord, setRelatedRecord] = useState(null);
+  
+  // Follow-up creation state
+  const [showFollowUpForm, setShowFollowUpForm] = useState(false);
+  const [fuCustomer, setFuCustomer] = useState(null);
+  const [fuDate, setFuDate] = useState('');
+  const [fuNotes, setFuNotes] = useState('');
+  const [fuIsSubmitting, setFuIsSubmitting] = useState(false);
+  const [fuCustomerSearch, setFuCustomerSearch] = useState('');
+  const [fuCustomerList, setFuCustomerList] = useState([]);
+  const [existingCustomerFollowUps, setExistingCustomerFollowUps] = useState([]);
+  const [followUpSuccess, setFollowUpSuccess] = useState(false);
+  
   const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     if (userProfile?.role === 'Admin') {
@@ -33,11 +62,148 @@ export default function StaffMessages() {
       const lowerQuery = searchQuery.toLowerCase();
       setFilteredConversations(
         conversations.filter(c => 
-          c.participantNames.toLowerCase().includes(lowerQuery)
+          c.participantNames.toLowerCase().includes(lowerQuery) || 
+          (c.latestMessage && c.latestMessage.message_text.toLowerCase().includes(lowerQuery))
         )
       );
     }
   }, [searchQuery, conversations]);
+
+  const fetchStaffContext = async (staffId) => {
+    setLoadingContext(true);
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).toISOString();
+      const dateStr = startOfDay.split('T')[0];
+
+      const [
+        { count: visitsCount },
+        { count: ordersCount },
+        { count: followUpsCount },
+        { data: recentReqs },
+        { data: recentVisits },
+        { data: todaysFollowups }
+      ] = await Promise.all([
+        supabase.from('crm_visits').select('*', { count: 'exact', head: true }).eq('staff_id', staffId).gte('started_at', startOfDay).lte('started_at', endOfDay),
+        supabase.from('requirements').select('*', { count: 'exact', head: true }).eq('assigned_to', staffId).gte('created_at', startOfDay).lte('created_at', endOfDay),
+        supabase.from('follow_ups').select('*', { count: 'exact', head: true }).eq('assigned_to', staffId).eq('follow_up_date', dateStr),
+        supabase.from('requirements').select('id, product_type, customer_name, party_id').eq('assigned_to', staffId).eq('is_pending', true).order('created_at', { ascending: false }).limit(2),
+        supabase.from('crm_visits').select('id, crm_parties(id, display_name)').eq('staff_id', staffId).gte('started_at', startOfDay).lte('started_at', endOfDay).order('started_at', { ascending: false }).limit(2),
+        supabase.from('follow_ups').select('id, reason, crm_parties(display_name)').eq('assigned_to', staffId).eq('follow_up_date', dateStr).order('created_at', { ascending: false }).limit(2)
+      ]);
+
+      const workItems = [];
+      if (recentReqs) recentReqs.forEach(r => workItems.push({ type: 'Order', id: r.id, party_id: r.party_id, party_name: r.customer_name, label: `Order: ${r.product_type} - ${r.customer_name}`, link: `/requirements/${r.id}` }));
+      if (recentVisits) recentVisits.forEach(v => workItems.push({ type: 'Visit', id: v.id, party_id: v.crm_parties?.id, party_name: v.crm_parties?.display_name, label: `Visit: ${v.crm_parties?.display_name || 'Customer'}`, link: `/customers/${v.crm_parties?.id || ''}` }));
+      if (todaysFollowups) todaysFollowups.forEach(f => workItems.push({ type: 'Follow-up', id: f.id, party_id: f.crm_parties?.id, party_name: f.crm_parties?.display_name, label: `Follow-up: ${f.crm_parties?.display_name || 'Customer'}`, link: `/follow-ups/${f.id}/edit` }));
+
+      setStaffContext({
+        visits: visitsCount || 0,
+        orders: ordersCount || 0,
+        followUps: followUpsCount || 0,
+        currentWork: workItems.slice(0, 5)
+      });
+    } catch (err) {
+      console.error('Error fetching context:', err);
+    } finally {
+      setLoadingContext(false);
+    }
+  };
+
+  useEffect(() => {
+    if (relatedRecord?.party_id) {
+      setFuCustomer({ id: relatedRecord.party_id, display_name: relatedRecord.party_name || 'Customer' });
+    }
+  }, [relatedRecord]);
+
+  useEffect(() => {
+    if (fuCustomer?.id) {
+      const fetchFu = async () => {
+         const { data } = await supabase.from('follow_ups')
+           .select('id, reason, follow_up_date, status')
+           .eq('party_id', fuCustomer.id)
+           .in('status', ['Pending'])
+           .gte('follow_up_date', new Date().toISOString().split('T')[0])
+           .order('follow_up_date', { ascending: true })
+           .limit(3);
+         setExistingCustomerFollowUps(data || []);
+      };
+      fetchFu();
+    } else {
+      setExistingCustomerFollowUps([]);
+    }
+  }, [fuCustomer]);
+
+  useEffect(() => {
+    if (fuCustomerSearch.length > 2 && !fuCustomer) {
+      const search = async () => {
+        const { data } = await supabase.from('crm_parties')
+          .select('id, display_name')
+          .ilike('display_name', `%${fuCustomerSearch}%`)
+          .limit(5);
+        setFuCustomerList(data || []);
+      };
+      search();
+    } else {
+      setFuCustomerList([]);
+    }
+  }, [fuCustomerSearch, fuCustomer]);
+
+  const handleSaveFollowUp = async () => {
+    if (!fuCustomer || !fuDate || !fuNotes.trim()) {
+      alert("Please complete all fields.");
+      return;
+    }
+    
+    setFuIsSubmitting(true);
+    try {
+      const conv = conversations.find(c => c.id === selectedConversation);
+      const staffUser = conv?.participants.find(p => p.user_id !== userProfile.id);
+      
+      const { error } = await supabase.from('follow_ups').insert({
+        party_id: fuCustomer.id,
+        reason: fuNotes,
+        follow_up_date: fuDate,
+        due_at: fuDate,
+        priority: 'Normal',
+        follow_up_type: 'Commercial',
+        assigned_to: staffUser?.user_id || null
+      });
+      
+      if (error) throw error;
+      
+      setFollowUpSuccess(true);
+      setTimeout(() => setFollowUpSuccess(false), 3000);
+      
+      setShowFollowUpForm(false);
+      setFuNotes('');
+      setFuDate('');
+      
+      if (!relatedRecord) {
+        setFuCustomer(null);
+        setFuCustomerSearch('');
+      }
+      
+      if (staffUser) fetchStaffContext(staffUser.user_id);
+      
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save follow-up.');
+    } finally {
+      setFuIsSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedConversation) {
+      const conv = conversations.find(c => c.id === selectedConversation);
+      const staffUser = conv?.participants.find(p => p.user_id !== userProfile.id);
+      if (staffUser) {
+        fetchStaffContext(staffUser.user_id);
+      }
+    }
+  }, [selectedConversation, conversations]);
 
   // Real-time subscription for the selected conversation
   useEffect(() => {
@@ -65,17 +231,19 @@ export default function StaffMessages() {
             
           const completeMsg = {
             ...newMsg,
-            app_users: senderData || { display_name: 'Unknown' }
+            app_users: senderData || { display_name: 'Unknown', role: 'Staff' }
           };
           
-          setMessages(prev => [...prev, completeMsg]);
+          setMessages(prev => {
+             // Prevent duplicate messages if already appended locally (optimistic)
+             if (prev.some(m => m.id === completeMsg.id)) return prev;
+             return [...prev, completeMsg];
+          });
           
-          // Mark as read if received while looking at this chat and not sent by current user
           if (newMsg.sender_id !== userProfile.id) {
             markMessagesAsRead(selectedConversation, userProfile.id);
           }
           
-          // Update conversation list preview
           updateConversationPreview(selectedConversation, completeMsg);
         }
       )
@@ -119,7 +287,6 @@ export default function StaffMessages() {
 
       if (convError) throw convError;
 
-      // Extract all unique user IDs to fetch their display names
       const userIds = new Set();
       convData.forEach(conv => {
         conv.chat_participants.forEach(p => userIds.add(p.user_id));
@@ -127,20 +294,20 @@ export default function StaffMessages() {
 
       const { data: usersData, error: usersError } = await supabase
         .from('app_users')
-        .select('id, display_name')
+        .select('id, display_name, role')
         .in('id', Array.from(userIds));
 
       if (usersError) throw usersError;
 
       const userMap = {};
       usersData.forEach(u => {
-        userMap[u.id] = u.display_name;
+        userMap[u.id] = u;
       });
 
       const formattedConvs = await Promise.all(convData.map(async (conv) => {
-        const names = conv.chat_participants
-          .map(p => userMap[p.user_id] || 'Unknown')
-          .join(' & ');
+        const staffUsers = conv.chat_participants.filter(p => p.user_id !== userProfile.id).map(p => userMap[p.user_id]);
+        const names = staffUsers.map(u => u?.display_name || 'Unknown').join(' & ');
+        const roles = staffUsers.map(u => u?.role || 'Staff').join(', ');
 
         const { data: latestMsgData } = await supabase
           .from('chat_messages')
@@ -156,6 +323,7 @@ export default function StaffMessages() {
           updated_at: conv.updated_at,
           participants: conv.chat_participants,
           participantNames: names,
+          participantRoles: roles,
           latestMessage: latestMsg
         };
       }));
@@ -164,13 +332,7 @@ export default function StaffMessages() {
       setFilteredConversations(formattedConvs);
     } catch (err) {
       console.error(err);
-      let errorDetails = '';
-      if (err.message) errorDetails = err.message;
-      else if (err.details) errorDetails = err.details;
-      else if (typeof err === 'object') errorDetails = JSON.stringify(err);
-      else errorDetails = String(err);
-      
-      setError(`Failed to load staff messages: ${errorDetails}`);
+      setError(`Failed to load staff messages.`);
     } finally {
       setLoading(false);
     }
@@ -194,7 +356,6 @@ export default function StaffMessages() {
 
       if (msgError) throw msgError;
 
-      // Extract unique sender IDs to fetch their profiles
       const senderIds = new Set(msgData?.map(m => m.sender_id) || []);
       
       const { data: sendersData } = await supabase
@@ -216,7 +377,6 @@ export default function StaffMessages() {
 
       setMessages(completeMessages);
       
-      // Mark unread as read
       markMessagesAsRead(conversationId, userProfile.id);
     } catch (err) {
       console.error(err);
@@ -235,16 +395,98 @@ export default function StaffMessages() {
       .is('read_at', null);
   }
 
+  const handleOpenStaffModal = async () => {
+    setShowStaffModal(true);
+    setStaffSearch('');
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('id, display_name, role, is_active')
+      .eq('is_active', true)
+      .neq('id', userProfile.id);
+      
+    if (data) {
+      setStaffList(data);
+    }
+  };
+
+  const handleStartChat = async (staffUser) => {
+    setStartingChat(true);
+    try {
+      const existingConv = conversations.find(c => 
+        c.participants.some(p => p.user_id === staffUser.id)
+      );
+
+      if (existingConv) {
+        setShowStaffModal(false);
+        fetchMessages(existingConv.id);
+        setStartingChat(false);
+        return;
+      }
+
+      const { data: existingParticipant } = await supabase
+        .from('chat_participants')
+        .select('conversation_id')
+        .eq('user_id', staffUser.id);
+        
+      if (existingParticipant && existingParticipant.length > 0) {
+        const convIds = existingParticipant.map(ep => ep.conversation_id);
+        const { data: adminParticipant } = await supabase
+          .from('chat_participants')
+          .select('conversation_id')
+          .eq('user_id', userProfile.id)
+          .in('conversation_id', convIds);
+          
+        if (adminParticipant && adminParticipant.length > 0) {
+           const convId = adminParticipant[0].conversation_id;
+           setShowStaffModal(false);
+           await fetchConversations();
+           fetchMessages(convId);
+           setStartingChat(false);
+           return;
+        }
+      }
+
+      const { data: newConv, error: convError } = await supabase
+        .from('chat_conversations')
+        .insert([{}])
+        .select()
+        .single();
+        
+      if (convError) throw convError;
+
+      const { error: partError } = await supabase
+        .from('chat_participants')
+        .insert([
+          { conversation_id: newConv.id, user_id: userProfile.id },
+          { conversation_id: newConv.id, user_id: staffUser.id }
+        ]);
+        
+      if (partError) throw partError;
+
+      setShowStaffModal(false);
+      await fetchConversations();
+      fetchMessages(newConv.id);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to start conversation.');
+    } finally {
+      setStartingChat(false);
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessageText.trim() || !selectedConversation) return;
 
     setIsSending(true);
-    const textToSend = newMessageText.trim();
-    setNewMessageText(''); // optimistic clear
+    let textToSend = newMessageText.trim();
+    if (relatedRecord) {
+      textToSend = `[${relatedRecord.label}](${relatedRecord.link})\n────────────────\n${textToSend}`;
+    }
+    setNewMessageText(''); 
+    setRelatedRecord(null);
 
     try {
-      // 1. Insert message
       const { data, error } = await supabase
         .from('chat_messages')
         .insert([
@@ -257,8 +499,20 @@ export default function StaffMessages() {
         .select();
 
       if (error) throw error;
+      
+      const newMsg = data[0];
+      const completeMsg = {
+        ...newMsg,
+        app_users: { display_name: userProfile.display_name, role: userProfile.role }
+      };
+      
+      // Update local state optimistically
+      setMessages(prev => {
+        if (prev.some(m => m.id === completeMsg.id)) return prev;
+        return [...prev, completeMsg];
+      });
+      updateConversationPreview(selectedConversation, completeMsg);
 
-      // 2. Dispatch notifications to conversation participants
       const activeConv = conversations.find(c => c.id === selectedConversation);
       if (activeConv) {
         const otherParticipants = activeConv.participants.filter(p => p.user_id !== userProfile.id);
@@ -303,208 +557,503 @@ export default function StaffMessages() {
     return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  const renderMessageText = (text) => {
+    if (!text) return null;
+    const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g);
+    return parts.map((part, i) => {
+      const match = part.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match) {
+        const label = match[1];
+        const url = match[2];
+        return (
+          <Link key={i} to={url} style={{ color: 'inherit', textDecoration: 'underline', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <LinkIcon size={12} /> {label}
+          </Link>
+        );
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
   if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Staff Messages...</div>;
   if (error) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{error}</div>;
 
-  return (
-    <div className="animate-fade-in" style={{ paddingBottom: '4rem', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Header Area */}
-      <div className="page-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <MessageSquare size={24} className="text-primary" /> Staff Messages
-          </h1>
-          <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
-            Manage staff communications and reply in real-time.
-          </p>
-        </div>
-      </div>
+  const unreadConvs = filteredConversations.filter(c => c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id);
+  const recentConvs = filteredConversations.filter(c => !(c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id));
 
-      <div style={{ display: 'flex', gap: '1.5rem', flex: 1, minHeight: '600px' }}>
+  const renderConversationCard = (conv) => (
+    <div 
+      key={conv.id}
+      onClick={() => fetchMessages(conv.id)}
+      style={{
+        padding: '1rem',
+        borderBottom: '1px solid var(--border)',
+        cursor: 'pointer',
+        background: selectedConversation === conv.id ? 'var(--bg-surface-hover)' : 'transparent',
+        borderLeft: selectedConversation === conv.id ? '3px solid var(--primary)' : '3px solid transparent',
+        transition: 'background 0.2s'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
+        <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }} className="truncate">
+          {conv.participantNames}
+        </div>
+        {conv.latestMessage && (
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
+            {formatTime(conv.latestMessage.created_at)}
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          {conv.latestMessage ? conv.latestMessage.message_text : <span style={{fontStyle: 'italic'}}>No messages yet</span>}
+        </div>
+        {conv.latestMessage && !conv.latestMessage.read_at && conv.latestMessage.sender_id !== userProfile?.id && (
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', marginLeft: '0.5rem' }}></div>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="animate-fade-in" style={{ paddingBottom: '2rem', height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* Header Area - Hidden on mobile if viewing a conversation */}
+      {!(isMobile && selectedConversation) && (
+        <div className="page-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <MessageSquare size={24} className="text-primary" /> Staff Messages
+            </h1>
+            <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
+              Manage staff communications and reply in real-time.
+            </p>
+          </div>
+          <button 
+            onClick={handleOpenStaffModal} 
+            className="btn btn-primary" 
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            + Start Conversation
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '1.5rem', flex: 1, minHeight: 0 }}>
         
         {/* Left Pane: Conversations List */}
-        <div className="glass-panel" style={{ width: '350px', display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>
-          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ position: 'relative' }}>
-              <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              <input
-                type="text"
-                placeholder="Search staff names..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.5rem 0.5rem 0.5rem 2.2rem',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-base)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.9rem'
-                }}
-              />
+        {(!isMobile || !selectedConversation) && (
+          <div className="glass-panel" style={{ width: isMobile ? '100%' : '350px', display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ position: 'relative' }}>
+                <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Search conversations or staff..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem 0.5rem 0.5rem 2.2rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-base)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem'
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {filteredConversations.length === 0 ? (
+                <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                  <div style={{ fontWeight: 500, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>No conversations yet</div>
+                  <div style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Start a conversation with a staff member.</div>
+                  <button className="btn btn-primary btn-sm" onClick={handleOpenStaffModal} style={{ padding: '0.5rem 1rem' }}>
+                    Start Conversation
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {unreadConvs.length > 0 && (
+                    <div style={{ padding: '1rem 1rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      UNREAD
+                    </div>
+                  )}
+                  {unreadConvs.map(conv => renderConversationCard(conv))}
+
+                  {recentConvs.length > 0 && (
+                    <div style={{ padding: '1rem 1rem 0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderTop: unreadConvs.length > 0 ? '1px solid var(--border)' : 'none' }}>
+                      RECENT
+                    </div>
+                  )}
+                  {recentConvs.map(conv => renderConversationCard(conv))}
+                </>
+              )}
             </div>
           </div>
-          
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {filteredConversations.length === 0 ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                No conversations found.
-              </div>
-            ) : (
-              filteredConversations.map(conv => (
-                <div 
-                  key={conv.id}
-                  onClick={() => fetchMessages(conv.id)}
-                  style={{
-                    padding: '1rem',
-                    borderBottom: '1px solid var(--border)',
-                    cursor: 'pointer',
-                    background: selectedConversation === conv.id ? 'var(--bg-surface-hover)' : 'transparent',
-                    borderLeft: selectedConversation === conv.id ? '3px solid var(--primary)' : '3px solid transparent',
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.25rem' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }} className="truncate">
-                      {conv.participantNames}
-                    </div>
-                    {conv.latestMessage && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
-                        {formatTime(conv.latestMessage.created_at)}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                      {conv.latestMessage ? conv.latestMessage.message_text : <span style={{fontStyle: 'italic'}}>No messages yet</span>}
-                    </div>
-                    {conv.latestMessage && !conv.latestMessage.read_at && conv.latestMessage.sender_id !== userProfile?.id && (
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)', marginLeft: '0.5rem' }}></div>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        )}
 
         {/* Right Pane: Message History */}
-        <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>
-          {!selectedConversation ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
-              <MessageSquare size={48} style={{ marginBottom: '1rem', opacity: 0.2 }} />
-              <div>Select a conversation to start chatting</div>
-            </div>
-          ) : (
-            <>
-              {/* Chat Header */}
-              <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                  <User size={20} />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {conversations.find(c => c.id === selectedConversation)?.participantNames}
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    Conversation ID: {selectedConversation.substring(0, 8)}...
-                  </div>
-                </div>
+        {(!isMobile || selectedConversation) && (
+          <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)', minWidth: 0 }}>
+            {!selectedConversation ? (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+                <MessageSquare size={48} style={{ marginBottom: '1rem', opacity: 0.2 }} />
+                <div>Select a conversation to start chatting</div>
               </div>
+            ) : (
+              <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  {/* Chat Header */}
+                  <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {isMobile && (
+                      <button 
+                        onClick={() => setSelectedConversation(null)}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '0.25rem' }}
+                      >
+                        <ChevronLeft size={24} />
+                      </button>
+                    )}
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>
+                      <User size={20} />
+                    </div>
+                    <div style={{ overflow: 'hidden' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {conversations.find(c => c.id === selectedConversation)?.participantNames}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {conversations.find(c => c.id === selectedConversation)?.participantRoles || 'Staff'}
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Message List */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {messagesLoading && messages.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem' }}>Loading messages...</div>
-                ) : messages.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem' }}>No messages in this conversation. Send one below!</div>
-                ) : (
-                  messages.map((msg, index) => {
-                    const showDate = index === 0 || formatDate(messages[index - 1].created_at) !== formatDate(msg.created_at);
-                    const isMine = msg.sender_id === userProfile.id;
-                    const isAdmin = msg.app_users?.role === 'Admin';
-                    
-                    return (
-                      <React.Fragment key={msg.id || index}>
-                        {showDate && (
-                          <div style={{ textAlign: 'center', margin: '1rem 0' }}>
-                            <span style={{ background: 'var(--bg-base)', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              {formatDate(msg.created_at)}
-                            </span>
-                          </div>
-                        )}
-                        <div style={{ 
-                          alignSelf: isMine ? 'flex-end' : 'flex-start', 
-                          maxWidth: '75%',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: isMine ? 'flex-end' : 'flex-start'
-                        }}>
-                          {!isMine && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem', paddingLeft: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              {msg.app_users?.display_name || 'Unknown'}
-                              {isAdmin && <Shield size={10} className="text-primary" title="Administrator" />}
+                  {/* Message List */}
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {messagesLoading && messages.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem' }}>Loading messages...</div>
+                    ) : messages.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '2rem' }}>No messages in this conversation. Send one below!</div>
+                    ) : (
+                      messages.map((msg, index) => {
+                        const showDate = index === 0 || formatDate(messages[index - 1].created_at) !== formatDate(msg.created_at);
+                        const isMine = msg.sender_id === userProfile.id;
+                        const isAdmin = msg.app_users?.role === 'Admin';
+                        
+                        return (
+                          <React.Fragment key={msg.id || index}>
+                            {showDate && (
+                              <div style={{ textAlign: 'center', margin: '1rem 0' }}>
+                                <span style={{ background: 'var(--bg-base)', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  {formatDate(msg.created_at)}
+                                </span>
+                              </div>
+                            )}
+                            <div style={{ 
+                              alignSelf: isMine ? 'flex-end' : 'flex-start', 
+                              maxWidth: '85%',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: isMine ? 'flex-end' : 'flex-start'
+                            }}>
+                              {!isMine && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem', paddingLeft: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                  {msg.app_users?.display_name || 'Unknown'}
+                                  {isAdmin && <Shield size={10} className="text-primary" title="Administrator" />}
+                                </div>
+                              )}
+                              <div style={{ 
+                                background: isMine ? 'var(--primary)' : 'var(--bg-base)', 
+                                padding: '0.75rem 1rem', 
+                                borderRadius: '12px',
+                                borderBottomRightRadius: isMine ? '2px' : '12px',
+                                borderTopLeftRadius: !isMine ? '2px' : '12px',
+                                border: isMine ? 'none' : '1px solid var(--border)',
+                                color: isMine ? '#fff' : 'var(--text-primary)',
+                                fontSize: '0.95rem',
+                                wordBreak: 'break-word',
+                                whiteSpace: 'pre-wrap'
+                              }}>
+                                {renderMessageText(msg.message_text)}
+                              </div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', padding: '0 0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                {isMine && msg.read_at && <span style={{color: 'var(--success)'}}>Read</span>}
+                                <Clock size={10} /> {formatTime(msg.created_at)}
+                              </div>
                             </div>
-                          )}
-                          <div style={{ 
-                            background: isMine ? 'var(--primary)' : 'var(--bg-base)', 
-                            padding: '0.75rem 1rem', 
-                            borderRadius: '12px',
-                            borderBottomRightRadius: isMine ? '2px' : '12px',
-                            borderTopLeftRadius: !isMine ? '2px' : '12px',
-                            border: isMine ? 'none' : '1px solid var(--border)',
-                            color: isMine ? '#fff' : 'var(--text-primary)',
-                            fontSize: '0.95rem',
-                            wordBreak: 'break-word'
-                          }}>
-                            {msg.message_text}
-                          </div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', padding: '0 0.25rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            {isMine && msg.read_at && <span style={{color: 'var(--success)'}}>Read</span>}
-                            <Clock size={10} /> {formatTime(msg.created_at)}
+                          </React.Fragment>
+                        );
+                      })
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+
+                  {/* Chat Input */}
+                  <div style={{ padding: '1rem', borderTop: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
+                    {relatedRecord && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-base)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border)', marginBottom: '0.75rem' }}>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Related to</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <LinkIcon size={14} /> {relatedRecord.label}
                           </div>
                         </div>
-                      </React.Fragment>
-                    );
-                  })
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+                        <button type="button" onClick={() => setRelatedRecord(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Remove link">
+                          <X size={16} />
+                        </button>
+                      </div>
+                    )}
+                    <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        value={newMessageText}
+                        onChange={(e) => setNewMessageText(e.target.value)}
+                        placeholder="Type a message..."
+                        disabled={isSending}
+                        style={{
+                          flex: 1,
+                          padding: '0.75rem 1rem',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-base)',
+                          color: 'var(--text-primary)',
+                          minWidth: 0
+                        }}
+                      />
+                      <button 
+                        type="submit" 
+                        className="btn btn-primary" 
+                        disabled={!newMessageText.trim() || isSending}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0 1.25rem', flexShrink: 0 }}
+                      >
+                        <Send size={16} /> 
+                        {isSending ? 'Sending...' : 'Send'}
+                      </button>
+                    </form>
+                  </div>
+                </div>
 
-              {/* Chat Input */}
-              <div style={{ padding: '1rem', borderTop: '1px solid var(--border)', background: 'var(--bg-surface)' }}>
-                <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input
-                    type="text"
-                    value={newMessageText}
-                    onChange={(e) => setNewMessageText(e.target.value)}
-                    placeholder="Type your message..."
-                    disabled={isSending}
-                    style={{
-                      flex: 1,
-                      padding: '0.75rem 1rem',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)'
-                    }}
-                  />
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary" 
-                    disabled={!newMessageText.trim() || isSending}
-                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0 1.25rem' }}
-                  >
-                    <Send size={16} /> 
-                    {isSending ? 'Sending...' : 'Send'}
-                  </button>
-                </form>
+                {/* Staff Context Sidebar (Hidden on narrow screens) */}
+                {!isMobile && (
+                  <div style={{ width: '220px', borderLeft: '1px solid var(--border)', background: 'var(--bg-base)', padding: '1.25rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem', flexShrink: 0 }}>
+                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Staff Context</div>
+                     
+                     {loadingContext ? (
+                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center' }}>Loading...</div>
+                     ) : (
+                       <>
+                         <div>
+                           <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.75rem' }}>TODAY</div>
+                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                               <span style={{ color: 'var(--text-secondary)' }}>Visits</span>
+                               <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{staffContext.visits}</span>
+                             </div>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                               <span style={{ color: 'var(--text-secondary)' }}>Orders</span>
+                               <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{staffContext.orders}</span>
+                             </div>
+                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                               <span style={{ color: 'var(--text-secondary)' }}>Follow-ups</span>
+                               <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{staffContext.followUps}</span>
+                             </div>
+                           </div>
+                         </div>
+
+                         <div>
+                           <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.75rem' }}>CURRENT WORK</div>
+                           {staffContext.currentWork.length === 0 ? (
+                             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '0.75rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                               No current activity
+                             </div>
+                           ) : (
+                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                               {staffContext.currentWork.map((work, i) => (
+                                 <div key={i} style={{ fontSize: '0.8rem', padding: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer', transition: 'border-color 0.2s' }} 
+                                      onClick={() => setRelatedRecord(work)}
+                                      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                                      title="Click to discuss in chat"
+                                 >
+                                   <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>{work.type}</div>
+                                   <div style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{work.label.replace(`${work.type}: `, '')}</div>
+                                 </div>
+                               ))}
+                             </div>
+                           )}
+                         </div>
+                         
+                         <div>
+                           <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.75rem' }}>DISCUSSION FOLLOW-UP</div>
+                           
+                           {followUpSuccess && (
+                             <div style={{ padding: '0.5rem', background: 'var(--success-light)', color: 'var(--success)', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                               <CheckCircle size={14} /> Follow-up created
+                             </div>
+                           )}
+                           
+                           {!showFollowUpForm ? (
+                             <button 
+                               className="btn btn-secondary" 
+                               style={{ width: '100%', justifyContent: 'center' }}
+                               onClick={() => setShowFollowUpForm(true)}
+                             >
+                               + Add Follow-up
+                             </button>
+                           ) : (
+                             <div style={{ padding: '0.75rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                               
+                               <div>
+                                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Customer</label>
+                                 {fuCustomer ? (
+                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem', background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: '4px' }}>
+                                     <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fuCustomer.display_name}</span>
+                                     <button onClick={() => { setFuCustomer(null); setFuCustomerSearch(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}><X size={14} /></button>
+                                   </div>
+                                 ) : (
+                                   <div style={{ position: 'relative' }}>
+                                     <input 
+                                       type="text" 
+                                       placeholder="Search customer..." 
+                                       value={fuCustomerSearch}
+                                       onChange={e => setFuCustomerSearch(e.target.value)}
+                                       style={{ width: '100%', padding: '0.5rem', fontSize: '0.85rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+                                     />
+                                     {fuCustomerList.length > 0 && (
+                                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '4px', zIndex: 10, marginTop: '2px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                                         {fuCustomerList.map(c => (
+                                           <div 
+                                             key={c.id} 
+                                             style={{ padding: '0.5rem', fontSize: '0.85rem', cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
+                                             onClick={() => { setFuCustomer(c); setFuCustomerSearch(''); setFuCustomerList([]); }}
+                                           >
+                                             {c.display_name}
+                                           </div>
+                                         ))}
+                                       </div>
+                                     )}
+                                   </div>
+                                 )}
+                               </div>
+                               
+                               {fuCustomer && existingCustomerFollowUps.length > 0 && (
+                                 <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '0.5rem', borderRadius: '4px', borderLeft: '2px solid var(--warning)' }}>
+                                   <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--warning)', marginBottom: '0.25rem' }}>EXISTING FOLLOW-UPS</div>
+                                   {existingCustomerFollowUps.map(ef => (
+                                     <div key={ef.id} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>
+                                       <span style={{ fontWeight: 500 }}>{ef.follow_up_date === new Date().toISOString().split('T')[0] ? 'Today' : ef.follow_up_date}:</span> {ef.reason}
+                                     </div>
+                                   ))}
+                                 </div>
+                               )}
+                               
+                               <div>
+                                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Date</label>
+                                 <input 
+                                   type="date" 
+                                   value={fuDate}
+                                   onChange={e => setFuDate(e.target.value)}
+                                   style={{ width: '100%', padding: '0.5rem', fontSize: '0.85rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+                                 />
+                               </div>
+                               
+                               <div>
+                                 <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Notes</label>
+                                 <textarea 
+                                   placeholder="Action required..."
+                                   value={fuNotes}
+                                   onChange={e => setFuNotes(e.target.value)}
+                                   style={{ width: '100%', padding: '0.5rem', fontSize: '0.85rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)', minHeight: '60px', resize: 'vertical', color: 'var(--text-primary)' }}
+                                 />
+                               </div>
+                               
+                               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                                 <button className="btn btn-ghost" style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }} onClick={() => setShowFollowUpForm(false)}>Cancel</button>
+                                 <button className="btn btn-primary" style={{ flex: 1, padding: '0.4rem', fontSize: '0.85rem' }} onClick={handleSaveFollowUp} disabled={fuIsSubmitting}>{fuIsSubmitting ? 'Saving...' : 'Save'}</button>
+                               </div>
+                               
+                             </div>
+                           )}
+                         </div>
+                       </>
+                     )}
+                  </div>
+                )}
               </div>
-            </>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Staff Modal Overlay */}
+      {showStaffModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div className="glass-panel animate-fade-in" style={{ width: '400px', maxWidth: '90%', maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Search size={18} /> Start Conversation
+              </h3>
+              <button onClick={() => setShowStaffModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.5rem', lineHeight: 1 }}>&times;</button>
+            </div>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
+              <input
+                type="text"
+                placeholder="Search staff..."
+                value={staffSearch}
+                onChange={(e) => setStaffSearch(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+              />
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem' }}>
+              {staffList.filter(s => s.display_name?.toLowerCase().includes(staffSearch.toLowerCase())).length === 0 ? (
+                <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>No staff found.</div>
+              ) : (
+                staffList.filter(s => s.display_name?.toLowerCase().includes(staffSearch.toLowerCase())).map(staff => {
+                  const hasConv = conversations.some(c => c.participants.some(p => p.user_id === staff.id));
+                  return (
+                    <div 
+                      key={staff.id} 
+                      onClick={() => !startingChat && handleStartChat(staff)}
+                      style={{ 
+                        padding: '0.75rem', 
+                        margin: '0.25rem 0', 
+                        borderRadius: '6px', 
+                        cursor: startingChat ? 'not-allowed' : 'pointer', 
+                        background: 'var(--bg-base)', 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        opacity: startingChat ? 0.5 : 1,
+                        border: '1px solid transparent'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!startingChat) e.currentTarget.style.borderColor = 'var(--primary)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'transparent';
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{staff.display_name}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          {staff.role} • {hasConv ? <span style={{color: 'var(--primary)', fontWeight: 500}}>Conversation exists</span> : <span>No conversation yet</span>}
+                        </div>
+                      </div>
+                      {startingChat && <Clock size={14} className="text-muted" />}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
