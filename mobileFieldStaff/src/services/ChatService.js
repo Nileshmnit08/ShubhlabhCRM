@@ -46,10 +46,13 @@ class ChatService {
           if (other) otherUserIds.add(other.user_id);
         });
 
+        const allUserIds = new Set(otherUserIds);
+        allUserIds.add(userId);
+
         const { data: usersData } = await supabase
           .from('app_users')
           .select('id, display_name, role, whatsapp')
-          .in('id', Array.from(otherUserIds));
+          .in('id', Array.from(allUserIds));
 
         const userMap = {};
         if (usersData) {
@@ -77,10 +80,18 @@ class ChatService {
         onlineData = data.map(item => {
           const participants = item.chat_conversations?.chat_participants || [];
           const otherParticipant = participants.find(p => p.user_id !== userId);
+          const otherUserObj = (otherParticipant && userMap[otherParticipant.user_id]) || { full_name: 'Unknown User', role: 'Staff' };
+          const currentUserObj = userMap[userId] || { role: 'Staff' };
+          
+          const isOwnerAdmin = currentUserObj.role === 'Admin';
+          const isOtherAdmin = otherUserObj.role === 'Admin';
+          const type = (isOwnerAdmin || isOtherAdmin) ? 'ADMIN_STAFF' : 'TEAM';
+
           return {
             id: item.conversation_id,
             updated_at: item.chat_conversations?.updated_at,
-            otherUser: (otherParticipant && userMap[otherParticipant.user_id]) || { full_name: 'Unknown User', role: 'Staff' },
+            otherUser: otherUserObj,
+            type,
             unreadCount: unreadCounts[item.conversation_id] || 0,
             pending: false
           };

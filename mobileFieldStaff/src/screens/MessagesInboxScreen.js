@@ -43,7 +43,7 @@ export const MessagesInboxScreen = ({ navigation }) => {
   
   // UI states
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('TEAM');
 
   const [actionSheetVisible, setActionSheetVisible] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -78,7 +78,6 @@ export const MessagesInboxScreen = ({ navigation }) => {
     if (!error && data) {
       const mappedData = data.map((conv, idx) => ({
         ...conv,
-        category: idx === 0 ? 'hq' : 'depot',
         isOnline: idx < 2
       }));
       setConversations(mappedData);
@@ -104,9 +103,9 @@ export const MessagesInboxScreen = ({ navigation }) => {
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
-  const getLeftAccentColor = (category, unread) => {
+  const getLeftAccentColor = (type, unread) => {
     if (unread > 0) {
-      if (category === 'hq') return colors.secondaryContainer;
+      if (type === 'ADMIN_STAFF') return colors.secondaryContainer;
       return colors.primary;
     }
     return 'transparent';
@@ -114,7 +113,7 @@ export const MessagesInboxScreen = ({ navigation }) => {
 
   const filteredConversations = conversations.filter(conv => {
     const nameMatch = (conv.otherUser?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const filterMatch = activeFilter === 'all' || conv.category === activeFilter;
+    const filterMatch = conv.type === activeFilter;
     return nameMatch && filterMatch;
   });
 
@@ -127,18 +126,18 @@ export const MessagesInboxScreen = ({ navigation }) => {
     >
       <View style={[
         styles.leftAccent, 
-        { backgroundColor: getLeftAccentColor(item.category, item.unreadCount) }
+        { backgroundColor: getLeftAccentColor(item.type, item.unreadCount) }
       ]} />
       
       <View style={styles.cardContent}>
         <View style={styles.avatarWrapper}>
           <View style={[
             styles.avatar, 
-            item.unreadCount > 0 && item.category === 'depot' ? styles.avatarPrimary : styles.avatarSecondary
+            item.unreadCount > 0 && item.type === 'ADMIN_STAFF' ? styles.avatarPrimary : styles.avatarSecondary
           ]}>
             <Text style={[
               styles.avatarText,
-              item.unreadCount > 0 && item.category === 'depot' ? styles.avatarTextPrimary : styles.avatarTextSecondary
+              item.unreadCount > 0 && item.type === 'ADMIN_STAFF' ? styles.avatarTextPrimary : styles.avatarTextSecondary
             ]}>
               {getInitials(item.otherUser?.full_name)}
             </Text>
@@ -242,22 +241,16 @@ export const MessagesInboxScreen = ({ navigation }) => {
 
             <View style={styles.filterScroll}>
               <TouchableOpacity 
-                style={[styles.filterChip, activeFilter === 'all' && styles.filterChipActive]}
-                onPress={() => setActiveFilter('all')}
+                style={[styles.filterChip, activeFilter === 'TEAM' && styles.filterChipActive]}
+                onPress={() => setActiveFilter('TEAM')}
               >
-                <Text style={[styles.filterChipText, activeFilter === 'all' && styles.filterChipTextActive]}>All Messages</Text>
+                <Text style={[styles.filterChipText, activeFilter === 'TEAM' && styles.filterChipTextActive]}>Team Chat</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.filterChip, activeFilter === 'hq' && styles.filterChipActive]}
-                onPress={() => setActiveFilter('hq')}
+                style={[styles.filterChip, activeFilter === 'ADMIN_STAFF' && styles.filterChipActive]}
+                onPress={() => setActiveFilter('ADMIN_STAFF')}
               >
-                <Text style={[styles.filterChipText, activeFilter === 'hq' && styles.filterChipTextActive]}>HQ / Managers</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.filterChip, activeFilter === 'depot' && styles.filterChipActive]}
-                onPress={() => setActiveFilter('depot')}
-              >
-                <Text style={[styles.filterChipText, activeFilter === 'depot' && styles.filterChipTextActive]}>Indore Depot</Text>
+                <Text style={[styles.filterChipText, activeFilter === 'ADMIN_STAFF' && styles.filterChipTextActive]}>Admin Chat</Text>
               </TouchableOpacity>
             </View>
           </>
@@ -266,7 +259,9 @@ export const MessagesInboxScreen = ({ navigation }) => {
           !loading && (
             <View style={styles.emptyContainer}>
               <MaterialIcons name="chat-bubble-outline" size={48} color={colors.outline} />
-              <Text style={styles.emptyTitle}>No conversations yet</Text>
+              <Text style={styles.emptyTitle}>
+                {activeFilter === 'TEAM' ? 'No team conversations yet' : 'No staff conversations yet'}
+              </Text>
               <Text style={styles.emptySubtitle}>Start a chat to connect with staff.</Text>
               <TouchableOpacity style={styles.emptyActionBtn} onPress={() => navigation.navigate('NewChat')}>
                 <Text style={styles.emptyActionText}>Start a chat</Text>
