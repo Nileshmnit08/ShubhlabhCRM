@@ -196,10 +196,23 @@ export class SyncService {
                          (parentOp.payload?.id === parentId || parentOp.local_id === parentId)
                      );
                      
-                     // If parent is still in the queue (FAILED, PENDING, SYNCING), block the child.
-                     // The child will remain PENDING and will not be attempted.
                      if (parentInQueue) {
                          console.log(`[DIAGNOSTIC] Blocking requirement_items ${op.local_id} because parent ${parentId} is still in queue with status ${parentInQueue.status}`);
+                         return false;
+                     }
+                 }
+             }
+
+             if (op.table === 'chat_participants' || op.table === 'chat_messages') {
+                 const parentId = op.payload?.conversation_id;
+                 if (parentId) {
+                     const parentInQueue = activeQueue.find(parentOp => 
+                         parentOp.table === 'chat_conversations' && 
+                         (parentOp.payload?.id === parentId || parentOp.local_id === parentId)
+                     );
+                     
+                     if (parentInQueue) {
+                         console.log(`[DIAGNOSTIC] Blocking ${op.table} ${op.local_id} because parent conversation ${parentId} is still in queue with status ${parentInQueue.status}`);
                          return false;
                      }
                  }
