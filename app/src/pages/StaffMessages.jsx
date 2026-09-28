@@ -163,6 +163,7 @@ export default function StaffMessages() {
   const [followUpSuccess, setFollowUpSuccess] = useState(false);
   
   const [filterMode, setFilterMode] = useState('All');
+  const [activeTab, setActiveTab] = useState('ADMIN_CHAT');
   const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [highlightMessageId, setHighlightMessageId] = useState(null);
@@ -189,10 +190,12 @@ export default function StaffMessages() {
   }, [userProfile]);
 
   useEffect(() => {
+    let baseFiltered = conversations.filter(c => c.type === (activeTab === 'ADMIN_CHAT' ? 'ADMIN_STAFF' : 'TEAM'));
+    
     if (searchQuery.trim().length > 2) {
       const lowerQuery = searchQuery.toLowerCase();
       setFilteredConversations(
-        conversations.filter(c => c.participantNames.toLowerCase().includes(lowerQuery))
+        baseFiltered.filter(c => c.participantNames.toLowerCase().includes(lowerQuery))
       );
       
       const searchMessages = async () => {
@@ -219,10 +222,10 @@ export default function StaffMessages() {
       };
       searchMessages();
     } else {
-      setFilteredConversations(conversations);
+      setFilteredConversations(baseFiltered);
       setGlobalSearchResults([]);
     }
-  }, [searchQuery, conversations]);
+  }, [searchQuery, conversations, activeTab]);
 
   const fetchStaffContext = async (staffId) => {
     setLoadingContext(true);
@@ -517,6 +520,10 @@ export default function StaffMessages() {
         const staffUsers = conv.chat_participants.filter(p => p.user_id !== userProfile.id).map(p => userMap[p.user_id]);
         const names = staffUsers.map(u => u?.display_name || 'Unknown').join(' & ');
         const roles = staffUsers.map(u => u?.role || 'Staff').join(', ');
+        
+        // Determine type based on participants (Admin chat has at least one Admin)
+        const hasAdmin = conv.chat_participants.some(p => userMap[p.user_id]?.role === 'Admin');
+        const type = hasAdmin ? 'ADMIN_STAFF' : 'TEAM';
 
         const { data: latestMsgData } = await supabase
           .from('chat_messages')
@@ -533,12 +540,15 @@ export default function StaffMessages() {
           participants: conv.chat_participants,
           participantNames: names,
           participantRoles: roles,
-          latestMessage: latestMsg
+          latestMessage: latestMsg,
+          type
         };
       }));
 
       setConversations(formattedConvs);
-      setFilteredConversations(formattedConvs);
+      
+      const currentTabFilter = activeTab === 'ADMIN_CHAT' ? 'ADMIN_STAFF' : 'TEAM';
+      setFilteredConversations(formattedConvs.filter(c => c.type === currentTabFilter));
     } catch (err) {
       console.error(err);
       setError(`Failed to load staff messages.`);
@@ -896,19 +906,21 @@ export default function StaffMessages() {
         <div className="page-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <MessageSquare size={24} className="text-primary" /> Staff Messages
+              <MessageSquare size={24} className="text-primary" /> Communication
             </h1>
             <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
-              Manage staff communications and reply in real-time.
+              {activeTab === 'ADMIN_CHAT' ? 'Private management communication with Staff.' : 'Staff-to-staff coordination.'}
             </p>
           </div>
-          <button 
-            onClick={handleOpenStaffModal} 
-            className="btn btn-primary" 
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            + Start Conversation
-          </button>
+          {activeTab === 'ADMIN_CHAT' && (
+            <button 
+              onClick={handleOpenStaffModal} 
+              className="btn btn-primary" 
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              + Start Conversation
+            </button>
+          )}
         </div>
       )}
 
@@ -917,6 +929,31 @@ export default function StaffMessages() {
         {/* Left Pane: Conversations List */}
         {(!isMobile || !selectedConversation) && (
           <div className="glass-panel" style={{ width: isMobile ? '100%' : '350px', display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>
+            
+            {/* TABS */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-base)' }}>
+               <button 
+                 onClick={() => { setActiveTab('TEAM_CHAT'); setSelectedConversation(null); }} 
+                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', flex: 1, padding: '0.75rem', background: activeTab === 'TEAM_CHAT' ? 'var(--bg-surface)' : 'transparent', border: 'none', borderBottom: activeTab === 'TEAM_CHAT' ? '2px solid var(--primary)' : '2px solid transparent', fontWeight: 600, color: activeTab === 'TEAM_CHAT' ? 'var(--primary)' : 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                 Team Chat
+                 {conversations.filter(c => c.type === 'TEAM' && c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id).length > 0 && (
+                    <span style={{ background: 'var(--error)', color: 'white', borderRadius: '10px', padding: '0.1rem 0.4rem', fontSize: '0.65rem' }}>
+                      {conversations.filter(c => c.type === 'TEAM' && c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id).length} unread
+                    </span>
+                 )}
+               </button>
+               <button 
+                 onClick={() => { setActiveTab('ADMIN_CHAT'); setSelectedConversation(null); }} 
+                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', flex: 1, padding: '0.75rem', background: activeTab === 'ADMIN_CHAT' ? 'var(--bg-surface)' : 'transparent', border: 'none', borderBottom: activeTab === 'ADMIN_CHAT' ? '2px solid var(--primary)' : '2px solid transparent', fontWeight: 600, color: activeTab === 'ADMIN_CHAT' ? 'var(--primary)' : 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                 Admin Chat
+                 {conversations.filter(c => c.type === 'ADMIN_STAFF' && c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id).length > 0 && (
+                    <span style={{ background: 'var(--error)', color: 'white', borderRadius: '10px', padding: '0.1rem 0.4rem', fontSize: '0.65rem' }}>
+                      {conversations.filter(c => c.type === 'ADMIN_STAFF' && c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id).length} unread
+                    </span>
+                 )}
+               </button>
+            </div>
+
             <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)' }}>
               <div style={{ position: 'relative' }}>
                 <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -961,11 +998,17 @@ export default function StaffMessages() {
                   {filteredConversations.length === 0 ? (
                     <div style={{ padding: '3rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                       <MessageSquare size={32} style={{ opacity: 0.3, marginBottom: '1rem' }} />
-                      <div style={{ fontWeight: 500, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>No conversations yet</div>
-                      <div style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Start a conversation with a staff member.</div>
-                      <button className="btn btn-primary btn-sm" onClick={handleOpenStaffModal} style={{ padding: '0.5rem 1rem' }}>
-                        Start Conversation
-                      </button>
+                      {activeTab === 'ADMIN_CHAT' ? (
+                        <>
+                          <div style={{ fontWeight: 500, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>No staff conversations yet.</div>
+                          <div style={{ fontSize: '0.85rem', marginBottom: '1.5rem' }}>Start a conversation with a staff member.</div>
+                          <button className="btn btn-primary btn-sm" onClick={handleOpenStaffModal} style={{ padding: '0.5rem 1rem' }}>
+                            + Start Conversation
+                          </button>
+                        </>
+                      ) : (
+                        <div style={{ fontWeight: 500, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>No team conversations yet.</div>
+                      )}
                     </div>
                   ) : (
                     <>
