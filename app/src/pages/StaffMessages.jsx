@@ -1068,13 +1068,21 @@ export default function StaffMessages() {
                   )}
 
                   {/* Related Context Banner (Multiple) */}
-                  {conversationContexts.length > 0 && !selectingContextType && (
+                  {!selectingContextType && (
                     <div style={{ padding: '0.75rem 1.5rem', background: 'var(--bg-base)', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Discussion Summary:</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                         {conversationContexts.map((ctx, index) => (
-                           <React.Fragment key={index}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                         <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>CURRENT DISCUSSION & PENDING ACTION:</div>
+                      </div>
+                      
+                      {conversationContexts.length === 0 ? (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                           No pending CRM action
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                           {conversationContexts.map((ctx, index) => (
+                             <React.Fragment key={index}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-surface)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{ctx.label}</span>
                                 {ctx.type === 'Follow-up' && ctx.status && (
@@ -1123,6 +1131,7 @@ export default function StaffMessages() {
                            </React.Fragment>
                         ))}
                       </div>
+                      )}
                     </div>
                   )}
 
