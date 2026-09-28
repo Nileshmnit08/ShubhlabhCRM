@@ -351,6 +351,7 @@ export default function RequirementList() {
         dispatch_date: new Date().toISOString().split('T')[0],
         quantity: reqToDispatch.required_quantity || reqToDispatch.quantity || 0,
         unit: reqToDispatch.unit || 'Bags',
+        truck_number: '',
         status: 'Dispatched',
         created_by: session?.session?.user?.id || null
       };
@@ -382,7 +383,7 @@ export default function RequirementList() {
       closeDispatchModal();
     } catch (err) {
       console.error("Dispatch Error:", err);
-      setToast({ type: 'error', message: 'Could not mark as dispatched. Please try again.' });
+      setToast({ type: 'error', message: err.message || 'Could not mark as dispatched. Please try again.' });
     } finally {
       setIsDispatching(false);
     }
