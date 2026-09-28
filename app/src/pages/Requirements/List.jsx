@@ -1,10 +1,36 @@
 import React, { useEffect, useState, useContext, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
+
+const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, openDispatchModal, menuPosition }) => {
+  if (openMenuId !== req.id) return null;
+  return createPortal(
+    <>
+      <div style={{position: 'fixed', top:0, left:0, right:0, bottom:0, zIndex: 9998}} onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); }} />
+      <div style={{
+        position: 'absolute', right: document.documentElement.clientWidth - menuPosition.right, top: menuPosition.top, background: '#fff', border: '1px solid #E5E7EB', 
+        borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 9999, minWidth: '180px', padding: '4px 0', textAlign: 'left'
+      }}>
+        <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ClipboardList size={14} /> View details</button>
+        <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}/edit`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><Edit size={14} /> Edit requirement</button>
+        {req.status !== 'Dispatched' ? (
+          <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
+        ) : (
+          <button onClick={() => { setOpenMenuId(null); navigate(`/dispatches/list?requirement_id=${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ListIcon size={14} /> View Dispatches</button>
+        )}
+        <hr style={{margin: '4px 0', border: 'none', borderTop: '1px solid #E5E7EB'}}/>
+        <button onClick={(e) => { setOpenMenuId(null); openCancelModal(e, req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--warning)'}}><XSquare size={14} /> Cancel requirement</button>
+        <button onClick={(e) => { setOpenMenuId(null); openDeleteModal(e, req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)'}}><Trash2 size={14} /> Delete permanently</button>
+      </div>
+    </>,
+    document.body
+  );
+};
 
 export default function RequirementList() {
   const { userProfile } = useContext(AuthContext);
@@ -27,10 +53,15 @@ export default function RequirementList() {
   const [reqToCancel, setReqToCancel] = useState(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  
+  const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
+  const [reqToDispatch, setReqToDispatch] = useState(null);
+  const [isDispatching, setIsDispatching] = useState(false);
 
   const [toast, setToast] = useState(null);
   const triggerRef = useRef(null);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
 
   // URL Params State
   const [searchParams, setSearchParams] = useSearchParams();
@@ -289,6 +320,55 @@ export default function RequirementList() {
       setToast({ type: 'error', message: 'Could not cancel requirement. Please try again.' });
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  // --- Dispatch Flow ---
+  const openDispatchModal = (e, req) => {
+    e.preventDefault();
+    e.stopPropagation();
+    triggerRef.current = e.currentTarget;
+    setReqToDispatch(req);
+    setDispatchModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  const closeDispatchModal = () => {
+    setDispatchModalOpen(false);
+    setReqToDispatch(null);
+    if (triggerRef.current) triggerRef.current.focus();
+  };
+
+  const executeDispatch = async () => {
+    if (!reqToDispatch) return;
+    setIsDispatching(true);
+    try {
+      const { error } = await supabase.from('requirements').update({ status: 'Dispatched' }).eq('id', reqToDispatch.id);
+      if (error) throw error;
+      
+      if (userProfile?.id) {
+         await supabase.from('requirement_status_history').insert({
+            requirement_id: reqToDispatch.id,
+            old_status: reqToDispatch.status,
+            new_status: 'Dispatched',
+            note: 'Marked as dispatched from requirements list.',
+            changed_by: userProfile.id
+         });
+      }
+      
+      setToast({ type: 'success', message: 'Requirement marked as dispatched.' });
+      
+      if (!includeCompleted) {
+        setRequirements(prev => prev.filter(r => r.id !== reqToDispatch.id));
+      } else {
+        fetchRequirements();
+      }
+      closeDispatchModal();
+    } catch (err) {
+      console.error("Dispatch Error:", err);
+      setToast({ type: 'error', message: 'Could not mark as dispatched. Please try again.' });
+    } finally {
+      setIsDispatching(false);
     }
   };
 
@@ -653,29 +733,27 @@ export default function RequirementList() {
                                     <div style={{position: 'relative'}}>
                                       <button 
                                         type="button"
-                                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === req.id ? null : req.id); }}
+                                        onClick={(e) => { 
+                                          e.stopPropagation(); 
+                                          if (openMenuId === req.id) {
+                                            setOpenMenuId(null);
+                                          } else {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            setMenuPosition({ top: rect.bottom + window.scrollY, right: rect.right });
+                                            setOpenMenuId(req.id);
+                                          }
+                                        }}
                                         className="btn-icon"
                                         style={{padding: '6px', color: 'var(--text-muted)'}}
                                         aria-label="More actions"
                                       >
                                         <MoreVertical size={16} />
                                       </button>
-                                      {openMenuId === req.id && (
-                                        <>
-                                          <div style={{position: 'fixed', top:0, left:0, right:0, bottom:0, zIndex: 9}} onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); }} />
-                                          <div style={{
-                                            position: 'absolute', right: 0, top: '100%', background: '#fff', border: '1px solid #E5E7EB', 
-                                            borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 10, minWidth: '180px', padding: '4px 0', textAlign: 'left'
-                                          }}>
-                                            <button onClick={() => navigate(`/requirements/${req.id}`)} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ClipboardList size={14} /> View details</button>
-                                            <button onClick={() => navigate(`/requirements/${req.id}/edit`)} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><Edit size={14} /> Edit requirement</button>
-                                            <button onClick={() => navigate(`/requirements/${req.id}/edit`)} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><CheckCircle size={14} /> Change stage</button>
-                                            <hr style={{margin: '4px 0', border: 'none', borderTop: '1px solid #E5E7EB'}}/>
-                                            <button onClick={(e) => openCancelModal(e, req)} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--warning)'}}><XSquare size={14} /> Cancel requirement</button>
-                                            <button onClick={(e) => openDeleteModal(e, req)} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)'}}><Trash2 size={14} /> Delete permanently</button>
-                                          </div>
-                                        </>
-                                      )}
+                                      <ActionMenu 
+                                        req={req} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} 
+                                        navigate={navigate} openCancelModal={openCancelModal} openDeleteModal={openDeleteModal} 
+                                        openDispatchModal={openDispatchModal} menuPosition={menuPosition}
+                                      />
                                     </div>
                                   </div>
                                 </td>
@@ -721,21 +799,28 @@ export default function RequirementList() {
                       <Trash2 size={18} />
                     </button>
                     <div style={{position: 'relative'}}>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === req.id ? null : req.id); }} className="btn-icon" style={{padding: '4px', color: 'var(--text-muted)'}}>
+                      <button 
+                        type="button" 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          if (openMenuId === req.id) {
+                            setOpenMenuId(null);
+                          } else {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setMenuPosition({ top: rect.bottom + window.scrollY, right: rect.right });
+                            setOpenMenuId(req.id);
+                          }
+                        }} 
+                        className="btn-icon" 
+                        style={{padding: '4px', color: 'var(--text-muted)'}}
+                      >
                         <MoreVertical size={18} />
                       </button>
-                      {openMenuId === req.id && (
-                        <>
-                          <div style={{position: 'fixed', top:0, left:0, right:0, bottom:0, zIndex: 9}} onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); }} />
-                          <div style={{position: 'absolute', right: 0, top: '100%', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 10, minWidth: '160px', padding: '4px 0'}}>
-                            <button onClick={() => navigate(`/requirements/${req.id}`)} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ClipboardList size={14} /> View details</button>
-                            <button onClick={() => navigate(`/requirements/${req.id}/edit`)} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><Edit size={14} /> Edit</button>
-                            <hr style={{margin: '4px 0', border: 'none', borderTop: '1px solid #E5E7EB'}}/>
-                            <button onClick={(e) => openCancelModal(e, req)} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--warning)'}}><XSquare size={14} /> Cancel</button>
-                            <button onClick={(e) => openDeleteModal(e, req)} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--danger)'}}><Trash2 size={14} /> Delete</button>
-                          </div>
-                        </>
-                      )}
+                      <ActionMenu 
+                        req={req} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} 
+                        navigate={navigate} openCancelModal={openCancelModal} openDeleteModal={openDeleteModal} 
+                        openDispatchModal={openDispatchModal} menuPosition={menuPosition}
+                      />
                     </div>
                   </div>
                 </div>
@@ -848,6 +933,28 @@ export default function RequirementList() {
               <button type="button" className="btn btn-secondary" onClick={closeDeleteModal} disabled={isDeleting}>Cancel</button>
               <button type="button" className="btn btn-primary" style={{ background: 'var(--danger)', borderColor: 'var(--danger)' }} onClick={executeDelete} disabled={isDeleting}>
                 {isDeleting ? 'Deleting...' : 'Delete requirement'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Dispatch Modal */}
+      {dispatchModalOpen && reqToDispatch && (
+        <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={closeDispatchModal}>
+          <div style={{ background: 'var(--bg-card)', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') closeDispatchModal(); }} tabIndex={-1} ref={el => el && el.focus()}>
+            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--success)', fontSize: '1.25rem' }}>Mark this order as dispatched?</h3>
+            <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              <div><strong>Customer:</strong> {reqToDispatch.customer_name}</div>
+              <div><strong>Product:</strong> {reqToDispatch.product_type}</div>
+              <div><strong>Quantity:</strong> {reqToDispatch.required_quantity} {reqToDispatch.unit}</div>
+            </div>
+            <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
+              You can add logistics details later.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={closeDispatchModal} disabled={isDispatching}>Cancel</button>
+              <button type="button" className="btn btn-primary" style={{ background: 'var(--success)', borderColor: 'var(--success)', color: '#fff' }} onClick={executeDispatch} disabled={isDispatching}>
+                {isDispatching ? 'Marking...' : 'Mark as Dispatched'}
               </button>
             </div>
           </div>
