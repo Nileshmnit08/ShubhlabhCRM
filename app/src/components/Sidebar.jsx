@@ -450,8 +450,8 @@ export default function Sidebar({
             <>
               <span className="nav-section-title">{section.title.toUpperCase()}</span>
               {isExpanded
-                ? <ChevronDown size={14} aria-hidden="true" />
-                : <ChevronRight size={14} aria-hidden="true" />
+                ? <ChevronDown size={14} aria-hidden="true" className="nav-section-chevron" />
+                : <ChevronRight size={14} aria-hidden="true" className="nav-section-chevron" />
               }
             </>
           )}
