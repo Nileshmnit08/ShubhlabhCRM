@@ -51,6 +51,9 @@ export default function FieldMobilityDashboard() {
       const endStr = dateRange.end.toISOString().split('T')[0];
 
       // Fetch Session Reconciliation
+      // NOTE: vw_field_session_reconciliation now contains:
+      //   linked_visit_count  = COUNT(crm_visits) directly (FIX A)
+      //   expense_total       = daily_travel_expenses.calculated_amount (FIX B)
       const { data: sessionData, error: sessionErr } = await supabase
         .from('vw_field_session_reconciliation')
         .select('*')
@@ -59,7 +62,8 @@ export default function FieldMobilityDashboard() {
       if (sessionErr) throw sessionErr;
       setSessions(sessionData || []);
 
-      // Fetch Expense Reconciliation
+      // field_expenses = ad-hoc receipt submissions from FA mobile (separate from KM reimbursement)
+      // Still fetched for the "Requires Review" panel (evidence audit)
       const { data: expenseData, error: expenseErr } = await supabase
         .from('vw_field_expense_reconciliation')
         .select('*')
@@ -79,9 +83,19 @@ export default function FieldMobilityDashboard() {
   const uniqueDays = new Set(sessions.map(s => s.business_date)).size;
   const totalSessions = sessions.length;
   const verifiedKm = sessions.reduce((acc, s) => acc + (s.verified_distance_meters / 1000 || 0), 0).toFixed(1);
-  const totalVisits = sessions.reduce((acc, s) => acc + (s.linked_visit_count || 0), 0);
+  // FIX A: linked_visit_count now comes directly from crm_visits (fixed in DB view)
+  const totalVisits = sessions.reduce((acc, s) => acc + (Number(s.linked_visit_count) || 0), 0);
   const totalExpenseCount = expenses.length;
-  const totalExpenseAmount = expenses.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // FIX B: expense_total now comes from daily_travel_expenses KM reimbursement (fixed in DB view)
+  // Sum per session across the period; deduplicate by staff+date to avoid double-counting
+  // when a staff has multiple sessions on the same day.
+  const seenExpenseDays = new Set();
+  const totalExpenseAmount = sessions.reduce((acc, s) => {
+    const key = `${s.staff_id}_${s.business_date}`;
+    if (seenExpenseDays.has(key)) return acc;
+    seenExpenseDays.add(key);
+    return acc + (parseFloat(s.expense_total) || 0);
+  }, 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const completeEvidenceCount = sessions.filter(s => s.mobility_evidence_status === 'SUPPORTED').length;
   const partialEvidenceCount = sessions.filter(s => s.mobility_evidence_status === 'PARTIAL').length;
 
@@ -91,33 +105,43 @@ export default function FieldMobilityDashboard() {
   const staffSummary = {};
   sessions.forEach(s => {
     if (!staffSummary[s.staff_id]) {
-      staffSummary[s.staff_id] = { 
+      staffSummary[s.staff_id] = {
         id: s.staff_id,
-        name: staffUsers[s.staff_id] || 'Unknown', 
-        sessions: 0, days: new Set(), km: 0, visits: 0, 
-        expenses: 0, expenseTotal: 0, complete: 0, partial: 0 
+        name: staffUsers[s.staff_id] || 'Unknown',
+        sessions: 0, days: new Set(), km: 0, visits: 0,
+        expenses: 0, expenseTotal: 0, complete: 0, partial: 0
       };
     }
     const sum = staffSummary[s.staff_id];
     sum.sessions++;
     sum.days.add(s.business_date);
     sum.km += (s.verified_distance_meters / 1000 || 0);
-    sum.visits += (s.linked_visit_count || 0);
+    // FIX A: linked_visit_count is now the direct crm_visits count
+    sum.visits += (Number(s.linked_visit_count) || 0);
     if (s.mobility_evidence_status === 'SUPPORTED') sum.complete++;
     if (s.mobility_evidence_status === 'PARTIAL') sum.partial++;
+    // FIX B: expense_total is now the daily KM reimbursement amount
+    // Only add once per business_date (multiple sessions same day share one daily expense record)
+    const expKey = s.business_date;
+    if (!sum._seenExpDays) sum._seenExpDays = new Set();
+    if (!sum._seenExpDays.has(expKey)) {
+      sum._seenExpDays.add(expKey);
+      sum.expenseTotal += (parseFloat(s.expense_total) || 0);
+      if (parseFloat(s.expense_total) > 0) sum.expenses++;
+    }
   });
-  
+
+  // Field expenses (ad-hoc receipts) — only used for evidence audit panel below
   expenses.forEach(e => {
     if (!staffSummary[e.staff_id]) {
-      staffSummary[e.staff_id] = { 
+      staffSummary[e.staff_id] = {
         id: e.staff_id,
-        name: staffUsers[e.staff_id] || 'Unknown', 
-        sessions: 0, days: new Set(), km: 0, visits: 0, 
-        expenses: 0, expenseTotal: 0, complete: 0, partial: 0 
+        name: staffUsers[e.staff_id] || 'Unknown',
+        sessions: 0, days: new Set(), km: 0, visits: 0,
+        expenses: 0, expenseTotal: 0, complete: 0, partial: 0
       };
     }
-    staffSummary[e.staff_id].expenses++;
-    staffSummary[e.staff_id].expenseTotal += parseFloat(e.amount || 0);
+    // Do NOT add to expenseTotal here — that is sourced from daily_travel_expenses via the view
   });
 
   const staffArray = Object.values(staffSummary);

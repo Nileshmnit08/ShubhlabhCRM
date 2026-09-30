@@ -70,9 +70,20 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       const sum = {
         sessions: recSessions?.length || 0,
         km: recSessions?.reduce((acc, s) => acc + (s.verified_distance_meters / 1000 || 0), 0).toFixed(1) || 0,
-        visits: recSessions?.reduce((acc, s) => acc + (s.linked_visit_count || 0), 0) || 0,
+        // FIX A: linked_visit_count is now a direct crm_visits count (fixed in DB view)
+        visits: recSessions?.reduce((acc, s) => acc + (Number(s.linked_visit_count) || 0), 0) || 0,
         expenses: recExpenses?.length || 0,
-        expenseTotal: recExpenses?.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0) || 0
+        // FIX B: expense_total from session reconciliation view is the daily KM reimbursement
+        // Deduplicate by business_date to avoid double-counting across multiple sessions per day
+        expenseTotal: (() => {
+          const seen = new Set();
+          return (recSessions || []).reduce((acc, s) => {
+            const key = s.business_date;
+            if (seen.has(key)) return acc;
+            seen.add(key);
+            return acc + (parseFloat(s.expense_total) || 0);
+          }, 0);
+        })()
       };
       setSummary(sum);
 
