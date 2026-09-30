@@ -302,7 +302,7 @@ const DailyPriceEntry = () => {
       </div>
 
       {/* Main Table */}
-      <div className="bg-surface-container-lowest rounded-xl shadow-md overflow-hidden min-h-[400px]">
+      <div className="bg-surface-container-lowest rounded-xl shadow-md  min-h-[400px]">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>

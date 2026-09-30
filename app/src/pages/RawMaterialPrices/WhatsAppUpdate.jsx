@@ -563,7 +563,7 @@ const WhatsAppUpdate = () => {
             
             {/* Phone Mockup Container */}
             <div className="flex-grow flex flex-col">
-              <div className="bg-[#e4ddd6] rounded-xl overflow-hidden border border-[#d1c9c0] shadow-inner flex flex-col flex-grow relative" style={{backgroundImage: "url('https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png')", backgroundSize: '400px'}}>
+              <div className="bg-[#e4ddd6] rounded-xl  border border-[#d1c9c0] shadow-inner flex flex-col flex-grow relative" style={{backgroundImage: "url('https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png')", backgroundSize: '400px'}}>
                 {/* Mock Header */}
                 <div className="bg-[#075e54] text-white px-3 py-2 flex items-center gap-2 shadow-md z-10">
                   <span className="material-symbols-outlined text-[18px]">arrow_back</span>

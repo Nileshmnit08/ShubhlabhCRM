@@ -211,10 +211,6 @@ const AttentionCenter = () => {
 
   return (
     <div className="animate-fade-in pb-12">
-      <div className="page-header mb-6">
-        <h1 className="text-2xl font-bold text-primary">Price Collection Attention Center</h1>
-        <p className="text-sm text-secondary mt-1">Actionable workflow for pending prices and unreviewed broker responses.</p>
-      </div>
 
       <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 custom-scrollbar">
         <button 
@@ -267,7 +263,7 @@ const AttentionCenter = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredIssues.map(issue => (
-            <div key={issue.id} className="card p-5 border border-base hover:border-blue-200 hover:shadow-md transition-all group flex flex-col h-full bg-white relative overflow-hidden">
+            <div key={issue.id} className="card p-5 border border-base hover:border-blue-200 hover:shadow-md transition-all group flex flex-col h-full bg-white relative ">
               <div className="flex items-start gap-3 mb-3">
                 <div className="p-2.5 rounded-lg bg-slate-50 border border-base group-hover:bg-white transition-colors">
                   {issue.icon}

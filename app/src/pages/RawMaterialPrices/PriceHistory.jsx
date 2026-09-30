@@ -337,7 +337,7 @@ const PriceHistory = () => {
       </div>
 
       {/* Main Table */}
-      <div className="bg-surface-container-lowest rounded-lg shadow-sm overflow-hidden flex flex-col mb-space-md">
+      <div className="bg-surface-container-lowest rounded-lg shadow-sm  flex flex-col mb-space-md">
         <div className="overflow-x-auto min-h-[400px]">
           <table className="w-full border-collapse text-left">
             <thead>

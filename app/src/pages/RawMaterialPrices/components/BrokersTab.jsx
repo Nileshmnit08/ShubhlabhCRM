@@ -290,7 +290,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
   ];
 
   return (
-    <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col mb-8">
+    <div className="card bg-white border border-base rounded-xl shadow-sm  flex flex-col mb-8">
       <MasterDataSectionHeader 
         title="Broker Master" 
         description="Manage brokers, their contact information, and materials they handle." 
@@ -423,7 +423,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
       {/* Confirmation Modal */}
       {isConfirmOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in p-6 text-center">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm  animate-fade-in p-6 text-center">
             <div className="w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
               <AlertTriangle size={28} />
             </div>
@@ -442,7 +442,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
       {/* WhatsApp Material Selection Modal */}
       {isWaModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in p-6 text-center">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm  animate-fade-in p-6 text-center">
             <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
               <MessageCircle size={28} />
             </div>

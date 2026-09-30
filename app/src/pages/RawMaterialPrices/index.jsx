@@ -13,14 +13,11 @@ import Configuration from './Configuration';
 import AttentionCenter from './AttentionCenter';
 
 const RawMaterialPrices = () => {
-  const location = useLocation();
-  const isStitchRoute = ['/raw-material-prices', '/raw-material-prices/', '/raw-material-prices/daily-entry', '/raw-material-prices/history', '/raw-material-prices/analysis', '/raw-material-prices/whatsapp'].includes(location.pathname);
-
   return (
-    <div className={`page-container animate-fade-in mx-auto ${isStitchRoute ? 'w-full' : 'max-w-7xl'}`}>
-      {!isStitchRoute && <RawMaterialPriceHeader />}
+    <div className="page-container animate-fade-in mx-auto w-full max-w-[1280px] px-4 md:px-6 lg:px-8 pb-12">
+      <RawMaterialPriceHeader />
 
-      <div className={isStitchRoute ? "" : "tab-content"}>
+      <div className="mt-space-md">
         <Routes>
           <Route index element={<Dashboard />} />
           <Route path="daily-entry" element={<DailyPriceEntry />} />

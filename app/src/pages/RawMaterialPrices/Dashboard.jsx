@@ -148,7 +148,7 @@ const Dashboard = () => {
         {/* Executive KPI Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md">
           {/* Metric 1 */}
-          <div className="bg-surface-container-lowest p-space-md rounded-lg shadow-sm flex flex-col justify-between relative overflow-hidden">
+          <div className="bg-surface-container-lowest p-space-md rounded-lg shadow-sm flex flex-col justify-between relative ">
             <div className="flex items-start justify-between">
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-semibold">Active Commodities</span>
@@ -213,7 +213,7 @@ const Dashboard = () => {
           </div>
 
           {/* Metric 4 */}
-          <div className="bg-surface-container-lowest p-space-md rounded-lg shadow-sm flex flex-col justify-between relative overflow-hidden">
+          <div className="bg-surface-container-lowest p-space-md rounded-lg shadow-sm flex flex-col justify-between relative ">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-tertiary"></div>
             <div className="flex items-start justify-between pl-1">
               <div className="flex flex-col">
@@ -237,7 +237,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-space-md items-start">
           
           {/* Primary Market Rates Data Table (xl:col-span-9) */}
-          <div className="xl:col-span-9 bg-surface-container-lowest rounded-lg shadow-sm overflow-hidden">
+          <div className="xl:col-span-9 bg-surface-container-lowest rounded-lg shadow-sm ">
             
             {/* Table Toolbar */}
             <div className="p-space-md bg-surface-container-lowest flex flex-col gap-4 border-b border-outline-variant">
@@ -391,7 +391,7 @@ const Dashboard = () => {
                 <span className="font-label-sm text-label-sm text-primary uppercase font-semibold bg-surface-container px-1.5 py-0.5 rounded">Active Session</span>
               </div>
               
-              <div className="relative w-full h-32 rounded overflow-hidden bg-surface-container-low flex items-center justify-center">
+              <div className="relative w-full h-32 rounded  bg-surface-container-low flex items-center justify-center">
                  <span className="material-symbols-outlined text-primary opacity-20 text-6xl">storefront</span>
                  <div className="absolute inset-0 bg-gradient-to-t from-inverse-surface/80 to-transparent flex flex-col justify-end p-space-sm">
                   <span className="font-label-sm text-label-sm text-inverse-on-surface uppercase font-semibold tracking-wider">Indore Hub</span>

@@ -462,7 +462,7 @@ const PriceAnalysis = () => {
                   <span className="font-headline-sm text-headline-sm text-on-surface font-bold">₹{analysisData.periodMax.toFixed(2)}</span>
                 </div>
               </div>
-              <div className="w-full bg-surface-container rounded-full h-1.5 overflow-hidden">
+              <div className="w-full bg-surface-container rounded-full h-1.5 ">
                 <div className="bg-primary h-full rounded-full" style={{width: `${analysisData.spreadPerc > 100 ? 100 : analysisData.spreadPerc}%`}}></div>
               </div>
             </div>
@@ -534,7 +534,7 @@ const PriceAnalysis = () => {
               </div>
             </div>
 
-            <div className="relative w-full h-80 bg-surface-container-lowest overflow-hidden select-none">
+            <div className="relative w-full h-80 bg-surface-container-lowest  select-none">
               {loadingTrend ? (
                 <div className="flex justify-center items-center h-full text-secondary">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mr-3"></div>
@@ -596,7 +596,7 @@ const PriceAnalysis = () => {
           
           {/* Cross Commodity Matrix */}
           {matrixData.length > 0 && (
-          <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-surface-container-lowest rounded-xl shadow-sm ">
             <div className="p-space-md flex flex-wrap items-center justify-between gap-space-sm bg-surface-container-low">
               <div>
                 <h3 className="font-headline-sm text-headline-sm text-on-surface font-bold">Cross-Commodity Pricing Matrix</h3>
