@@ -341,8 +341,9 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
           <div style={{fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)'}}>{summary.sessions}</div>
         </div>
         <div>
-          <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600}}>Verified KM</div>
+          <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600}}>Total Verified KM</div>
           <div style={{fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)'}}>{summary.km}</div>
+          <div style={{fontSize: '0.65rem', color: 'var(--text-muted)'}}>Based on recorded GPS journey</div>
         </div>
         <div>
           <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600}}>Visits</div>
