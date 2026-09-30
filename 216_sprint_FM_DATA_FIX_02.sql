@@ -16,7 +16,11 @@
 --      field_expenses table is empty → total showed ₹0.
 -- ============================================================================
 
-CREATE OR REPLACE VIEW public.vw_field_session_reconciliation AS
+-- Drop and recreate — CREATE OR REPLACE VIEW cannot change existing column names/positions.
+-- CASCADE drops any dependent objects (no dependent views exist on this view).
+DROP VIEW IF EXISTS public.vw_field_session_reconciliation CASCADE;
+
+CREATE VIEW public.vw_field_session_reconciliation AS
 SELECT
     s.id                            AS session_id,
     s.staff_id,
