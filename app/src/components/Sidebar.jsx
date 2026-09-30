@@ -549,23 +549,35 @@ export default function Sidebar({
               {crmSettings?.app_logo_url ? (
                 <img
                   src={crmSettings.app_logo_url}
-                  alt="Logo"
+                  alt={crmSettings?.crm_name || 'Shubh Labh CRM'}
                   className="sidebar-logo"
                 />
               ) : (
-                <div className="sidebar-logo-placeholder" aria-hidden="true" />
+                <div className="sidebar-logo-placeholder" aria-hidden="true">
+                  {/* Inline SL brand mark — lightning bolt in SL green */}
+                  <svg width="18" height="18" viewBox="0 0 48 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#ffffff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/>
+                  </svg>
+                </div>
               )}
-              <span className="sidebar-brand-name">
-                {crmSettings?.crm_name || 'Feed CRM'}
-              </span>
+              <div className="sidebar-brand-text">
+                <span className="sidebar-brand-name">
+                  {crmSettings?.crm_name || 'Shubh Labh CRM'}
+                </span>
+                <span className="sidebar-brand-subtitle">Business Management</span>
+              </div>
             </div>
           )}
           {collapsed && (
             <div className="sidebar-brand sidebar-brand-collapsed">
               {crmSettings?.app_logo_url ? (
-                <img src={crmSettings.app_logo_url} alt="Logo" className="sidebar-logo" />
+                <img src={crmSettings.app_logo_url} alt={crmSettings?.crm_name || 'Shubh Labh CRM'} className="sidebar-logo" />
               ) : (
-                <div className="sidebar-logo-placeholder" aria-hidden="true" />
+                <div className="sidebar-logo-placeholder" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 48 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#ffffff" d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"/>
+                  </svg>
+                </div>
               )}
             </div>
           )}
