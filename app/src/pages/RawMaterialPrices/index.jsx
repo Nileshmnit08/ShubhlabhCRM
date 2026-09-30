@@ -1,4 +1,5 @@
 import React from 'react';
+import './raw-material-stitch.css';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import RawMaterialPriceHeader from './components/RawMaterialPriceHeader';
