@@ -165,30 +165,35 @@ export default function TravelExpenses() {
     setExpandedDay(dayRecord.business_date);
     setLoadingDay(true);
     try {
-      const { data: sessionData, error: sessionErr } = await supabase
+      // Fetch ALL sessions for this staff/date (supports multiple sessions per day)
+      const { data: sessionRows, error: sessionErr } = await supabase
         .from('staff_tracking_sessions')
         .select('*')
         .eq('business_date', dayRecord.business_date)
         .eq('staff_id', dayRecord.staff_id)
-        .single();
-      
+        .order('started_at', { ascending: true });
+
+      const sessions = (sessionErr ? [] : sessionRows) || [];
+      const sessionIds = sessions.map(s => s.id);
+
       let segments = [];
       let visits = [];
-      
-      if (sessionData && !sessionErr) {
+
+      if (sessionIds.length > 0) {
+        // Use unified segment view — covers both FM and FA engine segments
         const { data: segData } = await supabase
-          .from('staff_travel_segments')
+          .from('vw_unified_travel_segments')
           .select('*')
-          .eq('tracking_session_id', sessionData.id)
+          .in('tracking_session_id', sessionIds)
           .order('from_timestamp', { ascending: true });
-        
+
         if (segData) segments = segData;
-        
+
         const visitIds = [...new Set([
           ...segments.filter(s => s.to_type === 'VISIT' && s.to_reference_id).map(s => s.to_reference_id),
           ...segments.filter(s => s.from_type === 'VISIT' && s.from_reference_id).map(s => s.from_reference_id)
         ])];
-        
+
         if (visitIds.length > 0) {
           const { data: visitData } = await supabase
             .from('crm_visits')
@@ -197,9 +202,9 @@ export default function TravelExpenses() {
           if (visitData) visits = visitData;
         }
       }
-      
+
       setDayDetails({
-        session: sessionData || null,
+        sessions,
         segments,
         visits
       });
@@ -536,10 +541,11 @@ export default function TravelExpenses() {
           {/* SUMMARY CARDS */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
             <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>TOTAL GPS DISTANCE</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>TOTAL VERIFIED KM</div>
               <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>
                 {selectedStaff === 'ALL' ? summaryTotalKm.toFixed(2) : staffSummary?.total_km.toFixed(2)} KM
               </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>Field Activity GPS Journey</div>
             </div>
             <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: '600', marginBottom: '0.5rem' }}>TOTAL EXPENSE</div>
@@ -619,7 +625,14 @@ export default function TravelExpenses() {
                               {isExpanded ? <ChevronRight style={{ transform: 'rotate(90deg)' }} size={16} /> : <ChevronRight size={16} />}
                               {format(parseISO(exp.business_date), 'EEE, MMM d, yyyy')}
                             </td>
-                            <td style={{ padding: '1rem', fontWeight: 'bold' }}>{exp.total_distance_km != null ? `${Number(exp.total_distance_km).toFixed(2)} KM` : '-'}</td>
+                            <td style={{ padding: '1rem', fontWeight: 'bold' }}>
+                              {exp.total_distance_km != null
+                                ? `${Number(exp.total_distance_km).toFixed(2)} KM`
+                                : exp.status === 'PENDING'
+                                ? <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Calculation pending</span>
+                                : <span style={{ color: '#ed6c02', fontSize: '0.8rem' }}>KM unavailable — insufficient GPS data</span>
+                              }
+                            </td>
                             <td style={{ padding: '1rem' }}>{exp.applicable_rate_per_km != null ? `₹${Number(exp.applicable_rate_per_km).toFixed(2)}/KM` : '-'}</td>
                             <td style={{ padding: '1rem', fontWeight: 'bold', fontSize: '1.1rem' }}>{exp.calculated_amount != null ? `₹${Number(exp.calculated_amount).toFixed(2)}` : '-'}</td>
                             <td style={{ padding: '1rem', color: statusColor, fontWeight: 'bold', fontSize: '0.75rem' }}>{exp.status}</td>
@@ -675,28 +688,38 @@ export default function TravelExpenses() {
                                   </h4>
                                   {loadingDay ? (
                                     <div style={{ color: 'var(--text-secondary)' }}>Loading session details...</div>
-                                  ) : !dayDetails?.session ? (
+                                  ) : !dayDetails?.sessions?.length ? (
                                     <div style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>No tracking session data found for this business date.</div>
                                   ) : (
                                     <div>
-                                      {/* SESSION SUMMARY */}
-                                      <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-                                        <div>
-                                          <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>START</span>
-                                          <strong>{format(parseISO(dayDetails.session.started_at), 'HH:mm:ss')}</strong>
-                                        </div>
-                                        <div>
-                                          <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>END</span>
-                                          <strong>{dayDetails.session.ended_at ? format(parseISO(dayDetails.session.ended_at), 'HH:mm:ss') : 'Active/Open'}</strong>
-                                        </div>
-                                        <div>
-                                          <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>VALIDATED GPS KM</span>
-                                          <strong>{dayDetails.session.total_distance_km != null ? `${Number(dayDetails.session.total_distance_km).toFixed(2)} KM` : '-'}</strong>
-                                        </div>
-                                        <div>
-                                          <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>SEGMENT COUNT</span>
-                                          <strong>{dayDetails.segments.length} segments</strong>
-                                        </div>
+                                      {/* SESSION SUMMARY — supports multiple sessions per day */}
+                                      {dayDetails.sessions.map((sess, idx) => {
+                                        const sessKm = sess.total_distance_km != null
+                                          ? `${Number(sess.total_distance_km).toFixed(2)} KM`
+                                          : 'KM unavailable — insufficient GPS data';
+                                        return (
+                                          <div key={sess.id} style={{ marginBottom: '1rem', padding: '0.75rem', background: 'var(--bg-base)', borderRadius: '0.4rem', border: '1px solid var(--border)' }}>
+                                            <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>SESSION {idx + 1} {sess.status === 'OPEN' ? '(Active)' : ''}</div>
+                                            <div style={{ display: 'flex', gap: '2rem', fontSize: '0.9rem' }}>
+                                              <div>
+                                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>START</span>
+                                                <strong>{format(parseISO(sess.started_at), 'HH:mm:ss')}</strong>
+                                              </div>
+                                              <div>
+                                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>END</span>
+                                                <strong>{sess.ended_at ? format(parseISO(sess.ended_at), 'HH:mm:ss') : 'Active/Open'}</strong>
+                                              </div>
+                                              <div>
+                                                <span style={{ color: 'var(--text-secondary)', display: 'block', fontSize: '0.75rem' }}>VERIFIED KM</span>
+                                                <strong style={{ color: sess.total_distance_km != null ? 'var(--text-primary)' : '#ed6c02' }}>{sessKm}</strong>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                        <span>Total Segments: <strong style={{ color: 'var(--text-primary)' }}>{dayDetails.segments.length}</strong></span>
+                                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Source: FM Unified GPS Journey</span>
                                       </div>
 
                                       {/* SEGMENTS TABLE */}
