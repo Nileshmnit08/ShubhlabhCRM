@@ -116,9 +116,9 @@ export function MyOrdersScreen({ navigation }) {
 
   const getSyncState = (orderId) => {
     const pendingOp = pendingOperations.find(op => op.table === 'requirements' && (op.payload?.id === orderId || op.local_id === orderId));
-    if (!pendingOp) return { status: 'synced', text: '✓ Synced', color: '#1b5e20', bgColor: '#d3ebd3' };
-    if (pendingOp.status === 'FAILED') return { status: 'failed', text: '⚠ Sync Failed', color: '#93000a', bgColor: '#ffdad6' };
-    return { status: 'pending', text: '⏳ Pending Sync', color: '#904d00', bgColor: '#ffead1' };
+    if (!pendingOp) return { status: 'synced', text: '✓ Synced', color: colors.primary, bgColor: colors.surfaceContainerHigh };
+    if (pendingOp.status === 'FAILED') return { status: 'failed', text: '⚠ Sync Failed', color: colors.error, bgColor: colors.errorContainer };
+    return { status: 'pending', text: '⏳ Pending Sync', color: colors.accent, bgColor: colors.surfaceContainerLow };
   };
 
   const filteredOrders = mergedOrders.filter(order => {
@@ -216,7 +216,7 @@ export function MyOrdersScreen({ navigation }) {
                     <Text style={styles.metaDivider}>•</Text>
                     <Text style={styles.metaText}>{items.length} Product{items.length !== 1 ? 's' : ''}</Text>
                     <Text style={styles.metaDivider}>•</Text>
-                    <View style={[styles.statusBadge, {backgroundColor: order.status === 'New' ? '#dce9ff' : '#f0f0f0'}]}>
+                    <View style={[styles.statusBadge, {backgroundColor: order.status === 'New' ? colors.surfaceContainerHigh : colors.surfaceContainer}]}>
                       <Text style={[styles.statusText, {color: order.status === 'New' ? colors.primary : colors.onSurfaceVariant}]}>{order.status}</Text>
                     </View>
                   </View>
@@ -252,7 +252,7 @@ export function MyOrdersScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  header: { height: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: '#ffffff', elevation: 2 },
+  header: { height: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: colors.surface, elevation: 2 },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...typography.titleLg, color: colors.onSurface, fontWeight: 'bold', marginLeft: 8 },
   searchHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
@@ -262,12 +262,12 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 100 },
   filtersScroll: { marginBottom: 16, flexGrow: 0 },
   filterActive: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
-  filterInactive: { backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: colors.outlineVariant },
+  filterInactive: { backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: colors.outlineVariant },
   filterTextActive: { ...typography.labelMd, color: colors.onPrimary },
   filterTextInactive: { ...typography.labelMd, color: colors.onSurface },
   listContainer: { marginTop: 8 },
   
-  orderCard: { flexDirection: 'column', backgroundColor: '#ffffff', padding: 16, borderRadius: 12, marginBottom: 12, elevation: 1 },
+  orderCard: { flexDirection: 'column', backgroundColor: colors.surface, padding: 16, borderRadius: 12, marginBottom: 12, elevation: 1 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
   customerName: { ...typography.titleMd, fontWeight: 'bold', color: colors.onSurface, flex: 1, marginRight: 8 },
   orderRef: { ...typography.bodySm, color: colors.onSurfaceVariant, marginBottom: 12, fontWeight: 'bold' },
@@ -280,6 +280,6 @@ const styles = StyleSheet.create({
   statusText: { ...typography.labelMd, fontWeight: 'bold' },
   
   activityMetaRow: { flexDirection: 'row', gap: 8, marginTop: 6, flexWrap: 'wrap' },
-  metaChip: { backgroundColor: '#f5f5f5', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#eeeeee' },
+  metaChip: { backgroundColor: colors.surfaceContainerLow, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: colors.outlineVariant },
   metaChipText: { ...typography.labelMd, color: colors.onSurfaceVariant },
 });

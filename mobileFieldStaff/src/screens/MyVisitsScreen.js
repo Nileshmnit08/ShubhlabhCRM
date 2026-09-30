@@ -122,8 +122,8 @@ export function MyVisitsScreen({ navigation }) {
                   <Text style={styles.listItemTitle}>{visit.crm_parties?.display_name || 'Unknown Customer'}</Text>
                   <Text style={styles.listItemSub}>{visit.crm_parties?.city || 'Location unavailable'} • {formatDate(visit.created_at)}</Text>
                 </View>
-                <View style={[styles.statusBadge, {backgroundColor: visit.status === 'Completed' ? '#d3ebd3' : '#e0e0e0'}]}>
-                  <Text style={[styles.statusText, {color: visit.status === 'Completed' ? '#1b5e20' : '#424242'}]}>{visit.status || 'Unknown'}</Text>
+                <View style={[styles.statusBadge, {backgroundColor: visit.status === 'Completed' ? colors.surfaceContainerHigh : colors.surfaceContainer}]}>
+                  <Text style={[styles.statusText, {color: visit.status === 'Completed' ? colors.primary : colors.onSurfaceVariant}]}>{visit.status || 'Unknown'}</Text>
                 </View>
               </TouchableOpacity>
             ))
@@ -142,18 +142,18 @@ export function MyVisitsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  header: { height: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: '#ffffff', elevation: 2 },
+  header: { height: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: colors.surface, elevation: 2 },
   backBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...typography.titleLg, color: colors.onSurface, fontWeight: 'bold', marginLeft: 8 },
   container: { padding: 16, paddingBottom: 100 },
   filtersScroll: { marginBottom: 16, flexGrow: 0 },
   filterActive: { backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8 },
-  filterInactive: { backgroundColor: '#ffffff', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: colors.outlineVariant },
+  filterInactive: { backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: colors.outlineVariant },
   filterTextActive: { ...typography.labelMd, color: colors.onPrimary },
   filterTextInactive: { ...typography.labelMd, color: colors.onSurface },
   listContainer: { marginTop: 8 },
   
-  listItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 16, borderRadius: 12, marginBottom: 12 },
+  listItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, padding: 16, borderRadius: 12, marginBottom: 12 },
   listItemLeft: { flex: 1, paddingRight: 12 },
   listItemTitle: { ...typography.titleMd, color: colors.onSurface, fontWeight: 'bold', marginBottom: 4 },
   listItemSub: { ...typography.bodyMd, color: colors.onSurfaceVariant },

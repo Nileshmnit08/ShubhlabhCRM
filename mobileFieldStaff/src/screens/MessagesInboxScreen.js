@@ -9,12 +9,14 @@ import {
   TextInput,
   Alert
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 import { colors, typography } from '../theme/tokens';
 import { MaterialIcons } from '@expo/vector-icons';
 import { chatService } from '../services/ChatService';
 import { useIsFocused } from '@react-navigation/native';
 import { BottomSheetFoundation } from '../components/BottomSheet';
+import { AppHeader } from '../components';
 
 const getRelativeTime = (dateString) => {
   if (!dateString) return '';
@@ -198,7 +200,8 @@ export const MessagesInboxScreen = ({ navigation }) => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+      <AppHeader variant="A" title="Messages / संदेश" subtitle="Internal Field Network • आंतरिक स्टाफ संवाद" />
       <FlatList
         data={filteredConversations}
         keyExtractor={(item) => item.id}
@@ -208,24 +211,6 @@ export const MessagesInboxScreen = ({ navigation }) => {
         onRefresh={fetchConversations}
         ListHeaderComponent={
           <>
-            <View style={styles.headerStrip}>
-              <View>
-                <View style={styles.headerTitleRow}>
-                  <Text style={styles.headerTitle}>Messages</Text>
-                  <Text style={styles.headerTitleHindi}> / संदेश</Text>
-                </View>
-                <Text style={styles.headerSubtitle}>Internal Field Network • आंतरिक स्टाफ संवाद</Text>
-              </View>
-              <View style={styles.totalUnreadBadge}>
-                {filteredConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0) > 0 && (
-                  <View style={styles.pulseDot} />
-                )}
-                <Text style={styles.totalUnreadText}>
-                  {filteredConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0)} Unread
-                </Text>
-              </View>
-            </View>
-
             <View style={styles.searchContainer}>
               <View style={styles.searchBar}>
                 <MaterialIcons name="search" size={22} color={colors.primary} />
@@ -326,7 +311,7 @@ export const MessagesInboxScreen = ({ navigation }) => {
           </View>
         )}
       </BottomSheetFoundation>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -371,7 +356,7 @@ const styles = StyleSheet.create({
   totalUnreadBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primaryFixed || '#a9f3c5',
+    backgroundColor: colors.primaryContainer,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 999,
@@ -386,7 +371,7 @@ const styles = StyleSheet.create({
   totalUnreadText: {
     ...typography.labelSm,
     fontWeight: 'bold',
-    color: colors.onPrimaryFixed || '#002111',
+    color: colors.onPrimaryContainer,
   },
   searchContainer: {
     marginBottom: 14,
@@ -483,7 +468,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarPrimary: {
-    backgroundColor: colors.primaryFixed || '#a9f3c5',
+    backgroundColor: colors.primaryContainer,
   },
   avatarSecondary: {
     backgroundColor: colors.surfaceContainerHigh,
@@ -493,7 +478,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   avatarTextPrimary: {
-    color: colors.onPrimaryFixed || '#002111',
+    color: colors.onPrimaryContainer,
   },
   avatarTextSecondary: {
     color: colors.primary,
@@ -536,7 +521,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   timeTextUnread: {
-    color: colors.secondary || '#904d00',
+    color: colors.accent,
     fontWeight: 'bold',
   },
   roleRow: {
@@ -567,7 +552,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   unreadBadge: {
-    backgroundColor: colors.secondaryContainer || '#fe932c',
+    backgroundColor: colors.accent,
     minWidth: 20,
     height: 20,
     borderRadius: 10,
@@ -577,7 +562,7 @@ const styles = StyleSheet.create({
   },
   unreadBadgeText: {
     ...typography.labelSm,
-    color: colors.onSecondaryContainer || '#663500',
+    color: colors.onAccent,
     fontWeight: 'bold',
   },
   emptyContainer: {

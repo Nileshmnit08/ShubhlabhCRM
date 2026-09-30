@@ -92,8 +92,12 @@ class ChatService {
           if (type === 'TEAM_GROUP') {
              finalOtherUser = { id: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
           } else {
-             const isOwnerAdmin = currentUserObj.role === 'Admin';
-             const isOtherAdmin = otherUserObj.role === 'Admin';
+             // For legacy conversations without a type, or 1-to-1 chats, infer type
+             const isOwnerAdmin = currentUserObj.role === 'Admin' || currentUserObj.role === 'Owner' || currentUserObj.role === 'Superadmin';
+             const isOtherAdmin = otherUserObj.role === 'Admin' || otherUserObj.role === 'Owner' || otherUserObj.role === 'Superadmin';
+             
+             // Only overwrite if it's missing, or if it's a legacy chat. If it already has a valid type, prefer inferring correctly.
+             // Actually, to be safe and backwards compatible, we can just infer it if it's not TEAM_GROUP.
              type = (isOwnerAdmin || isOtherAdmin) ? 'ADMIN_STAFF' : 'TEAM';
           }
 

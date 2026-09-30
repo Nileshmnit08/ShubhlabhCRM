@@ -24,7 +24,7 @@ export function MerchantRow({ name, location, statusType = 'completed', dues, on
 
         <View style={styles.actionDock}>
           <TouchableOpacity style={styles.shortcut}>
-            <MaterialIcons name="call" size={20} color={colors.tertiary} />
+            <MaterialIcons name="call" size={20} color={colors.secondary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.shortcut}>
             <MaterialIcons name="directions" size={20} color={colors.primary} />

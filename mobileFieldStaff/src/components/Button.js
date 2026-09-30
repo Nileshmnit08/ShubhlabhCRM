@@ -62,13 +62,13 @@ const styles = StyleSheet.create({
   },
   secondary: {
     backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1.5,
-    borderColor: '#CBD5E1', // Structural border
+    borderWidth: 1,
+    borderColor: colors.outlineVariant,
   },
   destructive: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.errorContainer,
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: colors.error,
   },
   disabled: {
     opacity: 0.5,
@@ -87,12 +87,12 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
   secondaryText: {
-    color: colors.tertiary, // Deep Navy Slate
+    color: colors.secondary, // Deep Slate Blue
   },
   destructiveText: {
     color: colors.error,
   },
   disabledText: {
-    // Disabled text inherits the color but the container is 0.5 opacity
+    // Inherits container opacity
   },
 });

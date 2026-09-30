@@ -201,41 +201,29 @@ const DailyPriceEntry = () => {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in pb-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface p-5 rounded-xl border border-base shadow-sm">
-        <div>
-          <h2 className="text-lg font-semibold text-primary">Daily Price Entry</h2>
-          <p className="text-sm text-secondary">Log broker quotes for cattle-feed raw materials</p>
+    <div className="flex flex-col w-full pb-16 animate-fade-in">
+      
+      {/* Rapid Key-Entry Banner */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-space-md py-space-xs bg-surface-container rounded-lg mb-space-md shadow-sm gap-2">
+        <div className="flex items-center gap-space-sm">
+          <span className="flex items-center justify-center w-6 h-6 rounded bg-primary text-on-primary">
+            <span className="material-symbols-outlined text-[15px]">keyboard</span>
+          </span>
+          <p className="font-body-sm text-body-sm text-on-surface">
+            <strong className="font-semibold text-primary">Rapid Key-Entry:</strong>
+            Press <kbd className="px-1.5 py-0.5 rounded bg-surface-container-lowest text-on-surface shadow-sm font-mono text-[11px]">Tab</kbd> to jump between rates.
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-base/50 p-1.5 rounded-lg border border-base">
-            <label className="text-sm font-medium text-secondary pl-2">Override mappings</label>
-            <div className="flex items-center">
-              <input 
-                type="checkbox" 
-                id="showAllBrokers"
-                checked={showAllBrokers}
-                onChange={(e) => setShowAllBrokers(e.target.checked)}
-                className="w-4 h-4 ml-2 mr-2"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-secondary">Entry Date:</label>
-            <input 
-              type="date" 
-              className="input max-w-[160px] shadow-sm font-medium"
-              value={entryDate}
-              max={today}
-              onChange={(e) => setEntryDate(e.target.value)}
-            />
+        <div className="flex items-center gap-space-md">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-tertiary-fixed-dim animate-pulse"></span>
+            <span className="font-label-sm text-label-sm text-tertiary font-semibold uppercase tracking-wider">Draft Session Unlocked</span>
           </div>
         </div>
       </div>
 
       {message && (
-        <div className={`p-4 rounded-lg flex items-center gap-3 shadow-sm ${
+        <div className={`p-4 rounded-lg flex items-center gap-3 shadow-sm mb-4 ${
           message.type === 'success' ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 
           'bg-red-500/10 text-red-600 border border-red-500/20'
         }`}>
@@ -244,149 +232,227 @@ const DailyPriceEntry = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-base shadow-sm overflow-hidden flex flex-col">
-        <div className="data-table-container">
-          <table className="data-table mobile-cards-table" style={{minWidth: '1200px'}}>
+      {/* Configuration Header */}
+      <div className="bg-surface-container-lowest rounded-xl p-space-md mb-space-md shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-space-md">
+          <div className="flex items-center gap-space-lg flex-wrap">
+            <div className="flex items-center gap-space-sm bg-surface-container-low px-space-sm py-1.5 rounded-lg shadow-sm">
+              <span className="material-symbols-outlined text-primary text-[20px]">calendar_month</span>
+              <div className="flex flex-col">
+                <span className="font-label-sm text-label-sm text-on-surface-variant leading-none">Effective Benchmark Date</span>
+                <input 
+                  type="date" 
+                  className="bg-transparent font-headline-sm text-headline-sm text-on-surface leading-tight focus:outline-none"
+                  value={entryDate}
+                  max={today}
+                  onChange={(e) => setEntryDate(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 bg-surface-container-low px-space-sm py-2 rounded-lg shadow-sm h-full">
+              <label className="font-label-sm text-label-sm text-on-surface-variant leading-none">Override mappings</label>
+              <input 
+                type="checkbox" 
+                className="w-4 h-4 text-primary focus:ring-0 cursor-pointer accent-primary"
+                checked={showAllBrokers}
+                onChange={(e) => setShowAllBrokers(e.target.checked)}
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 px-space-sm py-1 rounded bg-tertiary-fixed text-on-tertiary-fixed shadow-sm font-label-md text-label-md">
+              <span className="material-symbols-outlined text-[16px] text-tertiary">notification_important</span>
+              <span>Draft • {entries.length} Entries</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-space-md">
+            <div className="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-lg">
+              <span className="font-label-sm text-label-sm text-on-surface-variant">Feeds Tracked:</span>
+              <span className="font-label-md text-label-md text-on-surface font-bold">{materials.length}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky Action Bar */}
+      <div className="sticky top-28 z-30 bg-surface-container-lowest/95 backdrop-blur-md p-space-sm rounded-xl mb-space-md shadow-md flex items-center justify-between">
+        <div className="flex items-center gap-space-sm">
+          <button 
+            className="group flex items-center gap-space-sm px-space-lg py-2 rounded-lg bg-primary text-on-primary hover:bg-surface-tint shadow-sm transition-all transform active:scale-95 disabled:opacity-50" 
+            onClick={handleSave} 
+            disabled={saving}
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[18px]">save</span>
+            <span className="font-label-lg text-label-lg font-bold tracking-wide">
+              {saving ? 'SAVING...' : "SAVE TODAY'S PRICES"}
+            </span>
+          </button>
+          
+          <button 
+            className="flex items-center gap-1.5 px-space-md py-2 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container font-label-md text-label-md transition-colors" 
+            onClick={handleAddRow}
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[16px]">add_circle</span>
+            <span>Add Row</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Table */}
+      <div className="bg-surface-container-lowest rounded-xl shadow-md overflow-hidden min-h-[400px]">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
-              <tr>
-                <th style={{width: '40px', textAlign: 'center'}}>#</th>
-                <th style={{minWidth: '200px'}}>Raw Material *</th>
-                <th style={{minWidth: '180px'}}>Quality/Grade</th>
-                <th style={{minWidth: '200px'}}>Broker *</th>
-                <th style={{minWidth: '150px'}}>Location</th>
-                <th style={{width: '130px'}}>Price (₹) *</th>
-                <th style={{width: '130px'}}>Unit *</th>
-                <th style={{width: '160px'}}>Price Type *</th>
-                <th style={{width: '120px'}}>Status</th>
-                <th style={{minWidth: '200px'}}>Remarks</th>
-                <th style={{width: '100px', textAlign: 'center'}}>Actions</th>
+              <tr className="bg-surface-container-high text-secondary uppercase font-label-md text-label-md">
+                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Raw Material</th>
+                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Quality Grade</th>
+                <th className="py-2.5 px-space-sm font-semibold tracking-wider w-44">Today Input Rate (₹)</th>
+                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Unit / Price Type</th>
+                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Supplier Broker</th>
+                <th className="py-2.5 px-space-sm font-semibold tracking-wider w-44">Mandi Source (Location)</th>
+                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Commercial Notes</th>
+                <th className="py-2.5 px-space-sm w-16 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-base">
+            <tbody className="font-body-md text-body-md text-on-surface divide-y-0">
               {entries.map((entry, index) => {
-                const availableGrades = qualityGrades.filter(q => q.raw_material_id === entry.raw_material_id);
-                const availableBrokers = getAvailableBrokers(entry.raw_material_id);
-                const allowedUnitIds = allowedUnits.filter(au => au.raw_material_id === entry.raw_material_id).map(au => au.unit_id);
-                const availableUnits = entry.raw_material_id && allowedUnitIds.length > 0 
-                                      ? units.filter(u => allowedUnitIds.includes(u.id))
-                                      : units;
+                const materialOptions = materials;
+                const brokerOptions = getAvailableBrokers(entry.raw_material_id);
+                const gradeOptions = qualityGrades.filter(q => q.raw_material_id === entry.raw_material_id);
                 
+                let materialUnitIds = allowedUnits.filter(au => au.raw_material_id === entry.raw_material_id).map(au => au.unit_id);
+                const matRecord = materials.find(m => m.id === entry.raw_material_id);
+                if (matRecord && matRecord.default_unit_id && !materialUnitIds.includes(matRecord.default_unit_id)) {
+                  materialUnitIds.push(matRecord.default_unit_id);
+                }
+                const unitOptions = entry.raw_material_id ? units.filter(u => materialUnitIds.includes(u.id)) : units;
+
                 return (
-                  <tr key={entry.id} className="hover:bg-base/20 transition-colors group">
-                    <td data-label="#" style={{textAlign: 'center'}} className="text-secondary text-sm">{index + 1}</td>
-                    <td data-label="Raw Material">
+                  <tr key={entry.id} className="group hover:bg-surface-container-low transition-colors duration-100 bg-surface-container-lowest border-b border-surface-container-low">
+                    {/* Material */}
+                    <td className="py-2 px-space-sm">
                       <select 
-                        className={`input w-full text-sm ${!entry.raw_material_id ? 'border-red-300' : ''}`}
+                        className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
                         value={entry.raw_material_id}
                         onChange={(e) => handleChange(entry.id, 'raw_material_id', e.target.value)}
                       >
                         <option value="">Select Material...</option>
-                        {materials.map(m => (
+                        {materialOptions.map(m => (
                           <option key={m.id} value={m.id}>{m.name_en} {m.name_hi ? `(${m.name_hi})` : ''}</option>
                         ))}
                       </select>
                     </td>
-                    <td data-label="Quality/Grade">
+
+                    {/* Grade */}
+                    <td className="py-2 px-space-sm">
                       <select 
-                        className="input w-full text-sm"
-                        value={entry.quality_grade_id}
+                        className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
+                        value={entry.quality_grade_id || ''}
                         onChange={(e) => handleChange(entry.id, 'quality_grade_id', e.target.value)}
-                        disabled={!entry.raw_material_id}
                       >
-                        <option value="">Standard/Any</option>
-                        {availableGrades.map(q => (
+                        <option value="">Standard / Any</option>
+                        {gradeOptions.map(q => (
                           <option key={q.id} value={q.id}>{q.grade_name}</option>
                         ))}
                       </select>
                     </td>
-                    <td data-label="Broker">
+
+                    {/* Price Input */}
+                    <td className="py-2 px-space-sm">
+                      <div className="relative flex items-center">
+                        <span className="absolute left-2.5 text-on-surface-variant font-label-md text-label-md font-semibold">₹</span>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          className="w-full pl-6 pr-2 py-1.5 bg-surface-container-lowest focus:bg-surface-container text-on-surface font-headline-sm text-headline-sm font-bold rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all border border-outline-variant"
+                          value={entry.price}
+                          onChange={(e) => handleChange(entry.id, 'price', e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </td>
+
+                    {/* Unit & Price Type */}
+                    <td className="py-2 px-space-sm">
+                      <div className="flex items-center gap-1">
+                        <select 
+                          className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
+                          value={entry.unit_id}
+                          onChange={(e) => handleChange(entry.id, 'unit_id', e.target.value)}
+                        >
+                          <option value="">Unit...</option>
+                          {unitOptions.map(u => (
+                            <option key={u.id} value={u.id}>{u.unit_name}</option>
+                          ))}
+                        </select>
+                        <select 
+                          className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
+                          value={entry.price_type_id}
+                          onChange={(e) => handleChange(entry.id, 'price_type_id', e.target.value)}
+                        >
+                          <option value="">Type...</option>
+                          {priceTypes.map(p => (
+                            <option key={p.id} value={p.id}>{p.type_name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </td>
+
+                    {/* Broker */}
+                    <td className="py-2 px-space-sm">
                       <select 
-                        className={`input w-full text-sm ${!entry.broker_id ? 'border-red-300' : ''}`}
+                        className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
                         value={entry.broker_id}
                         onChange={(e) => handleChange(entry.id, 'broker_id', e.target.value)}
                       >
                         <option value="">Select Broker...</option>
-                        {availableBrokers.map(b => (
+                        {brokerOptions.map(b => (
                           <option key={b.id} value={b.id}>{b.broker_name}</option>
                         ))}
                       </select>
                     </td>
-                    <td data-label="Location">
+
+                    {/* Market Location */}
+                    <td className="py-2 px-space-sm">
                       <input 
                         type="text" 
-                        className="input w-full text-sm"
-                        placeholder="Location"
+                        className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
                         value={entry.market_location}
                         onChange={(e) => handleChange(entry.id, 'market_location', e.target.value)}
+                        placeholder="Location"
                       />
                     </td>
-                    <td data-label="Price (₹)">
+
+                    {/* Remarks */}
+                    <td className="py-2 px-space-sm">
                       <input 
-                        type="number" 
-                        className={`input w-full text-sm text-right font-medium ${!entry.price ? 'border-red-300' : ''}`}
-                        placeholder="0.00"
-                        min="0"
-                        step="0.01"
-                        value={entry.price}
-                        onChange={(e) => handleChange(entry.id, 'price', e.target.value)}
-                      />
-                    </td>
-                    <td data-label="Unit">
-                      <select 
-                        className={`input w-full text-sm ${!entry.unit_id ? 'border-red-300' : ''}`}
-                        value={entry.unit_id}
-                        onChange={(e) => handleChange(entry.id, 'unit_id', e.target.value)}
-                      >
-                        <option value="">Unit...</option>
-                        {availableUnits.map(u => (
-                          <option key={u.id} value={u.id}>{u.unit_name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td data-label="Price Type">
-                      <select 
-                        className={`input w-full text-sm ${!entry.price_type_id ? 'border-red-300' : ''}`}
-                        value={entry.price_type_id}
-                        onChange={(e) => handleChange(entry.id, 'price_type_id', e.target.value)}
-                      >
-                        <option value="">Price Type...</option>
-                        {priceTypes.map(pt => (
-                          <option key={pt.id} value={pt.id}>{pt.type_name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td data-label="Status">
-                      <select 
-                        className={`input w-full text-sm font-medium ${entry.status === 'Official' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}
-                        value={entry.status}
-                        onChange={(e) => handleChange(entry.id, 'status', e.target.value)}
-                      >
-                        <option value="Official">Official</option>
-                        <option value="Pending">Pending</option>
-                      </select>
-                    </td>
-                    <td data-label="Remarks">
-                      <input 
+                        className="w-full bg-transparent border border-transparent text-on-surface placeholder:text-outline py-1.5 px-1.5 font-body-sm text-body-sm focus:bg-surface-container-lowest focus:ring-1 focus:ring-outline focus:border-outline rounded" 
+                        placeholder="Add remark..." 
                         type="text" 
-                        className="input w-full text-sm"
-                        placeholder="Notes..."
                         value={entry.remarks}
                         onChange={(e) => handleChange(entry.id, 'remarks', e.target.value)}
                       />
                     </td>
-                    <td data-label="Actions" style={{textAlign: 'center'}}>
-                      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', opacity: 0.5}} className="group-hover:opacity-100 transition-opacity">
+
+                    {/* Actions */}
+                    <td className="py-2 px-space-sm text-center">
+                      <div className="flex items-center justify-center gap-1 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
-                          className="btn-icon text-secondary hover:text-primary" style={{padding: '4px'}}
+                          className="p-1 rounded hover:bg-surface-container hover:text-primary transition-colors" 
+                          title="Duplicate Row" 
+                          type="button"
                           onClick={() => handleDuplicateRow(index)}
-                          title="Duplicate Row"
                         >
                           <Copy size={16} />
                         </button>
                         <button 
-                          className="btn-icon text-secondary hover:text-danger" style={{padding: '4px'}}
+                          className="p-1 rounded hover:bg-error-container hover:text-error transition-colors" 
+                          title="Remove Row" 
+                          type="button"
                           onClick={() => handleRemoveRow(entry.id)}
-                          title="Remove Row"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -397,24 +463,16 @@ const DailyPriceEntry = () => {
               })}
             </tbody>
           </table>
-        </div>
-        
-        <div className="p-4 border-t border-base bg-base/20 flex flex-col sm:flex-row justify-between items-center gap-4 rounded-b-lg">
-          <button 
-            className="btn btn-secondary flex items-center gap-2"
-            onClick={handleAddRow}
-          >
-            <Plus size={16} /> Add Blank Row
-          </button>
           
-          <button 
-            className="btn btn-primary flex items-center gap-2"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            <Save size={16} /> 
-            {saving ? 'Saving...' : 'Save All Entries'}
-          </button>
+          <div className="p-4 flex items-center justify-center border-t border-surface-container-low bg-surface-container-lowest">
+             <button 
+                className="flex items-center gap-1.5 px-space-lg py-1.5 rounded-full bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-primary transition-colors text-sm font-semibold border border-outline-variant shadow-sm"
+                onClick={handleAddRow}
+                type="button"
+             >
+                <Plus size={16} /> Add Another Entry
+             </button>
+          </div>
         </div>
       </div>
     </div>

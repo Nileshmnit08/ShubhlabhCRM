@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import RawMaterialPriceHeader from './components/RawMaterialPriceHeader';
 
@@ -12,11 +12,14 @@ import Configuration from './Configuration';
 import AttentionCenter from './AttentionCenter';
 
 const RawMaterialPrices = () => {
-  return (
-    <div className="page-container animate-fade-in max-w-7xl mx-auto">
-      <RawMaterialPriceHeader />
+  const location = useLocation();
+  const isStitchRoute = ['/raw-material-prices', '/raw-material-prices/', '/raw-material-prices/daily-entry', '/raw-material-prices/history', '/raw-material-prices/analysis', '/raw-material-prices/whatsapp'].includes(location.pathname);
 
-      <div className="tab-content">
+  return (
+    <div className={`page-container animate-fade-in mx-auto ${isStitchRoute ? 'w-full' : 'max-w-7xl'}`}>
+      {!isStitchRoute && <RawMaterialPriceHeader />}
+
+      <div className={isStitchRoute ? "" : "tab-content"}>
         <Routes>
           <Route index element={<Dashboard />} />
           <Route path="daily-entry" element={<DailyPriceEntry />} />

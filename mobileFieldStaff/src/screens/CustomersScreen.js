@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, rounded, elevation } from '../theme/tokens';
-import { CustomerCard, FAB, EmptyState, Button, Tabs } from '../components';
+import { CustomerCard, FAB, EmptyState, Button, Tabs, AppHeader } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../context/NotificationContext';
@@ -107,24 +108,8 @@ export function CustomersScreen({ navigation }) {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Top Header */}
-      <View style={styles.topHeader}>
-        <Text style={typography.headlineLgMobile}>Customers (ग्राहक)</Text>
-        <View style={styles.headerIcons}>
-          <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={{ position: 'relative', marginRight: 16 }}>
-            <MaterialIcons name="notifications" size={24} color={colors.onSurfaceVariant} />
-            {unreadCount > 0 && (
-              <View style={{ position: 'absolute', right: -4, top: -4, backgroundColor: colors.error, borderRadius: 10, minWidth: 16, height: 16, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 2 }}>
-                <Text style={{ color: colors.onError, fontSize: 9, fontWeight: 'bold' }}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <MaterialIcons name="account-circle" size={24} color={colors.primary} />
-        </View>
-      </View>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <AppHeader variant="A" title="Customers (ग्राहक)" />
 
       {/* Search Bar */}
       <View style={styles.searchHeader}>
@@ -205,20 +190,18 @@ export function CustomersScreen({ navigation }) {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   centerSafe: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' },
-  topHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  headerIcons: { flexDirection: 'row', alignItems: 'center' },
-  searchHeader: { paddingHorizontal: 16, paddingBottom: 8 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHighest, borderRadius: rounded.default, paddingHorizontal: 12, height: 48 },
+  searchHeader: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, backgroundColor: colors.background },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerHighest, borderRadius: rounded.default, paddingHorizontal: 12, height: 48, elevation: 1 },
   searchInput: { flex: 1, marginLeft: 8, ...typography.bodyLg, color: colors.onSurface },
   micBtn: { padding: 4 },
-  locationContext: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.surfaceContainerLowest, borderBottomWidth: 1, borderBottomColor: '#E2E8F0' },
+  locationContext: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: colors.surfaceContainerLowest, borderBottomWidth: 1, borderBottomColor: colors.outlineVariant },
   locationText: { ...typography.labelSm, color: colors.onSurfaceVariant, marginLeft: 4, fontWeight: 'bold' },
   locationCount: { ...typography.labelSm, color: colors.onSurfaceVariant },
   container: { padding: 16, paddingBottom: 100 },
-  activeVisitBanner: { backgroundColor: '#0d5c3a', marginHorizontal: 16, marginTop: 12, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 2 },
+  activeVisitBanner: { backgroundColor: colors.primary, marginHorizontal: 16, marginTop: 12, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 2 },
   pulseDotBox: { width: 12, height: 12, justifyContent: 'center', alignItems: 'center' },
-  pulseDotOuter: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5', opacity: 0.75 },
-  pulseDotInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5' },
-  activeVisitBannerTitle: { fontSize: 12, fontWeight: 'bold', color: '#a9f3c5', letterSpacing: 0.5 },
-  activeVisitBannerSub: { fontSize: 13, color: '#eff4ff', marginTop: 2 }
+  pulseDotOuter: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: colors.inversePrimary, opacity: 0.75 },
+  pulseDotInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.inversePrimary },
+  activeVisitBannerTitle: { fontSize: 12, fontWeight: 'bold', color: colors.inversePrimary, letterSpacing: 0.5 },
+  activeVisitBannerSub: { fontSize: 13, color: colors.onPrimary, marginTop: 2 }
 });

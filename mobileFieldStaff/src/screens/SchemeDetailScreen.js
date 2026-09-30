@@ -36,7 +36,7 @@ export function SchemeDetailScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.heroBox}>
           <View style={styles.heroIcon}>
-            <MaterialIcons name="emoji-events" size={48} color="#904d00" />
+            <MaterialIcons name="emoji-events" size={48} color={colors.accent} />
           </View>
           <Text style={styles.schemeName}>{scheme.name}</Text>
           <View style={styles.statusBadge}>
@@ -98,8 +98,8 @@ export function SchemeDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8f9ff' },
-  header: { height: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: 'rgba(248, 249, 255, 0.9)' },
+  safe: { flex: 1, backgroundColor: colors.background },
+  header: { height: 64, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: colors.background },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
@@ -107,22 +107,22 @@ const styles = StyleSheet.create({
   errorText: { ...typography.bodyLg, color: colors.onSurfaceVariant },
   container: { padding: 16, paddingBottom: 40 },
   heroBox: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 16 },
-  heroIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#fff4e5', alignItems: 'center', justifyContent: 'center', marginBottom: 16, elevation: 2 },
+  heroIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.surfaceContainerLow, alignItems: 'center', justifyContent: 'center', marginBottom: 16, elevation: 2 },
   schemeName: { ...typography.displaySm, fontWeight: 'bold', color: colors.onSurface, textAlign: 'center', marginBottom: 12 },
-  statusBadge: { backgroundColor: '#dce9ff', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16 },
+  statusBadge: { backgroundColor: colors.surfaceContainerHigh, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 16 },
   statusText: { ...typography.labelSm, color: colors.primary, fontWeight: 'bold', textTransform: 'uppercase' },
   section: { marginBottom: 24 },
   sectionTitle: { ...typography.labelMd, color: colors.onSurfaceVariant, fontWeight: 'bold', marginBottom: 8, marginLeft: 4 },
-  card: { backgroundColor: '#ffffff', borderRadius: rounded.lg, padding: 16 },
+  card: { backgroundColor: colors.surface, borderRadius: rounded.lg, padding: 16 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 4 },
   rowTextContainer: { flex: 1 },
   rowLabel: { ...typography.labelSm, color: colors.onSurfaceVariant },
   rowValue: { ...typography.bodyLg, color: colors.onSurface, fontWeight: '500' },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 12 },
+  divider: { height: 1, backgroundColor: colors.outlineVariant, marginVertical: 12 },
   bodyText: { ...typography.bodyLg, color: colors.onSurface, lineHeight: 24 },
   tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
-  tag: { backgroundColor: colors.surfaceContainerLowest, paddingHorizontal: 12, paddingVertical: 6, borderRadius: rounded.sm, borderWidth: 1, borderColor: '#E2E8F0' },
+  tag: { backgroundColor: colors.surfaceContainerLowest, paddingHorizontal: 12, paddingVertical: 6, borderRadius: rounded.sm, borderWidth: 1, borderColor: colors.outlineVariant },
   tagText: { ...typography.labelSm, color: colors.onSurfaceVariant },
-  disclaimerBox: { flexDirection: 'row', gap: 8, backgroundColor: '#fff8f6', padding: 16, borderRadius: rounded.md, borderWidth: 1, borderColor: '#ffd8cf' },
-  disclaimerText: { flex: 1, ...typography.bodySm, color: '#93000a', lineHeight: 20 }
+  disclaimerBox: { flexDirection: 'row', gap: 8, backgroundColor: colors.surfaceContainerLow, padding: 16, borderRadius: rounded.md, borderWidth: 1, borderColor: colors.outlineVariant },
+  disclaimerText: { flex: 1, ...typography.bodySm, color: colors.error, lineHeight: 20 }
 });

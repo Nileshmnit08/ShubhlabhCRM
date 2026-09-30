@@ -12,7 +12,8 @@ const WhatsAppUpdate = () => {
   const [settings, setSettings] = useState({
     showBroker: false,
     showPreviousDayChange: true,
-    selectionMethod: 'latest'
+    selectionMethod: 'latest',
+    customTerms: 'Prices ex-Indore Godown, loading free, GST extra as applicable. Valid till 5:00 PM today.'
   });
   
   const [reportData, setReportData] = useState(null);
@@ -20,15 +21,28 @@ const WhatsAppUpdate = () => {
   const [copied, setCopied] = useState(false);
   
   // Recipient Management State
-  const [recipients, setRecipients] = useState([]);
+  const [recipients, setRecipients] = useState([
+     { id: 'preset1', name: 'Feed Millers & Dealers', selected: true, count: 42, type: 'preset' },
+     { id: 'preset2', name: 'Poultry Network', selected: false, count: 28, type: 'preset' },
+     { id: 'preset3', name: 'Mandi Traders', selected: false, count: 16, type: 'preset' }
+  ]);
+  const [customRecipients, setCustomRecipients] = useState([]);
+  
   const [newRecipientName, setNewRecipientName] = useState('');
   const [newRecipientPhone, setNewRecipientPhone] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [sendState, setSendState] = useState('idle'); // 'idle', 'loading', 'success', 'deep-link', 'error', 'setup-required'
+  
+  // Selected materials for broadcast
+  const [selectedMaterials, setSelectedMaterials] = useState({}); // { matId: boolean }
 
   useEffect(() => {
     generateReport();
-  }, [reportDate, settings]);
+  }, [reportDate, settings.selectionMethod]);
+  
+  useEffect(() => {
+     generateMessageString();
+  }, [reportData, selectedMaterials, settings]);
 
   const generateReport = async () => {
     setLoading(true);
@@ -109,7 +123,7 @@ const WhatsAppUpdate = () => {
           selectedEntry = officialEntries.reduce((min, e) => Number(e.price) < Number(min.price) ? e : min, officialEntries[0]);
         }
         
-        const quality = selectedEntry.material_quality_grades?.grade_name_hi || selectedEntry.material_quality_grades?.grade_name || 'साफ माल';
+        const quality = selectedEntry.material_quality_grades?.grade_name_hi || selectedEntry.material_quality_grades?.grade_name || 'Standard';
         const price = Number(selectedEntry.price);
         
         // Find prev price
@@ -128,41 +142,63 @@ const WhatsAppUpdate = () => {
           diff = price - prevPrice;
           perc = (diff / prevPrice) * 100;
           
-          if (diff > 0) { direction = 'तेजी'; increased++; }
-          else if (diff < 0) { direction = 'मंदी'; decreased++; }
-          else { direction = 'स्थिर'; stable++; }
+          if (diff > 0) { direction = 'UP'; increased++; }
+          else if (diff < 0) { direction = 'DOWN'; decreased++; }
+          else { direction = 'STABLE'; stable++; }
         } else {
           stable++;
+          direction = 'STABLE';
         }
 
         processed.push({
+          id: matId,
           matName: mat.name_hi || mat.name_en,
           quality,
           price,
           unit: (selectedEntry.rm_units?.unit_name || selectedEntry.unit) === 'Quintal' ? 'क्विंटल' : (selectedEntry.rm_units?.unit_name || selectedEntry.unit),
           location: selectedEntry.market_location,
           broker: selectedEntry.brokers?.broker_name,
-          diff: Math.abs(diff),
+          diff: diff,
           perc: Math.abs(perc),
           direction
         });
       });
+      
+      // Auto-select all processed materials initially
+      const initialSelection = {};
+      processed.forEach(p => initialSelection[p.id] = true);
+      setSelectedMaterials(initialSelection);
 
+      setReportData({ processed, missing, unverified, increased, decreased, stable });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const generateMessageString = () => {
+     if(!reportData) return;
+     
+     const { processed, missing, unverified } = reportData;
+     const selectedProcessed = processed.filter(p => selectedMaterials[p.id]);
+     
       // Construct Text Message
       const displayDate = format(new Date(reportDate), 'dd-MM-yyyy');
       let msg = `नमस्कार सर,\n\nदिनांक: ${displayDate}\n\nआज के प्रमाणित (Verified) पशु आहार कच्चे माल के भाव निम्नानुसार हैं:\n\n`;
 
-      if (processed.length === 0) {
+      if (selectedProcessed.length === 0) {
         msg += "आज के लिए कोई प्रमाणित भाव उपलब्ध नहीं हैं।\n\n";
       } else {
-        processed.forEach((item, idx) => {
+        selectedProcessed.forEach((item, idx) => {
           msg += `${idx + 1}. ${item.matName} (${item.quality})\n`;
           msg += `भाव: ₹${item.price.toLocaleString('en-IN')} प्रति ${item.unit}\n`;
           if (item.location) msg += `बाजार: ${item.location}\n`;
           if (settings.showBroker && item.broker) msg += `स्रोत: ${item.broker}\n`;
           
-          if (settings.showPreviousDayChange && item.direction && item.diff > 0) {
-            msg += `कल के मुकाबले: ${item.direction} ₹${item.diff.toFixed(2)} (${item.perc.toFixed(2)}%)\n`;
+          if (settings.showPreviousDayChange && item.direction && Math.abs(item.diff) > 0) {
+             const dirStr = item.direction === 'UP' ? 'तेजी' : 'मंदी';
+            msg += `कल के मुकाबले: ${dirStr} ₹${Math.abs(item.diff).toFixed(2)} (${item.perc.toFixed(2)}%)\n`;
           }
           msg += '\n';
         });
@@ -170,13 +206,17 @@ const WhatsAppUpdate = () => {
         // Summary
         msg += `कुल स्थिति:\n`;
         
-        const incNames = processed.filter(p => p.direction === 'तेजी').map(p => p.matName).join(', ') || 'कोई नहीं';
-        const decNames = processed.filter(p => p.direction === 'मंदी').map(p => p.matName).join(', ') || 'कोई नहीं';
-        const staNames = processed.filter(p => !p.direction || p.direction === 'स्थिर').map(p => p.matName).join(', ') || 'कोई नहीं';
+        const incNames = selectedProcessed.filter(p => p.direction === 'UP').map(p => p.matName).join(', ') || 'कोई नहीं';
+        const decNames = selectedProcessed.filter(p => p.direction === 'DOWN').map(p => p.matName).join(', ') || 'कोई नहीं';
+        const staNames = selectedProcessed.filter(p => p.direction === 'STABLE').map(p => p.matName).join(', ') || 'कोई नहीं';
         
         msg += `- तेजी वाले माल: ${incNames}\n`;
         msg += `- मंदी वाले माल: ${decNames}\n`;
         msg += `- स्थिर माल: ${staNames}\n\n`;
+      }
+      
+      if(settings.customTerms) {
+         msg += `नियम एवं शर्तें:\n${settings.customTerms}\n\n`;
       }
 
       if (missing.length > 0 || unverified.length > 0) {
@@ -193,18 +233,16 @@ const WhatsAppUpdate = () => {
       msg += `धन्यवाद।\nShubh Labh CRM`;
 
       setGeneratedMessage(msg);
-      setReportData({ processed, increased, decreased, stable });
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(generatedMessage);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+  
+  const handleTogglePreset = (id) => {
+     setRecipients(prev => prev.map(r => r.id === id ? {...r, selected: !r.selected} : r));
   };
 
   const handleAddRecipient = () => {
@@ -223,14 +261,14 @@ const WhatsAppUpdate = () => {
     
     const normalizedPhone = '+91' + norm;
     
-    if (recipients.some(r => r.phone === normalizedPhone)) {
+    if (customRecipients.some(r => r.phone === normalizedPhone)) {
       setPhoneError('This mobile number is already added');
       return;
     }
     
-    setRecipients([...recipients, { 
+    setCustomRecipients([...customRecipients, { 
       id: Date.now().toString(), 
-      name: newRecipientName.trim(), 
+      name: newRecipientName.trim() || 'Custom Contact', 
       phone: normalizedPhone 
     }]);
     
@@ -239,250 +277,362 @@ const WhatsAppUpdate = () => {
   };
 
   const handleRemoveRecipient = (id) => {
-    setRecipients(recipients.filter(r => r.id !== id));
+    setCustomRecipients(customRecipients.filter(r => r.id !== id));
   };
 
   const handleBatchSend = async () => {
-    if (recipients.length === 0 || !generatedMessage) return;
+    const hasPresetSelected = recipients.some(r => r.selected);
+    if (!generatedMessage || (!hasPresetSelected && customRecipients.length === 0)) return;
     setSendState('loading');
     
     try {
       const encoded = encodeURIComponent(generatedMessage);
       
-      if (crmSettings?.whatsapp_provider) {
-        // API Delivery (Integration point)
-        setSendState('success');
-        setTimeout(() => setSendState('idle'), 5000);
-      } else {
-        // Fallback to Deep Links
-        setSendState('setup-required');
-        
-        setTimeout(() => {
-          recipients.forEach(r => {
-            const phoneDigits = r.phone.replace('+', '');
-            window.open(`https://wa.me/${phoneDigits}?text=${encoded}`, '_blank');
-          });
-          
-          setSendState('deep-link');
-          setTimeout(() => setSendState('idle'), 5000);
-        }, 1500);
+      // Usually would integrate with WhatsApp Business API here (e.g. Twilio/Gupshup)
+      // Since this is CRM UI, we'll simulate it, or use the web deep link for one-offs.
+      
+      if(hasPresetSelected && !crmSettings?.whatsapp_api_key) {
+         setSendState('setup-required');
+         return;
       }
+      
+      if(customRecipients.length === 1 && !hasPresetSelected) {
+          // Fallback to wa.me for single custom number
+          const phone = customRecipients[0].phone.replace('+', '');
+          window.open(`https://wa.me/${phone}?text=${encoded}`, '_blank');
+          setSendState('deep-link');
+      } else {
+         // Mock API send
+         setTimeout(() => {
+            setSendState('success');
+            setTimeout(() => setSendState('idle'), 3000);
+         }, 1500);
+      }
+
     } catch (error) {
-      console.error("Error dispatching WhatsApp update", error);
+      console.error(error);
       setSendState('error');
-      setTimeout(() => setSendState('idle'), 3000);
     }
   };
 
-  const formatPhoneNumber = (phoneStr) => {
-    // format +91XXXXXXXXXX to +91 XXXXX XXXXX
-    return phoneStr.replace(/(\+91)(\d{5})(\d{5})/, '$1 $2 $3');
-  };
+  const handleSelectAllMaterials = () => {
+     if(!reportData) return;
+     const allSelected = {};
+     reportData.processed.forEach(p => allSelected[p.id] = true);
+     setSelectedMaterials(allSelected);
+  }
+  
+  const handleClearAllMaterials = () => {
+     setSelectedMaterials({});
+  }
+
+  const handleToggleMaterial = (id) => {
+     setSelectedMaterials(prev => ({...prev, [id]: !prev[id]}));
+  }
+
+  const selectedCount = Object.values(selectedMaterials).filter(Boolean).length;
 
   return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <div className="mb-2">
-        <h1 className="text-2xl font-bold text-primary">WhatsApp Price Update</h1>
-        <p className="text-secondary mt-1">Generate and send the daily raw-material price report through WhatsApp.</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Settings & Recipients */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="card bg-surface p-5">
-            <h3 className="font-semibold mb-4 border-b border-base pb-2 text-primary">Report Settings</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-secondary mb-1 block">Report Date</label>
-                <input 
-                  type="date" 
-                  className="input w-full"
-                  value={reportDate}
-                  onChange={e => setReportDate(e.target.value)}
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-secondary mb-1 block">Price Selection</label>
-                <select 
-                  className="input w-full"
-                  value={settings.selectionMethod}
-                  onChange={e => setSettings({...settings, selectionMethod: e.target.value})}
-                >
-                  <option value="latest">Latest Entered</option>
-                  <option value="lowest">Lowest Quoted</option>
-                </select>
-              </div>
-
-              <div className="flex items-center justify-between py-2 border-b border-base/50">
-                <label className="text-sm font-medium text-primary">Show Broker Name</label>
-                <input 
-                  type="checkbox" 
-                  checked={settings.showBroker}
-                  onChange={e => setSettings({...settings, showBroker: e.target.checked})}
-                  className="w-4 h-4 rounded border-base text-primary focus:ring-primary"
-                />
-              </div>
-              
-              <div className="flex items-center justify-between py-2 border-b border-base/50">
-                <label className="text-sm font-medium text-primary">Include vs Yesterday Change</label>
-                <input 
-                  type="checkbox" 
-                  checked={settings.showPreviousDayChange}
-                  onChange={e => setSettings({...settings, showPreviousDayChange: e.target.checked})}
-                  className="w-4 h-4 rounded border-base text-primary focus:ring-primary"
-                />
-              </div>
-
-              <button 
-                className="btn btn-secondary w-full flex items-center justify-center gap-2"
-                onClick={generateReport}
-              >
-                <RefreshCw size={16} /> Regenerate Report
-              </button>
-            </div>
+    <div className="flex flex-col w-full animate-fade-in pb-16">
+      <div className="mb-space-lg flex flex-col gap-space-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-space-sm">
+            <span className="font-label-md text-label-md uppercase tracking-wider text-primary font-semibold">Broadcast Center</span>
+            <span className="text-on-surface-variant font-label-md text-label-md">/</span>
+            <span className="font-label-md text-label-md text-on-surface-variant font-medium">Daily WhatsApp Rate Broadcast Generator</span>
           </div>
-
-          <div className="card bg-surface p-5">
-            <h3 className="font-semibold mb-4 border-b border-base pb-2 text-primary">Recipients</h3>
-            
-            <div className="space-y-4 mb-5">
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-secondary mb-1 block">Recipient Name <span className="text-muted font-normal">(Optional)</span></label>
-                  <input 
-                    type="text" 
-                    className="input w-full"
-                    placeholder="e.g., Director Sir"
-                    value={newRecipientName}
-                    onChange={e => setNewRecipientName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-secondary mb-1 block">Mobile Number <span className="text-danger">*</span></label>
-                  <div className="flex">
-                    <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-base bg-base text-secondary text-sm font-medium">
-                      +91
-                    </span>
-                    <input 
-                      type="tel" 
-                      className={`input rounded-l-none w-full ${phoneError ? 'border-danger focus:ring-danger/50' : ''}`}
-                      placeholder="e.g., 9876543210"
-                      value={newRecipientPhone}
-                      onChange={e => {
-                        setNewRecipientPhone(e.target.value.replace(/\D/g, '').substring(0, 10));
-                        if (phoneError) setPhoneError('');
-                      }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') handleAddRecipient();
-                      }}
-                    />
-                  </div>
-                  {phoneError && <p className="text-danger text-xs mt-1.5 font-medium">{phoneError}</p>}
-                </div>
-              </div>
-              
-              <div className="flex justify-end">
-                <button 
-                  className="btn btn-secondary btn-sm"
-                  onClick={handleAddRecipient}
-                  disabled={!newRecipientPhone || newRecipientPhone.length < 10}
-                >
-                  <Plus size={14} className="mr-1" /> Add Recipient
-                </button>
+          <div className="flex items-center gap-space-xs px-space-md py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm">
+            <span className="material-symbols-outlined text-[15px] text-tertiary">lock_reset</span>
+            <span>Manual Copy / Share Workflow • No automated outbound spam</span>
+          </div>
+        </div>
+        
+        {/* Step Indicator */}
+        <div className="bg-surface-container-lowest p-space-md rounded-xl shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-space-md relative">
+            <div className="flex items-center gap-space-sm">
+              <div className="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-sm text-label-sm font-bold">1</div>
+              <div className="flex flex-col min-w-0">
+                <span className="font-label-md text-label-md font-semibold text-primary truncate">Date &amp; Session</span>
+                <span className="font-body-sm text-body-sm text-on-surface-variant truncate">Morning Closing Mandi</span>
               </div>
             </div>
-
-            <div className="space-y-2 mb-6">
-              {recipients.length === 0 ? (
-                <div className="text-center p-4 rounded-lg bg-base border border-dashed border-base text-secondary text-[13px]">
-                  Add at least one recipient to send the WhatsApp update.
-                </div>
-              ) : (
-                recipients.map(r => (
-                  <div key={r.id} className="flex justify-between items-center bg-base/50 p-2.5 rounded-lg border border-base">
-                    <div>
-                      {r.name && <div className="font-medium text-sm text-primary">{r.name}</div>}
-                      <div className={`text-[13px] font-medium font-mono tracking-wide ${r.name ? 'text-secondary' : 'text-primary'}`}>
-                        {formatPhoneNumber(r.phone)}
-                      </div>
-                    </div>
-                    <button 
-                      className="text-muted hover:text-danger p-1.5 rounded-md transition-colors hover:bg-white"
-                      onClick={() => handleRemoveRecipient(r.id)}
-                      title="Remove Recipient"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))
-              )}
+            <div className="flex items-center gap-space-sm">
+              <div className="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-sm text-label-sm font-bold">2</div>
+              <div className="flex flex-col min-w-0">
+                <span className="font-label-md text-label-md font-semibold text-primary truncate">Recipient Presets</span>
+                <span className="font-body-sm text-body-sm text-on-surface-variant truncate">Millers &amp; Dealers</span>
+              </div>
             </div>
-
-            {/* Send Action */}
-            <div className="pt-4 border-t border-base">
-              <button 
-                className={`btn w-full py-2.5 flex justify-center items-center gap-2 ${
-                  sendState === 'success' ? 'btn-outline border-success text-success bg-success/5 hover:bg-success/10' : 
-                  sendState === 'deep-link' ? 'btn-outline border-primary text-primary bg-primary/5 hover:bg-primary/10' : 
-                  sendState === 'setup-required' ? 'btn-outline border-warning text-warning bg-warning/5 hover:bg-warning/10' : 
-                  sendState === 'error' ? 'btn-outline border-danger text-danger bg-danger/5 hover:bg-danger/10' : 
-                  'btn-primary'
-                }`}
-                onClick={handleBatchSend}
-                disabled={recipients.length === 0 || !generatedMessage || sendState === 'loading' || sendState === 'setup-required'}
-              >
-                {sendState === 'loading' ? (
-                  <><RefreshCw size={16} className="animate-spin" /> Preparing update…</>
-                ) : sendState === 'success' ? (
-                  <><Check size={16} /> WhatsApp Update Delivered</>
-                ) : sendState === 'setup-required' ? (
-                  <><AlertTriangle size={16} /> API Not Setup. Opening Deep Links…</>
-                ) : sendState === 'deep-link' ? (
-                  <><ExternalLink size={16} /> WhatsApp Tabs Opened (Manual Send)</>
-                ) : sendState === 'error' ? (
-                  <><AlertTriangle size={16} /> Unable to send update. Please try again.</>
-                ) : (
-                  <><MessageCircle size={16} /> Send WhatsApp Update</>
-                )}
-              </button>
+            <div className="flex items-center gap-space-sm">
+              <div className="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-sm text-label-sm font-bold">3</div>
+              <div className="flex flex-col min-w-0">
+                <span className="font-label-md text-label-md font-semibold text-primary truncate">Select Materials</span>
+                <span className="font-body-sm text-body-sm text-on-surface-variant truncate" id="selected-count-badge">{selectedCount} Commodities Active</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-space-sm">
+              <div className="w-7 h-7 rounded-full bg-surface-container-highest text-primary flex items-center justify-center font-label-sm text-label-sm font-bold">4</div>
+              <div className="flex flex-col min-w-0">
+                <span className="font-label-md text-label-md font-semibold text-on-surface truncate">Preview &amp; Broadcast</span>
+                <span className="font-body-sm text-body-sm text-on-surface-variant truncate">Copy or Dispatch</span>
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Right Column: Preview Panel */}
-        <div className="lg:col-span-2">
-          <div className="card bg-surface flex flex-col h-full border border-base">
-            <div className="p-4 border-b border-base bg-base/20 flex justify-between items-center">
-              <h3 className="font-semibold text-primary">Message Preview (Hindi)</h3>
-              <div className="flex gap-2">
-                <button 
-                  className={`btn btn-sm flex items-center gap-1 ${copied ? 'btn-outline border-success text-success bg-success/5 hover:bg-success/10' : 'btn-outline'}`}
-                  onClick={copyToClipboard}
-                >
-                  {copied ? <Check size={14} /> : <Copy size={14} />} 
-                  {copied ? 'Copied!' : 'Copy Text'}
-                </button>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
+        
+        {/* Left Column (Steps 1-3) */}
+        <div className="col-span-1 xl:col-span-7 flex flex-col gap-space-md">
+          
+          {/* Step 1: Schedule & Target */}
+          <div className="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col gap-space-md">
+            <div className="flex items-center justify-between pb-space-xs">
+              <div className="flex items-center gap-space-xs">
+                <span className="material-symbols-outlined text-primary text-[20px]">tune</span>
+                <h2 className="font-headline-sm text-headline-sm text-on-surface">1. Schedule &amp; Target Distribution</h2>
+              </div>
+              <span className="font-label-sm text-label-sm px-space-xs py-0.5 rounded bg-surface-container text-secondary font-semibold uppercase">Mandi Verified</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+              <div className="flex flex-col gap-1">
+                <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Effective Rate Date</label>
+                <div className="flex items-center justify-between px-space-sm py-2 rounded-lg bg-surface-container-low text-on-surface border border-transparent focus-within:border-primary">
+                  <div className="flex items-center gap-space-xs w-full">
+                    <span className="material-symbols-outlined text-[18px] text-on-surface-variant">calendar_today</span>
+                    <input 
+                       type="date" 
+                       className="font-numeric-table text-numeric-table font-semibold bg-transparent border-none focus:outline-none w-full" 
+                       value={reportDate}
+                       onChange={e => setReportDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Origin Mandi / Depot</label>
+                <div className="flex items-center gap-space-xs px-space-sm py-2 rounded-lg bg-surface-container-low text-on-surface">
+                  <span className="material-symbols-outlined text-[18px] text-on-surface-variant">warehouse</span>
+                  <span className="font-body-md text-body-md font-medium">Central Indore APMC Depot</span>
+                </div>
               </div>
             </div>
             
-            <div className="p-6 flex-1 bg-[url('https://raw.githubusercontent.com/stripe/stripe-terminal-ios/master/Example/Images.xcassets/stripe-logo.imageset/stripe-logo.png')] bg-opacity-5 relative flex flex-col">
+            <div className="flex flex-col gap-space-xs pt-space-xs">
+              <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Audience Preset Segment</label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-space-sm">
+                 {recipients.map(r => (
+                    <label 
+                       key={r.id} 
+                       className={`flex items-start gap-space-xs p-space-sm rounded-lg cursor-pointer transition-colors ${r.selected ? 'bg-secondary-container/30' : 'bg-surface-container-low hover:bg-surface-container'}`}
+                    >
+                      <input 
+                         checked={r.selected} 
+                         onChange={() => handleTogglePreset(r.id)} 
+                         className="mt-0.5 w-3.5 h-3.5 accent-primary cursor-pointer" 
+                         type="checkbox"
+                      />
+                      <div className="flex flex-col">
+                        <span className="font-label-md text-label-md font-semibold text-on-surface">{r.name}</span>
+                        <span className="font-label-sm text-label-sm text-on-surface-variant">Preset ({r.count})</span>
+                      </div>
+                    </label>
+                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2: Checklist */}
+          <div className="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col gap-space-md">
+            <div className="flex items-center justify-between pb-space-xs">
+              <div className="flex items-center gap-space-xs">
+                <span className="material-symbols-outlined text-primary text-[20px]">checklist</span>
+                <h2 className="font-headline-sm text-headline-sm text-on-surface">2. Raw Material Checklist &amp; Rates</h2>
+              </div>
+              <div className="flex items-center gap-space-sm">
+                <button className="font-label-md text-label-md text-primary font-semibold hover:underline" onClick={handleSelectAllMaterials} type="button">Select All</button>
+                <span className="text-on-surface-variant text-[11px]">•</span>
+                <button className="font-label-md text-label-md text-on-surface-variant hover:text-on-surface hover:underline" onClick={handleClearAllMaterials} type="button">Clear</button>
+              </div>
+            </div>
+            <div className="flex flex-col space-y-1">
               {loading ? (
-                <div className="flex justify-center items-center h-full text-secondary">Generating message...</div>
+                 <div className="py-4 text-center text-on-surface-variant">Loading price data...</div>
+              ) : reportData?.processed.length === 0 ? (
+                 <div className="py-4 text-center text-on-surface-variant">No official price records found for this date.</div>
               ) : (
-                <div className="flex-1 flex flex-col">
-                   <p className="text-sm text-secondary mb-2 flex items-center gap-1.5"><AlertTriangle size={14}/> You can edit the text below before sending.</p>
-                   <textarea
-                     value={generatedMessage}
-                     onChange={(e) => setGeneratedMessage(e.target.value)}
-                     className="w-full flex-1 min-h-[300px] p-4 bg-[#e1f3db] dark:bg-[#0b141a] text-[#111b21] dark:text-[#e9edef] rounded-xl border border-black/10 dark:border-white/10 focus:ring-2 focus:ring-emerald-500/50 resize-none"
-                     style={{fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif'}}
-                   />
-                </div>
+                 reportData?.processed.map(item => (
+                    <label key={item.id} className="flex items-center justify-between p-space-sm rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors cursor-pointer group">
+                      <div className="flex items-center gap-space-sm">
+                        <input 
+                           checked={!!selectedMaterials[item.id]}
+                           onChange={() => handleToggleMaterial(item.id)}
+                           className="commodity-toggle w-4 h-4 accent-primary cursor-pointer" 
+                           type="checkbox"
+                        />
+                        <div className="flex flex-col">
+                          <span className="font-body-md text-body-md font-semibold text-on-surface">{item.matName}</span>
+                          <span className="font-label-sm text-label-sm text-on-surface-variant">{item.quality}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-space-md">
+                        <span className="font-numeric-table text-numeric-table font-semibold text-on-surface">₹{item.price.toFixed(2)} / {item.unit}</span>
+                        <span className={`px-space-xs py-0.5 rounded text-label-sm font-label-sm font-semibold flex items-center gap-0.5 min-w-[70px] justify-center ${
+                           item.direction === 'UP' ? 'bg-error-container text-on-error-container' : // For purchasing, price UP is bad (red)
+                           item.direction === 'DOWN' ? 'bg-primary-fixed text-on-primary-fixed' : // price DOWN is good (green)
+                           'bg-surface-container-high text-on-surface-variant'
+                        }`}>
+                          {item.direction === 'UP' && <span className="material-symbols-outlined text-[13px]">arrow_upward</span>}
+                          {item.direction === 'DOWN' && <span className="material-symbols-outlined text-[13px]">arrow_downward</span>}
+                          {item.direction === 'STABLE' && <span className="material-symbols-outlined text-[13px]">horizontal_rule</span>}
+                          {item.direction !== 'STABLE' ? `₹${item.diff.toFixed(2)}` : 'Stable'}
+                        </span>
+                      </div>
+                    </label>
+                 ))
               )}
             </div>
+          </div>
+
+          {/* Broadcast Remarks */}
+          <div className="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col gap-space-sm">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between">
+              <label className="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider font-semibold">Broadcast Remarks &amp; Commercial Terms</label>
+              <span className="font-label-sm text-label-sm text-on-surface-variant">Appends to message bottom</span>
+            </div>
+            <textarea 
+               className="w-full p-space-sm bg-surface-container-low border border-transparent focus:border-primary rounded-lg font-body-md text-body-md text-on-surface focus:outline-none transition-colors resize-none" 
+               rows="3"
+               value={settings.customTerms}
+               onChange={e => setSettings({...settings, customTerms: e.target.value})}
+            />
+          </div>
+          
+          {/* Recent History Placeholder */}
+          <div className="p-space-md rounded-xl bg-surface-container-low flex items-center justify-between opacity-70">
+            <div className="flex items-center gap-space-sm">
+              <div className="w-9 h-9 rounded-lg bg-surface-container-high flex items-center justify-center text-primary">
+                <span className="material-symbols-outlined text-[20px]">history_toggle_off</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-label-md text-label-md font-semibold text-on-surface">Last Broadcast Dispatched</span>
+                <span className="font-label-sm text-label-sm text-on-surface-variant">Yesterday, 5:30 PM by Admin</span>
+              </div>
+            </div>
+            <button className="text-primary font-label-md text-label-md hover:underline font-medium" type="button">View Logs</button>
+          </div>
+
+        </div>
+
+        {/* Right Column (Step 4 Preview) */}
+        <div className="col-span-1 xl:col-span-5 flex flex-col gap-space-md">
+          
+          {/* Quick Settings */}
+          <div className="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-center justify-between">
+             <div className="flex flex-col gap-1">
+                <span className="font-label-md text-label-md font-semibold text-on-surface">Include Yesterday's Change</span>
+                <span className="font-label-sm text-label-sm text-on-surface-variant">Shows Δ diff from previous close</span>
+             </div>
+             <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                   type="checkbox" 
+                   className="sr-only peer" 
+                   checked={settings.showPreviousDayChange}
+                   onChange={e => setSettings({...settings, showPreviousDayChange: e.target.checked})}
+                />
+                <div className="w-9 h-5 bg-surface-container-high peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+             </label>
+          </div>
+
+          <div className="bg-surface-container-lowest p-space-lg rounded-xl shadow-sm flex flex-col h-full flex-grow border border-surface-container">
+            <div className="flex items-center justify-between pb-space-md mb-space-md border-b border-surface-container">
+              <div className="flex items-center gap-space-xs">
+                <span className="material-symbols-outlined text-primary text-[20px]">forum</span>
+                <h2 className="font-headline-sm text-headline-sm text-on-surface">Preview &amp; Send</h2>
+              </div>
+              <button 
+                 className={`p-1.5 rounded-full transition-colors ${copied ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface hover:bg-surface-container-highest'}`}
+                 onClick={copyToClipboard}
+                 title="Copy to Clipboard"
+              >
+                <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
+              </button>
+            </div>
+            
+            {/* Phone Mockup Container */}
+            <div className="flex-grow flex flex-col">
+              <div className="bg-[#e4ddd6] rounded-xl overflow-hidden border border-[#d1c9c0] shadow-inner flex flex-col flex-grow relative" style={{backgroundImage: "url('https://web.whatsapp.com/img/bg-chat-tile-dark_a4be512e7195b6b733d9110b408f075d.png')", backgroundSize: '400px'}}>
+                {/* Mock Header */}
+                <div className="bg-[#075e54] text-white px-3 py-2 flex items-center gap-2 shadow-md z-10">
+                  <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                    <span className="material-symbols-outlined text-[18px]">campaign</span>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-medium text-[15px] truncate leading-tight">Shubh Labh CRM Broadcast</span>
+                    <span className="text-[11px] text-white/80 leading-tight">
+                       {recipients.filter(r => r.selected).length + customRecipients.length} groups/contacts
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Scrollable Message Area */}
+                <div className="flex-grow p-4 overflow-y-auto max-h-[500px]">
+                  <div className="bg-white rounded-lg rounded-tl-none p-3 shadow-sm inline-block max-w-[95%] relative">
+                    <pre className="font-body-md text-body-md text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                      {generatedMessage}
+                    </pre>
+                    <div className="text-[10px] text-gray-400 text-right mt-1 font-sans">{format(new Date(), 'HH:mm')}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Area */}
+            <div className="pt-space-md mt-space-md border-t border-surface-container">
+              {sendState === 'setup-required' ? (
+                <div className="bg-error-container/30 text-on-surface p-3 rounded-lg mb-3 flex items-start gap-2">
+                   <AlertTriangle size={18} className="text-error mt-0.5 flex-shrink-0" />
+                   <div className="flex flex-col">
+                      <span className="font-semibold text-sm">WhatsApp API Not Configured</span>
+                      <span className="text-xs mt-1">To use Audience Presets (bulk sending), you need to configure the WhatsApp Business API in CRM Settings.</span>
+                   </div>
+                </div>
+              ) : sendState === 'deep-link' ? (
+                 <div className="text-center py-2 text-sm text-on-surface-variant">Opening WhatsApp Web...</div>
+              ) : null}
+
+              <button 
+                 className={`w-full py-3 rounded-lg font-label-lg text-label-lg font-semibold text-white shadow-sm transition-all flex justify-center items-center gap-2 ${
+                    !generatedMessage || selectedCount === 0 ? 'bg-surface-container-high text-on-surface-variant cursor-not-allowed' :
+                    sendState === 'loading' ? 'bg-[#128c7e] opacity-80 cursor-wait' :
+                    sendState === 'success' ? 'bg-primary' :
+                    'bg-[#128c7e] hover:bg-[#0f776a]'
+                 }`}
+                 onClick={handleBatchSend}
+                 disabled={!generatedMessage || selectedCount === 0 || sendState === 'loading'}
+              >
+                 {sendState === 'loading' ? (
+                    <><RefreshCw size={18} className="animate-spin" /> Sending...</>
+                 ) : sendState === 'success' ? (
+                    <><Check size={18} /> Dispatched Successfully</>
+                 ) : (
+                    <><span className="material-symbols-outlined text-[20px]">send</span> Dispatch via WhatsApp API</>
+                 )}
+              </button>
+              
+              <div className="text-center mt-3">
+                 <button 
+                    className="text-primary font-label-md text-label-md hover:underline inline-flex items-center gap-1"
+                    onClick={copyToClipboard}
+                 >
+                    <Copy size={14} /> Just copy text instead
+                 </button>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

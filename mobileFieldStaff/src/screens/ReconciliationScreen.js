@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
   backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   headerTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
   
-  filterBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#f8f9fa', borderBottomWidth: 1, borderBottomColor: colors.outlineVariant },
+  filterBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: colors.surfaceContainerLow, borderBottomWidth: 1, borderBottomColor: colors.outlineVariant },
   filterText: { ...typography.labelMd, color: colors.onSurfaceVariant, fontWeight: 'bold' },
 
   list: { padding: 16, paddingBottom: 100 },
@@ -129,13 +129,13 @@ const styles = StyleSheet.create({
   timeText: { ...typography.labelSm, color: colors.onSurfaceVariant },
   
   timelineCenter: { width: 24, alignItems: 'center' },
-  iconCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center', zIndex: 1 },
-  line: { flex: 1, width: 2, backgroundColor: '#e3f2fd', marginTop: -4, marginBottom: -4 },
+  iconCircle: { width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surfaceContainer, justifyContent: 'center', alignItems: 'center', zIndex: 1 },
+  line: { flex: 1, width: 2, backgroundColor: colors.surfaceContainer, marginTop: -4, marginBottom: -4 },
   
   timelineRight: { flex: 1, paddingLeft: 12, paddingBottom: 24 },
   contentCard: { backgroundColor: colors.surfaceContainerLowest, padding: 12, borderRadius: rounded.md, borderWidth: 1, borderColor: colors.outlineVariant },
   description: { ...typography.titleSm, fontWeight: 'bold', color: colors.onSurface, marginBottom: 4 },
   meta: { ...typography.bodySm, color: colors.onSurfaceVariant },
   metaAmount: { ...typography.bodyMd, fontWeight: 'bold', color: colors.primary, marginTop: 4 },
-  metaStatus: { ...typography.labelSm, color: '#ed6c02', marginTop: 4 }
+  metaStatus: { ...typography.labelSm, color: colors.accent, marginTop: 4 }
 });

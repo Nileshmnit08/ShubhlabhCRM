@@ -253,8 +253,8 @@ const styles = StyleSheet.create({
   activityBox: { backgroundColor: colors.surfaceContainerLowest, borderRadius: rounded.default, padding: 16, marginBottom: 12, elevation: 1 },
   activityTitle: { ...typography.titleSm, fontWeight: 'bold', color: colors.onSurface },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { backgroundColor: '#eff4ff', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#d0dfff' },
-  chipText: { ...typography.labelMd, color: '#00468c' },
+  chip: { backgroundColor: colors.surfaceContainerLow, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: colors.outlineVariant },
+  chipText: { ...typography.labelMd, color: colors.secondary },
   
   reqRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: colors.outlineVariant },
   reqText: { ...typography.bodyMd, fontWeight: '600', color: colors.onSurface },
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   
   noActivityText: { ...typography.bodyMd, color: colors.onSurfaceVariant, fontStyle: 'italic', marginLeft: 4 },
   
-  syncCard: { flexDirection: 'row', backgroundColor: '#f8f9fa', borderRadius: rounded.default, padding: 16, alignItems: 'center', gap: 12, borderWidth: 1, borderColor: colors.outlineVariant },
+  syncCard: { flexDirection: 'row', backgroundColor: colors.background, borderRadius: rounded.default, padding: 16, alignItems: 'center', gap: 12, borderWidth: 1, borderColor: colors.outlineVariant },
   syncText: { ...typography.bodyMd, color: colors.onSurfaceVariant },
   
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, backgroundColor: colors.surfaceContainerLowest, borderTopWidth: 1, borderTopColor: colors.outlineVariant },

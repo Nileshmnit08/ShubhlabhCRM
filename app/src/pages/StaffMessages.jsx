@@ -490,6 +490,8 @@ export default function StaffMessages() {
         .from('chat_conversations')
         .select(`
           id,
+          type,
+          title,
           updated_at,
           chat_participants (
             user_id
@@ -521,9 +523,17 @@ export default function StaffMessages() {
         const names = staffUsers.map(u => u?.display_name || 'Unknown').join(' & ');
         const roles = staffUsers.map(u => u?.role || 'Staff').join(', ');
         
-        // Determine type based on participants (Admin chat has at least one Admin)
-        const hasAdmin = conv.chat_participants.some(p => userMap[p.user_id]?.role === 'Admin');
-        const type = hasAdmin ? 'ADMIN_STAFF' : 'TEAM';
+        // Determine type based on DB type or participants
+        let type = conv.type;
+        if (type === 'TEAM_GROUP') {
+          // Keep TEAM_GROUP
+        } else {
+          const hasAdmin = conv.chat_participants.some(p => {
+             const r = userMap[p.user_id]?.role;
+             return r === 'Admin' || r === 'Owner' || r === 'Superadmin';
+          });
+          type = hasAdmin ? 'ADMIN_STAFF' : 'TEAM';
+        }
 
         const { data: latestMsgData } = await supabase
           .from('chat_messages')

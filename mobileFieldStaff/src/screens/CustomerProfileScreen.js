@@ -314,8 +314,8 @@ export function CustomerProfileScreen({ navigation, route }) {
           {demands.length > 0 ? (
             demands.map((req, idx) => (
               <View key={req.id || idx} style={styles.activityCard}>
-                <View style={[styles.activityIconBox, {backgroundColor: '#fff3e0'}]}>
-                  <MaterialIcons name="shopping-cart" size={18} color="#904d00" />
+                <View style={[styles.activityIconBox, {backgroundColor: colors.surfaceContainerLow}]}>
+                  <MaterialIcons name="shopping-cart" size={18} color={colors.accent} />
                 </View>
                 <View style={styles.activityContent}>
                   <Text style={styles.activityTitle}>{req.demand_ref || req.product_type || 'Customer Demand'}</Text>
@@ -326,13 +326,13 @@ export function CustomerProfileScreen({ navigation, route }) {
                     </Text>
                     {req._isPending ? (
                       <View style={styles.pendingTag}>
-                        <MaterialIcons name={req._syncStatus === 'SYNCING' ? 'sync' : 'cloud-upload'} size={10} color={req._syncStatus === 'SYNCING' ? '#0052cc' : '#904d00'} />
-                        <Text style={[styles.pendingTagText, req._syncStatus === 'SYNCING' && {color: '#0052cc'}]}>
+                        <MaterialIcons name={req._syncStatus === 'SYNCING' ? 'sync' : 'cloud-upload'} size={10} color={req._syncStatus === 'SYNCING' ? colors.secondary : colors.accent} />
+                        <Text style={[styles.pendingTagText, req._syncStatus === 'SYNCING' && {color: colors.secondary}]}>
                           {req._syncStatus === 'SYNCING' ? 'Syncing...' : (req._syncStatus === 'FAILED' ? 'Sync Failed' : 'Pending Sync')}
                         </Text>
                       </View>
                     ) : (
-                      <View style={[styles.pendingTag, {backgroundColor: '#e5eeff'}]}>
+                      <View style={[styles.pendingTag, {backgroundColor: colors.surfaceContainer}]}>
                          <Text style={[styles.pendingTagText, {color: colors.primary}]}>{req.status || 'New'}</Text>
                       </View>
                     )}
@@ -342,7 +342,7 @@ export function CustomerProfileScreen({ navigation, route }) {
                     {req.requirement_items && req.requirement_items.length > 0 ? (
                       req.requirement_items.map((item, i) => (
                         <View key={item.id || i} style={styles.activityMetaRow}>
-                          <View style={[styles.metaChip, {backgroundColor: '#f1f8ff', borderColor: '#cce0ff'}]}>
+                          <View style={[styles.metaChip, {backgroundColor: colors.surfaceContainerLow, borderColor: colors.outlineVariant}]}>
                             <Text style={[styles.metaChipText, {fontWeight: 'bold', color: colors.primary}]}>{item.product_name}</Text>
                           </View>
                           <View style={styles.metaChip}>
@@ -403,8 +403,8 @@ export function CustomerProfileScreen({ navigation, route }) {
                     </Text>
                     {activity._isPending && (
                       <View style={styles.pendingTag}>
-                        <MaterialIcons name={activity._syncStatus === 'SYNCING' ? 'sync' : 'cloud-upload'} size={10} color={activity._syncStatus === 'SYNCING' ? '#0052cc' : '#904d00'} />
-                        <Text style={[styles.pendingTagText, activity._syncStatus === 'SYNCING' && {color: '#0052cc'}]}>
+                        <MaterialIcons name={activity._syncStatus === 'SYNCING' ? 'sync' : 'cloud-upload'} size={10} color={activity._syncStatus === 'SYNCING' ? colors.secondary : colors.accent} />
+                        <Text style={[styles.pendingTagText, activity._syncStatus === 'SYNCING' && {color: colors.secondary}]}>
                           {activity._syncStatus === 'SYNCING' ? 'Syncing...' : (activity._syncStatus === 'FAILED' ? 'Sync Failed' : 'Pending Sync')}
                         </Text>
                       </View>
@@ -450,72 +450,72 @@ export function CustomerProfileScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8f9ff' },
-  centerSafe: { flex: 1, backgroundColor: '#f8f9ff', justifyContent: 'center', alignItems: 'center' },
+  safe: { flex: 1, backgroundColor: colors.background },
+  centerSafe: { flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' },
   container: { padding: 16, paddingBottom: 100 },
-  header: { height: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: 'rgba(248, 249, 255, 0.9)' },
+  header: { height: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: colors.background },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   headerSubtitle: { ...typography.labelSm, color: colors.onSurfaceVariant },
   headerTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  syncBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#a9f3c5', paddingHorizontal: 8, height: 32, borderRadius: 16, gap: 4 },
+  syncBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainer, paddingHorizontal: 8, height: 32, borderRadius: 16, gap: 4 },
   syncDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  syncText: { ...typography.labelSm, color: '#005232' },
-  offlineBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffdad6', paddingHorizontal: 8, height: 32, borderRadius: 16, gap: 4 },
+  syncText: { ...typography.labelSm, color: colors.primary },
+  offlineBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainer, paddingHorizontal: 8, height: 32, borderRadius: 16, gap: 4 },
   offlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.error },
-  offlineText: { ...typography.labelSm, color: '#93000a' },
+  offlineText: { ...typography.labelSm, color: colors.error },
   userIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  heroCard: { backgroundColor: '#ffffff', borderRadius: 12, overflow: 'hidden', elevation: 2, marginBottom: 16 },
+  heroCard: { backgroundColor: colors.surface, borderRadius: 12, overflow: 'hidden', elevation: 2, marginBottom: 16 },
   heroStripe: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 8, backgroundColor: colors.primary },
   heroContent: { padding: 16, paddingLeft: 20 },
   heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   badges: { flexDirection: 'row', gap: 6 },
-  badgePrimary: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#a9f3c5', paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12 },
-  badgePrimaryText: { ...typography.labelSm, color: '#005232', fontWeight: 'bold' },
-  distanceBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(142, 214, 170, 0.2)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, gap: 4 },
+  badgePrimary: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainer, paddingHorizontal: 10, paddingVertical: 2, borderRadius: 12 },
+  badgePrimaryText: { ...typography.labelSm, color: colors.primary, fontWeight: 'bold' },
+  distanceBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerLow, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, gap: 4 },
   distanceText: { ...typography.labelSm, color: colors.primary, fontWeight: 'bold' },
   heroTitleContainer: { marginBottom: 12 },
   heroName: { ...typography.headlineMd, color: colors.onSurface, lineHeight: 28 },
-  geoBlock: { backgroundColor: '#eff4ff', borderRadius: 8, padding: 8, marginBottom: 12 },
+  geoBlock: { backgroundColor: colors.surfaceContainer, borderRadius: 8, padding: 8, marginBottom: 12 },
   geoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   geoText: { ...typography.bodySm, color: colors.onSurfaceVariant, flex: 1 },
   gstRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  limitText: { ...typography.labelSm, color: '#904d00', fontWeight: 'bold' },
-  duesBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255, 218, 214, 0.4)', padding: 10, borderRadius: 8 },
-  duesLabel: { ...typography.labelSm, color: '#93000a', textTransform: 'uppercase' },
+  limitText: { ...typography.labelSm, color: colors.accent, fontWeight: 'bold' },
+  duesBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surfaceContainerLow, padding: 10, borderRadius: 8 },
+  duesLabel: { ...typography.labelSm, color: colors.error, textTransform: 'uppercase' },
   duesAmount: { fontFamily: 'Inter', fontSize: 26, fontWeight: '800', color: colors.error, marginTop: 2 },
   actionSection: { marginBottom: 16 },
-  addOrderBtn: { width: '100%', height: 52, backgroundColor: '#f0e6d2', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 1, marginBottom: 8, borderWidth: 1, borderColor: colors.primary },
+  addOrderBtn: { width: '100%', height: 52, backgroundColor: colors.surfaceContainerLow, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 1, marginBottom: 8, borderWidth: 1, borderColor: colors.primary },
     addOrderBtnText: { ...typography.labelLg, color: colors.primary, fontWeight: 'bold', marginLeft: 8 },
     startVisitBtn: { width: '100%', height: 52, backgroundColor: colors.primary, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', elevation: 2, marginBottom: 8 },
   startVisitDotContainer: { relative: true, width: 12, height: 12, marginRight: 4, alignItems: 'center', justifyContent: 'center' },
-  startVisitDotPing: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5', opacity: 0.75 },
-  startVisitDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5' },
+  startVisitDotPing: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: colors.onPrimary, opacity: 0.75 },
+  startVisitDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.onPrimary },
   startVisitText: { ...typography.labelLg, color: colors.onPrimary, fontWeight: 'bold', marginLeft: 4 },
   startVisitSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginLeft: 4 },
   quickGrid: { flexDirection: 'row', gap: 6 },
-  quickBtn: { flex: 1, height: 52, backgroundColor: '#ffffff', borderRadius: 12, alignItems: 'center', justifyContent: 'center', elevation: 1 },
+  quickBtn: { flex: 1, height: 52, backgroundColor: colors.surface, borderRadius: 12, alignItems: 'center', justifyContent: 'center', elevation: 1 },
   quickBtnText: { ...typography.labelSm, color: colors.onSurface, marginTop: 2 },
   bentoSection: { marginBottom: 16 },
   bentoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, paddingHorizontal: 4 },
   bentoTitle: { ...typography.labelSm, color: colors.onSurfaceVariant, fontWeight: 'bold', textTransform: 'uppercase' },
   timelineSection: { marginBottom: 24 },
   timelineHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, paddingHorizontal: 4 },
-  activityCard: { flexDirection: 'row', backgroundColor: '#ffffff', borderRadius: 12, padding: 12, marginBottom: 8, elevation: 1 },
-  activityIconBox: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#e5eeff', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  activityCard: { flexDirection: 'row', backgroundColor: colors.surface, borderRadius: 12, padding: 12, marginBottom: 8, elevation: 1 },
+  activityIconBox: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceContainer, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   activityContent: { flex: 1, justifyContent: 'center' },
   activityTitle: { ...typography.labelLg, color: colors.onSurface, fontWeight: 'bold' },
   activityDate: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  pendingTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff3e0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 2 },
-  pendingTagText: { fontSize: 10, color: '#904d00', fontWeight: 'bold' },
+  pendingTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerLow, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 2 },
+  pendingTagText: { fontSize: 10, color: colors.accent, fontWeight: 'bold' },
   activityMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
-  metaChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f9fa', borderWidth: 1, borderColor: colors.outlineVariant, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 16, gap: 4 },
+  metaChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainerLow, borderWidth: 1, borderColor: colors.outlineVariant, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 16, gap: 4 },
   metaChipText: { fontSize: 10, color: colors.onSurfaceVariant },
   sheetContent: { flex: 1 },
-  sheetContextBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#eff4ff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, marginBottom: 16 },
+  sheetContextBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surfaceContainer, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, marginBottom: 16 },
   sheetContextTitle: { ...typography.labelSm, color: colors.primary, fontWeight: 'bold' },
   sheetContextName: { ...typography.labelMd, color: colors.onSurface, fontWeight: 'bold' },
-  sheetCancelBtn: { flex: 1, height: 52, backgroundColor: '#e5eeff', borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  sheetCancelBtn: { flex: 1, height: 52, backgroundColor: colors.surfaceContainer, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   sheetCancelBtnText: { ...typography.labelLg, color: colors.onSurface, fontWeight: '600' },
 });

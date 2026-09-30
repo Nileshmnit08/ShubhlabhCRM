@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, typography, rounded, elevation } from '../theme/tokens';
@@ -7,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
 import { supabase } from '../lib/supabase';
 import { useFocusEffect } from '@react-navigation/native';
+import { AppHeader } from '../components';
 
 export function MyWorkScreen({ navigation }) {
   const [stats, setStats] = useState({ visits: 0, orders: 0, followups: 0 });
@@ -56,23 +58,13 @@ export function MyWorkScreen({ navigation }) {
   const isSyncGood = failedCount === 0;
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-          <View style={styles.headerTitleBox}>
-            <Text style={styles.headerPageTitle}>My Work</Text>
-          </View>
-        </View>
-      </View>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <AppHeader variant="B" title="My Work" />
 
       <ScrollView contentContainerStyle={styles.container}>
         
         {/* Today's Activity */}
-        <Text style={styles.sectionTitle}>TODAY'S ACTIVITY</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 8 }]}>TODAY'S ACTIVITY</Text>
         <View style={styles.metricsRow}>
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Visits Completed</Text>
@@ -80,13 +72,13 @@ export function MyWorkScreen({ navigation }) {
           </View>
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Orders Taken</Text>
-            <Text style={[styles.metricValue, {color: '#904d00'}]}>{isLoading ? '-' : stats.orders}</Text>
+            <Text style={[styles.metricValue, {color: colors.accent}]}>{isLoading ? '-' : stats.orders}</Text>
           </View>
         </View>
         <View style={styles.metricsRow}>
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Follow-ups</Text>
-            <Text style={[styles.metricValue, {color: colors.tertiary}]}>{isLoading ? '-' : stats.followups}</Text>
+            <Text style={[styles.metricValue, {color: colors.secondary}]}>{isLoading ? '-' : stats.followups}</Text>
           </View>
           <View style={styles.metricCard}>
             <Text style={styles.metricLabel}>Verified KM</Text>
@@ -163,19 +155,14 @@ export function MyWorkScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  header: { height: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, backgroundColor: colors.background },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  headerTitleBox: { flexDirection: 'col' },
-  headerPageTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
   container: { padding: 16, paddingBottom: 100 },
-  sectionTitle: { ...typography.labelLg, color: colors.onSurface, marginTop: 24, marginBottom: 12, fontWeight: 'bold' },
+  sectionTitle: { ...typography.labelLg, color: colors.onSurface, marginTop: 20, marginBottom: 12, fontWeight: 'bold' },
   metricsRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-  metricCard: { backgroundColor: '#ffffff', borderRadius: 16, padding: 16, flex: 1, justifyContent: 'center', elevation: 1 },
+  metricCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 16, flex: 1, justifyContent: 'center', elevation: 1 },
   metricLabel: { ...typography.bodyMd, color: colors.onSurfaceVariant, marginBottom: 8 },
   metricValue: { ...typography.displayMd, fontWeight: 'bold' },
-  navCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 16, borderRadius: 12, marginBottom: 8, elevation: 1 },
-  navCardLeft: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#f0f4ff', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  navCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, padding: 16, borderRadius: 12, marginBottom: 8, elevation: 1 },
+  navCardLeft: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceContainerHigh, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   navCardTitle: { flex: 1, ...typography.titleMd, color: colors.onSurface, fontWeight: 'bold' },
   navCardRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   navCardSub: { ...typography.bodySm, color: colors.onSurfaceVariant },

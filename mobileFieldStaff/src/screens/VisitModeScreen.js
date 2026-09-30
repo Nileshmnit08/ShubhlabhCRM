@@ -107,7 +107,7 @@ export function VisitModeScreen({ navigation, route }) {
             <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
-            <Text style={styles.headerLogoText}>SHUBH LABH FIELD</Text>
+            <Text style={styles.headerLogoText}>SL FIELD</Text>
             <Text style={styles.headerPageTitle}>Customer Detail</Text>
           </View>
         </View>
@@ -134,7 +134,7 @@ export function VisitModeScreen({ navigation, route }) {
             </View>
           </View>
           <View style={styles.timerBox}>
-            <MaterialIcons name="timer" size={16} color="#a9f3c5" />
+            <MaterialIcons name="timer" size={16} color={colors.inversePrimary} />
             <Text style={styles.timerText}>{elapsedTime}</Text>
           </View>
         </View>
@@ -152,7 +152,7 @@ export function VisitModeScreen({ navigation, route }) {
           </View>
           <View style={styles.geoStrip}>
             <View style={{flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1}}>
-              <MaterialIcons name="verified-user" size={18} color="#0d5c3a" />
+              <MaterialIcons name="verified-user" size={18} color={colors.primary} />
               <Text style={styles.geoText}>Geofence Active</Text>
             </View>
             <View style={{flexDirection: 'row', alignItems: 'center', gap: 4}}>
@@ -177,64 +177,73 @@ export function VisitModeScreen({ navigation, route }) {
 
           <View style={styles.outcomesGrid}>
             <TouchableOpacity style={outcomes.metCustomer ? styles.outcomeBtnActive : styles.outcomeBtnInactive} onPress={() => toggleOutcome('metCustomer')}>
-              <View style={{flex: 1, paddingRight: 4}}>
-                <Text style={styles.outcomeTitle} numberOfLines={1}>Met Customer</Text>
-                <Text style={styles.outcomeSub} numberOfLines={1}>ग्राहक से मिले</Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1}}>
+                <MaterialIcons name={outcomes.metCustomer ? "check-circle" : "handshake"} size={22} color={outcomes.metCustomer ? colors.onPrimary : colors.primary} />
+                <View style={{flex: 1}}>
+                  <Text style={outcomes.metCustomer ? styles.outcomeTitleActive : styles.outcomeTitleInactive} numberOfLines={1}>Met Customer</Text>
+                  <Text style={outcomes.metCustomer ? styles.outcomeSubActive : styles.outcomeSubInactive} numberOfLines={1}>ग्राहक से मिले</Text>
+                </View>
               </View>
-              <MaterialIcons name="check-circle" size={22} color={outcomes.metCustomer ? colors.onPrimary : colors.outline} />
             </TouchableOpacity>
 
             <TouchableOpacity style={outcomes.demandAdded ? styles.outcomeBtnActive : styles.outcomeBtnInactive} onPress={() => toggleOutcome('demandAdded')}>
-              <View style={{flex: 1, paddingRight: 4}}>
-                <Text style={styles.outcomeTitle} numberOfLines={1}>Demand Added</Text>
-                <Text style={styles.outcomeSub} numberOfLines={1}>मांग / ऑर्डर मिला</Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1}}>
+                <MaterialIcons name={outcomes.demandAdded ? "check-circle" : "shopping-cart"} size={22} color={outcomes.demandAdded ? colors.onPrimary : colors.primary} />
+                <View style={{flex: 1}}>
+                  <Text style={outcomes.demandAdded ? styles.outcomeTitleActive : styles.outcomeTitleInactive} numberOfLines={1}>Demand Added</Text>
+                  <Text style={outcomes.demandAdded ? styles.outcomeSubActive : styles.outcomeSubInactive} numberOfLines={1}>मांग / ऑर्डर मिला</Text>
+                </View>
               </View>
-              <MaterialIcons name="check-circle" size={22} color={outcomes.demandAdded ? colors.onPrimary : colors.outline} />
             </TouchableOpacity>
 
             <TouchableOpacity style={outcomes.paymentTalk ? styles.outcomeBtnActive : styles.outcomeBtnInactive} onPress={() => toggleOutcome('paymentTalk')}>
-              <View style={{flex: 1, paddingRight: 4}}>
-                <Text style={styles.outcomeTitle} numberOfLines={1}>Payment Talk</Text>
-                <Text style={styles.outcomeSub} numberOfLines={1}>भुगतान वसूली</Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1}}>
+                <MaterialIcons name={outcomes.paymentTalk ? "check-circle" : "payments"} size={22} color={outcomes.paymentTalk ? colors.onPrimary : colors.primary} />
+                <View style={{flex: 1}}>
+                  <Text style={outcomes.paymentTalk ? styles.outcomeTitleActive : styles.outcomeTitleInactive} numberOfLines={1}>Payment Talk</Text>
+                  <Text style={outcomes.paymentTalk ? styles.outcomeSubActive : styles.outcomeSubInactive} numberOfLines={1}>भुगतान वसूली</Text>
+                </View>
               </View>
-              <MaterialIcons name="payments" size={22} color={outcomes.paymentTalk ? colors.onPrimary : colors.outline} />
             </TouchableOpacity>
 
-
-
             <TouchableOpacity style={outcomes.priceList ? styles.outcomeBtnActive : styles.outcomeBtnInactive} onPress={() => toggleOutcome('priceList')}>
-              <View style={{flex: 1, paddingRight: 4}}>
-                <Text style={styles.outcomeTitle} numberOfLines={1}>Price List</Text>
-                <Text style={styles.outcomeSub} numberOfLines={1}>रेट लिस्ट दी</Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1}}>
+                <MaterialIcons name={outcomes.priceList ? "check-circle" : "menu-book"} size={22} color={outcomes.priceList ? colors.onPrimary : colors.primary} />
+                <View style={{flex: 1}}>
+                  <Text style={outcomes.priceList ? styles.outcomeTitleActive : styles.outcomeTitleInactive} numberOfLines={1}>Price List</Text>
+                  <Text style={outcomes.priceList ? styles.outcomeSubActive : styles.outcomeSubInactive} numberOfLines={1}>रेट लिस्ट दी</Text>
+                </View>
               </View>
-              <MaterialIcons name="menu-book" size={22} color={outcomes.priceList ? colors.onPrimary : colors.outline} />
             </TouchableOpacity>
 
             <TouchableOpacity style={outcomes.mandiIntel ? styles.outcomeBtnActive : styles.outcomeBtnInactive} onPress={() => toggleOutcome('mandiIntel')}>
-              <View style={{flex: 1, paddingRight: 4}}>
-                <Text style={styles.outcomeTitle} numberOfLines={1}>Mandi Intel</Text>
-                <Text style={styles.outcomeSub} numberOfLines={1}>प्रतिद्वंद्वी भाव</Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1}}>
+                <MaterialIcons name={outcomes.mandiIntel ? "check-circle" : "insights"} size={22} color={outcomes.mandiIntel ? colors.onPrimary : colors.primary} />
+                <View style={{flex: 1}}>
+                  <Text style={outcomes.mandiIntel ? styles.outcomeTitleActive : styles.outcomeTitleInactive} numberOfLines={1}>Mandi Intel</Text>
+                  <Text style={outcomes.mandiIntel ? styles.outcomeSubActive : styles.outcomeSubInactive} numberOfLines={1}>प्रतिद्वंद्वी भाव</Text>
+                </View>
               </View>
-              <MaterialIcons name="insights" size={22} color={outcomes.mandiIntel ? colors.onPrimary : colors.outline} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.outcomeBtnInactive} onPress={handleFollowUp}>
-              <View style={{flex: 1, paddingRight: 4}}>
-                <Text style={styles.outcomeTitle} numberOfLines={1}>Follow-up Set</Text>
-                <Text style={styles.outcomeSub} numberOfLines={1}>फॉलो-अप तय</Text>
+              <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1}}>
+                <MaterialIcons name="event-available" size={22} color={colors.primary} />
+                <View style={{flex: 1}}>
+                  <Text style={styles.outcomeTitleInactive} numberOfLines={1}>Follow-up Set</Text>
+                  <Text style={styles.outcomeSubInactive} numberOfLines={1}>फॉलो-अप तय</Text>
+                </View>
               </View>
-              <MaterialIcons name="event-available" size={22} color={colors.outline} />
             </TouchableOpacity>
 
             <TouchableOpacity style={[outcomes.ownerUnavailable ? styles.outcomeBtnActive : styles.outcomeBtnInactive, {width: '100%'}]} onPress={() => toggleOutcome('ownerUnavailable')}>
               <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1}}>
-                <MaterialIcons name="person-off" size={20} color={colors.outline} />
+                <MaterialIcons name={outcomes.ownerUnavailable ? "check-circle" : "person-off"} size={22} color={outcomes.ownerUnavailable ? colors.onPrimary : colors.primary} />
                 <View style={{flex: 1}}>
-                  <Text style={[styles.outcomeTitle, {fontSize: 13}]}>Owner Unavailable / Shop Closed</Text>
-                  <Text style={styles.outcomeSub}>मालिक अनुपस्थित / दुकान बंद</Text>
+                  <Text style={[outcomes.ownerUnavailable ? styles.outcomeTitleActive : styles.outcomeTitleInactive, {fontSize: 13}]} numberOfLines={1}>Owner Unavailable / Shop Closed</Text>
+                  <Text style={outcomes.ownerUnavailable ? styles.outcomeSubActive : styles.outcomeSubInactive} numberOfLines={1}>मालिक अनुपस्थित / दुकान बंद</Text>
                 </View>
               </View>
-              <MaterialIcons name={outcomes.ownerUnavailable ? "check-circle" : "radio-button-unchecked"} size={20} color={outcomes.ownerUnavailable ? colors.onPrimary : colors.outline} />
             </TouchableOpacity>
           </View>
         </View>
@@ -243,13 +252,13 @@ export function VisitModeScreen({ navigation, route }) {
         <View style={styles.actionsGrid}>
           <TouchableOpacity style={styles.voiceBtnBig} onPress={handleVoiceNote}>
             <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
-              <View style={styles.voiceIconInner}><MaterialIcons name="mic" size={24} color="#663500" /></View>
+              <View style={styles.voiceIconInner}><MaterialIcons name="mic" size={24} color={colors.onAccent} /></View>
               <View>
-                <Text style={styles.voiceBtnTitle}>Tap to Speak Note <Text style={{fontWeight: 'normal', color: '#0d5c3a'}}>• बोलकर जोड़ें</Text></Text>
+                <Text style={styles.voiceBtnTitle}>Tap to Speak Note <Text style={{fontWeight: 'normal', color: colors.onPrimaryContainer}}>• बोलकर जोड़ें</Text></Text>
                 <Text style={styles.voiceBtnDesc}>Hindi / English auto-transcribe & action tag</Text>
               </View>
             </View>
-            <MaterialIcons name="graphic-eq" size={26} color="#a9f3c5" />
+            <MaterialIcons name="graphic-eq" size={26} color={colors.inversePrimary} />
           </TouchableOpacity>
 
           <View style={styles.quickActionsRow}>
@@ -260,13 +269,13 @@ export function VisitModeScreen({ navigation, route }) {
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.quickActionBtn} onPress={handlePhotoProof}>
-              <MaterialIcons name="photo-camera" size={20} color="#904d00" />
+              <MaterialIcons name="photo-camera" size={20} color={colors.accent} />
               <Text style={styles.quickActionTitle}>+ Proof Pic</Text>
               <Text style={styles.quickActionSub}>दुकान फ़ोटो</Text>
             </TouchableOpacity>
             
             <TouchableOpacity style={styles.quickActionBtn} onPress={handleCashCollection}>
-              <MaterialIcons name="currency-rupee" size={20} color="#2f3a4d" />
+              <MaterialIcons name="currency-rupee" size={20} color={colors.onSurfaceVariant} />
               <Text style={styles.quickActionTitle}>Record ₹</Text>
               <Text style={styles.quickActionSub}>रोकड़ दर्ज</Text>
             </TouchableOpacity>
@@ -318,55 +327,57 @@ export function VisitModeScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8f9ff' },
-  header: { height: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8, backgroundColor: 'rgba(248, 249, 255, 0.9)' },
+  safe: { flex: 1, backgroundColor: colors.background },
+  header: { height: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8, backgroundColor: colors.background },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   headerTitleBox: { flexDirection: 'col' },
   headerLogoText: { ...typography.labelSm, color: colors.onSurfaceVariant, textTransform: 'uppercase' },
   headerPageTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 8 },
-  syncBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#a9f3c5', paddingHorizontal: 8, height: 32, borderRadius: 16, gap: 4 },
+  syncBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.inversePrimary, paddingHorizontal: 8, height: 32, borderRadius: 16, gap: 4 },
   syncPulse: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  syncText: { ...typography.labelSm, color: '#005232' },
+  syncText: { ...typography.labelSm, color: colors.onPrimaryContainer },
   userIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
 
   container: { padding: 16, paddingBottom: 120 },
-  visitPill: { backgroundColor: '#0d5c3a', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 2, marginBottom: 16 },
+  visitPill: { backgroundColor: colors.primary, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 2, marginBottom: 16 },
   pulseDotBox: { width: 12, height: 12, justifyContent: 'center', alignItems: 'center' },
-  pulseDotOuter: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5', opacity: 0.75 },
-  pulseDotInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#a9f3c5' },
-  visitActiveText: { fontSize: 11, fontWeight: 'bold', color: '#a9f3c5', letterSpacing: 0.5 },
-  visitCustomerText: { fontSize: 12, color: '#eff4ff' },
+  pulseDotOuter: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: colors.inversePrimary, opacity: 0.75 },
+  pulseDotInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: colors.inversePrimary },
+  visitActiveText: { fontSize: 11, fontWeight: 'bold', color: colors.inversePrimary, letterSpacing: 0.5 },
+  visitCustomerText: { fontSize: 12, color: colors.onPrimary },
   timerBox: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  timerText: { ...typography.labelMd, fontWeight: 'bold', color: '#a9f3c5', letterSpacing: 0.5 },
+  timerText: { ...typography.labelMd, fontWeight: 'bold', color: colors.inversePrimary, letterSpacing: 0.5 },
 
-  metaCard: { backgroundColor: '#ffffff', borderRadius: 12, padding: 14, elevation: 1, marginBottom: 16 },
+  metaCard: { backgroundColor: colors.surface, borderRadius: 12, padding: 14, elevation: 1, marginBottom: 16 },
   metaTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
   metaTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
-  storeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#e5eeff', alignItems: 'center', justifyContent: 'center' },
-  geoStrip: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#eff4ff', borderRadius: 8, padding: 8 },
+  storeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surfaceContainer, alignItems: 'center', justifyContent: 'center' },
+  geoStrip: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surfaceContainerLow, borderRadius: 8, padding: 8 },
   geoText: { fontSize: 11, color: colors.onSurface },
   coordText: { fontSize: 11, fontWeight: '600', color: colors.onSurfaceVariant },
 
-  gridCard: { backgroundColor: '#ffffff', borderRadius: 12, padding: 16, elevation: 1, marginBottom: 12 },
+  gridCard: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, elevation: 1, marginBottom: 12 },
   gridHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   gridTitle: { ...typography.headlineMd, fontWeight: 'bold', color: colors.onSurface },
   gridSub: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 2 },
 
   outcomesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8 },
-  outcomeBtnActive: { width: '48.5%', minHeight: 58, backgroundColor: colors.primary, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 1 },
-  outcomeBtnInactive: { width: '48.5%', minHeight: 58, backgroundColor: '#eff4ff', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  outcomeTitle: { ...typography.labelLg, fontWeight: 'bold', color: colors.onPrimary },
-  outcomeSub: { ...typography.bodySm, color: 'rgba(255,255,255,0.9)' },
+  outcomeBtnActive: { width: '48.5%', minHeight: 64, backgroundColor: colors.primary, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', elevation: 1 },
+  outcomeBtnInactive: { width: '48.5%', minHeight: 64, backgroundColor: colors.surface, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', borderWidth: 1, borderColor: colors.outlineVariant },
+  outcomeTitleActive: { ...typography.labelLg, fontWeight: 'bold', color: colors.onPrimary },
+  outcomeTitleInactive: { ...typography.labelLg, fontWeight: 'bold', color: colors.onSurface },
+  outcomeSubActive: { ...typography.bodySm, color: 'rgba(255,255,255,0.9)' },
+  outcomeSubInactive: { ...typography.bodySm, color: colors.onSurfaceVariant },
 
   actionsGrid: { marginBottom: 8 },
-  voiceBtnBig: { minHeight: 60, backgroundColor: '#0d5c3a', borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 2, marginBottom: 8 },
-  voiceIconInner: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#fe932c', alignItems: 'center', justifyContent: 'center' },
+  voiceBtnBig: { minHeight: 60, backgroundColor: colors.primary, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 2, marginBottom: 8 },
+  voiceIconInner: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   voiceBtnTitle: { ...typography.labelLg, fontWeight: 'bold', color: colors.onPrimary },
-  voiceBtnDesc: { ...typography.bodySm, color: '#8ad2a7' },
+  voiceBtnDesc: { ...typography.bodySm, color: colors.inversePrimary },
   quickActionsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  quickActionBtn: { flex: 1, minHeight: 54, backgroundColor: '#ffffff', borderRadius: 12, padding: 10, alignItems: 'center', justifyContent: 'center', elevation: 1 },
+  quickActionBtn: { flex: 1, minHeight: 54, backgroundColor: colors.surface, borderRadius: 12, padding: 10, alignItems: 'center', justifyContent: 'center', elevation: 1 },
   quickActionTitle: { fontSize: 11, fontWeight: 'bold', color: colors.onSurface, marginTop: 2 },
   quickActionSub: { fontSize: 10, color: colors.onSurfaceVariant },
 
@@ -377,11 +388,11 @@ const styles = StyleSheet.create({
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, elevation: 16, gap: 8 },
   finishBtn: { minHeight: 56, backgroundColor: colors.primary, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 2 },
   finishTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onPrimary, letterSpacing: -0.5 },
-  finishSub: { ...typography.labelMd, color: '#a9f3c5' },
-  checkoutTag: { backgroundColor: '#0d5c3a', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginLeft: 4 },
-  checkoutTagText: { fontSize: 11, color: '#a9f3c5' },
+  finishSub: { ...typography.labelMd, color: colors.inversePrimary },
+  checkoutTag: { backgroundColor: colors.onPrimaryContainer, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginLeft: 4 },
+  checkoutTagText: { fontSize: 11, color: colors.inversePrimary },
   
-  feedItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', borderRadius: 8, padding: 12, marginBottom: 8, elevation: 1 },
+  feedItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 8, padding: 12, marginBottom: 8, elevation: 1 },
   feedItemTitle: { fontSize: 13, fontWeight: 'bold', color: colors.onSurface },
   feedItemSub: { fontSize: 11, color: colors.onSurfaceVariant },
 });

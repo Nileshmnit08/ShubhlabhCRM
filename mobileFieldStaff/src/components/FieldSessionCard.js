@@ -225,24 +225,22 @@ export function FieldSessionCard() {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: rounded.lg,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.outlineVariant,
   },
   startBtn: {
     paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: '#E5EEFF',
+    backgroundColor: colors.primary,
     borderRadius: rounded.md,
-    borderWidth: 1,
-    borderColor: colors.primary,
   },
   startBtnText: {
     ...typography.labelLg,
-    color: colors.primary,
+    color: colors.onPrimary,
     fontWeight: 'bold',
   },
   activeHeader: {
@@ -254,12 +252,12 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#4caf50',
+    backgroundColor: colors.primary,
     marginRight: 8,
   },
   activeTitle: {
     ...typography.labelLg,
-    color: '#2e7d32',
+    color: colors.primary,
     fontWeight: 'bold',
   },
   startedText: {

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Location from 'expo-location';
 import { colors, typography, rounded } from '../theme/tokens';
 import { supabase } from '../lib/supabase';
 import { calculateDistanceKm, formatDistance } from '../utils/location';
+import { AppHeader } from '../components';
 
 export function NearbyScreen({ navigation }) {
   const { t } = useTranslation();
@@ -72,38 +74,21 @@ export function NearbyScreen({ navigation }) {
   const totalVerified = customers.length; // total with coordinates
 
   return (
-    <SafeAreaView style={styles.safe}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-            <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
-          </TouchableOpacity>
-          <View style={styles.headerTitleBox}>
-            <Text style={styles.headerLogoText}>SHUBH LABH FIELD</Text>
-            <Text style={styles.headerPageTitle}>{t('nearby.title')}</Text>
-          </View>
-        </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.syncBtn} onPress={fetchData}>
-            <MaterialIcons name="sync" size={14} color="#005232" />
-            <Text style={styles.syncText}>{t('nearby.retry')}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <AppHeader variant="B" title={t('nearby.title')} rightAction={t('nearby.retry')} onRightAction={fetchData} />
 
       <ScrollView contentContainerStyle={styles.container}>
         {/* Offline / GPS Diagnostic Strip */}
-        <View style={[styles.gpsStrip, locationStatus !== 'success' && { backgroundColor: '#663500' }]}>
+        <View style={[styles.gpsStrip, locationStatus !== 'success' && { backgroundColor: colors.errorContainer }]}>
           <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
             {locationStatus === 'success' ? (
                <View style={styles.gpsPulse} />
             ) : locationStatus === 'locating' ? (
-               <ActivityIndicator size="small" color="#a9f3c5" />
+               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
-               <MaterialIcons name="error" size={16} color="#ffdad6" />
+               <MaterialIcons name="error" size={16} color={colors.error} />
             )}
-            <Text style={[styles.gpsText, locationStatus !== 'success' && { color: '#ffdad6' }]}>
+            <Text style={[styles.gpsText, locationStatus !== 'success' && { color: colors.error }]}>
               {locationStatus === 'success' ? `${t('nearby.gpsLive')}: ±${Math.round(myLocation?.accuracy || 0)}m` :
                locationStatus === 'locating' ? t('nearby.locating') :
                locationStatus === 'denied' ? t('nearby.permissionDenied') : t('nearby.locationUnavailable')}
@@ -111,7 +96,7 @@ export function NearbyScreen({ navigation }) {
           </View>
           {locationStatus === 'success' && (
             <View style={styles.gpsBadge}>
-              <MaterialIcons name="satellite-alt" size={14} color="#0d5c3a" />
+              <MaterialIcons name="satellite-alt" size={14} color={colors.onPrimary} />
               <Text style={styles.gpsBadgeText}>{t('nearby.highAccuracy')}</Text>
             </View>
           )}
@@ -175,7 +160,7 @@ export function NearbyScreen({ navigation }) {
                 return (
                   <View key={c.id} style={[styles.pinWrapper, {top: `${top}%`, left: `${left}%`}]}>
                     <View style={styles.pinTag}>
-                      <View style={[styles.pinDot, {backgroundColor: idx === 0 ? colors.primary : '#2f3a4d'}]}>
+                      <View style={[styles.pinDot, {backgroundColor: idx === 0 ? colors.primary : colors.secondary}]}>
                         <Text style={styles.pinDotText}>{idx + 1}</Text>
                       </View>
                       <Text style={styles.pinTagText}>{formatDistance(c.distanceKm)}</Text>
@@ -216,14 +201,14 @@ export function NearbyScreen({ navigation }) {
         ) : filteredCustomers.length > 0 ? (
           filteredCustomers.map((customer, idx) => (
             <View key={customer.id} style={styles.card}>
-              <View style={[styles.cardBorder, {backgroundColor: idx === 0 ? colors.primary : '#fe932c'}]} />
+              <View style={[styles.cardBorder, {backgroundColor: idx === 0 ? colors.primary : colors.secondary}]} />
               <View style={styles.cardTop}>
                 <View style={{flex: 1, paddingRight: 8}}>
                   <Text style={styles.cardTitle}>{customer.display_name}</Text>
                   <Text style={styles.cardDesc}>{customer.legal_or_core_name || ''}</Text>
                 </View>
-                <View style={idx === 0 ? styles.distBadge : [styles.distBadge, {backgroundColor: '#dce9ff'}]}>
-                  <MaterialIcons name="directions-walk" size={16} color={idx === 0 ? "#002111" : colors.onSurface} />
+                <View style={idx === 0 ? styles.distBadge : [styles.distBadge, {backgroundColor: colors.surfaceContainer}]}>
+                  <MaterialIcons name="directions-walk" size={16} color={idx === 0 ? colors.onPrimary : colors.onSurface} />
                   <Text style={idx === 0 ? styles.distBadgeText : [styles.distBadgeText, {color: colors.onSurface}]}>{formatDistance(customer.distanceKm)}</Text>
                 </View>
               </View>
@@ -247,7 +232,7 @@ export function NearbyScreen({ navigation }) {
       {/* Floating Add Customer */}
       <View style={styles.fabContainer}>
         <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('AddCustomer')}>
-          <MaterialIcons name="person-add" size={24} color="#663500" />
+          <MaterialIcons name="person-add" size={24} color={colors.onAccent} />
           <Text style={styles.fabTitle}>{t('nearby.fabTitle')}</Text>
         </TouchableOpacity>
       </View>
@@ -256,71 +241,62 @@ export function NearbyScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8f9ff' },
-  header: { height: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8, backgroundColor: 'rgba(248, 249, 255, 0.9)' },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  headerTitleBox: { flexDirection: 'col' },
-  headerLogoText: { ...typography.labelSm, color: colors.onSurfaceVariant, textTransform: 'uppercase' },
-  headerPageTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingRight: 8 },
-  syncBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#a9f3c5', paddingHorizontal: 8, height: 32, borderRadius: 16, gap: 4 },
-  syncText: { ...typography.labelSm, color: '#005232' },
+  safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: 16, paddingBottom: 100 },
   gpsStrip: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 12, marginBottom: 12, elevation: 1 },
-  gpsPulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#a9f3c5' },
+  gpsPulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.onPrimary },
   gpsText: { ...typography.labelSm, color: colors.onPrimary },
-  gpsBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#0d5c3a', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, gap: 4 },
-  gpsBadgeText: { ...typography.labelSm, color: '#8ad2a7' },
+  gpsBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, gap: 4 },
+  gpsBadgeText: { ...typography.labelSm, color: colors.onPrimary },
   contextBox: { marginBottom: 12 },
   contextTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
   contextDesc: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 2 },
   radiusScroll: { gap: 8, paddingBottom: 8 },
   radiusActive: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: 14, height: 36, borderRadius: 18, gap: 6, elevation: 1 },
-  radiusInactive: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#dce9ff', paddingHorizontal: 14, height: 36, borderRadius: 18, gap: 6 },
+  radiusInactive: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceContainer, paddingHorizontal: 14, height: 36, borderRadius: 18, gap: 6 },
   radiusTextActive: { ...typography.labelMd, color: colors.onPrimary },
   radiusTextInactive: { ...typography.labelMd, color: colors.onSurface },
-  radiusCountActive: { backgroundColor: '#0d5c3a', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 },
-  radiusCountInactive: { backgroundColor: '#ffffff', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 },
-  radiusCountTextActive: { fontSize: 11, fontWeight: 'bold', color: '#8ad2a7' },
+  radiusCountActive: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 },
+  radiusCountInactive: { backgroundColor: colors.surface, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 },
+  radiusCountTextActive: { fontSize: 11, fontWeight: 'bold', color: colors.onPrimary },
   radiusCountTextInactive: { fontSize: 11, fontWeight: 'bold', color: colors.onSurfaceVariant },
-  sortStrip: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#eff4ff', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, marginBottom: 12 },
+  sortStrip: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surfaceContainerLow, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, marginBottom: 12 },
   sortLabel: { ...typography.labelSm, fontWeight: 'bold', color: colors.onSurface, textTransform: 'uppercase' },
   sortValue: { ...typography.labelSm, fontWeight: 'bold', color: colors.primary, flex: 1 },
-  mapContainer: { backgroundColor: '#e5eeff', borderRadius: 16, overflow: 'hidden', elevation: 2, marginBottom: 16 },
-  mapCanvas: { height: 176, backgroundColor: '#dce9ff', position: 'relative' },
-  mapLine: { position: 'absolute', backgroundColor: '#cbdbf5' },
+  mapContainer: { backgroundColor: colors.surfaceContainerLow, borderRadius: 16, overflow: 'hidden', elevation: 2, marginBottom: 16 },
+  mapCanvas: { height: 176, backgroundColor: colors.surfaceContainer, position: 'relative' },
+  mapLine: { position: 'absolute', backgroundColor: colors.surfaceContainerHigh },
   mapCenter: { position: 'absolute', top: '50%', left: '50%', width: 32, height: 32, marginLeft: -16, marginTop: -16, alignItems: 'center', justifyContent: 'center' },
-  mapPulseOuter: { position: 'absolute', width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,67,40,0.25)' },
-  mapPulseInner: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.primary, borderWidth: 2, borderColor: '#ffffff' },
+  mapPulseOuter: { position: 'absolute', width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(23,107,77,0.25)' },
+  mapPulseInner: { width: 16, height: 16, borderRadius: 8, backgroundColor: colors.primary, borderWidth: 2, borderColor: colors.surface },
   mapLabel: { position: 'absolute', top: 32, backgroundColor: colors.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, elevation: 1 },
   mapLabelText: { fontSize: 10, color: colors.onPrimary },
   pinWrapper: { position: 'absolute', marginLeft: -12, marginTop: -12 },
-  pinTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff', padding: 2, paddingRight: 6, borderRadius: 12, elevation: 2, gap: 4 },
+  pinTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, padding: 2, paddingRight: 6, borderRadius: 12, elevation: 2, gap: 4 },
   pinDot: { width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  pinDotText: { fontSize: 10, fontWeight: 'bold', color: '#ffffff' },
+  pinDotText: { fontSize: 10, fontWeight: 'bold', color: colors.onPrimary },
   pinTagText: { fontSize: 11, fontWeight: 'bold', color: colors.onSurface },
   mapTopBadge: { position: 'absolute', top: 10, left: 10, backgroundColor: 'rgba(255,255,255,0.95)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 },
   mapTopBadgeText: { ...typography.labelSm, fontWeight: 'bold', color: colors.onSurface },
-  mapRecenterBtn: { position: 'absolute', bottom: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: '#ffffff', alignItems: 'center', justifyContent: 'center', elevation: 2 },
-  mapBottomStrip: { backgroundColor: '#ffffff', paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mapRecenterBtn: { position: 'absolute', bottom: 10, right: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', elevation: 2 },
+  mapBottomStrip: { backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mapBottomText: { ...typography.labelSm, fontWeight: 'bold', color: colors.onSurface },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: colors.onSurface },
-  sectionActiveBadge: { backgroundColor: '#a9f3c5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
-  sectionActiveText: { fontSize: 11, fontWeight: 'bold', color: '#002111' },
+  sectionActiveBadge: { backgroundColor: colors.primaryContainer, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  sectionActiveText: { fontSize: 11, fontWeight: 'bold', color: colors.onPrimaryContainer },
   sectionSub: { ...typography.bodySm, color: colors.onSurfaceVariant },
-  card: { backgroundColor: '#ffffff', borderRadius: 16, padding: 14, elevation: 2, marginBottom: 12, paddingLeft: 20 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, padding: 14, elevation: 2, marginBottom: 12, paddingLeft: 20 },
   cardBorder: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, borderTopLeftRadius: 16, borderBottomLeftRadius: 16 },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   cardTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
   cardDesc: { ...typography.bodyMd, color: colors.onSurfaceVariant, marginTop: 2 },
-  distBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#a9f3c5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, gap: 4 },
-  distBadgeText: { ...typography.labelMd, fontWeight: 'bold', color: '#002111' },
+  distBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, gap: 4 },
+  distBadgeText: { ...typography.labelMd, fontWeight: 'bold', color: colors.onPrimary },
   cardActions: { flexDirection: 'row', gap: 8 },
   actionBtnPrimary: { flex: 1, height: 52, backgroundColor: colors.primary, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 2 },
   actionBtnPrimaryText: { ...typography.labelLg, color: colors.onPrimary, letterSpacing: 0.5 },
   fabContainer: { position: 'absolute', bottom: 20, right: 16, zIndex: 40 },
-  fab: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fe932c', paddingHorizontal: 20, height: 56, borderRadius: 28, gap: 8, elevation: 4, borderWidth: 2, borderColor: '#ffffff' },
-  fabTitle: { ...typography.labelLg, fontWeight: 'bold', color: '#663500' },
+  fab: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.accent, paddingHorizontal: 20, height: 56, borderRadius: 28, gap: 8, elevation: 4, borderWidth: 2, borderColor: colors.surface },
+  fabTitle: { ...typography.labelLg, fontWeight: 'bold', color: colors.onAccent },
 });

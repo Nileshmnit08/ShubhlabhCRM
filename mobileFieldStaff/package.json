@@ -19,6 +19,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-task-manager": "~57.0.17",
     "i18next": "^26.4.2",
+    "pg": "^8.23.0",
     "react": "19.2.3",
     "react-i18next": "^17.0.14",
     "react-native": "0.86.3",

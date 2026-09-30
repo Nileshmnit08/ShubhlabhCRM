@@ -26,6 +26,7 @@ const DEFAULT_PRODUCTS = [
     {name: '8000', category: 'Pallet'},
     {name: 'Chana Churi', category: 'Churi'},
     {name: 'Soya Churi', category: 'Churi'},
+    {name: 'Makka Aata', category: 'Churi'},
     {name: 'Makka Daliya', category: 'Daliya'},
     {name: 'Wheat Daliya', category: 'Daliya'}
 ];
@@ -418,8 +419,8 @@ export function QuickRequirementScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8f9ff' },
-  header: { height: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8, backgroundColor: 'rgba(248, 249, 255, 0.9)' },
+  safe: { flex: 1, backgroundColor: colors.background },
+  header: { height: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 8, backgroundColor: colors.background },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   backBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   headerTitleBox: { flexDirection: 'col' },
@@ -427,44 +428,44 @@ const styles = StyleSheet.create({
   headerPageTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
   
   mainContainer: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
-  contextBox: { backgroundColor: '#e5eeff', borderRadius: 12, padding: 16, marginBottom: 12 },
+  contextBox: { backgroundColor: colors.surfaceContainer, borderRadius: 12, padding: 16, marginBottom: 12 },
   contextTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   contextActive: { ...typography.labelSm, fontWeight: 'bold', color: colors.primary, letterSpacing: 0.5 },
   contextContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   contextTitle: { ...typography.headlineSm, fontWeight: 'bold', color: colors.onSurface },
 
-  sheetFrame: { flex: 1, backgroundColor: '#ffffff', borderRadius: 12, elevation: 5, overflow: 'hidden' },
+  sheetFrame: { flex: 1, backgroundColor: colors.surface, borderRadius: 12, elevation: 5, overflow: 'hidden' },
   sheetScroll: { padding: 16, paddingBottom: 40 },
   
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   sectionLabel: { ...typography.labelMd, fontWeight: 'bold', color: colors.onSurface },
 
-  cartSection: { backgroundColor: '#fff8f1', borderRadius: 12, padding: 12, marginBottom: 16, borderColor: '#ffd8a8', borderWidth: 1 },
-  cartItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 8, elevation: 1 },
+  cartSection: { backgroundColor: colors.surfaceContainerLow, borderRadius: 12, padding: 12, marginBottom: 16, borderColor: colors.outlineVariant, borderWidth: 1 },
+  cartItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 8, padding: 12, marginBottom: 8, elevation: 1 },
   cartItemEditing: { borderWidth: 2, borderColor: colors.primary },
   cartItemCategory: { fontSize: 10, color: colors.primary, fontWeight: 'bold', textTransform: 'uppercase' },
   cartItemTitle: { fontSize: 16, fontWeight: 'bold', color: colors.onSurface, marginVertical: 2 },
   cartItemQty: { fontSize: 14, color: colors.onSurfaceVariant },
 
-  qtySection: { backgroundColor: '#eff4ff', borderRadius: 12, padding: 12, marginBottom: 16, marginTop: 8 },
-  unitToggle: { flexDirection: 'row', backgroundColor: '#e5eeff', borderRadius: 12, padding: 2 },
+  qtySection: { backgroundColor: colors.surfaceContainerLow, borderRadius: 12, padding: 12, marginBottom: 16, marginTop: 8 },
+  unitToggle: { flexDirection: 'row', backgroundColor: colors.surfaceContainer, borderRadius: 12, padding: 2 },
   unitActive: { backgroundColor: colors.primary, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   unitInactive: { paddingHorizontal: 8, paddingVertical: 2 },
   unitTextActive: { fontSize: 11, fontWeight: 'bold', color: colors.onPrimary },
   unitTextInactive: { fontSize: 11, color: colors.onSurfaceVariant },
-  stepperBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#ffffff', borderRadius: 12, padding: 6, elevation: 1, marginBottom: 4 },
-  stepperBtn: { width: 52, height: 52, borderRadius: 8, backgroundColor: '#e5eeff', alignItems: 'center', justifyContent: 'center' },
+  stepperBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderRadius: 12, padding: 6, elevation: 1, marginBottom: 4 },
+  stepperBtn: { width: 52, height: 52, borderRadius: 8, backgroundColor: colors.surfaceContainer, alignItems: 'center', justifyContent: 'center' },
   stepperValueBox: { alignItems: 'center' },
   stepperValue: { fontSize: 26, fontWeight: '800', color: colors.onSurface },
   stepperLabel: { ...typography.labelMd, fontWeight: '600', color: colors.onSurfaceVariant },
 
   dateChipActive: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: colors.primary, justifyContent: 'center', elevation: 1 },
-  dateChipInactive: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: '#eff4ff', justifyContent: 'center' },
+  dateChipInactive: { minHeight: 44, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12, backgroundColor: colors.surfaceContainerLow, justifyContent: 'center' },
   dateTextActive: { ...typography.labelMd, fontWeight: 'bold', color: colors.onPrimary },
   dateTextInactive: { ...typography.labelMd, color: colors.onSurface },
 
   actionBlock: { gap: 12, marginTop: 8 },
-  addBtn: { height: 50, backgroundColor: '#e5eeff', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#cce0ff' },
+  addBtn: { height: 50, backgroundColor: colors.surfaceContainer, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.outlineVariant },
   addBtnText: { ...typography.labelLg, fontWeight: 'bold', color: colors.primary },
   saveBtn: { height: 56, backgroundColor: colors.primary, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 2 },
   saveBtnText: { ...typography.labelLg, fontWeight: 'bold', color: colors.onPrimary },

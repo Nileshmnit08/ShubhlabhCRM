@@ -21,8 +21,7 @@ import {
 // ─── Controlled Options ────────────────────────────────────────────────────────
 // Derived from existing products table (Sprint 5 & Sprint 20) + existing fields
 const PRODUCT_TYPES = [
-  'Broiler Pre-Starter', 'Broiler Starter', 'Broiler Finisher',
-  'Layer Chick Mash', 'Layer Grower Mash', 'Layer Phase 1',
+  'Makka Aata',
   'Pallet', 'Pallet Naman', 'Pallet Gori', 'Pallet Shubh Labh',
   'Pallet Diamond', 'Pallet 8000',
   'Mix - Lapti', 'Mix Sukha Powder Base', 'Mix Pallet + Khal + Kakde',
