@@ -37,7 +37,7 @@ const Dashboard = () => {
     // Determine date boundaries
     let startDateStr = null;
     let endDateStr = null;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
     
     if (dateRange === 'today') {
       startDateStr = todayStr;
@@ -45,12 +45,12 @@ const Dashboard = () => {
     } else if (dateRange === '7days') {
       const d = new Date();
       d.setDate(d.getDate() - 7);
-      startDateStr = d.toISOString().split('T')[0];
+      startDateStr = format(d, 'yyyy-MM-dd');
       endDateStr = todayStr;
     } else if (dateRange === '30days') {
       const d = new Date();
       d.setDate(d.getDate() - 30);
-      startDateStr = d.toISOString().split('T')[0];
+      startDateStr = format(d, 'yyyy-MM-dd');
       endDateStr = todayStr;
     } else if (dateRange === 'custom') {
       if (customStartDate && customEndDate) {
@@ -132,16 +132,32 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-space-sm">
             <div className="relative group">
-              <button className="flex items-center gap-1.5 px-space-md py-1.5 rounded bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-label-md text-label-md" type="button">
+              <button 
+                className={`flex items-center gap-1.5 px-space-md py-1.5 rounded font-label-md text-label-md transition-colors ${filteredPrices.length === 0 ? 'bg-surface-container-low text-on-surface-variant opacity-50 cursor-not-allowed' : 'bg-surface-container-low text-on-surface hover:bg-surface-container'}`} 
+                type="button"
+                disabled={filteredPrices.length === 0}
+                title={filteredPrices.length === 0 ? "No rates available for the selected filters." : ""}
+              >
                 <span className="material-symbols-outlined text-[16px] text-secondary">file_download</span>
                 <span>Export Rate Sheet</span>
                 <span className="material-symbols-outlined text-[14px]">expand_more</span>
               </button>
             </div>
-            <Link to="/raw-material-prices/whatsapp" className="flex items-center gap-1.5 px-space-md py-1.5 rounded bg-primary text-on-primary hover:bg-surface-tint transition-colors shadow-sm font-label-md text-label-md font-semibold tracking-wide">
-              <span className="material-symbols-outlined text-[18px]">send</span>
-              <span>Broadcast Rates via WhatsApp</span>
-            </Link>
+            {filteredPrices.length === 0 ? (
+               <button 
+                 className="flex items-center gap-1.5 px-space-md py-1.5 rounded font-label-md text-label-md font-semibold tracking-wide bg-primary text-on-primary opacity-50 cursor-not-allowed"
+                 disabled
+                 title="No rates available for the selected filters."
+               >
+                 <span className="material-symbols-outlined text-[18px]">send</span>
+                 <span>Broadcast Rates via WhatsApp</span>
+               </button>
+            ) : (
+               <Link to="/raw-material-prices/whatsapp" className="flex items-center gap-1.5 px-space-md py-1.5 rounded bg-primary text-on-primary hover:bg-surface-tint transition-colors shadow-sm font-label-md text-label-md font-semibold tracking-wide">
+                 <span className="material-symbols-outlined text-[18px]">send</span>
+                 <span>Broadcast Rates via WhatsApp</span>
+               </Link>
+            )}
           </div>
         </div>
 
@@ -162,8 +178,8 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="mt-space-sm flex items-center gap-1.5 font-body-sm text-body-sm text-on-surface-variant">
-              <span className="inline-block w-2 h-2 rounded-full bg-primary"></span>
-              <span>Mandi feeds connected &amp; synced</span>
+              <span className={`inline-block w-2 h-2 rounded-full ${filteredPrices.length > 0 ? 'bg-primary' : 'bg-on-surface-variant'}`}></span>
+              <span>{filteredPrices.length > 0 ? 'Mandi feeds connected & synced' : 'No records synced'}</span>
             </div>
           </div>
           
@@ -173,14 +189,8 @@ const Dashboard = () => {
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-semibold">Daily Movement Split</span>
                 <div className="flex items-center gap-space-sm mt-1">
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-surface-container-low text-primary font-numeric-table text-numeric-table font-semibold">
-                    <span className="material-symbols-outlined text-[14px]">arrow_upward</span>6 Up
-                  </span>
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-surface-container-low text-error font-numeric-table text-numeric-table font-semibold">
-                    <span className="material-symbols-outlined text-[14px]">arrow_downward</span>4 Down
-                  </span>
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-surface-container-low text-on-surface-variant font-numeric-table text-numeric-table font-semibold">
-                    <span>•</span> 8 Flat
+                    No movement data
                   </span>
                 </div>
               </div>
@@ -189,7 +199,7 @@ const Dashboard = () => {
               </div>
             </div>
             <div className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant">
-              <span>Market momentum indicator</span>
+              <span>Requires historical comparison</span>
             </div>
           </div>
           
@@ -199,16 +209,15 @@ const Dashboard = () => {
               <div className="flex flex-col">
                 <span className="font-label-sm text-label-sm uppercase tracking-wider text-on-surface-variant font-semibold">Avg Weighted Change</span>
                 <div className="flex items-baseline gap-space-xs mt-1">
-                  <span className="font-headline-xl text-headline-xl text-primary font-bold">+0.82%</span>
-                  <span className="font-label-md text-label-md text-primary font-semibold">(+₹0.28/kg)</span>
+                  <span className="font-headline-sm text-headline-sm text-on-surface-variant font-medium">No benchmark change available</span>
                 </div>
               </div>
-              <div className="w-9 h-9 rounded bg-surface-container flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-[20px]">trending_up</span>
+              <div className="w-9 h-9 rounded bg-surface-container flex items-center justify-center text-on-surface-variant">
+                <span className="material-symbols-outlined text-[20px]">trending_flat</span>
               </div>
             </div>
             <div className="mt-space-sm font-body-sm text-body-sm text-on-surface-variant">
-              <span>Aggregate composite baseline vs yesterday</span>
+              <span>Insufficient data for selected period</span>
             </div>
           </div>
 
@@ -319,7 +328,31 @@ const Dashboard = () => {
                   ) : tableError ? (
                      <tr><td colSpan={6} className="py-8 text-center text-error">{tableError}</td></tr>
                   ) : filteredPrices.length === 0 ? (
-                     <tr><td colSpan={6} className="py-8 text-center text-on-surface-variant">No price entries found for the selected filters.</td></tr>
+                     <tr>
+                      <td colSpan={6} className="py-12 text-center">
+                        <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                          <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-2">database</span>
+                          <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-1">No price entries</h3>
+                          <p className="font-body-sm text-body-sm text-on-surface-variant mb-4 text-center">
+                            {dateRange === 'today' ? "No price entries have been recorded for today." : "No price entries found for the selected filters."}
+                          </p>
+                          <div className="flex gap-2">
+                            {dateRange === 'today' && (
+                               <button 
+                                  onClick={() => setDateRange('7days')} 
+                                  className="btn btn-outline border-outline-variant hover:bg-surface-container-low text-on-surface text-label-sm px-4 py-1.5 rounded"
+                               >
+                                  View Last 7 Days
+                               </button>
+                            )}
+                            <Link to="/raw-material-prices/daily-entry" className="btn btn-primary bg-primary text-on-primary hover:bg-surface-tint text-label-sm px-4 py-1.5 rounded flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[16px]">add</span>
+                              Add Price Entry
+                            </Link>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
                   ) : (
                     filteredPrices.map(entry => (
                       <tr key={entry.id} className="hover:bg-surface-container-low transition-colors">

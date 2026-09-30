@@ -15,6 +15,8 @@ const DailyPriceEntry = () => {
   const [priceTypes, setPriceTypes] = useState([]);
   const [entries, setEntries] = useState([]);
   const [message, setMessage] = useState(null);
+  const [showReview, setShowReview] = useState(false);
+  const [reviewData, setReviewData] = useState({ ready: [], errors: [], unused: 0 });
   
   const today = format(new Date(), 'yyyy-MM-dd');
   const [entryDate, setEntryDate] = useState(today);
@@ -86,9 +88,15 @@ const DailyPriceEntry = () => {
 
   const handleDuplicateRow = (index) => {
     const toDuplicate = entries[index];
+    const isUnused = !toDuplicate.price && !toDuplicate.broker_id && !toDuplicate.market_location && !toDuplicate.remarks;
+    if (isUnused) {
+      setMessage({ type: 'error', text: 'Enter at least one value before duplicating this row.' });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
     setEntries([
       ...entries.slice(0, index + 1),
-      { ...toDuplicate, id: `temp-${Date.now()}-${Math.random()}`, broker_id: '', price: '' },
+      { ...toDuplicate, id: `temp-${Date.now()}-${Math.random()}`, price: '' },
       ...entries.slice(index + 1)
     ]);
   };
@@ -130,31 +138,60 @@ const DailyPriceEntry = () => {
     }));
   };
 
-  const handleSave = async () => {
-    // Validate required fields
-    const validEntries = entries.filter(e => 
-      e.raw_material_id && e.broker_id && e.price && e.unit_id && e.price_type_id
-    );
-    
-    if (validEntries.length === 0) {
-      setMessage({ type: 'error', text: 'No valid entries to save. Please fill Material, Broker, Price, Unit, and Price Type.' });
+  const validateEntries = () => {
+    const ready = [];
+    const errors = [];
+    let unused = 0;
+
+    entries.forEach((e, index) => {
+      const isUnused = !e.price && !e.broker_id && !e.market_location && !e.remarks;
+      if (isUnused) {
+        unused++;
+        return;
+      }
+
+      const rowErrors = [];
+      if (!e.raw_material_id) rowErrors.push('Material required');
+      if (!e.price || Number(e.price) <= 0) rowErrors.push('Rate must be > 0');
+      if (!e.unit_id) rowErrors.push('Unit required');
+      if (!e.price_type_id) rowErrors.push('Price Type required');
+
+      if (rowErrors.length > 0) {
+        errors.push({ row: index + 1, material: e.raw_material_id, errors: rowErrors, data: e });
+      } else {
+        ready.push(e);
+      }
+    });
+
+    return { ready, errors, unused };
+  };
+
+  const handleSaveClick = () => {
+    const validation = validateEntries();
+    if (validation.ready.length === 0 && validation.errors.length === 0) {
+      setMessage({ type: 'error', text: 'No entries to save. Please enter at least one rate.' });
+      setTimeout(() => setMessage(null), 3000);
       return;
     }
+    setReviewData(validation);
+    setShowReview(true);
+  };
 
+  const confirmSave = async () => {
     setSaving(true);
     setMessage(null);
 
     try {
-      const recordsToInsert = validEntries.map(e => ({
+      const recordsToInsert = reviewData.ready.map(e => ({
         entry_date: entryDate,
         raw_material_id: e.raw_material_id,
         quality_grade_id: e.quality_grade_id || null,
-        broker_id: e.broker_id,
-        market_location: e.market_location,
+        broker_id: e.broker_id || null,
+        market_location: e.market_location || null,
         price: Number(e.price),
         unit_id: e.unit_id,
         price_type_id: e.price_type_id,
-        remarks: e.remarks,
+        remarks: e.remarks || null,
         status: e.status,
         source: 'Manual Entry'
       }));
@@ -165,9 +202,9 @@ const DailyPriceEntry = () => {
 
       setMessage({ type: 'success', text: `Successfully saved ${recordsToInsert.length} price entries.` });
       
-      // Clear saved entries, keep empty ones
-      const remaining = entries.filter(e => !(e.raw_material_id && e.broker_id && e.price && e.unit_id && e.price_type_id));
+      const remaining = entries.filter(e => !reviewData.ready.find(r => r.id === e.id));
       setEntries(remaining.length > 0 ? remaining : [createEmptyEntry()]);
+      setShowReview(false);
       
       setTimeout(() => setMessage(null), 5000);
     } catch (error) {
@@ -175,10 +212,11 @@ const DailyPriceEntry = () => {
       
       let errorMsg = error.message || 'Failed to save entries.';
       if (errorMsg.includes('duplicate key value violates unique constraint')) {
-         errorMsg = 'A duplicate quote for the same material, broker, and location on this date already exists. Please verify your entries.';
+         errorMsg = 'A duplicate quote for the same material and location on this date already exists. Please verify your entries.';
       }
       
       setMessage({ type: 'error', text: errorMsg });
+      setShowReview(false);
     } finally {
       setSaving(false);
     }
@@ -191,6 +229,8 @@ const DailyPriceEntry = () => {
     return brokers.filter(b => mappedBrokerIds.includes(b.id));
   };
 
+  const intendedCount = entries.filter(e => e.price || e.broker_id || e.market_location || e.remarks).length;
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-64 text-secondary">
@@ -202,6 +242,89 @@ const DailyPriceEntry = () => {
 
   return (
     <div className="flex flex-col w-full pb-16 animate-fade-in">
+      
+      {/* Review Modal */}
+      {showReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 backdrop-blur-sm p-4">
+          <div className="bg-surface-container-lowest rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="p-space-lg border-b border-surface-container-low flex items-center justify-between">
+              <div>
+                <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold">Review Price Entries</h2>
+                <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">Review {reviewData.ready.length + reviewData.errors.length} entries for {format(parseISO(entryDate), 'dd MMM yyyy')}</p>
+              </div>
+              <div className="flex items-center gap-4 text-sm">
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-semibold">{reviewData.ready.length} Ready</span>
+                <span className="px-3 py-1 rounded-full bg-error/10 text-error font-semibold">{reviewData.errors.length} Errors</span>
+                <span className="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-semibold">{reviewData.unused} Unused</span>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-space-lg bg-surface-container-lowest">
+              {reviewData.errors.length > 0 && (
+                <div className="mb-6 p-4 rounded-lg bg-error-container text-on-error-container border border-error/20">
+                  <h3 className="font-semibold mb-2 flex items-center gap-2"><AlertTriangle size={18} /> Cannot save until errors are fixed</h3>
+                  <ul className="list-disc pl-8 space-y-1 text-sm">
+                    {reviewData.errors.map((err, i) => {
+                       const matName = materials.find(m => m.id === err.material)?.name_en || `Row ${err.row}`;
+                       return <li key={i}><strong>{matName}</strong>: {err.errors.join(', ')}</li>
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {reviewData.ready.length > 0 && (
+                <div>
+                  <h3 className="font-label-md text-label-md uppercase text-on-surface-variant font-semibold mb-3">Entries Ready to Save</h3>
+                  <div className="border border-surface-container-low rounded-lg overflow-hidden">
+                    <table className="w-full text-left">
+                      <thead className="bg-surface-container-low text-on-surface-variant font-label-sm uppercase">
+                        <tr>
+                          <th className="py-2 px-3">Material</th>
+                          <th className="py-2 px-3">Grade</th>
+                          <th className="py-2 px-3">Rate</th>
+                          <th className="py-2 px-3">Unit</th>
+                          <th className="py-2 px-3">Type</th>
+                          <th className="py-2 px-3">Broker</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-surface-container-low text-sm">
+                        {reviewData.ready.map(entry => (
+                          <tr key={entry.id}>
+                            <td className="py-2 px-3 font-medium">{materials.find(m => m.id === entry.raw_material_id)?.name_en}</td>
+                            <td className="py-2 px-3">{qualityGrades.find(q => q.id === entry.quality_grade_id)?.grade_name || 'Standard'}</td>
+                            <td className="py-2 px-3 font-bold">₹{entry.price}</td>
+                            <td className="py-2 px-3">{units.find(u => u.id === entry.unit_id)?.unit_name}</td>
+                            <td className="py-2 px-3">{priceTypes.find(p => p.id === entry.price_type_id)?.type_name}</td>
+                            <td className="py-2 px-3">{brokers.find(b => b.id === entry.broker_id)?.broker_name || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-space-md border-t border-surface-container-low bg-surface-container flex items-center justify-end gap-3 rounded-b-xl">
+              <button 
+                className="px-6 py-2 rounded-lg font-semibold hover:bg-surface-container-highest transition-colors text-on-surface"
+                onClick={() => setShowReview(false)}
+                disabled={saving}
+              >
+                Cancel & Edit
+              </button>
+              <button 
+                className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-on-primary font-bold shadow-sm hover:bg-surface-tint transition-colors disabled:opacity-50"
+                onClick={confirmSave}
+                disabled={saving || reviewData.errors.length > 0 || reviewData.ready.length === 0}
+              >
+                <Save size={18} />
+                {saving ? 'Saving...' : 'Confirm & Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Rapid Key-Entry Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-space-md py-space-xs bg-surface-container rounded-lg mb-space-md shadow-sm gap-2">
@@ -250,8 +373,11 @@ const DailyPriceEntry = () => {
               </div>
             </div>
             
-            <div className="flex items-center gap-2 bg-surface-container-low px-space-sm py-2 rounded-lg shadow-sm h-full">
-              <label className="font-label-sm text-label-sm text-on-surface-variant leading-none">Override mappings</label>
+            <div className="flex items-center gap-2 bg-surface-container-low px-space-sm py-2 rounded-lg shadow-sm h-full group relative" title="Allows this entry to bypass the configured source-to-material mapping to show all brokers.">
+              <label className="font-label-sm text-label-sm text-on-surface-variant leading-none flex items-center gap-1 cursor-help">
+                 Override mappings
+                 <span className="material-symbols-outlined text-[14px] text-on-surface-variant opacity-70">info</span>
+              </label>
               <input 
                 type="checkbox" 
                 className="w-4 h-4 text-primary focus:ring-0 cursor-pointer accent-primary"
@@ -262,7 +388,7 @@ const DailyPriceEntry = () => {
 
             <div className="flex items-center gap-1.5 px-space-sm py-1 rounded bg-tertiary-fixed text-on-tertiary-fixed shadow-sm font-label-md text-label-md">
               <span className="material-symbols-outlined text-[16px] text-tertiary">notification_important</span>
-              <span>Draft • {entries.length} Entries</span>
+              <span>Draft • {intendedCount} Entries</span>
             </div>
           </div>
           
@@ -280,7 +406,7 @@ const DailyPriceEntry = () => {
         <div className="flex items-center gap-space-sm">
           <button 
             className="group flex items-center gap-space-sm px-space-lg py-2 rounded-lg bg-primary text-on-primary hover:bg-surface-tint shadow-sm transition-all transform active:scale-95 disabled:opacity-50" 
-            onClick={handleSave} 
+            onClick={handleSaveClick} 
             disabled={saving}
             type="button"
           >
