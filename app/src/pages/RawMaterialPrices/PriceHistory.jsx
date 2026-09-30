@@ -14,18 +14,12 @@ const PriceHistory = () => {
   const [materials, setMaterials] = useState([]);
   const [brokers, setBrokers] = useState([]);
   
-  const [qualityGrades, setQualityGrades] = useState([]);
-  const [priceTypes, setPriceTypes] = useState([]);
-  
   // Filters
   const [dateRange, setDateRange] = useState('30days');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
-  const [materialFilter, setMaterialFilter] = useState(initialMaterial || 'ALL');
+  const [materialFilter, setMaterialFilter] = useState(initialMaterial);
   const [brokerFilter, setBrokerFilter] = useState('');
-  const [qualityFilter, setQualityFilter] = useState('');
-  const [priceTypeFilter, setPriceTypeFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
   
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -43,7 +37,7 @@ const PriceHistory = () => {
   // Reset page on filter change
   useEffect(() => {
     setPage(1);
-  }, [dateRange, customStartDate, customEndDate, materialFilter, brokerFilter, qualityFilter, priceTypeFilter, statusFilter, debouncedSearch]);
+  }, [dateRange, customStartDate, customEndDate, materialFilter, brokerFilter, debouncedSearch]);
 
   useEffect(() => {
     fetchInitialData();
@@ -52,11 +46,9 @@ const PriceHistory = () => {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [mats, brks, grades, pTypes, history] = await Promise.all([
+      const [mats, brks, history] = await Promise.all([
         supabase.from('raw_materials').select('id, name_en, name_hi').eq('active', true),
         supabase.from('brokers').select('id, broker_name').eq('active', true),
-        supabase.from('material_quality_grades').select('id, grade_name').eq('active', true),
-        supabase.from('rm_price_types').select('id, type_name').eq('active', true),
         supabase.from('raw_material_price_entries')
           .select(`
             *,
@@ -74,8 +66,6 @@ const PriceHistory = () => {
       
       setMaterials(mats.data || []);
       setBrokers(brks.data || []);
-      setQualityGrades(grades.data || []);
-      setPriceTypes(pTypes.data || []);
       setEntries(history.data || []);
     } catch (error) {
       console.error("Error fetching initial data", error);
@@ -97,13 +87,9 @@ const PriceHistory = () => {
           case 'today':
             return isSameDay(entryDate, today);
           case '7days':
-          case '7d':
             return isWithinInterval(entryDate, { start: startOfDay(subDays(today, 6)), end: endOfDay(today) });
           case '30days':
-          case '30d':
             return isWithinInterval(entryDate, { start: startOfDay(subDays(today, 29)), end: endOfDay(today) });
-          case '90days':
-          case '90d':
           case '3months':
             return isWithinInterval(entryDate, { start: startOfDay(subMonths(today, 3)), end: endOfDay(today) });
           case 'custom':
@@ -123,7 +109,7 @@ const PriceHistory = () => {
     }
 
     // 2. Material Filter
-    if (materialFilter && materialFilter !== 'ALL') {
+    if (materialFilter) {
       result = result.filter(e => e.raw_material_id === materialFilter);
     }
 
@@ -132,28 +118,12 @@ const PriceHistory = () => {
       result = result.filter(e => e.broker_id === brokerFilter);
     }
 
-    // 4. Quality Filter
-    if (qualityFilter) {
-      result = result.filter(e => e.quality_grade_id === qualityFilter);
-    }
-
-    // 5. Price Type Filter
-    if (priceTypeFilter) {
-      result = result.filter(e => e.price_type_id === priceTypeFilter);
-    }
-
-    // 6. Status Filter
-    if (statusFilter !== 'All') {
-      result = result.filter(e => e.status === statusFilter);
-    }
-
-    // 7. Search Filter
+    // 4. Search Filter
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase().replace(/\s+/g, ' ').trim();
       result = result.filter(e => 
         e.market_location?.toLowerCase().includes(q) ||
         e.remarks?.toLowerCase().includes(q) ||
-        e.source?.toLowerCase().includes(q) ||
         e.raw_materials?.name_en?.toLowerCase().includes(q) ||
         e.raw_materials?.name_hi?.toLowerCase().includes(q) ||
         e.brokers?.broker_name?.toLowerCase().includes(q) ||
@@ -163,7 +133,7 @@ const PriceHistory = () => {
     }
 
     return result;
-  }, [entries, dateRange, customStartDate, customEndDate, materialFilter, brokerFilter, qualityFilter, priceTypeFilter, statusFilter, debouncedSearch]);
+  }, [entries, dateRange, customStartDate, customEndDate, materialFilter, brokerFilter, debouncedSearch]);
 
   const totalRecords = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
@@ -181,7 +151,7 @@ const PriceHistory = () => {
   }, [filteredRows, page]);
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Material', 'Quality', 'Broker', 'Location', 'Price', 'Unit', 'Type', 'Status', 'Source', 'Remarks'];
+    const headers = ['Date', 'Material', 'Quality', 'Broker', 'Location', 'Price', 'Unit', 'Type', 'Remarks'];
     const csvContent = [
       headers.join(','),
       ...filteredRows.map(e => [
@@ -193,8 +163,6 @@ const PriceHistory = () => {
         e.price,
         `"${e.rm_units?.unit_name || e.unit || ''}"`,
         `"${e.rm_price_types?.type_name || e.price_type || ''}"`,
-        `"${e.status || ''}"`,
-        `"${e.source || ''}"`,
         `"${e.remarks || ''}"`
       ].join(','))
     ].join('\n');
@@ -208,245 +176,322 @@ const PriceHistory = () => {
     document.body.removeChild(link);
   };
 
-  const isCustomDateInvalid = dateRange === 'custom' && customStartDate && customEndDate && parseISO(customStartDate) > parseISO(customEndDate);
+  const clearFilters = () => {
+    setDateRange('all');
+    setCustomStartDate('');
+    setCustomEndDate('');
+    setMaterialFilter('');
+    setBrokerFilter('');
+    setSearchInput('');
+    setPage(1);
+  };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col justify-center items-center h-64 text-secondary">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
-        Loading price history...
-      </div>
-    );
-  }
+  const isCustomDateInvalid = dateRange === 'custom' && customStartDate && customEndDate && parseISO(customStartDate) > parseISO(customEndDate);
+  const hasActiveFilters = dateRange !== 'all' || materialFilter || brokerFilter || searchInput;
 
   return (
-    <div className="flex flex-col w-full animate-fade-in pb-16">
-      
-      {/* Header & KPI Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md mb-space-md">
-        <div className="flex flex-col">
-          <div className="flex items-center gap-space-xs">
-            <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-semibold">Ledger Terminal</span>
-            <span className="text-on-surface-variant font-label-sm text-label-sm">•</span>
-            <span className="font-label-sm text-label-sm text-on-surface-variant">Audit Revision 4.8.2</span>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-surface-container-high text-primary font-label-sm text-label-sm">Live Reconciled</span>
+    <div className="space-y-6">
+      {/* Filters Toolbar */}
+      <div className="bg-white rounded-[16px] border border-[#E2E8F0] shadow-sm p-4 sm:p-5">
+        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+          <div className="flex-1 w-full lg:min-w-[180px]">
+            <label className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+              <Calendar size={14} /> Date Range
+            </label>
+            <select 
+              className="w-full h-[42px] px-3 border border-[#E2E8F0] rounded-lg text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow bg-white text-[#0F172A]"
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value)}
+            >
+              <option value="today">Today</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="3months">Last 3 Months</option>
+              <option value="all">All Time</option>
+              <option value="custom">Custom Range</option>
+            </select>
           </div>
-          <h2 className="font-headline-md text-headline-md text-on-surface tracking-tight mt-0.5">Historical Price Ledger &amp; Rate Audit</h2>
+          
+          {dateRange === 'custom' && (
+            <div className="flex gap-4 w-full lg:w-auto">
+              <div className="flex-1 lg:w-[140px]">
+                <label className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1.5 block">From</label>
+                <input 
+                  type="date" 
+                  className={`w-full h-[42px] px-3 border ${isCustomDateInvalid ? 'border-red-500' : 'border-[#E2E8F0]'} rounded-lg text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow`} 
+                  value={customStartDate} 
+                  onChange={e => setCustomStartDate(e.target.value)} 
+                />
+              </div>
+              <div className="flex-1 lg:w-[140px]">
+                <label className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1.5 block">To</label>
+                <input 
+                  type="date" 
+                  className={`w-full h-[42px] px-3 border ${isCustomDateInvalid ? 'border-red-500' : 'border-[#E2E8F0]'} rounded-lg text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow`} 
+                  value={customEndDate} 
+                  onChange={e => setCustomEndDate(e.target.value)} 
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 w-full lg:min-w-[180px]">
+            <label className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1.5 block">Material</label>
+            <select 
+              className="w-full h-[42px] px-3 border border-[#E2E8F0] rounded-lg text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow bg-white text-[#0F172A]" 
+              value={materialFilter} 
+              onChange={e => setMaterialFilter(e.target.value)}
+            >
+              <option value="">All Materials</option>
+              {materials.map(m => <option key={m.id} value={m.id}>{m.name_en}</option>)}
+            </select>
+          </div>
+          
+          <div className="flex-1 w-full lg:min-w-[180px]">
+            <label className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1.5 block">Broker</label>
+            <select 
+              className="w-full h-[42px] px-3 border border-[#E2E8F0] rounded-lg text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow bg-white text-[#0F172A]" 
+              value={brokerFilter} 
+              onChange={e => setBrokerFilter(e.target.value)}
+            >
+              <option value="">All Brokers</option>
+              {brokers.map(b => <option key={b.id} value={b.id}>{b.broker_name}</option>)}
+            </select>
+          </div>
+          
+          <div className="flex-[1.5] w-full lg:min-w-[220px]">
+             <label className="text-xs font-semibold text-[#475569] uppercase tracking-wider mb-1.5 block">Search</label>
+             <div className="relative">
+               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]" />
+               <input 
+                 type="text" 
+                 placeholder="Search location, remarks..." 
+                 className="w-full h-[42px] pl-9 pr-9 border border-[#E2E8F0] rounded-lg text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow"
+                 value={searchInput}
+                 onChange={e => setSearchInput(e.target.value)}
+               />
+               {searchInput && (
+                 <button 
+                   onClick={() => setSearchInput('')}
+                   className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-[#64748B] hover:bg-slate-100 rounded-full transition-colors"
+                 >
+                   <X size={14} />
+                 </button>
+               )}
+             </div>
+          </div>
+          
+          <button 
+            className="h-[42px] px-5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[#0F172A] font-medium rounded-lg shadow-sm flex items-center justify-center gap-2 transition-colors w-full lg:w-auto shrink-0" 
+            onClick={exportToCSV}
+            disabled={totalRecords === 0}
+          >
+            <Download size={18} /> <span className="lg:hidden">Export CSV</span>
+          </button>
         </div>
-        
-        {/* KPI Panel */}
-        <div className="bg-surface-container-lowest rounded-lg shadow-sm p-space-sm flex flex-wrap items-center gap-space-lg">
-          <div className="flex items-center gap-space-sm">
-            <div className="w-8 h-8 rounded bg-primary-fixed flex items-center justify-center text-on-primary-fixed">
-              <span className="material-symbols-outlined text-[18px]">trending_up</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Period High</span>
-              <span className="font-numeric-table text-numeric-table font-semibold text-on-surface">₹41.20</span>
-            </div>
-          </div>
-          <div className="h-8 w-px bg-surface-container-highest hidden sm:block"></div>
-          <div className="flex items-center gap-space-sm">
-            <div className="w-8 h-8 rounded bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
-              <span className="material-symbols-outlined text-[18px]">trending_down</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Period Low</span>
-              <span className="font-numeric-table text-numeric-table font-semibold text-on-surface">₹21.00</span>
-            </div>
-          </div>
-          <div className="h-8 w-px bg-surface-container-highest hidden sm:block"></div>
-          <div className="flex items-center gap-space-sm">
-            <div className="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-[18px]">waves</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Records</span>
-              <span className="font-numeric-table text-numeric-table font-semibold text-on-surface">{totalRecords} <span className="font-body-sm text-body-sm text-on-surface-variant font-normal">Found</span></span>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Filter Bar */}
-      <div className="bg-surface-container-lowest rounded-lg shadow-sm p-space-md mb-space-md">
-        <div className="flex flex-col gap-space-md">
-          <div className="flex flex-wrap items-center justify-between gap-space-md">
-            <div className="flex flex-wrap items-center gap-space-sm">
-              <div className="relative min-w-[200px]">
-                <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">grain</span>
-                <select 
-                  className="w-full pl-8 pr-8 py-1.5 bg-surface-container-low rounded font-label-lg text-label-lg text-on-surface focus:outline-none focus:bg-surface-container-lowest appearance-none cursor-pointer border border-transparent focus:border-primary"
-                  value={materialFilter}
-                  onChange={(e) => setMaterialFilter(e.target.value)}
-                >
-                  <option value="ALL">All Materials ({materials.length} Tracked)</option>
-                  {materials.map(m => (
-                    <option key={m.id} value={m.id}>{m.name_en}</option>
-                  ))}
-                </select>
-                <span className="material-symbols-outlined absolute right-2 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant pointer-events-none">unfold_more</span>
-              </div>
-              
-              <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded">
-                <button className={`date-chip px-space-sm py-1 rounded font-label-md text-label-md transition-colors ${dateRange === 'today' ? 'bg-primary text-on-primary shadow-sm font-semibold' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setDateRange('today')}>Today</button>
-                <button className={`date-chip px-space-sm py-1 rounded font-label-md text-label-md transition-colors ${dateRange === '7d' ? 'bg-primary text-on-primary shadow-sm font-semibold' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setDateRange('7d')}>7 Days</button>
-                <button className={`date-chip px-space-sm py-1 rounded font-label-md text-label-md transition-colors ${dateRange === '30d' ? 'bg-primary text-on-primary shadow-sm font-semibold' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setDateRange('30d')}>30 Days</button>
-                <button className={`date-chip px-space-sm py-1 rounded font-label-md text-label-md transition-colors ${dateRange === '90d' ? 'bg-primary text-on-primary shadow-sm font-semibold' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setDateRange('90d')}>90 Days</button>
-                <button className={`date-chip px-space-sm py-1 rounded font-label-md text-label-md transition-colors ${dateRange === 'custom' ? 'bg-primary text-on-primary shadow-sm font-semibold' : 'text-on-surface-variant hover:text-on-surface'}`} onClick={() => setDateRange('custom')}>Custom Range</button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-space-xs">
-               <button 
-                  className="inline-flex items-center gap-space-xs px-space-md py-1.5 rounded bg-primary hover:bg-primary-container text-on-primary hover:text-on-primary-container font-label-md text-label-md shadow-sm transition-all" 
-                  onClick={exportToCSV}
-                >
-                  <span className="material-symbols-outlined text-[18px]">receipt_long</span>
-                  <span>Download Ledger</span>
-               </button>
-            </div>
+        {/* Invalid Date Warning */}
+        {isCustomDateInvalid && (
+          <div className="mt-3 text-sm text-red-600 bg-red-50 p-2.5 rounded-lg border border-red-200 font-medium flex items-center gap-2">
+            Start date must be before or equal to end date.
           </div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-space-sm pt-space-xs">
-            {dateRange === 'custom' && (
-              <div className="md:col-span-4 flex items-center gap-space-xs">
-                <input type="date" className={`w-full py-1.5 px-2.5 bg-surface-container-low rounded font-body-sm text-body-sm text-on-surface focus:outline-none focus:bg-surface-container-lowest border ${isCustomDateInvalid ? 'border-error' : 'border-transparent'}`} value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} />
-                <span className="text-on-surface-variant font-label-sm text-label-sm">to</span>
-                <input type="date" className={`w-full py-1.5 px-2.5 bg-surface-container-low rounded font-body-sm text-body-sm text-on-surface focus:outline-none focus:bg-surface-container-lowest border ${isCustomDateInvalid ? 'border-error' : 'border-transparent'}`} value={customEndDate} onChange={e => setCustomEndDate(e.target.value)} />
-              </div>
+        {/* Active Filter Chips */}
+        {hasActiveFilters && !isCustomDateInvalid && (
+          <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-[#E2E8F0]">
+            <span className="text-[13px] text-[#64748B] mr-1 font-medium">Active filters:</span>
+            {dateRange !== 'all' && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A]">
+                Date: {dateRange === 'custom' ? 'Custom' : dateRange === 'today' ? 'Today' : dateRange.replace('days', ' Days').replace('months', ' Months')}
+                <button onClick={() => setDateRange('all')} className="text-[#64748B] hover:text-[#0F172A] transition-colors"><X size={14}/></button>
+              </span>
             )}
-            <div className={`${dateRange === 'custom' ? 'md:col-span-6' : 'md:col-span-10'} relative`}>
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">search</span>
-              <input 
-                className="w-full pl-9 pr-24 py-1.5 bg-surface-container-low rounded font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:bg-surface-container-lowest border border-transparent focus:border-primary" 
-                placeholder="Search historical entry, mandi hub, or broker..." 
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-              />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 font-label-sm text-label-sm px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">Ctrl+F</span>
-            </div>
-            <div className="md:col-span-2 flex items-center justify-end gap-space-sm">
-              <div className="flex items-center gap-1.5 text-on-surface-variant font-label-sm text-label-sm">
-                <span className="material-symbols-outlined text-[16px] text-primary">verified</span>
-                <span>{totalRecords} Audited Rows</span>
-              </div>
-            </div>
+            {materialFilter && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A]">
+                Material: {materials.find(m => m.id === materialFilter)?.name_en}
+                <button onClick={() => setMaterialFilter('')} className="text-[#64748B] hover:text-[#0F172A] transition-colors"><X size={14}/></button>
+              </span>
+            )}
+            {brokerFilter && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A]">
+                Broker: {brokers.find(b => b.id === brokerFilter)?.broker_name}
+                <button onClick={() => setBrokerFilter('')} className="text-[#64748B] hover:text-[#0F172A] transition-colors"><X size={14}/></button>
+              </span>
+            )}
+            {searchInput && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[13px] font-medium bg-[#F8FAFC] border border-[#E2E8F0] text-[#0F172A]">
+                Search: "{searchInput}"
+                <button onClick={() => setSearchInput('')} className="text-[#64748B] hover:text-[#0F172A] transition-colors"><X size={14}/></button>
+              </span>
+            )}
+            <button onClick={clearFilters} className="text-[13px] font-medium text-primary hover:underline ml-1">
+              Clear all
+            </button>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Main Table */}
-      <div className="bg-surface-container-lowest rounded-lg shadow-sm  flex flex-col mb-space-md">
-        <div className="overflow-x-auto min-h-[400px]">
-          <table className="w-full border-collapse text-left">
+      {/* Table Card */}
+      <div className="bg-white rounded-xl border border-base shadow-sm overflow-hidden flex flex-col">
+        <div className="data-table-container">
+          <table className="data-table mobile-cards-table" style={{minWidth: '1000px'}}>
             <thead>
-              <tr className="bg-surface-container-low border-b border-surface-container">
-                <th className="py-2.5 px-space-md font-label-md text-label-md uppercase tracking-wider text-secondary">Date &amp; Date</th>
-                <th className="py-2.5 px-space-md font-label-md text-label-md uppercase tracking-wider text-secondary">Material SKU &amp; Spec</th>
-                <th className="py-2.5 px-space-sm font-label-md text-label-md uppercase tracking-wider text-secondary">Quality</th>
-                <th className="py-2.5 px-space-sm font-label-md text-label-md uppercase tracking-wider text-secondary text-center">Unit</th>
-                <th className="py-2.5 px-space-md font-label-md text-label-md uppercase tracking-wider text-secondary text-right">Recorded Price</th>
-                <th className="py-2.5 px-space-md font-label-md text-label-md uppercase tracking-wider text-secondary">Mandi / Depot Source</th>
-                <th className="py-2.5 px-space-md font-label-md text-label-md uppercase tracking-wider text-secondary">Broker</th>
-                <th className="py-2.5 px-space-md font-label-md text-label-md uppercase tracking-wider text-secondary">Status</th>
+              <tr>
+                <th style={{whiteSpace: 'nowrap'}}>Date</th>
+                <th>Material</th>
+                <th>Quality</th>
+                <th>Broker</th>
+                <th>Location</th>
+                <th style={{textAlign: 'right'}}>Price</th>
+                <th>Unit</th>
+                <th>Type</th>
+                <th style={{maxWidth: '200px'}}>Remarks</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-surface-container">
-              {paginatedRows.length === 0 ? (
+            <tbody className="divide-y divide-[#E2E8F0]">
+              {loading ? (
                 <tr>
-                  <td colSpan="8" className="py-8 text-center text-on-surface-variant">No matching records found.</td>
+                  <td colSpan="9" className="p-16 text-center">
+                    <div className="flex flex-col items-center justify-center text-[#64748B]">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+                      <p className="text-[15px] font-medium">Loading history...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedRows.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="p-0">
+                    <div className="py-20 flex flex-col items-center justify-center text-center">
+                      <div className="w-16 h-16 rounded-full bg-slate-50 border border-[#E2E8F0] flex items-center justify-center text-[#64748B] mb-5">
+                        <Filter size={28} />
+                      </div>
+                      <h4 className="text-[17px] font-bold text-[#0F172A] mb-2">No price records found</h4>
+                      <p className="text-[#64748B] text-[15px] max-w-sm mb-6">
+                        {isCustomDateInvalid 
+                          ? "The custom date range selected is invalid."
+                          : "Try changing the date range, search term, or clearing one or more filters to see results."}
+                      </p>
+                      {hasActiveFilters && (
+                        <button 
+                          className="h-[42px] px-5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-[#0F172A] font-medium rounded-lg shadow-sm transition-colors"
+                          onClick={clearFilters}
+                        >
+                          Clear filters
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ) : (
-                paginatedRows.map(entry => (
-                  <tr key={entry.id} className="hover:bg-surface-container-low/60 transition-colors group">
-                    <td className="py-2 px-space-md whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="font-numeric-table text-numeric-table font-semibold text-on-surface">{format(parseISO(entry.entry_date), 'dd MMM yyyy')}</span>
-                      </div>
-                    </td>
-                    <td className="py-2 px-space-md">
-                      <div className="flex items-center gap-space-sm">
-                        <div className="w-7 h-7 rounded bg-surface-container flex items-center justify-center text-primary font-bold font-label-sm text-label-sm">
-                          {entry.raw_materials?.name_en?.substring(0, 2).toUpperCase() || 'RM'}
+                paginatedRows.map(entry => {
+                  const typeName = entry.rm_price_types?.type_name || entry.price_type || '';
+                  const isDelivered = typeName.toLowerCase().includes('delivered');
+                  
+                  return (
+                    <tr key={entry.id} className="hover:bg-[#F8FAFC] transition-colors group">
+                      <td data-label="Date" className="whitespace-nowrap" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {format(parseISO(entry.entry_date), 'dd MMM yyyy')}
+                      </td>
+                      <td data-label="Material">
+                        <div className="font-semibold text-primary text-[14.5px]">{entry.raw_materials?.name_en}</div>
+                        {entry.raw_materials?.name_hi && (
+                          <div className="text-[12.5px] text-secondary mt-0.5">{entry.raw_materials?.name_hi}</div>
+                        )}
+                      </td>
+                      <td data-label="Quality" className="text-secondary text-[14.5px]">
+                        <div className="truncate max-w-[120px]" title={entry.material_quality_grades?.grade_name || ''}>
+                          {entry.material_quality_grades?.grade_name || <span className="text-muted">-</span>}
                         </div>
-                        <div className="flex flex-col">
-                          <span className="font-label-lg text-label-lg font-semibold text-on-surface group-hover:text-primary transition-colors">
-                             {entry.raw_materials?.name_en} {entry.raw_materials?.name_hi ? `(${entry.raw_materials?.name_hi})` : ''}
-                          </span>
+                      </td>
+                      <td data-label="Broker">
+                        <div className="font-medium text-primary text-[14.5px] mb-1.5">{entry.brokers?.broker_name || '-'}</div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {entry.brokers?.mobile ? (
+                            <>
+                              <a 
+                                href={`tel:${normalizeMobile(entry.brokers.mobile)}`}
+                                className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-secondary bg-white border border-base hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-md transition-colors"
+                                title={`Call ${entry.brokers.broker_name}`}
+                              >
+                                <Phone size={13} /> <span className="hidden sm:inline">Call</span>
+                              </a>
+                              <a 
+                                href={`https://wa.me/91${normalizeMobile(entry.brokers.whatsapp_number || entry.brokers.mobile)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-[11px] font-medium text-secondary bg-white border border-base hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 rounded-md transition-colors"
+                                title={`Message ${entry.brokers.broker_name} on WhatsApp`}
+                              >
+                                <MessageCircle size={13} className="text-emerald-500" /> <span className="hidden sm:inline">WhatsApp</span>
+                              </a>
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center text-[11px] text-muted h-[26px]">No valid phone number</span>
+                          )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-2 px-space-sm whitespace-nowrap">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded font-label-sm text-label-sm bg-primary-fixed text-on-primary-fixed font-semibold">
-                        {entry.material_quality_grades?.grade_name || 'Standard'}
-                      </span>
-                    </td>
-                    <td className="py-2 px-space-sm whitespace-nowrap text-center font-numeric-table text-numeric-table text-on-surface-variant">
-                      {entry.rm_units?.unit_name || entry.unit || 'kg'}
-                    </td>
-                    <td className="py-2 px-space-md whitespace-nowrap text-right">
-                      <span className="font-numeric-table text-numeric-table font-bold text-on-surface">₹{Number(entry.price).toFixed(2)}</span>
-                    </td>
-                    <td className="py-2 px-space-md whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="font-body-md text-body-md text-on-surface font-medium">{entry.market_location || 'N/A'}</span>
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">{entry.remarks || ''}</span>
-                      </div>
-                    </td>
-                    <td className="py-2 px-space-md whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px] text-primary">account_circle</span>
-                        <div className="flex flex-col">
-                          <span className="font-label-md text-label-md text-on-surface font-semibold">{entry.brokers?.broker_name || '-'}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-2 px-space-md whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="inline-flex items-center gap-1 font-label-sm text-label-sm text-primary font-semibold">
-                          <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                          {entry.status} ✓
+                      </td>
+                      <td data-label="Location" className="text-secondary text-[14.5px]">
+                        {entry.market_location ? (
+                          <div className="flex items-center gap-1.5">
+                            <MapPin size={14} className="text-muted shrink-0" />
+                            <span className="truncate max-w-[120px]" title={entry.market_location}>{entry.market_location}</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
+                      <td data-label="Price" className="text-right font-bold text-primary text-[15px]" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        ₹{Number(entry.price).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td data-label="Unit" className="text-secondary text-[14.5px]">
+                        {entry.rm_units?.unit_name || entry.unit}
+                      </td>
+                      <td data-label="Type">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-semibold border ${isDelivered ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-violet-50 text-violet-700 border-violet-200'}`}>
+                          {typeName}
                         </span>
-                        <span className="font-label-sm text-label-sm text-on-surface-variant">{entry.source}</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td data-label="Remarks" className="text-secondary text-[14px]">
+                        <div className="truncate max-w-[180px]" title={entry.remarks || ''}>
+                          {entry.remarks || <span className="text-muted">-</span>}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
-
-        {/* Pagination Toolbar */}
-        {totalPages > 1 && (
-          <div className="px-space-md py-3 border-t border-surface-container bg-surface-container-lowest flex items-center justify-between">
-            <span className="font-body-sm text-body-sm text-on-surface-variant">
-              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalRecords)} of {totalRecords} records
-            </span>
-            <div className="flex items-center gap-1">
+        {/* Pagination */}
+        {!loading && totalRecords > 0 && (
+          <div className="px-5 py-4 border-t border-[#E2E8F0] bg-[#F8FAFC] flex flex-col sm:flex-row items-center justify-between gap-4 mt-auto rounded-b-lg">
+            <div className="text-[14px] text-[#64748B]">
+              Showing <span className="font-semibold text-[#0F172A]">{(page - 1) * pageSize + 1}</span> to <span className="font-semibold text-[#0F172A]">{Math.min(page * pageSize, totalRecords)}</span> of <span className="font-semibold text-[#0F172A]">{totalRecords}</span> records
+            </div>
+            <div className="flex items-center gap-1.5">
               <button 
-                className="p-1 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors disabled:opacity-50"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors ${page === 1 ? 'border-transparent text-[#94A3B8] cursor-not-allowed' : 'border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-slate-50 shadow-sm'}`}
                 disabled={page === 1}
+                onClick={() => setPage(p => p - 1)}
               >
-                <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+                <ChevronLeft size={18} />
               </button>
-              <div className="flex items-center px-2">
-                <span className="font-label-sm text-label-sm font-semibold text-on-surface">{page} / {totalPages}</span>
+              <div className="px-3 h-9 flex items-center justify-center text-[14px] font-medium text-[#475569]">
+                Page {page} of {totalPages}
               </div>
               <button 
-                className="p-1 rounded text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors disabled:opacity-50"
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className={`w-9 h-9 flex items-center justify-center rounded-lg border transition-colors ${page === totalPages ? 'border-transparent text-[#94A3B8] cursor-not-allowed' : 'border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-slate-50 shadow-sm'}`}
                 disabled={page === totalPages}
+                onClick={() => setPage(p => p + 1)}
               >
-                <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
         )}
       </div>
-
     </div>
   );
 };

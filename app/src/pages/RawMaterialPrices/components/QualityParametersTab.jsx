@@ -116,7 +116,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
   };
 
   return (
-    <div className="card bg-white border border-base rounded-xl shadow-sm  flex flex-col">
+    <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col">
       <MasterDataSectionHeader 
         title="Quality & Grade Master" 
         description="Define specific quality parameters or grades for raw materials." 
@@ -285,7 +285,7 @@ export default function QualityParametersTab({ qualityGrades, materials, loading
       {/* Confirmation Modal */}
       {isConfirmOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm  animate-fade-in p-6 text-center">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in p-6 text-center">
             <div className="w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
               <AlertTriangle size={28} />
             </div>

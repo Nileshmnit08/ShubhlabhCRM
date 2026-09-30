@@ -64,7 +64,7 @@ export default function PriceTypesTab({ priceTypes, loading, onRefresh, showMess
   };
 
   return (
-    <div className="card bg-white border border-base rounded-xl shadow-sm  flex flex-col max-w-4xl mx-auto">
+    <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col max-w-4xl mx-auto">
       <MasterDataSectionHeader 
         title="Price Types Master" 
         description="Create and manage price classifications used in daily market entries." 
@@ -154,7 +154,7 @@ export default function PriceTypesTab({ priceTypes, loading, onRefresh, showMess
       {/* Confirmation Modal */}
       {isConfirmOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm  animate-fade-in p-6 text-center">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in p-6 text-center">
             <div className="w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
               <AlertTriangle size={28} />
             </div>

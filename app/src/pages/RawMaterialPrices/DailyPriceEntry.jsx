@@ -11,15 +11,15 @@ const DailyPriceEntry = () => {
   const [brokerMaterials, setBrokerMaterials] = useState([]);
   const [qualityGrades, setQualityGrades] = useState([]);
   const [units, setUnits] = useState([]);
-  const [allowedUnits, setAllowedUnits] = useState([]);
   const [priceTypes, setPriceTypes] = useState([]);
   const [entries, setEntries] = useState([]);
   const [message, setMessage] = useState(null);
-  const [showReview, setShowReview] = useState(false);
-  const [reviewData, setReviewData] = useState({ ready: [], errors: [], unused: 0 });
   
   const today = format(new Date(), 'yyyy-MM-dd');
   const [entryDate, setEntryDate] = useState(today);
+
+  const [showReview, setShowReview] = useState(false);
+  const [reviewData, setReviewData] = useState({ ready: [], errors: [], unused: 0 });
 
   // Toggle for overriding broker material mapping
   const [showAllBrokers, setShowAllBrokers] = useState(false);
@@ -31,21 +31,19 @@ const DailyPriceEntry = () => {
   const fetchMasterData = async () => {
     setLoading(true);
     try {
-      const [matsRes, brokersRes, gradesRes, unitsRes, pTypesRes, brkMatsRes, allowedUnitsRes] = await Promise.all([
+      const [matsRes, brokersRes, gradesRes, unitsRes, pTypesRes, brkMatsRes] = await Promise.all([
         supabase.from('raw_materials').select('*').eq('active', true).order('display_order'),
         supabase.from('brokers').select('*').eq('active', true).order('broker_name'),
         supabase.from('material_quality_grades').select('*').eq('active', true).order('display_order'),
         supabase.from('rm_units').select('*').eq('active', true).order('display_order'),
         supabase.from('rm_price_types').select('*').eq('active', true).order('display_order'),
-        supabase.from('broker_materials').select('*'),
-        supabase.from('rm_allowed_units').select('*')
+        supabase.from('broker_materials').select('*')
       ]);
 
       setMaterials(matsRes.data || []);
       setBrokers(brokersRes.data || []);
       setQualityGrades(gradesRes.data || []);
       setUnits(unitsRes.data || []);
-      setAllowedUnits(allowedUnitsRes.data || []);
       setPriceTypes(pTypesRes.data || []);
       setBrokerMaterials(brkMatsRes.data || []);
       
@@ -78,8 +76,7 @@ const DailyPriceEntry = () => {
     price: '',
     unit_id: unitId,
     price_type_id: priceTypeId,
-    remarks: '',
-    status: 'Official'
+    remarks: ''
   });
 
   const handleAddRow = () => {
@@ -88,9 +85,9 @@ const DailyPriceEntry = () => {
 
   const handleDuplicateRow = (index) => {
     const toDuplicate = entries[index];
-    const isUnused = !toDuplicate.price && !toDuplicate.broker_id && !toDuplicate.market_location && !toDuplicate.remarks;
-    if (isUnused) {
-      setMessage({ type: 'error', text: 'Enter at least one value before duplicating this row.' });
+    const isCompletelyEmpty = !toDuplicate.raw_material_id && !toDuplicate.broker_id && !toDuplicate.price;
+    if (isCompletelyEmpty) {
+      setMessage({ type: 'error', text: 'Cannot duplicate an empty row.' });
       setTimeout(() => setMessage(null), 3000);
       return;
     }
@@ -143,21 +140,25 @@ const DailyPriceEntry = () => {
     const errors = [];
     let unused = 0;
 
-    entries.forEach((e, index) => {
-      const isUnused = !e.price && !e.broker_id && !e.market_location && !e.remarks;
+    entries.forEach((e, idx) => {
+      const isUnused = !e.raw_material_id && !e.broker_id && !e.price && !e.market_location && !e.remarks;
       if (isUnused) {
         unused++;
         return;
       }
 
       const rowErrors = [];
-      if (!e.raw_material_id) rowErrors.push('Material required');
-      if (!e.price || Number(e.price) <= 0) rowErrors.push('Rate must be > 0');
-      if (!e.unit_id) rowErrors.push('Unit required');
-      if (!e.price_type_id) rowErrors.push('Price Type required');
+      if (!e.raw_material_id) rowErrors.push('Missing Material');
+      if (!e.price) {
+        rowErrors.push('Missing Rate');
+      } else if (Number(e.price) <= 0) {
+        rowErrors.push('Rate must be > 0');
+      }
+      if (!e.unit_id) rowErrors.push('Missing Unit');
+      if (!e.price_type_id) rowErrors.push('Missing Price Type');
 
       if (rowErrors.length > 0) {
-        errors.push({ row: index + 1, material: e.raw_material_id, errors: rowErrors, data: e });
+        errors.push({ ...e, row: idx + 1, errors: rowErrors });
       } else {
         ready.push(e);
       }
@@ -169,7 +170,7 @@ const DailyPriceEntry = () => {
   const handleSaveClick = () => {
     const validation = validateEntries();
     if (validation.ready.length === 0 && validation.errors.length === 0) {
-      setMessage({ type: 'error', text: 'No entries to save. Please enter at least one rate.' });
+      setMessage({ type: 'error', text: 'No entries to save.' });
       setTimeout(() => setMessage(null), 3000);
       return;
     }
@@ -187,36 +188,32 @@ const DailyPriceEntry = () => {
         raw_material_id: e.raw_material_id,
         quality_grade_id: e.quality_grade_id || null,
         broker_id: e.broker_id || null,
-        market_location: e.market_location || null,
+        market_location: e.market_location,
         price: Number(e.price),
         unit_id: e.unit_id,
         price_type_id: e.price_type_id,
-        remarks: e.remarks || null,
-        status: e.status,
-        source: 'Manual Entry'
+        remarks: e.remarks
       }));
 
       const { error } = await supabase.from('raw_material_price_entries').insert(recordsToInsert);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('A duplicate price entry already exists for this material, broker, and date.');
+        }
+        throw error;
+      }
 
       setMessage({ type: 'success', text: `Successfully saved ${recordsToInsert.length} price entries.` });
       
+      setShowReview(false);
       const remaining = entries.filter(e => !reviewData.ready.find(r => r.id === e.id));
       setEntries(remaining.length > 0 ? remaining : [createEmptyEntry()]);
-      setShowReview(false);
       
       setTimeout(() => setMessage(null), 5000);
     } catch (error) {
       console.error('Error saving entries:', error);
-      
-      let errorMsg = error.message || 'Failed to save entries.';
-      if (errorMsg.includes('duplicate key value violates unique constraint')) {
-         errorMsg = 'A duplicate quote for the same material and location on this date already exists. Please verify your entries.';
-      }
-      
-      setMessage({ type: 'error', text: errorMsg });
-      setShowReview(false);
+      setMessage({ type: 'error', text: error.message || 'Failed to save entries.' });
     } finally {
       setSaving(false);
     }
@@ -229,7 +226,7 @@ const DailyPriceEntry = () => {
     return brokers.filter(b => mappedBrokerIds.includes(b.id));
   };
 
-  const intendedCount = entries.filter(e => e.price || e.broker_id || e.market_location || e.remarks).length;
+  const intendedCount = entries.filter(e => e.raw_material_id || e.broker_id || e.price || e.market_location || e.remarks).length;
 
   if (loading) {
     return (
@@ -241,112 +238,47 @@ const DailyPriceEntry = () => {
   }
 
   return (
-    <div className="flex flex-col w-full pb-16 animate-fade-in">
-      
-      {/* Review Modal */}
-      {showReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 backdrop-blur-sm p-4">
-          <div className="bg-surface-container-lowest rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div className="p-space-lg border-b border-surface-container-low flex items-center justify-between">
-              <div>
-                <h2 className="font-headline-sm text-headline-sm text-on-surface font-bold">Review Price Entries</h2>
-                <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">Review {reviewData.ready.length + reviewData.errors.length} entries for {format(parseISO(entryDate), 'dd MMM yyyy')}</p>
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-semibold">{reviewData.ready.length} Ready</span>
-                <span className="px-3 py-1 rounded-full bg-error/10 text-error font-semibold">{reviewData.errors.length} Errors</span>
-                <span className="px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-semibold">{reviewData.unused} Unused</span>
-              </div>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-space-lg bg-surface-container-lowest">
-              {reviewData.errors.length > 0 && (
-                <div className="mb-6 p-4 rounded-lg bg-error-container text-on-error-container border border-error/20">
-                  <h3 className="font-semibold mb-2 flex items-center gap-2"><AlertTriangle size={18} /> Cannot save until errors are fixed</h3>
-                  <ul className="list-disc pl-8 space-y-1 text-sm">
-                    {reviewData.errors.map((err, i) => {
-                       const matName = materials.find(m => m.id === err.material)?.name_en || `Row ${err.row}`;
-                       return <li key={i}><strong>{matName}</strong>: {err.errors.join(', ')}</li>
-                    })}
-                  </ul>
-                </div>
-              )}
-
-              {reviewData.ready.length > 0 && (
-                <div>
-                  <h3 className="font-label-md text-label-md uppercase text-on-surface-variant font-semibold mb-3">Entries Ready to Save</h3>
-                  <div className="border border-surface-container-low rounded-lg overflow-hidden">
-                    <table className="w-full text-left">
-                      <thead className="bg-surface-container-low text-on-surface-variant font-label-sm uppercase">
-                        <tr>
-                          <th className="py-2 px-3">Material</th>
-                          <th className="py-2 px-3">Grade</th>
-                          <th className="py-2 px-3">Rate</th>
-                          <th className="py-2 px-3">Unit</th>
-                          <th className="py-2 px-3">Type</th>
-                          <th className="py-2 px-3">Broker</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-surface-container-low text-sm">
-                        {reviewData.ready.map(entry => (
-                          <tr key={entry.id}>
-                            <td className="py-2 px-3 font-medium">{materials.find(m => m.id === entry.raw_material_id)?.name_en}</td>
-                            <td className="py-2 px-3">{qualityGrades.find(q => q.id === entry.quality_grade_id)?.grade_name || 'Standard'}</td>
-                            <td className="py-2 px-3 font-bold">₹{entry.price}</td>
-                            <td className="py-2 px-3">{units.find(u => u.id === entry.unit_id)?.unit_name}</td>
-                            <td className="py-2 px-3">{priceTypes.find(p => p.id === entry.price_type_id)?.type_name}</td>
-                            <td className="py-2 px-3">{brokers.find(b => b.id === entry.broker_id)?.broker_name || '-'}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <div className="p-space-md border-t border-surface-container-low bg-surface-container flex items-center justify-end gap-3 rounded-b-xl">
-              <button 
-                className="px-6 py-2 rounded-lg font-semibold hover:bg-surface-container-highest transition-colors text-on-surface"
-                onClick={() => setShowReview(false)}
-                disabled={saving}
-              >
-                Cancel & Edit
-              </button>
-              <button 
-                className="flex items-center gap-2 px-6 py-2 rounded-lg bg-primary text-on-primary font-bold shadow-sm hover:bg-surface-tint transition-colors disabled:opacity-50"
-                onClick={confirmSave}
-                disabled={saving || reviewData.errors.length > 0 || reviewData.ready.length === 0}
-              >
-                <Save size={18} />
-                {saving ? 'Saving...' : 'Confirm & Save'}
-              </button>
+    <div className="space-y-6 animate-fade-in pb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-surface p-5 rounded-xl border border-base shadow-sm">
+        <div>
+          <h2 className="text-lg font-semibold text-primary">Daily Price Entry</h2>
+          <p className="text-sm text-secondary">Log broker quotes for cattle-feed raw materials</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-base/50 p-1.5 rounded-lg border border-base" title="Allows this entry to bypass the configured source-to-material mapping to show all brokers.">
+            <label className="text-sm font-medium text-secondary pl-2 cursor-help flex items-center gap-1">
+              Override mappings
+            </label>
+            <div className="flex items-center">
+              <input 
+                type="checkbox" 
+                id="showAllBrokers"
+                checked={showAllBrokers}
+                onChange={(e) => setShowAllBrokers(e.target.checked)}
+                className="w-4 h-4 ml-2 mr-2"
+              />
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Rapid Key-Entry Banner */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-space-md py-space-xs bg-surface-container rounded-lg mb-space-md shadow-sm gap-2">
-        <div className="flex items-center gap-space-sm">
-          <span className="flex items-center justify-center w-6 h-6 rounded bg-primary text-on-primary">
-            <span className="material-symbols-outlined text-[15px]">keyboard</span>
-          </span>
-          <p className="font-body-sm text-body-sm text-on-surface">
-            <strong className="font-semibold text-primary">Rapid Key-Entry:</strong>
-            Press <kbd className="px-1.5 py-0.5 rounded bg-surface-container-lowest text-on-surface shadow-sm font-mono text-[11px]">Tab</kbd> to jump between rates.
-          </p>
-        </div>
-        <div className="flex items-center gap-space-md">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-tertiary-fixed-dim animate-pulse"></span>
-            <span className="font-label-sm text-label-sm text-tertiary font-semibold uppercase tracking-wider">Draft Session Unlocked</span>
+          
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-blue-50 text-blue-700 shadow-sm font-medium text-sm border border-blue-200">
+            <span>Draft • {intendedCount} Entries</span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-secondary">Entry Date:</label>
+            <input 
+              type="date" 
+              className="input max-w-[160px] shadow-sm font-medium"
+              value={entryDate}
+              max={today}
+              onChange={(e) => setEntryDate(e.target.value)}
+            />
           </div>
         </div>
       </div>
 
       {message && (
-        <div className={`p-4 rounded-lg flex items-center gap-3 shadow-sm mb-4 ${
+        <div className={`p-4 rounded-lg flex items-center gap-3 shadow-sm ${
           message.type === 'success' ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 
           'bg-red-500/10 text-red-600 border border-red-500/20'
         }`}>
@@ -355,230 +287,134 @@ const DailyPriceEntry = () => {
         </div>
       )}
 
-      {/* Configuration Header */}
-      <div className="bg-surface-container-lowest rounded-xl p-space-md mb-space-md shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-space-md">
-          <div className="flex items-center gap-space-lg flex-wrap">
-            <div className="flex items-center gap-space-sm bg-surface-container-low px-space-sm py-1.5 rounded-lg shadow-sm">
-              <span className="material-symbols-outlined text-primary text-[20px]">calendar_month</span>
-              <div className="flex flex-col">
-                <span className="font-label-sm text-label-sm text-on-surface-variant leading-none">Effective Benchmark Date</span>
-                <input 
-                  type="date" 
-                  className="bg-transparent font-headline-sm text-headline-sm text-on-surface leading-tight focus:outline-none"
-                  value={entryDate}
-                  max={today}
-                  onChange={(e) => setEntryDate(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2 bg-surface-container-low px-space-sm py-2 rounded-lg shadow-sm h-full group relative" title="Allows this entry to bypass the configured source-to-material mapping to show all brokers.">
-              <label className="font-label-sm text-label-sm text-on-surface-variant leading-none flex items-center gap-1 cursor-help">
-                 Override mappings
-                 <span className="material-symbols-outlined text-[14px] text-on-surface-variant opacity-70">info</span>
-              </label>
-              <input 
-                type="checkbox" 
-                className="w-4 h-4 text-primary focus:ring-0 cursor-pointer accent-primary"
-                checked={showAllBrokers}
-                onChange={(e) => setShowAllBrokers(e.target.checked)}
-              />
-            </div>
-
-            <div className="flex items-center gap-1.5 px-space-sm py-1 rounded bg-tertiary-fixed text-on-tertiary-fixed shadow-sm font-label-md text-label-md">
-              <span className="material-symbols-outlined text-[16px] text-tertiary">notification_important</span>
-              <span>Draft • {intendedCount} Entries</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-space-md">
-            <div className="flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded-lg">
-              <span className="font-label-sm text-label-sm text-on-surface-variant">Feeds Tracked:</span>
-              <span className="font-label-md text-label-md text-on-surface font-bold">{materials.length}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sticky Action Bar */}
-      <div className="sticky top-28 z-30 bg-surface-container-lowest/95 backdrop-blur-md p-space-sm rounded-xl mb-space-md shadow-md flex items-center justify-between">
-        <div className="flex items-center gap-space-sm">
-          <button 
-            className="group flex items-center gap-space-sm px-space-lg py-2 rounded-lg bg-primary text-on-primary hover:bg-surface-tint shadow-sm transition-all transform active:scale-95 disabled:opacity-50" 
-            onClick={handleSaveClick} 
-            disabled={saving}
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[18px]">save</span>
-            <span className="font-label-lg text-label-lg font-bold tracking-wide">
-              {saving ? 'SAVING...' : "SAVE TODAY'S PRICES"}
-            </span>
-          </button>
-          
-          <button 
-            className="flex items-center gap-1.5 px-space-md py-2 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container font-label-md text-label-md transition-colors" 
-            onClick={handleAddRow}
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[16px]">add_circle</span>
-            <span>Add Row</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Table */}
-      <div className="bg-surface-container-lowest rounded-xl shadow-md  min-h-[400px]">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[1000px]">
+      <div className="bg-white rounded-xl border border-base shadow-sm overflow-hidden flex flex-col">
+        <div className="data-table-container">
+          <table className="data-table mobile-cards-table" style={{minWidth: '1200px'}}>
             <thead>
-              <tr className="bg-surface-container-high text-secondary uppercase font-label-md text-label-md">
-                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Raw Material</th>
-                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Quality Grade</th>
-                <th className="py-2.5 px-space-sm font-semibold tracking-wider w-44">Today Input Rate (₹)</th>
-                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Unit / Price Type</th>
-                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Supplier Broker</th>
-                <th className="py-2.5 px-space-sm font-semibold tracking-wider w-44">Mandi Source (Location)</th>
-                <th className="py-2.5 px-space-sm font-semibold tracking-wider">Commercial Notes</th>
-                <th className="py-2.5 px-space-sm w-16 text-center">Actions</th>
+              <tr>
+                <th style={{width: '40px', textAlign: 'center'}}>#</th>
+                <th style={{minWidth: '200px'}}>Raw Material *</th>
+                <th style={{minWidth: '180px'}}>Quality/Grade</th>
+                <th style={{minWidth: '200px'}}>Broker *</th>
+                <th style={{minWidth: '150px'}}>Location</th>
+                <th style={{width: '130px'}}>Price (₹) *</th>
+                <th style={{width: '130px'}}>Unit *</th>
+                <th style={{width: '160px'}}>Price Type *</th>
+                <th style={{minWidth: '200px'}}>Remarks</th>
+                <th style={{width: '100px', textAlign: 'center'}}>Actions</th>
               </tr>
             </thead>
-            <tbody className="font-body-md text-body-md text-on-surface divide-y-0">
+            <tbody className="divide-y divide-base">
               {entries.map((entry, index) => {
-                const materialOptions = materials;
-                const brokerOptions = getAvailableBrokers(entry.raw_material_id);
-                const gradeOptions = qualityGrades.filter(q => q.raw_material_id === entry.raw_material_id);
+                const availableGrades = qualityGrades.filter(q => q.raw_material_id === entry.raw_material_id);
+                const availableBrokers = getAvailableBrokers(entry.raw_material_id);
                 
-                let materialUnitIds = allowedUnits.filter(au => au.raw_material_id === entry.raw_material_id).map(au => au.unit_id);
-                const matRecord = materials.find(m => m.id === entry.raw_material_id);
-                if (matRecord && matRecord.default_unit_id && !materialUnitIds.includes(matRecord.default_unit_id)) {
-                  materialUnitIds.push(matRecord.default_unit_id);
-                }
-                const unitOptions = entry.raw_material_id ? units.filter(u => materialUnitIds.includes(u.id)) : units;
-
                 return (
-                  <tr key={entry.id} className="group hover:bg-surface-container-low transition-colors duration-100 bg-surface-container-lowest border-b border-surface-container-low">
-                    {/* Material */}
-                    <td className="py-2 px-space-sm">
+                  <tr key={entry.id} className="hover:bg-base/20 transition-colors group">
+                    <td data-label="#" style={{textAlign: 'center'}} className="text-secondary text-sm">{index + 1}</td>
+                    <td data-label="Raw Material">
                       <select 
-                        className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
+                        className={`input w-full text-sm ${!entry.raw_material_id ? 'border-red-300' : ''}`}
                         value={entry.raw_material_id}
                         onChange={(e) => handleChange(entry.id, 'raw_material_id', e.target.value)}
                       >
                         <option value="">Select Material...</option>
-                        {materialOptions.map(m => (
+                        {materials.map(m => (
                           <option key={m.id} value={m.id}>{m.name_en} {m.name_hi ? `(${m.name_hi})` : ''}</option>
                         ))}
                       </select>
                     </td>
-
-                    {/* Grade */}
-                    <td className="py-2 px-space-sm">
+                    <td data-label="Quality/Grade">
                       <select 
-                        className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
-                        value={entry.quality_grade_id || ''}
+                        className="input w-full text-sm"
+                        value={entry.quality_grade_id}
                         onChange={(e) => handleChange(entry.id, 'quality_grade_id', e.target.value)}
+                        disabled={!entry.raw_material_id}
                       >
-                        <option value="">Standard / Any</option>
-                        {gradeOptions.map(q => (
+                        <option value="">Standard/Any</option>
+                        {availableGrades.map(q => (
                           <option key={q.id} value={q.id}>{q.grade_name}</option>
                         ))}
                       </select>
                     </td>
-
-                    {/* Price Input */}
-                    <td className="py-2 px-space-sm">
-                      <div className="relative flex items-center">
-                        <span className="absolute left-2.5 text-on-surface-variant font-label-md text-label-md font-semibold">₹</span>
-                        <input 
-                          type="number" 
-                          step="0.01"
-                          className="w-full pl-6 pr-2 py-1.5 bg-surface-container-lowest focus:bg-surface-container text-on-surface font-headline-sm text-headline-sm font-bold rounded-lg shadow-sm focus:ring-2 focus:ring-primary focus:outline-none transition-all border border-outline-variant"
-                          value={entry.price}
-                          onChange={(e) => handleChange(entry.id, 'price', e.target.value)}
-                          placeholder="0.00"
-                        />
-                      </div>
-                    </td>
-
-                    {/* Unit & Price Type */}
-                    <td className="py-2 px-space-sm">
-                      <div className="flex items-center gap-1">
-                        <select 
-                          className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
-                          value={entry.unit_id}
-                          onChange={(e) => handleChange(entry.id, 'unit_id', e.target.value)}
-                        >
-                          <option value="">Unit...</option>
-                          {unitOptions.map(u => (
-                            <option key={u.id} value={u.id}>{u.unit_name}</option>
-                          ))}
-                        </select>
-                        <select 
-                          className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
-                          value={entry.price_type_id}
-                          onChange={(e) => handleChange(entry.id, 'price_type_id', e.target.value)}
-                        >
-                          <option value="">Type...</option>
-                          {priceTypes.map(p => (
-                            <option key={p.id} value={p.id}>{p.type_name}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </td>
-
-                    {/* Broker */}
-                    <td className="py-2 px-space-sm">
+                    <td data-label="Broker">
                       <select 
-                        className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
+                        className={`input w-full text-sm ${!entry.broker_id ? 'border-red-300' : ''}`}
                         value={entry.broker_id}
                         onChange={(e) => handleChange(entry.id, 'broker_id', e.target.value)}
                       >
                         <option value="">Select Broker...</option>
-                        {brokerOptions.map(b => (
+                        {availableBrokers.map(b => (
                           <option key={b.id} value={b.id}>{b.broker_name}</option>
                         ))}
                       </select>
                     </td>
-
-                    {/* Market Location */}
-                    <td className="py-2 px-space-sm">
+                    <td data-label="Location">
                       <input 
                         type="text" 
-                        className="w-full bg-surface-container-low text-on-surface py-1.5 px-2 rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary border border-transparent focus:border-primary"
+                        className="input w-full text-sm"
+                        placeholder="Location"
                         value={entry.market_location}
                         onChange={(e) => handleChange(entry.id, 'market_location', e.target.value)}
-                        placeholder="Location"
                       />
                     </td>
-
-                    {/* Remarks */}
-                    <td className="py-2 px-space-sm">
+                    <td data-label="Price (₹)">
                       <input 
-                        className="w-full bg-transparent border border-transparent text-on-surface placeholder:text-outline py-1.5 px-1.5 font-body-sm text-body-sm focus:bg-surface-container-lowest focus:ring-1 focus:ring-outline focus:border-outline rounded" 
-                        placeholder="Add remark..." 
+                        type="number" 
+                        className={`input w-full text-sm text-right font-medium ${!entry.price ? 'border-red-300' : ''}`}
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                        value={entry.price}
+                        onChange={(e) => handleChange(entry.id, 'price', e.target.value)}
+                      />
+                    </td>
+                    <td data-label="Unit">
+                      <select 
+                        className={`input w-full text-sm ${!entry.unit_id ? 'border-red-300' : ''}`}
+                        value={entry.unit_id}
+                        onChange={(e) => handleChange(entry.id, 'unit_id', e.target.value)}
+                      >
+                        <option value="">Unit...</option>
+                        {units.map(u => (
+                          <option key={u.id} value={u.id}>{u.unit_name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td data-label="Price Type">
+                      <select 
+                        className={`input w-full text-sm ${!entry.price_type_id ? 'border-red-300' : ''}`}
+                        value={entry.price_type_id}
+                        onChange={(e) => handleChange(entry.id, 'price_type_id', e.target.value)}
+                      >
+                        <option value="">Price Type...</option>
+                        {priceTypes.map(pt => (
+                          <option key={pt.id} value={pt.id}>{pt.type_name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td data-label="Remarks">
+                      <input 
                         type="text" 
+                        className="input w-full text-sm"
+                        placeholder="Notes..."
                         value={entry.remarks}
                         onChange={(e) => handleChange(entry.id, 'remarks', e.target.value)}
                       />
                     </td>
-
-                    {/* Actions */}
-                    <td className="py-2 px-space-sm text-center">
-                      <div className="flex items-center justify-center gap-1 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity">
+                    <td data-label="Actions" style={{textAlign: 'center'}}>
+                      <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', opacity: 0.5}} className="group-hover:opacity-100 transition-opacity">
                         <button 
-                          className="p-1 rounded hover:bg-surface-container hover:text-primary transition-colors" 
-                          title="Duplicate Row" 
-                          type="button"
+                          className="btn-icon text-secondary hover:text-primary" style={{padding: '4px'}}
                           onClick={() => handleDuplicateRow(index)}
+                          title="Duplicate Row"
                         >
                           <Copy size={16} />
                         </button>
                         <button 
-                          className="p-1 rounded hover:bg-error-container hover:text-error transition-colors" 
-                          title="Remove Row" 
-                          type="button"
+                          className="btn-icon text-secondary hover:text-danger" style={{padding: '4px'}}
                           onClick={() => handleRemoveRow(entry.id)}
+                          title="Remove Row"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -589,18 +425,102 @@ const DailyPriceEntry = () => {
               })}
             </tbody>
           </table>
+        </div>
+        
+        <div className="p-4 border-t border-base bg-base/20 flex flex-col sm:flex-row justify-between items-center gap-4 rounded-b-lg">
+          <button 
+            className="btn btn-secondary flex items-center gap-2"
+            onClick={handleAddRow}
+          >
+            <Plus size={16} /> Add Blank Row
+          </button>
           
-          <div className="p-4 flex items-center justify-center border-t border-surface-container-low bg-surface-container-lowest">
-             <button 
-                className="flex items-center gap-1.5 px-space-lg py-1.5 rounded-full bg-surface-container-low text-on-surface hover:bg-surface-container hover:text-primary transition-colors text-sm font-semibold border border-outline-variant shadow-sm"
-                onClick={handleAddRow}
-                type="button"
-             >
-                <Plus size={16} /> Add Another Entry
-             </button>
-          </div>
+          <button 
+            className="btn btn-primary flex items-center gap-2"
+            onClick={handleSaveClick}
+            disabled={saving}
+          >
+            <Save size={16} /> 
+            {saving ? 'Saving...' : 'Save All Entries'}
+          </button>
         </div>
       </div>
+
+      {/* Review Modal */}
+      {showReview && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in-up">
+            <div className="p-5 border-b border-base flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-primary">Review Price Entries</h2>
+                <p className="text-sm text-secondary mt-1">Review {reviewData.ready.length + reviewData.errors.length} entries for {format(new Date(entryDate), 'dd MMM yyyy')}</p>
+              </div>
+              <div className="flex items-center gap-3 text-sm">
+                <span className="badge badge-success">{reviewData.ready.length} Ready</span>
+                <span className="badge badge-danger">{reviewData.errors.length} Errors</span>
+                <span className="badge badge-neutral">{reviewData.unused} Unused</span>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-5 bg-slate-50">
+              {reviewData.errors.length > 0 && (
+                <div className="mb-6 p-4 rounded-lg bg-red-50 text-red-700 border border-red-200">
+                  <h3 className="font-semibold mb-2 flex items-center gap-2"><AlertTriangle size={18} /> Cannot save until errors are fixed</h3>
+                  <ul className="list-disc pl-8 space-y-1 text-sm">
+                    {reviewData.errors.map((err, i) => {
+                       const matName = materials.find(m => m.id === err.raw_material_id)?.name_en || `Row ${err.row}`;
+                       return <li key={i}><strong>{matName}</strong>: {err.errors.join(', ')}</li>
+                    })}
+                  </ul>
+                </div>
+              )}
+
+              {reviewData.ready.length > 0 && (
+                <div>
+                  <h3 className="text-sm uppercase tracking-wider text-secondary font-bold mb-3">Entries Ready to Save</h3>
+                  <div className="border border-base rounded-lg overflow-hidden bg-white">
+                    <table className="data-table w-full text-left">
+                      <thead className="bg-slate-50">
+                        <tr>
+                          <th className="py-2 px-3 text-xs">Material</th>
+                          <th className="py-2 px-3 text-xs">Grade</th>
+                          <th className="py-2 px-3 text-xs">Rate</th>
+                          <th className="py-2 px-3 text-xs">Unit</th>
+                          <th className="py-2 px-3 text-xs">Type</th>
+                          <th className="py-2 px-3 text-xs">Broker</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-base text-sm">
+                        {reviewData.ready.map(entry => (
+                          <tr key={entry.id}>
+                            <td className="py-2 px-3 font-medium text-primary">{materials.find(m => m.id === entry.raw_material_id)?.name_en}</td>
+                            <td className="py-2 px-3 text-secondary">{qualityGrades.find(q => q.id === entry.quality_grade_id)?.grade_name || 'Standard'}</td>
+                            <td className="py-2 px-3 font-bold">₹{entry.price}</td>
+                            <td className="py-2 px-3 text-secondary">{units.find(u => u.id === entry.unit_id)?.unit_name}</td>
+                            <td className="py-2 px-3 text-secondary">{priceTypes.find(p => p.id === entry.price_type_id)?.type_name}</td>
+                            <td className="py-2 px-3 text-secondary">{brokers.find(b => b.id === entry.broker_id)?.broker_name || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-4 border-t border-base bg-white flex justify-end gap-3">
+              <button className="btn btn-secondary" onClick={() => setShowReview(false)}>Cancel & Edit</button>
+              <button 
+                className="btn btn-primary" 
+                disabled={reviewData.errors.length > 0 || saving} 
+                onClick={confirmSave}
+              >
+                {saving ? 'Saving...' : 'Confirm & Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

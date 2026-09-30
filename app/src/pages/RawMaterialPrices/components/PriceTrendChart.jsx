@@ -28,7 +28,7 @@ const PriceTrendChart = ({ materials, selectedMaterial, onMaterialChange, trendD
   ];
   
   return (
-    <div className="glass-panel flex flex-col h-full  w-full relative">
+    <div className="glass-panel flex flex-col h-full overflow-hidden w-full relative">
       <div className="p-5" style={{ background: 'var(--bg-surface)', borderBottom: '1px solid var(--border)', borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0' }}>
       {!hideTitle && (
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">

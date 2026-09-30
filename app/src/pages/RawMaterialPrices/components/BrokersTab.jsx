@@ -7,12 +7,10 @@ import EmptyState from './EmptyState';
 import MasterDataSectionHeader from './MasterDataSectionHeader';
 import { normalizeMobile } from '../../../utils/phoneUtils';
 import { generateBrokerEnquiryMessage } from '../../../utils/whatsappUtils';
-import DataTable from '../../../components/DataTable';
 
 export default function BrokersTab({ brokers, materials, loading, onRefresh, showMessage }) {
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [showDeactivated, setShowDeactivated] = useState(false);
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,10 +45,6 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
   const filteredData = useMemo(() => {
     let result = brokers || [];
 
-    if (!showDeactivated) {
-      result = result.filter(b => b.active);
-    }
-
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(b => 
@@ -61,7 +55,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
     }
 
     return result;
-  }, [brokers, searchQuery, showDeactivated]);
+  }, [brokers, searchQuery]);
 
   // Split data into active and deactivated
   const activeBrokers = useMemo(() => filteredData.filter(b => b.active), [filteredData]);
@@ -87,11 +81,10 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
   const paginatedActiveBrokers = paginatedData.filter(b => b.active);
   const paginatedDeactivatedBrokers = paginatedData.filter(b => !b.active);
 
-  const hasActiveFilters = searchQuery !== '' || showDeactivated;
+  const hasActiveFilters = searchQuery !== '';
 
   const resetFilters = () => {
     setSearchQuery('');
-    setShowDeactivated(false);
     setCurrentPage(1);
   };
 
@@ -150,46 +143,26 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
     }
   };
 
-  const brokerColumns = [
-    {
-      id: 'broker',
-      header: 'Broker / Firm',
-      renderCell: (b) => (
-        <>
-          <div className="font-semibold text-[15px] text-primary">{b.broker_name}</div>
-          {b.firm_name && <div className="text-[13px] text-secondary mt-0.5">{b.firm_name}</div>}
-        </>
-      )
-    },
-    {
-      id: 'contact',
-      header: 'Contact',
-      renderCell: (b) => (
-        <>
-          <div className="font-medium text-[14px] text-secondary">
-            {b.mobile || '-'}
-          </div>
-          {b.whatsapp_number && b.whatsapp_number !== b.mobile && (
-            <div className="text-[12px] text-emerald-600 mt-0.5 font-medium">WA: {b.whatsapp_number}</div>
-          )}
-        </>
-      )
-    },
-    {
-      id: 'location',
-      header: 'Location',
-      renderCell: (b) => (
-        <span className="text-[14px] text-secondary">
-          {b.market_location || '-'}
-          {b.state && b.market_location && `, `}
-          {b.state}
-        </span>
-      )
-    },
-    {
-      id: 'materials',
-      header: 'Materials Handled',
-      renderCell: (b) => (
+  const renderBrokerRow = (b) => (
+    <tr key={b.id} className={`hover:bg-slate-50/80 transition-colors group ${!b.active ? 'opacity-70' : ''}`}>
+      <td data-label="Broker / Firm" className="px-6 py-4">
+        <div className="font-semibold text-[15px] text-primary">{b.broker_name}</div>
+        {b.firm_name && <div className="text-[13px] text-secondary mt-0.5">{b.firm_name}</div>}
+      </td>
+      <td data-label="Contact" className="px-6 py-4">
+        <div className="font-medium text-[14px] text-secondary">
+          {b.mobile || '-'}
+        </div>
+        {b.whatsapp_number && b.whatsapp_number !== b.mobile && (
+          <div className="text-[12px] text-emerald-600 mt-0.5 font-medium">WA: {b.whatsapp_number}</div>
+        )}
+      </td>
+      <td data-label="Location" className="px-6 py-4 text-[14px] text-secondary">
+        {b.market_location || '-'}
+        {b.state && b.market_location && `, `}
+        {b.state}
+      </td>
+      <td data-label="Materials Handled" className="px-6 py-4">
         <div className="flex flex-wrap gap-1.5">
           {b.broker_materials && b.broker_materials.length > 0 ? (
             b.broker_materials.slice(0, 3).map(bm => {
@@ -209,20 +182,12 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
             </span>
           )}
         </div>
-      )
-    },
-    {
-      id: 'status',
-      header: 'Status',
-      renderCell: (b) => <StatusBadge active={b.active} />
-    },
-    {
-      id: 'actions',
-      header: 'Actions',
-      align: 'right',
-      width: 'w-40', // slightly wider to accommodate nowrapped content securely
-      renderCell: (b) => (
-        <div className="flex items-center justify-end gap-1 relative flex-nowrap whitespace-nowrap">
+      </td>
+      <td data-label="Status" className="px-6 py-4">
+        <StatusBadge active={b.active} />
+      </td>
+      <td data-label="Actions" className="px-6 py-4 text-right">
+        <div className="flex items-center justify-end gap-1 relative">
           {b.mobile && (
             <>
               <a 
@@ -285,12 +250,12 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
             )}
           </div>
         </div>
-      )
-    }
-  ];
+      </td>
+    </tr>
+  );
 
   return (
-    <div className="card bg-white border border-base rounded-xl shadow-sm  flex flex-col mb-8">
+    <div className="card bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col mb-8">
       <MasterDataSectionHeader 
         title="Broker Master" 
         description="Manage brokers, their contact information, and materials they handle." 
@@ -312,7 +277,6 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
         </div>
         
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          
           {hasActiveFilters && (
             <button onClick={resetFilters} className="text-sm font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2 py-1.5 rounded-md transition-colors">
               <X size={14} /> Clear
@@ -330,62 +294,59 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
            <EmptyState icon={Users} title="No Brokers" description={hasActiveFilters ? "Try adjusting your filters." : "Add brokers to start tracking prices from them."} actionText="Add Broker" onAction={handleAddBroker} />
         ) : (
           <>
-            {/* Dynamically Rendered Sections */}
-            {[
-              {
-                title: 'Active Brokers',
-                data: paginatedActiveBrokers,
-                totalCount: activeBrokers.length,
-                titleClasses: 'text-primary',
-                badgeClasses: 'bg-emerald-50 border border-emerald-200 text-emerald-700',
-                tableHeadClasses: 'bg-slate-50',
-                wrapperOpacity: '',
-                tbodyClass: 'divide-y divide-base'
-              },
-              {
-                title: 'Deactivated Brokers',
-                data: paginatedDeactivatedBrokers,
-                totalCount: deactivatedBrokers.length,
-                titleClasses: 'text-slate-500',
-                badgeClasses: 'bg-slate-200 border border-slate-300 text-slate-700',
-                tableHeadClasses: 'hidden sm:table-header-group bg-slate-100',
-                wrapperOpacity: 'opacity-90',
-                tbodyClass: 'divide-y divide-base bg-slate-50/50'
-              }
-            ].map(section => (
-              section.data.length > 0 && (
-                <div key={section.title} className={`flex flex-col mb-6 last:mb-0 ${section.wrapperOpacity}`}>
-                  <div className={`px-1 py-3 flex items-center justify-between`}>
-                    <h3 className={`text-base font-bold flex items-center gap-2 ${section.titleClasses}`}>
-                      {section.title}
-                    </h3>
-                    <span className={`text-xs font-bold tracking-wide px-2.5 py-1 rounded-full ${section.badgeClasses}`}>
-                      {section.totalCount} Total
-                    </span>
-                  </div>
-                  <DataTable 
-                    columns={brokerColumns} 
-                    data={section.data} 
-                    theadClassName={section.tableHeadClasses}
-                    tbodyClassName={section.tbodyClass}
-                    rowClassName={(row) => !row.active ? 'opacity-70' : ''}
-                  />
+            {/* Active Brokers Section */}
+            {paginatedActiveBrokers.length > 0 && (
+              <div className="bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col">
+                <div className="px-6 py-4 bg-white border-b border-base flex items-center justify-between">
+                  <h3 className="text-[16px] font-bold text-primary flex items-center gap-2">
+                    Active Brokers
+                  </h3>
+                  <span className="text-xs font-bold tracking-wide bg-emerald-50 border border-emerald-200 text-emerald-700 px-2.5 py-1 rounded-full">{activeBrokers.length} Total</span>
                 </div>
-              )
-            ))}
-
-            {/* Show/Hide Deactivated Button at the bottom */}
-            {brokers && brokers.some(b => !b.active) && (
-              <div className="flex justify-center mt-4">
-                <button 
-                  className="btn btn-primary btn-sm flex items-center gap-2 px-4 whitespace-nowrap w-full sm:w-auto justify-center"
-                  onClick={() => {
-                    setShowDeactivated(!showDeactivated);
-                    setCurrentPage(1);
-                  }}
-                >
-                  <Power size={16} /> {showDeactivated ? 'Hide Deactivated Brokers' : 'Show Deactivated Brokers'}
-                </button>
+                <div className="data-table-container border-0 rounded-none w-full overflow-x-auto">
+                  <table className="data-table mobile-cards-table w-full min-w-[900px]">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Broker / Firm</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Contact</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Location</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Materials Handled</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-secondary uppercase tracking-wider text-right w-36">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-base">
+                      {paginatedActiveBrokers.map(renderBrokerRow)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            
+            {/* Deactivated Brokers Section */}
+            {paginatedDeactivatedBrokers.length > 0 && (
+              <div className="bg-white border border-base rounded-xl shadow-sm overflow-hidden flex flex-col opacity-90">
+                <div className="px-6 py-4 bg-slate-50 border-b border-base flex items-center justify-between">
+                  <h3 className="text-[16px] font-bold text-slate-500">Deactivated Brokers</h3>
+                  <span className="text-xs font-bold tracking-wide bg-slate-200 border border-slate-300 text-slate-700 px-2.5 py-1 rounded-full">{deactivatedBrokers.length} Total</span>
+                </div>
+                <div className="data-table-container border-0 rounded-none w-full overflow-x-auto">
+                  <table className="data-table mobile-cards-table w-full min-w-[900px]">
+                    <thead className="hidden sm:table-header-group bg-slate-100">
+                      <tr>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Broker / Firm</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Contact</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Location</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Materials Handled</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right w-36">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-base bg-slate-50/50">
+                      {paginatedDeactivatedBrokers.map(renderBrokerRow)}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </>
@@ -423,7 +384,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
       {/* Confirmation Modal */}
       {isConfirmOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm  animate-fade-in p-6 text-center">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in p-6 text-center">
             <div className="w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
               <AlertTriangle size={28} />
             </div>
@@ -442,7 +403,7 @@ export default function BrokersTab({ brokers, materials, loading, onRefresh, sho
       {/* WhatsApp Material Selection Modal */}
       {isWaModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm  animate-fade-in p-6 text-center">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden animate-fade-in p-6 text-center">
             <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
               <MessageCircle size={28} />
             </div>
