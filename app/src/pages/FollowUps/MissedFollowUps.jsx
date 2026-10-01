@@ -4,7 +4,7 @@ import { Search, Phone, User, Calendar, AlertCircle, PhoneIncoming, PhoneOutgoin
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../../AuthContext';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export default function MissedFollowUps() {
   const { userProfile } = useContext(AuthContext);
@@ -298,7 +298,7 @@ export default function MissedFollowUps() {
           doc.text(`${staff.toUpperCase()} — MISSED FOLLOW-UPS`, 14, startY);
           startY += 4;
 
-          doc.autoTable({
+          autoTable(doc, {
             startY: startY,
             head: [tableColumns],
             body: staffData,
@@ -306,7 +306,7 @@ export default function MissedFollowUps() {
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
             margin: { top: 15 }
           });
-          startY = doc.lastAutoTable.finalY + 15;
+          startY = (doc.lastAutoTable?.finalY ?? startY) + 15;
           
           // Add new page if space is low
           if (startY > doc.internal.pageSize.height - 30 && index < Object.keys(grouped).length - 1) {
@@ -317,7 +317,7 @@ export default function MissedFollowUps() {
       } else {
         const tableData = filteredCustomers.map(normalizeRecord);
 
-        doc.autoTable({
+        autoTable(doc, {
           startY: startY,
           head: [tableColumns],
           body: tableData,
