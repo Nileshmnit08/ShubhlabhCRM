@@ -68,11 +68,28 @@ export default function MissedFollowUps() {
       const { data, error: queryErr } = await query;
       if (queryErr) throw queryErr;
       
-      if (!data) {
+      if (!data || data.length === 0) {
           setMissedCustomers([]);
           setFilteredCustomers([]);
           return;
       }
+
+      // Fetch do_not_contact flag from crm_parties to exclude 'Not Required' customers
+      const customerIds = data.map(d => d.customer_id);
+      const { data: partyData, error: partyErr } = await supabase
+        .from('crm_parties')
+        .select('id, do_not_contact')
+        .in('id', customerIds);
+        
+      const doNotContactMap = {};
+      if (partyData) {
+        partyData.forEach(p => {
+          doNotContactMap[p.id] = p.do_not_contact;
+        });
+      }
+
+      // Exclude customers marked as 'Not Required' (do_not_contact = true)
+      const validData = data.filter(d => !doNotContactMap[d.customer_id]);
 
       // Filter by period
       let result = [];
@@ -82,7 +99,7 @@ export default function MissedFollowUps() {
       
       if (periodFilter === 'Never') {
           // Special pseudo-period just for never called
-          result = data.filter(c => !c.latest_call_at);
+          result = validData.filter(c => !c.latest_call_at);
       } else if (periodFilter === 'Custom' && customDate) {
           thresholdDate = new Date(customDate);
           thresholdDate.setHours(23, 59, 59, 999);
@@ -92,7 +109,7 @@ export default function MissedFollowUps() {
       }
 
       if (periodFilter !== 'Never') {
-          result = data.filter(c => {
+          result = validData.filter(c => {
               if (!c.latest_call_at) return true; // Never called always shown unless specifically excluded
               const callDate = new Date(c.latest_call_at);
               return thresholdDate && callDate < thresholdDate;
@@ -160,6 +177,64 @@ export default function MissedFollowUps() {
       if (diffDays === 0) return 'Today';
       if (diffDays === 1) return '1 day';
       return `${diffDays} days`;
+  };
+
+  const handleAssignmentChange = async (customerId, customerName, newAssignment, currentAssignment) => {
+    if (newAssignment === currentAssignment) return;
+    
+    let confirmMsg = '';
+    
+    if (newAssignment === 'unassigned') {
+        confirmMsg = `Are you sure you want to unassign ${customerName}?`;
+    } else if (newAssignment === 'not_required') {
+        confirmMsg = `Mark ${customerName} as 'Not Required' for follow-ups?`;
+    }
+    
+    if (confirmMsg && !window.confirm(confirmMsg)) {
+        // Force re-render to reset select value
+        setFilteredCustomers([...filteredCustomers]);
+        return; 
+    }
+    
+    try {
+        let updateData = {};
+        if (newAssignment === 'unassigned') {
+            updateData = { assigned_owner_id: null, do_not_contact: false };
+        } else if (newAssignment === 'not_required') {
+            updateData = { do_not_contact: true };
+        } else {
+            updateData = { assigned_owner_id: newAssignment, do_not_contact: false };
+        }
+
+        const { error: updateErr } = await supabase
+            .from('crm_parties')
+            .update(updateData)
+            .eq('id', customerId);
+
+        if (updateErr) throw updateErr;
+
+        // Update local state without full reload
+        let newMissed = missedCustomers.filter(c => {
+             if (c.customer_id === customerId) {
+                 if (newAssignment === 'not_required') return false; 
+                 if (newAssignment === 'unassigned') return false; 
+                 if (staffFilter !== 'All' && staffFilter !== newAssignment) return false;
+                 
+                 c.assigned_owner_id = newAssignment;
+                 const newStaff = allStaff.find(s => s.id === newAssignment);
+                 c.staff_name = newStaff ? newStaff.display_name : 'Unknown';
+                 return true;
+             }
+             return true;
+        });
+        
+        setMissedCustomers(newMissed);
+        
+    } catch (err) {
+        console.error('Update assignment failed:', err);
+        alert('Failed to update assignment. You may not have permission.');
+        setFilteredCustomers([...filteredCustomers]);
+    }
   };
 
   const generateMissedFollowUpsPdf = () => {
@@ -462,7 +537,16 @@ export default function MissedFollowUps() {
                       <div className="text-secondary" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>{c.mobile}</div>
                     </td>
                     <td>
-                      <span className="badge badge-neutral">{c.staff_name || 'Unknown'}</span>
+                      <select 
+                          value={c.assigned_owner_id || 'unassigned'} 
+                          onChange={(e) => handleAssignmentChange(c.customer_id, c.customer_name, e.target.value, c.assigned_owner_id)}
+                          className="form-control"
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem', width: '100%', minWidth: '120px' }}
+                      >
+                          {allStaff.map(s => <option key={s.id} value={s.id}>{s.display_name}</option>)}
+                          <option value="unassigned">Unassigned</option>
+                          <option value="not_required">Not Required</option>
+                      </select>
                     </td>
                     <td>
                       {c.latest_call_at ? new Date(c.latest_call_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : <span className="text-danger">Never</span>}
