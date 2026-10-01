@@ -18,6 +18,8 @@ import { logActivity } from '../lib/activityLogger';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 import useNavBadges from '../lib/useNavBadges';
+import CreateRequirementModal from './CreateRequirementModal';
+import { PlusSquare } from 'lucide-react';
 
 export default function AppShell() {
   const { userProfile, crmSettings } = useContext(AuthContext);
@@ -25,6 +27,7 @@ export default function AppShell() {
 
   // Mobile drawer state
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [reqModalOpen, setReqModalOpen] = useState(false);
 
   // Notification panel — NotificationBell controls its own dropdown
   // We expose a trigger ref so Sidebar "Notifications" item can open it
@@ -72,6 +75,16 @@ export default function AppShell() {
           </button>
 
           <div className="topbar-right">
+            {/* Create Requirement */}
+            <button
+              className="btn-icon topbar-btn"
+              onClick={() => setReqModalOpen(true)}
+              title="Create New Requirement"
+              aria-label="Create New Requirement"
+            >
+              <PlusSquare size={20} color="var(--primary)" />
+            </button>
+
             {/* Notification Bell */}
             <NotificationBell ref={notifBellRef} />
 
@@ -111,6 +124,11 @@ export default function AppShell() {
           <Outlet />
         </div>
       </main>
+
+      <CreateRequirementModal 
+        isOpen={reqModalOpen} 
+        onClose={() => setReqModalOpen(false)} 
+      />
     </div>
   );
 }

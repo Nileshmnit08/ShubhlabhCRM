@@ -15,6 +15,7 @@ import Opportunities from './pages/Opportunities';
 import RequirementList from './pages/Requirements/List';
 import RequirementView from './pages/Requirements/View';
 import RequirementForm from './pages/Requirements/Form';
+import SystemRequirementsBoard from './pages/SystemRequirements/SystemRequirementsBoard';
 import AutomationControl from './pages/AutomationControl';
 
 import DataImport from './pages/Data/Import';
@@ -245,6 +246,7 @@ function App() {
 
               {/* Admin-Only Routes */}
               <Route element={<AdminRoute />}>
+                <Route path="system-requirements" element={<SystemRequirementsBoard />} />
                 <Route path="leads">
                   <Route index element={<CustomerList isLeadMode />} />
                   <Route path="new" element={<CustomerForm isLeadMode />} />
