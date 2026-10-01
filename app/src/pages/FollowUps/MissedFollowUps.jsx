@@ -130,7 +130,7 @@ export default function MissedFollowUps() {
     let result = [...missedCustomers];
 
     if (searchQuery.trim() !== '') {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.trim().toLowerCase();
       result = result.filter(c => 
         (c.customer_name || '').toLowerCase().includes(q) ||
         (c.mobile || '').includes(q)

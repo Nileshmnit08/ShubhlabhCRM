@@ -48,8 +48,8 @@ export default function FollowUpReport({ searchQuery, callsToday }) {
   };
 
   const filteredData = useMemo(() => {
-    if (!searchQuery) return reportData;
-    const q = searchQuery.toLowerCase();
+    if (!searchQuery || searchQuery.trim() === '') return reportData;
+    const q = searchQuery.trim().toLowerCase();
     return reportData.filter(f => (
       f.reason?.toLowerCase().includes(q) ||
       f.notes?.toLowerCase().includes(q) ||

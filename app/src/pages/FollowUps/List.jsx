@@ -265,8 +265,8 @@ export default function FollowUpList() {
       if (f.assigned_to !== filterOwner && f.crm_parties?.assigned_owner_id !== filterOwner) return false;
     }
     
-    if (searchQuery) {
-        const q = searchQuery.toLowerCase();
+    if (searchQuery && searchQuery.trim() !== '') {
+        const q = searchQuery.trim().toLowerCase();
         const matches = (
           f.reason?.toLowerCase().includes(q) ||
           f.notes?.toLowerCase().includes(q) ||
