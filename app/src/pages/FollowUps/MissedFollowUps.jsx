@@ -24,6 +24,7 @@ export default function MissedFollowUps() {
   const [error, setError] = useState(null);
   
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfAction, setPdfAction] = useState(null); // 'download' or 'print'
   const [pdfError, setPdfError] = useState(null);
 
   // Stats
@@ -267,6 +268,19 @@ export default function MissedFollowUps() {
       const tableColumns = ['S. No.', 'Customer Name', 'Phone Number', 'Last Called Date'];
       let startY = staffFilter !== 'All' ? 50 : 44;
 
+      const normalizeRecord = (c, i) => {
+        const name = (c.customer_name !== null && c.customer_name !== undefined) ? String(c.customer_name) : 'Unknown';
+        const phone = (c.mobile !== null && c.mobile !== undefined) ? String(c.mobile) : 'N/A';
+        let dateStr = 'Never Called';
+        if (c.latest_call_at) {
+          const d = new Date(c.latest_call_at);
+          if (!isNaN(d.getTime())) {
+            dateStr = d.toLocaleDateString('en-GB');
+          }
+        }
+        return [i + 1, name, phone, dateStr];
+      };
+
       if (staffFilter === 'All') {
         // Group by Staff
         const grouped = {};
@@ -277,12 +291,7 @@ export default function MissedFollowUps() {
         });
 
         Object.keys(grouped).sort().forEach((staff, index) => {
-          const staffData = grouped[staff].map((c, i) => [
-            i + 1,
-            c.customer_name || 'Unknown',
-            c.mobile || 'N/A',
-            c.latest_call_at ? new Date(c.latest_call_at).toLocaleDateString('en-GB') : 'Never Called'
-          ]);
+          const staffData = grouped[staff].map(normalizeRecord);
 
           doc.setFontSize(11);
           doc.setFont('helvetica', 'bold');
@@ -306,12 +315,7 @@ export default function MissedFollowUps() {
           }
         });
       } else {
-        const tableData = filteredCustomers.map((c, i) => [
-          i + 1,
-          c.customer_name || 'Unknown',
-          c.mobile || 'N/A',
-          c.latest_call_at ? new Date(c.latest_call_at).toLocaleDateString('en-GB') : 'Never Called'
-        ]);
+        const tableData = filteredCustomers.map(normalizeRecord);
 
         doc.autoTable({
           startY: startY,
@@ -333,19 +337,41 @@ export default function MissedFollowUps() {
   const handleDownloadPDF = () => {
     if (filteredCustomers.length === 0) return;
     setPdfLoading(true);
+    setPdfAction('download');
     setPdfError(null);
     
     // Use short timeout to allow loading state to render
     setTimeout(() => {
       try {
         const doc = generateMissedFollowUpsPdf();
+        const pdfBlob = doc.output('blob');
+        
+        if (!pdfBlob || pdfBlob.size === 0 || pdfBlob.type !== 'application/pdf') {
+            throw new Error("Invalid PDF blob generated.");
+        }
+        
         const filename = `ShubhLabh_Missed_FollowUps_${new Date().toISOString().split('T')[0]}.pdf`;
-        doc.save(filename);
+        const url = URL.createObjectURL(pdfBlob);
+        
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 1000);
+
       } catch (err) {
-        console.error('Download PDF error:', err);
-        setPdfError("Unable to generate PDF. Please try again.");
+        console.error('MISSED FOLLOWUPS PDF DOWNLOAD FAILED', err);
+        setPdfError("Unable to download PDF. Please try again.");
       } finally {
         setPdfLoading(false);
+        setPdfAction(null);
       }
     }, 10);
   };
@@ -353,35 +379,40 @@ export default function MissedFollowUps() {
   const handlePrintPDF = () => {
     if (filteredCustomers.length === 0) return;
     setPdfLoading(true);
+    setPdfAction('print');
     setPdfError(null);
     
-    // Synchronous execution is preferred to avoid popup blockers,
-    // but React state updates batching means we might block the UI.
-    // If popup is blocked, we catch it.
-    try {
-      const doc = generateMissedFollowUpsPdf();
-      doc.autoPrint();
-      
-      const blob = doc.output('blob');
-      const blobUrl = URL.createObjectURL(blob);
-      
-      const printWindow = window.open(blobUrl, '_blank');
-      
-      if (!printWindow) {
-        setPdfError("Popup blocked by browser. Please allow popups or use Download PDF.");
+    setTimeout(() => {
+      try {
+        const doc = generateMissedFollowUpsPdf();
+        doc.autoPrint();
+        
+        const blob = doc.output('blob');
+        
+        if (!blob || blob.size === 0 || blob.type !== 'application/pdf') {
+            throw new Error("Invalid PDF blob generated for printing.");
+        }
+        
+        const blobUrl = URL.createObjectURL(blob);
+        const printWindow = window.open(blobUrl, '_blank');
+        
+        if (!printWindow) {
+          setPdfError("Popup blocked by browser. Please allow popups or use Download PDF.");
+        }
+        
+        // We do not revoke the URL immediately because the new window needs time to load it.
+        setTimeout(() => {
+          URL.revokeObjectURL(blobUrl);
+        }, 60000);
+        
+      } catch (err) {
+        console.error('MISSED FOLLOWUPS PDF PRINT FAILED', err);
+        setPdfError("Unable to prepare PDF for printing. Please try again.");
+      } finally {
+        setPdfLoading(false);
+        setPdfAction(null);
       }
-      
-      // We do not revoke the URL immediately because the new window needs time to load it.
-      setTimeout(() => {
-        URL.revokeObjectURL(blobUrl);
-      }, 60000);
-      
-    } catch (err) {
-      console.error('Print PDF error:', err);
-      setPdfError("Unable to generate PDF for printing. Please try again.");
-    } finally {
-      setPdfLoading(false);
-    }
+    }, 10);
   };
 
   return (
@@ -401,8 +432,8 @@ export default function MissedFollowUps() {
             disabled={pdfLoading || filteredCustomers.length === 0}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            {pdfLoading ? <RefreshCw size={16} className="spin" /> : <DownloadCloud size={16} />}
-            {pdfLoading ? 'Generating...' : 'Download PDF'}
+            {pdfLoading && pdfAction === 'download' ? <RefreshCw size={16} className="spin" /> : <DownloadCloud size={16} />}
+            {pdfLoading && pdfAction === 'download' ? 'Generating PDF...' : 'Download PDF'}
           </button>
           <button 
             className="btn btn-secondary" 
@@ -410,8 +441,8 @@ export default function MissedFollowUps() {
             disabled={pdfLoading || filteredCustomers.length === 0}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            {pdfLoading ? <RefreshCw size={16} className="spin" /> : <Printer size={16} />}
-            {pdfLoading ? 'Generating...' : 'Print'}
+            {pdfLoading && pdfAction === 'print' ? <RefreshCw size={16} className="spin" /> : <Printer size={16} />}
+            {pdfLoading && pdfAction === 'print' ? 'Preparing Print...' : 'Print'}
           </button>
         </div>
       </div>
