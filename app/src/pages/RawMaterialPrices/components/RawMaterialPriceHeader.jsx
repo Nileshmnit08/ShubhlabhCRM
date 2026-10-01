@@ -11,6 +11,7 @@ const RawMaterialPriceHeader = () => {
 
   const isConfiguration = location.pathname.includes('/configuration');
   const isAnalysis = location.pathname.includes('/analysis');
+  const isDailyEntry = location.pathname.includes('/daily-entry');
   
   // Extract sub-route if inside configuration
   const pathParts = location.pathname.split('/');
@@ -44,16 +45,18 @@ const RawMaterialPriceHeader = () => {
           </div>
         )}
         <h1 style={{ margin: 0, fontSize: '2rem', tracking: 'tight' }}>
-          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : (isAnalysis ? 'Price Analysis' : 'Dashboard'))}
+          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : (isDailyEntry ? 'Daily Price Entry' : (isAnalysis ? 'Price Analysis' : 'Dashboard')))}
         </h1>
         <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>
           {activeConfigTab 
             ? activeConfigTab.description 
             : (isConfiguration 
                ? 'Manage raw materials, quality parameters, brokers, units, price types, and operational settings.'
-               : (isAnalysis 
-                  ? 'Compare current material prices with historical market data and broker quotes.'
-                  : 'Track and analyze daily cattle-feed material prices'))}
+               : (isDailyEntry
+                  ? 'Add and manage daily raw material market prices.'
+                  : (isAnalysis 
+                     ? 'Compare current material prices with historical market data and broker quotes.'
+                     : 'Track and analyze daily cattle-feed material prices')))}
         </p>
       </div>
       <div className="flex items-center gap-4">
