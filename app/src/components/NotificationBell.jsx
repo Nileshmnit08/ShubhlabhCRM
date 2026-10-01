@@ -17,10 +17,56 @@ const NotificationBell = forwardRef(function NotificationBell(_props, ref) {
   }));
 
   useEffect(() => {
-    if (userProfile) {
-      fetchNotifications();
-    }
-  }, [userProfile]);
+    if (!userProfile?.id) return;
+
+    fetchNotifications();
+
+    // Subscribe to realtime updates for this user's notifications
+    const channel = supabase
+      .channel(`crm_notifications:${userProfile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'crm_notifications',
+          filter: `user_id=eq.${userProfile.id}`
+        },
+        (payload) => {
+          if (payload.new && !payload.new.is_read) {
+            setNotifications((prev) => {
+              // Duplicate protection
+              if (prev.some((n) => n.id === payload.new.id)) return prev;
+              return [payload.new, ...prev];
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'crm_notifications',
+          filter: `user_id=eq.${userProfile.id}`
+        },
+        (payload) => {
+          if (payload.new) {
+            setNotifications((prev) => {
+              if (payload.new.is_read) {
+                return prev.filter((n) => n.id !== payload.new.id);
+              }
+              return prev.map((n) => (n.id === payload.new.id ? payload.new : n));
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userProfile?.id]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -124,15 +170,15 @@ const NotificationBell = forwardRef(function NotificationBell(_props, ref) {
                   onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-main)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                       {notif.title}
                     </span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                      {new Date(notif.created_at).toLocaleDateString()}
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      {new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'pre-line', lineHeight: 1.4 }}>
                     {notif.message}
                   </p>
                 </div>

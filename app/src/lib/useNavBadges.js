@@ -120,8 +120,31 @@ export default function useNavBadges() {
   useEffect(() => {
     fetchBadges();
     const timer = setInterval(fetchBadges, REFRESH_INTERVAL_MS);
-    return () => clearInterval(timer);
-  }, [fetchBadges]);
+
+    let channel;
+    if (userProfile?.id) {
+      channel = supabase
+        .channel(`nav_badges_notifs:${userProfile.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'crm_notifications',
+            filter: `user_id=eq.${userProfile.id}`
+          },
+          () => {
+            fetchBadges();
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      clearInterval(timer);
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [fetchBadges, userProfile?.id]);
 
   // Expose refresh so other components can trigger on mutation
   return { badges, refreshBadges: fetchBadges };

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { notifyAdminsOnOrderCreated } from '../lib/orderNotification';
 import { Phone, X, Calendar, Edit3 } from 'lucide-react';
 
 const OUTCOMES = [
@@ -110,7 +111,8 @@ export default function CallAction({ party, followUpId, onComplete, btnClass = "
 
       // 2. Branching Logic
       if (selectedOutcome === 'Requirement') {
-        await supabase.from('requirements').insert({
+        const staffUserId = session?.session?.user?.id || null;
+        const { data: newReq } = await supabase.from('requirements').insert({
           party_id: party.id,
           product_type: reqProduct || 'Unknown',
           quantity: reqQty ? parseInt(reqQty) : 0,
@@ -119,8 +121,19 @@ export default function CallAction({ party, followUpId, onComplete, btnClass = "
           priority: reqPriority || 'Normal',
           expected_date: reqDate || null,
           source_interaction_id: intRow?.id,
-          assigned_to: session?.session?.user?.id || null
-        });
+          assigned_to: staffUserId,
+          created_by: staffUserId
+        }).select().single();
+
+        if (newReq?.id) {
+          notifyAdminsOnOrderCreated({
+            orderId: newReq.id,
+            partyId: party.id,
+            createdBy: staffUserId,
+            customerName: party.display_name,
+            orderRef: newReq.demand_ref
+          }).catch(err => console.warn('Non-blocking notification error:', err));
+        }
       } else if (selectedOutcome === 'Call Later' && fuDate) {
         const { data: existingPending } = await supabase.from('follow_ups')
           .select('id')

@@ -215,7 +215,29 @@ export default function RequirementView() {
     </div>
   );
 
-  if (!req) return <div style={{padding: '3rem', textAlign: 'center'}}>Not Found</div>;
+  if (!req) {
+    return (
+      <div className="animate-fade-in" style={{ padding: '3rem 1rem', textAlign: 'center', maxWidth: '480px', margin: '4rem auto' }}>
+        <div className="glass-panel" style={{ padding: '2.5rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)' }}>
+          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem auto' }}>
+            <Clock size={28} color="var(--danger, #ef4444)" />
+          </div>
+          <h3 style={{ marginBottom: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-primary)' }}>Order No Longer Available</h3>
+          <p style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            This order or requirement may have been deleted, cancelled, or is no longer accessible with your current permissions.
+          </p>
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            <button className="btn btn-secondary" onClick={() => navigate(-1)}>
+              Go Back
+            </button>
+            <button className="btn btn-primary" onClick={() => navigate('/requirements')}>
+              View All Orders
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const requirementItems = req.requirement_items || [];
   let totalWeightKg = 0;

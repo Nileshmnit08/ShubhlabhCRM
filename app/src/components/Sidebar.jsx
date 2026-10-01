@@ -217,8 +217,6 @@ function SubGroup({
   onTogglePin,
   userRole,
 }) {
-  if (item.permissionKey === 'admin' && userRole !== 'Admin') return null;
-
   const isExpanded = expandedSubGroups[item.subGroupId] || false;
   const location = useLocation();
 
@@ -228,6 +226,8 @@ function SubGroup({
       onToggleSubGroup(item.subGroupId, true);
     }
   }, [location.pathname]);
+
+  if (item.permissionKey === 'admin' && userRole !== 'Admin') return null;
 
   const visibleChildren = (item.children || []).filter(
     child => child.permissionKey !== 'admin' || userRole === 'Admin'

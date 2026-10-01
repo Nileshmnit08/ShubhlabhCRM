@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { notifyAdminsOnOrderCreated } from '../../lib/orderNotification';
 
 export default function RequirementForm() {
   const navigate = useNavigate();
@@ -170,11 +171,13 @@ export default function RequirementForm() {
         const { data, error } = await supabase.from('requirements').update(payload).eq('id', id).select();
         if (error) throw error;
       } else {
+        const currentUserId = sessionData?.session?.user?.id || null;
         const insertPayload = {
           ...payload,
           party_id: finalPartyId,
           status: 'New', // Fixed constraint issue
-          assigned_to: sessionData?.session?.user?.id || null
+          assigned_to: currentUserId,
+          created_by: currentUserId
         };
         const { data, error } = await supabase.from('requirements').insert(insertPayload).select();
         
@@ -187,6 +190,14 @@ export default function RequirementForm() {
         }
         if (data && data.length > 0) {
           requirementId = data[0].id;
+          // Trigger order created admin notification
+          notifyAdminsOnOrderCreated({
+            orderId: requirementId,
+            partyId: finalPartyId,
+            createdBy: currentUserId,
+            customerName: party?.display_name,
+            orderRef: data[0].demand_ref
+          }).catch(notifErr => console.warn('Non-blocking notification error:', notifErr));
         }
       }
 
