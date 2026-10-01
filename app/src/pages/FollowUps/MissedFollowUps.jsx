@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Search, Phone, User, Calendar, AlertCircle, PhoneIncoming, PhoneOutgoing, X, RefreshCw, CheckCircle2, Printer } from 'lucide-react';
+import { Search, Phone, User, Calendar, AlertCircle, PhoneIncoming, PhoneOutgoing, X, RefreshCw, CheckCircle2, Printer, DownloadCloud } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../../AuthContext';
 import jsPDF from 'jspdf';
@@ -22,6 +22,9 @@ export default function MissedFollowUps() {
   const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
 
   // Stats
   const [stats, setStats] = useState({ totalMissed: 0, neverCalled: 0, overdue: 0, staffCount: 0 });
@@ -159,97 +162,151 @@ export default function MissedFollowUps() {
       return `${diffDays} days`;
   };
 
-  const handleExportPDF = () => {
-    if (filteredCustomers.length === 0) {
-      alert("No missed follow-ups found for the selected filters.");
-      return;
-    }
+  const generateMissedFollowUpsPdf = () => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      
+      // Header
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('SHUBH LABH CRM', pageWidth / 2, 15, { align: 'center' });
+      
+      doc.setFontSize(12);
+      doc.text('MISSED FOLLOW-UPS', pageWidth / 2, 22, { align: 'center' });
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Report Date: ${new Date().toLocaleDateString('en-GB')}`, 14, 32);
+      
+      let periodText = `${periodFilter} Days`;
+      if (periodFilter === 'Custom') periodText = `Custom (Before ${customDate})`;
+      if (periodFilter === 'Never') periodText = 'Never Called Only';
+      doc.text(`Selected Period: ${periodText}`, 14, 38);
+      
+      if (staffFilter !== 'All') {
+        const staffName = allStaff.find(s => s.id === staffFilter)?.display_name || staffFilter;
+        doc.text(`Staff: ${staffName}`, 14, 44);
+      }
+      
+      const tableColumns = ['S. No.', 'Customer Name', 'Phone Number', 'Last Called Date'];
+      let startY = staffFilter !== 'All' ? 50 : 44;
 
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    
-    // Header
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('SHUBH LABH CRM', pageWidth / 2, 15, { align: 'center' });
-    
-    doc.setFontSize(12);
-    doc.text('MISSED FOLLOW-UPS', pageWidth / 2, 22, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Report Date: ${new Date().toLocaleDateString('en-GB')}`, 14, 32);
-    
-    let periodText = `${periodFilter} Days`;
-    if (periodFilter === 'Custom') periodText = `Custom (Before ${customDate})`;
-    if (periodFilter === 'Never') periodText = 'Never Called Only';
-    doc.text(`Selected Period: ${periodText}`, 14, 38);
-    
-    if (staffFilter !== 'All') {
-      const staffName = allStaff.find(s => s.id === staffFilter)?.display_name || staffFilter;
-      doc.text(`Staff: ${staffName}`, 14, 44);
-    }
-    
-    const tableColumns = ['S. No.', 'Customer Name', 'Phone Number', 'Last Called Date'];
-    let startY = staffFilter !== 'All' ? 50 : 44;
+      if (staffFilter === 'All') {
+        // Group by Staff
+        const grouped = {};
+        filteredCustomers.forEach(c => {
+          const staff = c.staff_name || 'Unassigned';
+          if (!grouped[staff]) grouped[staff] = [];
+          grouped[staff].push(c);
+        });
 
-    if (staffFilter === 'All') {
-      // Group by Staff
-      const grouped = {};
-      filteredCustomers.forEach(c => {
-        const staff = c.staff_name || 'Unassigned';
-        if (!grouped[staff]) grouped[staff] = [];
-        grouped[staff].push(c);
-      });
+        Object.keys(grouped).sort().forEach((staff, index) => {
+          const staffData = grouped[staff].map((c, i) => [
+            i + 1,
+            c.customer_name || 'Unknown',
+            c.mobile || 'N/A',
+            c.latest_call_at ? new Date(c.latest_call_at).toLocaleDateString('en-GB') : 'Never Called'
+          ]);
 
-      Object.keys(grouped).sort().forEach((staff, index) => {
-        const staffData = grouped[staff].map((c, i) => [
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`${staff.toUpperCase()} — MISSED FOLLOW-UPS`, 14, startY);
+          startY += 4;
+
+          doc.autoTable({
+            startY: startY,
+            head: [tableColumns],
+            body: staffData,
+            theme: 'grid',
+            headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+            margin: { top: 15 }
+          });
+          startY = doc.lastAutoTable.finalY + 15;
+          
+          // Add new page if space is low
+          if (startY > doc.internal.pageSize.height - 30 && index < Object.keys(grouped).length - 1) {
+              doc.addPage();
+              startY = 20;
+          }
+        });
+      } else {
+        const tableData = filteredCustomers.map((c, i) => [
           i + 1,
           c.customer_name || 'Unknown',
           c.mobile || 'N/A',
           c.latest_call_at ? new Date(c.latest_call_at).toLocaleDateString('en-GB') : 'Never Called'
         ]);
 
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`${staff.toUpperCase()} — MISSED FOLLOW-UPS`, 14, startY);
-        startY += 4;
-
         doc.autoTable({
           startY: startY,
           head: [tableColumns],
-          body: staffData,
+          body: tableData,
           theme: 'grid',
           headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
           margin: { top: 15 }
         });
-        startY = doc.lastAutoTable.finalY + 15;
-        
-        // Add new page if space is low
-        if (startY > doc.internal.pageSize.height - 30 && index < Object.keys(grouped).length - 1) {
-            doc.addPage();
-            startY = 20;
-        }
-      });
-    } else {
-      const tableData = filteredCustomers.map((c, i) => [
-        i + 1,
-        c.customer_name || 'Unknown',
-        c.mobile || 'N/A',
-        c.latest_call_at ? new Date(c.latest_call_at).toLocaleDateString('en-GB') : 'Never Called'
-      ]);
+      }
 
-      doc.autoTable({
-        startY: startY,
-        head: [tableColumns],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
-        margin: { top: 15 }
-      });
+      return doc;
+    } catch (err) {
+      console.error('Error in generateMissedFollowUpsPdf:', err);
+      throw err;
     }
+  };
 
-    doc.save('Missed_FollowUps.pdf');
+  const handleDownloadPDF = () => {
+    if (filteredCustomers.length === 0) return;
+    setPdfLoading(true);
+    setPdfError(null);
+    
+    // Use short timeout to allow loading state to render
+    setTimeout(() => {
+      try {
+        const doc = generateMissedFollowUpsPdf();
+        const filename = `ShubhLabh_Missed_FollowUps_${new Date().toISOString().split('T')[0]}.pdf`;
+        doc.save(filename);
+      } catch (err) {
+        console.error('Download PDF error:', err);
+        setPdfError("Unable to generate PDF. Please try again.");
+      } finally {
+        setPdfLoading(false);
+      }
+    }, 10);
+  };
+
+  const handlePrintPDF = () => {
+    if (filteredCustomers.length === 0) return;
+    setPdfLoading(true);
+    setPdfError(null);
+    
+    // Synchronous execution is preferred to avoid popup blockers,
+    // but React state updates batching means we might block the UI.
+    // If popup is blocked, we catch it.
+    try {
+      const doc = generateMissedFollowUpsPdf();
+      doc.autoPrint();
+      
+      const blob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      
+      const printWindow = window.open(blobUrl, '_blank');
+      
+      if (!printWindow) {
+        setPdfError("Popup blocked by browser. Please allow popups or use Download PDF.");
+      }
+      
+      // We do not revoke the URL immediately because the new window needs time to load it.
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 60000);
+      
+    } catch (err) {
+      console.error('Print PDF error:', err);
+      setPdfError("Unable to generate PDF for printing. Please try again.");
+    } finally {
+      setPdfLoading(false);
+    }
   };
 
   return (
@@ -262,12 +319,33 @@ export default function MissedFollowUps() {
           </h2>
           <p className="text-secondary">Customers assigned to staff with no recent qualifying phone calls.</p>
         </div>
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="btn btn-secondary" onClick={handleExportPDF} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Printer size={16} /> Print / PDF
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={handleDownloadPDF} 
+            disabled={pdfLoading || filteredCustomers.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            {pdfLoading ? <RefreshCw size={16} className="spin" /> : <DownloadCloud size={16} />}
+            {pdfLoading ? 'Generating...' : 'Download PDF'}
+          </button>
+          <button 
+            className="btn btn-secondary" 
+            onClick={handlePrintPDF} 
+            disabled={pdfLoading || filteredCustomers.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            {pdfLoading ? <RefreshCw size={16} className="spin" /> : <Printer size={16} />}
+            {pdfLoading ? 'Generating...' : 'Print'}
           </button>
         </div>
       </div>
+      
+      {pdfError && (
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <AlertCircle size={18} /> {pdfError}
+        </div>
+      )}
 
       <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', background: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
