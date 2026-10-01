@@ -12,6 +12,7 @@ const RawMaterialPriceHeader = () => {
   const isConfiguration = location.pathname.includes('/configuration');
   const isAnalysis = location.pathname.includes('/analysis');
   const isDailyEntry = location.pathname.includes('/daily-entry');
+  const isWhatsApp = location.pathname.includes('/whatsapp');
   
   // Extract sub-route if inside configuration
   const pathParts = location.pathname.split('/');
@@ -45,7 +46,7 @@ const RawMaterialPriceHeader = () => {
           </div>
         )}
         <h1 style={{ margin: 0, fontSize: '2rem', tracking: 'tight' }}>
-          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : (isDailyEntry ? 'Daily Price Entry' : (isAnalysis ? 'Price Analysis' : 'Dashboard')))}
+          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : (isDailyEntry ? 'Daily Price Entry' : (isWhatsApp ? 'WhatsApp Price Update' : (isAnalysis ? 'Price Analysis' : 'Dashboard'))))}
         </h1>
         <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>
           {activeConfigTab 
@@ -54,9 +55,11 @@ const RawMaterialPriceHeader = () => {
                ? 'Manage raw materials, quality parameters, brokers, units, price types, and operational settings.'
                : (isDailyEntry
                   ? 'Add and manage daily raw material market prices.'
-                  : (isAnalysis 
-                     ? 'Compare current material prices with historical market data and broker quotes.'
-                     : 'Track and analyze daily cattle-feed material prices')))}
+                  : (isWhatsApp
+                     ? 'Prepare and share the daily raw material price report through WhatsApp.'
+                     : (isAnalysis 
+                        ? 'Compare current material prices with historical market data and broker quotes.'
+                        : 'Track and analyze daily cattle-feed material prices'))))}
         </p>
       </div>
       <div className="flex items-center gap-4">
