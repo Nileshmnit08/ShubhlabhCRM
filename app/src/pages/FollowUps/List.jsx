@@ -6,6 +6,7 @@ import { LanguageContext } from '../../LanguageContext';
 import { logActivity } from '../../lib/activityLogger';
 import FollowUpReport from './FollowUpReport';
 import FollowUpIntelligence from './FollowUpIntelligence';
+import MissedFollowUps from './MissedFollowUps';
 
 export default function FollowUpList() {
   const [followUps, setFollowUps] = useState([]);
@@ -435,20 +436,22 @@ export default function FollowUpList() {
 
       {/* Tabs */}
       <div style={{display: 'flex', gap: '2rem', borderBottom: '1px solid var(--border)', marginBottom: '1.5rem', overflowX: 'auto'}}>
-        {['Today', 'Overdue', 'Upcoming', 'Completed', 'Report', 'Intelligence'].map(tab => (
+        {['Today', 'Overdue', 'Upcoming', 'Completed', 'Report', 'Intelligence', 'Missed'].map(tab => (
           <button 
             key={tab}
             className={`nav-item ${activeTab === tab ? 'active' : ''}`} 
             style={{borderRadius: 0, padding: '0.75rem 1rem', whiteSpace: 'nowrap'}} 
             onClick={() => { setActiveTab(tab); setFilterType('All'); setFilterPriority('All'); }}
           >
-            {tab === 'Report' ? 'Follow-Up Report' : tab === 'Intelligence' ? 'Follow-up Intelligence' : t(`nav.${tab.toLowerCase()}`)}
+            {tab === 'Report' ? 'Follow-Up Report' : tab === 'Intelligence' ? 'Follow-up Intelligence' : tab === 'Missed' ? 'Missed Follow-ups' : t(`nav.${tab.toLowerCase()}`)}
           </button>
         ))}
       </div>
 
       {/* List */}
-      {activeTab === 'Intelligence' ? (
+      {activeTab === 'Missed' ? (
+        <MissedFollowUps />
+      ) : activeTab === 'Intelligence' ? (
         <FollowUpIntelligence />
       ) : activeTab === 'Report' ? (
         <FollowUpReport searchQuery={searchQuery} callsToday={callsToday} />
