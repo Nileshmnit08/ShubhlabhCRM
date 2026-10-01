@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useContext, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Search, Plus, Building2, AlertTriangle, ArrowUpDown, Users, X, Filter, MapPin, Phone, CheckCircle2 } from 'lucide-react';
+import { Search, Plus, Building2, AlertTriangle, ArrowUpDown, Users, X, Filter, MapPin, Phone, CheckCircle2, Check } from 'lucide-react';
 import { LanguageContext } from '../../LanguageContext';
 import { AuthContext } from '../../AuthContext';
 import { logActivity } from '../../lib/activityLogger';
@@ -42,6 +42,65 @@ export default function CustomerList({ isLeadMode = false }) {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [mergingCandidates, setMergingCandidates] = useState(null);
   const [mergeLoading, setMergeLoading] = useState(false);
+
+  // Mobile Inline Editing
+  const [editingMobileId, setEditingMobileId] = useState(null);
+  const [editingMobileValue, setEditingMobileValue] = useState('');
+  const [mobileUpdating, setMobileUpdating] = useState(false);
+  const [mobileUpdateError, setMobileUpdateError] = useState(null);
+
+  const isReadOnly = userProfile?.role === 'Viewer' || userProfile?.role === 'Read-Only';
+  const canEdit = !isReadOnly;
+
+  const handleStartMobileEdit = (e, c) => {
+    e.stopPropagation();
+    if (!canEdit) return;
+    setEditingMobileId(c.id);
+    setEditingMobileValue('');
+    setMobileUpdateError(null);
+  };
+
+  const handleCancelMobileEdit = (e) => {
+    if (e) e.stopPropagation();
+    setEditingMobileId(null);
+    setEditingMobileValue('');
+    setMobileUpdateError(null);
+  };
+
+  const handleSaveMobile = async (e, id) => {
+    e.stopPropagation();
+    const rawVal = editingMobileValue;
+    const cleanVal = rawVal.replace(/\s+/g, '');
+    
+    if (!cleanVal) {
+      setMobileUpdateError('Mobile number cannot be empty.');
+      return;
+    }
+
+    if (!/^\+?\d{10,15}$/.test(cleanVal)) {
+      setMobileUpdateError('Please enter a valid mobile number (10-15 digits).');
+      return;
+    }
+    
+    setMobileUpdating(true);
+    setMobileUpdateError(null);
+    try {
+      const { error } = await supabase
+        .from('crm_parties')
+        .update({ mobile: cleanVal })
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      setCustomers(prev => prev.map(cust => cust.id === id ? { ...cust, mobile: cleanVal } : cust));
+      setEditingMobileId(null);
+    } catch (err) {
+      console.error(err);
+      setMobileUpdateError(err.message || 'Unable to update mobile number. Please try again.');
+    } finally {
+      setMobileUpdating(false);
+    }
+  };
 
   useEffect(() => {
     fetchTeamMembers();
@@ -575,6 +634,43 @@ export default function CustomerList({ isLeadMode = false }) {
                         )}
                         {c.isDuplicateChild && <span className="badge badge-neutral" style={{fontSize: '0.7rem', padding: '0.1rem 0.4rem'}}>Duplicate Child</span>}
                       </div>
+                      
+                      {editingMobileId === c.id ? (
+                        <div style={{marginTop: '0.5rem', marginBottom: '0.5rem'}} onClick={(e) => e.stopPropagation()}>
+                          <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                            <input 
+                              type="text" 
+                              placeholder="Enter mobile number" 
+                              value={editingMobileValue} 
+                              onChange={(e) => setEditingMobileValue(e.target.value)}
+                              disabled={mobileUpdating}
+                              style={{padding: '0.25rem 0.5rem', fontSize: '0.85rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-base)', width: '150px'}}
+                              autoFocus
+                            />
+                            <button className="btn-icon" onClick={(e) => handleSaveMobile(e, c.id)} disabled={mobileUpdating} style={{color: 'var(--success)'}} title="Save">
+                              <Check size={16} />
+                            </button>
+                            <button className="btn-icon" onClick={handleCancelMobileEdit} disabled={mobileUpdating} style={{color: 'var(--danger)'}} title="Cancel">
+                              <X size={16} />
+                            </button>
+                          </div>
+                          {mobileUpdateError && <div className="text-danger" style={{fontSize: '0.75rem', marginTop: '0.25rem'}}>{mobileUpdateError}</div>}
+                        </div>
+                      ) : (
+                        <div style={{marginTop: '0.25rem', marginBottom: '0.5rem', fontSize: '0.85rem'}}>
+                          {c.mobile && c.mobile.trim() !== '' ? (
+                            <span className="text-secondary">{c.mobile}</span>
+                          ) : (
+                            canEdit ? (
+                              <button onClick={(e) => handleStartMobileEdit(e, c)} style={{background: 'none', border: 'none', padding: 0, color: 'var(--primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '0.25rem'}}>
+                                + Add Mobile
+                              </button>
+                            ) : (
+                              <span className="text-muted" style={{fontStyle: 'italic'}}>No Mobile</span>
+                            )
+                          )}
+                        </div>
+                      )}
                       
                       {c.gst_number ? (
                         <div className="text-secondary" style={{fontSize: '0.85rem'}}>GST: {c.gst_number}</div>
