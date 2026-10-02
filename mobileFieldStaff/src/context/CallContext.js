@@ -35,6 +35,21 @@ const ICE_SERVERS = [
   }
 ];
 
+const logWebRTCState = (pc, operation, details = {}) => {
+  if (!pc) return;
+  console.log(`[WEBRTC_DIAGNOSTIC] ${operation}`, {
+    signalingState: pc.signalingState,
+    connectionState: pc.connectionState,
+    iceConnectionState: pc.iceConnectionState,
+    iceGatheringState: pc.iceGatheringState,
+    localDescriptionPresent: !!pc.localDescription,
+    localDescriptionType: pc.localDescription?.type,
+    remoteDescriptionPresent: !!pc.remoteDescription,
+    remoteDescriptionType: pc.remoteDescription?.type,
+    ...details
+  });
+};
+
 export const CallProvider = ({ children }) => {
   const { session, staffProfile } = useAuth();
   const userId = session?.user?.id;
@@ -85,6 +100,7 @@ export const CallProvider = ({ children }) => {
   const sendSignalRef = useRef(null);
   const durationTimerRef = useRef(null);
   const channelRef = useRef(null);
+  const pendingIceCandidatesRef = useRef([]);
 
   useEffect(() => { stateRef.current = callState; }, [callState]);
   useEffect(() => { sessionRef.current = currentSession; }, [currentSession]);
@@ -122,6 +138,7 @@ export const CallProvider = ({ children }) => {
     setRemoteStream(null);
     setIsMuted(false);
     setIsCameraOff(false);
+    pendingIceCandidatesRef.current = [];
   }, []);
 
   const resetCall = useCallback(() => {
@@ -176,6 +193,7 @@ export const CallProvider = ({ children }) => {
     };
 
     pc.ontrack = (event) => {
+      console.log(`[WEBRTC] REMOTE_TRACK_RECEIVED kind=${event.track?.kind}`);
       if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
       } else if (event.track) {
@@ -229,6 +247,9 @@ export const CallProvider = ({ children }) => {
       });
       localStreamRef.current = stream;
       setLocalStream(stream);
+      stream.getTracks().forEach(track => {
+        console.log(`[WEBRTC] LOCAL_${track.kind.toUpperCase()}_TRACK_ADDED`);
+      });
       return stream;
     } catch (err) {
       console.error('[Call] getUserMedia error:', err);
@@ -271,8 +292,6 @@ export const CallProvider = ({ children }) => {
       case 'CALL_ACCEPTED':
         if (currentState === 'INITIATING' || currentState === 'RINGING') {
           setCallState('ACCEPTED');
-          // Since mobile always creates the offer (role reversal), we create it here if we were the caller.
-          // Wait, if we are the caller, we received ACCEPTED. We should start the WebRTC handshake.
           if (!isIncoming) {
             (async () => {
               const pc = createPeerConnection();
@@ -289,18 +308,26 @@ export const CallProvider = ({ children }) => {
               }
               stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-              const offerDesc = await pc.createOffer({
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: withVideo,
-              });
-              await pc.setLocalDescription(offerDesc);
+              try {
+                console.log('[WEBRTC] OFFER_CREATED');
+                const offerDesc = await pc.createOffer({
+                  offerToReceiveAudio: true,
+                  offerToReceiveVideo: withVideo,
+                });
+                await pc.setLocalDescription(offerDesc);
+                logWebRTCState(pc, 'setLocalDescription(offer)');
 
-              sendSignalRef.current?.(senderId, {
-                type: 'WEBRTC_OFFER',
-                callSessionId: session?.id,
-                offer: offerDesc,
-              });
-              setCallState('CONNECTING');
+                sendSignalRef.current?.(senderId, {
+                  type: 'WEBRTC_OFFER',
+                  callSessionId: session?.id,
+                  offer: offerDesc,
+                });
+                console.log('[WEBRTC] OFFER_SENT');
+                setCallState('CONNECTING');
+              } catch (e) {
+                console.error('[WEBRTC] Error creating offer:', e);
+                resetCall();
+              }
             })();
           }
         }
@@ -319,7 +346,12 @@ export const CallProvider = ({ children }) => {
         break;
 
       case 'WEBRTC_OFFER': {
-        // Receiver gets the offer — create answer
+        console.log('[WEBRTC] OFFER_RECEIVED');
+        if (!offer || !offer.type || !offer.sdp) {
+          console.error('[WEBRTC] Invalid OFFER payload', { type: offer?.type });
+          break;
+        }
+
         const pc = createPeerConnection();
         if (!pc) break;
         const stream = await getLocalStream(callType === 'VIDEO' || cType === 'VIDEO');
@@ -333,34 +365,86 @@ export const CallProvider = ({ children }) => {
         }
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-        const RTCSessionDescription = require('react-native-webrtc').RTCSessionDescription;
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        const answerDesc = await pc.createAnswer();
-        await pc.setLocalDescription(answerDesc);
+        try {
+          const RTCSessionDescription = require('react-native-webrtc').RTCSessionDescription;
+          await pc.setRemoteDescription(new RTCSessionDescription(offer));
+          console.log('[WEBRTC] REMOTE_DESCRIPTION_SET (offer)');
+          logWebRTCState(pc, 'setRemoteDescription(offer)');
 
-        sendSignalRef.current?.(remoteUserRef.current?.id, {
-          type: 'WEBRTC_ANSWER',
-          callSessionId: sessionRef.current?.id,
-          answer: answerDesc,
-        });
-        setCallState('CONNECTING');
+          // Flush queued ICE candidates
+          if (pendingIceCandidatesRef.current.length > 0) {
+            console.log(`[WEBRTC] Flushing ${pendingIceCandidatesRef.current.length} queued ICE candidates`);
+            for (const cand of pendingIceCandidatesRef.current) {
+              await pc.addIceCandidate(cand);
+            }
+            pendingIceCandidatesRef.current = [];
+          }
+
+          console.log('[WEBRTC] ANSWER_CREATED');
+          const answerDesc = await pc.createAnswer();
+          await pc.setLocalDescription(answerDesc);
+          logWebRTCState(pc, 'setLocalDescription(answer)');
+
+          sendSignalRef.current?.(remoteUserRef.current?.id, {
+            type: 'WEBRTC_ANSWER',
+            callSessionId: sessionRef.current?.id,
+            answer: answerDesc,
+          });
+          console.log('[WEBRTC] ANSWER_SENT');
+          setCallState('CONNECTING');
+        } catch (e) {
+          console.error('[WEBRTC] Error processing offer / creating answer:', e);
+        }
         break;
       }
 
       case 'WEBRTC_ANSWER': {
-        // Caller gets the answer
+        console.log('[WEBRTC] ANSWER_RECEIVED');
+        if (!answer || !answer.type || !answer.sdp) {
+          console.error('[WEBRTC] Invalid ANSWER payload', { type: answer?.type });
+          break;
+        }
+
         const pc2 = peerConnectionRef.current;
         if (!pc2) break;
-        const RTCSessionDescription2 = require('react-native-webrtc').RTCSessionDescription;
-        await pc2.setRemoteDescription(new RTCSessionDescription2(answer));
+        
+        try {
+          const RTCSessionDescription2 = require('react-native-webrtc').RTCSessionDescription;
+          await pc2.setRemoteDescription(new RTCSessionDescription2(answer));
+          console.log('[WEBRTC] REMOTE_DESCRIPTION_SET (answer)');
+          logWebRTCState(pc2, 'setRemoteDescription(answer)');
+
+          // Flush queued ICE candidates
+          if (pendingIceCandidatesRef.current.length > 0) {
+            console.log(`[WEBRTC] Flushing ${pendingIceCandidatesRef.current.length} queued ICE candidates`);
+            for (const cand of pendingIceCandidatesRef.current) {
+              await pc2.addIceCandidate(cand);
+            }
+            pendingIceCandidatesRef.current = [];
+          }
+        } catch (e) {
+          console.error('[WEBRTC] Error processing answer:', e);
+        }
         break;
       }
 
       case 'WEBRTC_ICE': {
         const pc3 = peerConnectionRef.current;
         if (!pc3 || !candidate) break;
+        
         const RTCIceCandidate = require('react-native-webrtc').RTCIceCandidate;
-        await pc3.addIceCandidate(new RTCIceCandidate(candidate));
+        const iceCandidate = new RTCIceCandidate(candidate);
+
+        if (!pc3.remoteDescription) {
+          console.log('[WEBRTC] Queuing ICE candidate (remoteDescription is null)');
+          pendingIceCandidatesRef.current.push(iceCandidate);
+        } else {
+          try {
+            await pc3.addIceCandidate(iceCandidate);
+          } catch (e) {
+            console.error('[WEBRTC] addIceCandidate error:', e);
+          }
+        }
         break;
       }
 
