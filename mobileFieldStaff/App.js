@@ -16,6 +16,10 @@ import { CallLogService } from './src/services/CallLogService';
 import { BackgroundNotificationService } from './src/services/BackgroundNotificationService';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import { CallProvider, useCall } from './src/context/CallContext';
+import { CallNotificationService } from './src/services/CallNotificationService';
+import IncomingCallScreen from './src/screens/IncomingCallScreen';
+import ActiveCallScreen from './src/screens/ActiveCallScreen';
 
 import {
   HomeScreen,
@@ -45,6 +49,17 @@ import {
 } from './src/screens';
 import { NotificationProvider, useNotifications } from './src/context/NotificationContext';
 import { VisitProvider } from './src/context/VisitContext';
+
+// ─── Global Call Overlay ───────────────────────────────────────────────────────
+// Rendered above all navigation so it appears on any screen
+function GlobalCallOverlay() {
+  const { callState } = useCall();
+  if (callState === 'RINGING') return <IncomingCallScreen />;
+  if (callState === 'ACCEPTED' || callState === 'CONNECTING' || callState === 'CONNECTED') {
+    return <ActiveCallScreen />;
+  }
+  return null;
+}
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -247,6 +262,10 @@ export default function App() {
       }
 
       BackgroundNotificationService.registerTask();
+
+      // Set up call notification channel and categories
+      await CallNotificationService.setupCallChannel();
+      await CallNotificationService.registerCallCategory();
     };
     setupNotifications();
   }, []);
@@ -256,10 +275,13 @@ export default function App() {
       <NotificationProvider>
         <SyncProvider>
           <VisitProvider>
-            <NavigationContainer ref={navigationRef}>
-              <RootNavigator />
-              <StatusBar style="auto" />
-            </NavigationContainer>
+            <CallProvider>
+              <NavigationContainer ref={navigationRef}>
+                <RootNavigator />
+                <GlobalCallOverlay />
+                <StatusBar style="auto" />
+              </NavigationContainer>
+            </CallProvider>
           </VisitProvider>
         </SyncProvider>
       </NotificationProvider>
