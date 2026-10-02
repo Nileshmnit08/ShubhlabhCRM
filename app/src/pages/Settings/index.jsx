@@ -3,13 +3,15 @@ import { AuthContext } from '../../AuthContext';
 import { LanguageContext } from '../../LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
-import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X, MessageCircle, Map, Gift } from 'lucide-react';
+import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X, MessageCircle, Map, Gift, Phone, Video } from 'lucide-react';
+import { CallContext } from '../Calling/CallProvider';
 import TerritoriesTab from './Territories';
 import DealerSchemes from './DealerSchemes';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export default function Settings() {
   const { userProfile, setUserProfile, crmSettings, setCrmSettings } = useContext(AuthContext);
+  const { initiateCall } = useContext(CallContext) || {};
   const { t, setLanguage } = useContext(LanguageContext);
   const location = useLocation();
   const navigate = useNavigate();
@@ -713,6 +715,7 @@ export default function Settings() {
                     <tr style={{borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)'}}>
                       <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>User</th>
                       <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Contact</th>
+                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Communication</th>
                       <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Role</th>
                       <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Status</th>
                     </tr>
@@ -727,6 +730,30 @@ export default function Settings() {
                         <td style={{padding: '1.25rem 2rem'}}>
                           <div style={{fontSize: '0.9rem'}}>{member.whatsapp || member.mobile || '-'}</div>
                           <div className="text-secondary" style={{fontSize: '0.85rem'}}>{member.contact_details || ''}</div>
+                        </td>
+                        <td style={{padding: '1.25rem 2rem'}}>
+                          <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
+                            {member.id !== userProfile.id && initiateCall && (
+                              <>
+                                <button 
+                                  className="btn btn-outline" 
+                                  style={{padding: '0.25rem 0.5rem', display: 'flex', gap: '0.25rem', alignItems: 'center'}}
+                                  title="Audio Call"
+                                  onClick={() => initiateCall({id: member.id, name: member.display_name, role: member.role}, 'AUDIO')}
+                                >
+                                  <Phone size={14} /> <span className="hide-on-mobile">Audio</span>
+                                </button>
+                                <button 
+                                  className="btn btn-primary" 
+                                  style={{padding: '0.25rem 0.5rem', display: 'flex', gap: '0.25rem', alignItems: 'center'}}
+                                  title="Video Call"
+                                  onClick={() => initiateCall({id: member.id, name: member.display_name, role: member.role}, 'VIDEO')}
+                                >
+                                  <Video size={14} /> <span className="hide-on-mobile">Video</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                         <td style={{padding: '1.25rem 2rem'}}>
                           <select 

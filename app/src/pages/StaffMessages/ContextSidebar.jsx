@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { CheckCircle, X, Plus, Calendar, ShoppingCart, MapPin, ChevronDown, ChevronUp, Phone, Video } from 'lucide-react';
-import { CallContext } from '../Calling/CallProvider';
+import { CheckCircle, X, Plus, Calendar, ShoppingCart, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 
 /**
  * ContextSidebar
@@ -44,7 +43,6 @@ export default function ContextSidebar({
   setFollowUpSuccess,
   onFollowUpCreated,
 }) {
-  const { initiateCall } = useContext(CallContext);
   const [activityExpanded, setActivityExpanded] = useState(true);
 
   // Fetch customer data when a customer is selected for follow-up creation
@@ -128,33 +126,6 @@ export default function ContextSidebar({
 
   return (
     <div className="sm-ctx-sidebar">
-      {/* ── Communication Actions ────────────────────── */}
-      <div className="sm-ctx-section">
-        <div className="sm-ctx-section-label">Call {selectedConversation?.participants?.find(p => p.user_id !== currentUserId)?.display_name || 'User'}</div>
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-          <button 
-            className="btn btn-secondary" 
-            style={{ flex: 1, display: 'flex', gap: '0.25rem', alignItems: 'center', justifyContent: 'center' }}
-            onClick={() => {
-              const remoteUsr = selectedConversation?.participants?.find(p => p.user_id !== currentUserId);
-              if (remoteUsr) initiateCall({ id: remoteUsr.user_id, name: remoteUsr.display_name, role: remoteUsr.role }, 'AUDIO');
-            }}
-          >
-            <Phone size={14} /> Audio
-          </button>
-          <button 
-            className="btn btn-primary" 
-            style={{ flex: 1, display: 'flex', gap: '0.25rem', alignItems: 'center', justifyContent: 'center' }}
-            onClick={() => {
-              const remoteUsr = selectedConversation?.participants?.find(p => p.user_id !== currentUserId);
-              if (remoteUsr) initiateCall({ id: remoteUsr.user_id, name: remoteUsr.display_name, role: remoteUsr.role }, 'VIDEO');
-            }}
-          >
-            <Video size={14} /> Video
-          </button>
-        </div>
-      </div>
-
       {/* ── Today Stats ─────────────────────────────── */}
       <div className="sm-ctx-section">
         <div className="sm-ctx-section-label">Today</div>
