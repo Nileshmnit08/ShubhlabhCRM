@@ -45,6 +45,8 @@ export default function ActiveCallScreen() {
     toggleMute,
     toggleCamera,
     switchCamera,
+    isSpeakerOn,
+    toggleSpeaker,
   } = useCall();
 
   const isConnected = callState === 'CONNECTED';
@@ -77,7 +79,7 @@ export default function ActiveCallScreen() {
                   <Text style={styles.avatarLargeText}>{getInitials(remoteUser?.name)}</Text>
                 </View>
                 <Text style={styles.connectingText}>
-                  {isConnected ? remoteUser?.name : 'Connecting…'}
+                  {isConnected ? remoteUser?.name : (callState === 'FAILED' ? 'Call Failed' : 'Connecting…')}
                 </Text>
               </View>
             )}
@@ -108,7 +110,7 @@ export default function ActiveCallScreen() {
           {/* Status + duration */}
           <View style={styles.statusRow}>
             <Text style={styles.statusText}>
-              {isConnected ? formatDuration(callDuration) : 'Connecting…'}
+              {isConnected ? formatDuration(callDuration) : (callState === 'FAILED' ? 'Call Failed' : 'Connecting…')}
             </Text>
             <View style={[styles.statusDot, isConnected ? styles.dotGreen : styles.dotYellow]} />
           </View>
@@ -158,13 +160,18 @@ export default function ActiveCallScreen() {
               </>
             )}
 
-            {/* Speaker (Audio only, placeholder — requires expo-av for speaker switching) */}
-            {!isVideo && (
-              <TouchableOpacity style={styles.controlBtn}>
-                <MaterialIcons name="volume-up" size={26} color="#fff" />
-                <Text style={styles.controlLabel}>Speaker</Text>
-              </TouchableOpacity>
-            )}
+            {/* Speaker Toggle */}
+            <TouchableOpacity
+              style={[styles.controlBtn, isSpeakerOn && styles.controlBtnActive]}
+              onPress={toggleSpeaker}
+            >
+              <MaterialIcons
+                name={isSpeakerOn ? 'volume-up' : 'volume-down'}
+                size={26}
+                color={isSpeakerOn ? (colors?.primary || '#3B82F6') : '#fff'}
+              />
+              <Text style={styles.controlLabel}>Speaker</Text>
+            </TouchableOpacity>
 
             {/* End Call */}
             <TouchableOpacity

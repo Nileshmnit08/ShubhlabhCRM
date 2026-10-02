@@ -13,16 +13,26 @@ import React, {
   useRef,
 } from 'react';
 import { AppState, Platform } from 'react-native';
+import { Audio } from 'expo-av';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 export const CallContext = createContext(null);
 export const useCall = () => useContext(CallContext);
 
-// STUN/TURN config — use Google public STUN (production should add TURN)
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { 
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  },
+  { 
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject'
+  }
 ];
 
 export const CallProvider = ({ children }) => {
@@ -43,7 +53,28 @@ export const CallProvider = ({ children }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isFrontCamera, setIsFrontCamera] = useState(true);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+
+  // ─── Audio Routing ────────────────────────────────────────────────
+  const configureAudioMode = useCallback(async (speaker) => {
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: !speaker, // true = earpiece, false = speaker
+        shouldRouteThroughEarpiece: !speaker, // for iOS
+      });
+    } catch (e) {
+      console.warn('[Call] Failed to set audio mode:', e);
+    }
+  }, []);
+
+  // Configure audio when call state or speaker state changes
+  useEffect(() => {
+    if (callState === 'IDLE') return;
+    configureAudioMode(isSpeakerOn);
+  }, [isSpeakerOn, callState, configureAudioMode]);
 
   // ─── Refs (avoid stale closures) ──────────────────────────────────
   const stateRef = useRef('IDLE');
@@ -99,6 +130,7 @@ export const CallProvider = ({ children }) => {
     setCurrentSession(null);
     setRemoteUser(null);
     setIsIncoming(false);
+    setIsSpeakerOn(false);
     setCallDuration(0);
   }, [cleanupMedia]);
 
@@ -169,7 +201,8 @@ export const CallProvider = ({ children }) => {
         state === 'failed' ||
         state === 'closed'
       ) {
-        resetCall();
+        setCallState('FAILED');
+        setTimeout(() => resetCall(), 2000);
       }
     };
 
@@ -222,6 +255,7 @@ export const CallProvider = ({ children }) => {
       case 'CALL_INITIATED': {
         setRemoteUser({ id: senderId, name: senderName, role: senderRole });
         setCallType(cType || 'AUDIO');
+        setIsSpeakerOn(cType === 'VIDEO');
         setCurrentSession({ id: callSessionId });
         setIsIncoming(true);
         setCallState('RINGING');
@@ -366,6 +400,7 @@ export const CallProvider = ({ children }) => {
     setCallState('INITIATING');
     setRemoteUser(targetUser);
     setCallType(type);
+    setIsSpeakerOn(type === 'VIDEO');
     setIsIncoming(false);
 
     const { data, error } = await supabase
@@ -509,6 +544,10 @@ export const CallProvider = ({ children }) => {
     }
   }, []);
 
+  const toggleSpeaker = useCallback(() => {
+    setIsSpeakerOn(prev => !prev);
+  }, []);
+
   // ─── Missed Call Timer (30s) ───────────────────────────────────────
   const missedTimerRef = useRef(null);
   useEffect(() => {
@@ -545,6 +584,7 @@ export const CallProvider = ({ children }) => {
     isMuted,
     isCameraOff,
     isFrontCamera,
+    isSpeakerOn,
     callDuration,
     initiateCall,
     acceptCall,
@@ -554,6 +594,7 @@ export const CallProvider = ({ children }) => {
     toggleMute,
     toggleCamera,
     switchCamera,
+    toggleSpeaker,
   };
 
   return (
