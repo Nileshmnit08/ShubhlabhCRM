@@ -10,6 +10,7 @@ import {
   searchMessages,
 } from '../services/chatService';
 import { useRealtimeMessages } from './useRealtimeMessages';
+import { parseUTCString } from '../utils/formatters';
 
 /**
  * useStaffMessages
@@ -310,7 +311,7 @@ export function useStaffMessages(userProfile) {
             ? { ...conv, latestMessage: latestMsg, updated_at: latestMsg.created_at }
             : conv
         )
-        .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+        .sort((a, b) => parseUTCString(b.updated_at) - parseUTCString(a.updated_at))
     );
   }, []);
 

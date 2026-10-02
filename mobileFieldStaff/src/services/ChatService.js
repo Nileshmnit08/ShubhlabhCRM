@@ -91,14 +91,17 @@ class ChatService {
 
           if (type === 'TEAM_GROUP') {
              finalOtherUser = { id: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
+             type = 'TEAM';
           } else {
-             // For legacy conversations without a type, or 1-to-1 chats, infer type
-             const isOwnerAdmin = currentUserObj.role === 'Admin' || currentUserObj.role === 'Owner' || currentUserObj.role === 'Superadmin';
-             const isOtherAdmin = otherUserObj.role === 'Admin' || otherUserObj.role === 'Owner' || otherUserObj.role === 'Superadmin';
-             
-             // Only overwrite if it's missing, or if it's a legacy chat. If it already has a valid type, prefer inferring correctly.
-             // Actually, to be safe and backwards compatible, we can just infer it if it's not TEAM_GROUP.
-             type = (isOwnerAdmin || isOtherAdmin) ? 'ADMIN_STAFF' : 'TEAM';
+             // 1:1 chats are DIRECT_CHAT
+             const isGroup = participants.length > 2;
+             if (!isGroup) {
+               type = 'DIRECT_CHAT';
+             } else {
+               const isOwnerAdmin = currentUserObj.role === 'Admin' || currentUserObj.role === 'Owner' || currentUserObj.role === 'Superadmin';
+               const isOtherAdmin = otherUserObj.role === 'Admin' || otherUserObj.role === 'Owner' || otherUserObj.role === 'Superadmin';
+               type = (isOwnerAdmin || isOtherAdmin) ? 'ADMIN_STAFF' : 'TEAM';
+             }
           }
 
           return {
@@ -461,13 +464,7 @@ class ChatService {
             console.log(`[DIAGNOSTIC] Creating new conversation online...`);
             
             // Infer type
-            let convType = 'TEAM';
-            const { data: myData } = await supabase.from('app_users').select('role').eq('id', userId1).single();
-            const myRole = myData?.role || 'Staff';
-            const otherRole = otherUserObj?.role || 'Staff';
-            if (myRole === 'Admin' || otherRole === 'Admin' || myRole === 'Owner' || otherRole === 'Owner') {
-                convType = 'ADMIN_STAFF';
-            }
+            let convType = 'DIRECT_CHAT';
 
             // If no conversation exists online, create a new one
             const { data: newConv, error: createErr } = await supabase
@@ -512,13 +509,7 @@ class ChatService {
     
     try {
       // Infer type
-      let convType = 'TEAM';
-      if (otherUserObj) {
-        const otherRole = otherUserObj?.role || 'Staff';
-        if (otherRole === 'Admin' || otherRole === 'Owner') {
-            convType = 'ADMIN_STAFF';
-        }
-      }
+      let convType = 'DIRECT_CHAT';
 
       // Queue conversation creation
       await SyncService.enqueueOperation('chat_conversations', { id: newConvId, type: convType, created_by: userId1 }, userId1);

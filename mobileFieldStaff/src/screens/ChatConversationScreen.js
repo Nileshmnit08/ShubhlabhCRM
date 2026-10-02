@@ -22,6 +22,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useNotifications } from '../context/NotificationContext';
 import { useVoiceToText, MicState } from '../hooks/useVoiceToText';
+import { useCall } from '../context/CallContext';
 
 const formatTime = (dateString) => {
   if (!dateString) return '';
@@ -258,6 +259,9 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   const currentUserId = session?.user?.id;
   const senderName =
     session?.user?.user_metadata?.full_name || 'Staff Member';
+
+  // We need to import useCall if we don't have it
+  // Wait, useCall wasn't imported. I will add it at the top.
 
   // ─────────────────────────────────────────────────────────────────
   // VALIDATE CONVERSATION ID
@@ -505,6 +509,19 @@ export const ChatConversationScreen = ({ route, navigation }) => {
       { reply_to_id: replyingTo?.id }
     );
     setReplyingTo(null);
+  };
+
+  const { initiateCall } = useCall() || {};
+
+  const handleInitiateCall = (type) => {
+    if (initiateCall) {
+      initiateCall({ id: otherUser.id, name: otherUser.full_name, role: otherUser.role }, type);
+    } else {
+      Alert.alert(
+        'Feature Incomplete',
+        'The mobile calling infrastructure currently only supports receiving calls. Initiating calls is not implemented in CallContext.'
+      );
+    }
   };
 
   const handleCall = () => {
@@ -798,13 +815,20 @@ export const ChatConversationScreen = ({ route, navigation }) => {
                 </Text>
               </View>
             </View>
-
-            <TouchableOpacity style={[styles.callBtn, { marginRight: 8 }]} onPress={() => setSearchActive(true)}>
-              <MaterialIcons name="search" size={20} color={colors.primary} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.callBtn} onPress={handleCall}>
-              <MaterialIcons name="call" size={20} color={colors.primary} />
-            </TouchableOpacity>
+            {(!otherUser?.isGroup) ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <TouchableOpacity style={[styles.callBtn, { marginRight: 8 }]} onPress={() => handleInitiateCall('AUDIO')}>
+                  <MaterialIcons name="call" size={20} color={colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.callBtn} onPress={() => handleInitiateCall('VIDEO')}>
+                  <MaterialIcons name="videocam" size={20} color={colors.primary} />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.callBtn} onPress={() => setSearchActive(true)}>
+                <MaterialIcons name="search" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <View style={styles.searchHeader}>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Search, MessageSquare, Plus } from 'lucide-react';
-import { formatConversationTime, getInitials } from './utils/formatters';
+import { formatConversationTime, getInitials, parseUTCString } from './utils/formatters';
 
 /**
  * ConversationList
@@ -268,11 +268,11 @@ function MessageSearchResult({ msg, onClick, conversations }) {
       <div className="sm-msg-search-name">{staffName}</div>
       <div className="sm-msg-search-text">"{msg.message_text}"</div>
       <div className="sm-msg-search-time">
-        {new Date(msg.created_at).toLocaleDateString('en-GB', {
+        {parseUTCString(msg.created_at).toLocaleDateString('en-GB', {
           day: 'numeric', month: 'short',
         })},{' '}
         {(() => {
-          const d = new Date(msg.created_at);
+          const d = parseUTCString(msg.created_at);
           let h = d.getHours();
           const m = d.getMinutes().toString().padStart(2, '0');
           const ap = h >= 12 ? 'PM' : 'AM';

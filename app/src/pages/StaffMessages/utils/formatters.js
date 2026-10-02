@@ -3,9 +3,18 @@
  * All pure functions — no side effects.
  */
 
+export function parseUTCString(isoString) {
+  if (!isoString) return new Date('');
+  let normalized = isoString;
+  if (!normalized.endsWith('Z') && !normalized.includes('+') && !normalized.match(/-\d{2}:\d{2}$/)) {
+    normalized = normalized.replace(' ', 'T') + 'Z';
+  }
+  return new Date(normalized);
+}
+
 export function formatTime(isoString) {
   if (!isoString) return '';
-  const date = new Date(isoString);
+  const date = parseUTCString(isoString);
   let hours = date.getHours();
   const minutes = date.getMinutes().toString().padStart(2, '0');
   const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -15,7 +24,7 @@ export function formatTime(isoString) {
 
 export function formatDate(isoString) {
   if (!isoString) return '';
-  const date = new Date(isoString);
+  const date = parseUTCString(isoString);
   return date.toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
@@ -25,7 +34,7 @@ export function formatDate(isoString) {
 
 export function formatRelativeDate(isoString) {
   if (!isoString) return '';
-  const date = new Date(isoString);
+  const date = parseUTCString(isoString);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today);
@@ -39,7 +48,7 @@ export function formatRelativeDate(isoString) {
 
 export function formatConversationTime(isoString) {
   if (!isoString) return '';
-  const date = new Date(isoString);
+  const date = parseUTCString(isoString);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const msgDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());

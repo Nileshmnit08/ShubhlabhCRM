@@ -87,8 +87,17 @@ export async function fetchConversations(currentUserId) {
     });
 
     let type = conv.type;
-    if (type !== 'TEAM_GROUP' && type !== 'DIRECT_CHAT') {
+    
+    // Fix: all 1:1 chats are DIRECT_CHAT. Groups are TEAM or ADMIN_STAFF based on admins present.
+    if (!isGroup) {
+      type = 'DIRECT_CHAT';
+    } else if (type !== 'TEAM_GROUP') {
       type = hasAdmin ? 'ADMIN_STAFF' : 'TEAM';
+    }
+
+    // Map TEAM_GROUP to TEAM so it correctly matches the 'TEAM' filter in useStaffMessages
+    if (type === 'TEAM_GROUP') {
+      type = 'TEAM';
     }
 
     return {

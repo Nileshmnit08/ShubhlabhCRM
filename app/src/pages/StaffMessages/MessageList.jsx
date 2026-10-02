@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Shield, LinkIcon } from 'lucide-react';
-import { formatTime, formatRelativeDate } from './utils/formatters';
+import { formatTime, formatRelativeDate, parseUTCString } from './utils/formatters';
 
 /**
  * MessageList
@@ -78,12 +78,12 @@ export default function MessageList({
           prevMsg &&
           !showDateSeparator &&
           prevMsg.sender_id === msg.sender_id &&
-          new Date(msg.created_at) - new Date(prevMsg.created_at) < 5 * 60 * 1000;
+          parseUTCString(msg.created_at) - parseUTCString(prevMsg.created_at) < 5 * 60 * 1000;
 
         const nextIsSameSender =
           nextMsg &&
           nextMsg.sender_id === msg.sender_id &&
-          new Date(nextMsg.created_at) - new Date(msg.created_at) < 5 * 60 * 1000;
+          parseUTCString(nextMsg.created_at) - parseUTCString(msg.created_at) < 5 * 60 * 1000;
 
         const isHighlighted = highlightMessageId === msg.id;
 

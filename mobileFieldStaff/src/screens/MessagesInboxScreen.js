@@ -245,6 +245,12 @@ export const MessagesInboxScreen = ({ navigation }) => {
               >
                 <Text style={[styles.filterChipText, activeFilter === 'ADMIN_STAFF' && styles.filterChipTextActive]}>Admin Chat</Text>
               </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.filterChip, activeFilter === 'DIRECT_CHAT' && styles.filterChipActive]}
+                onPress={() => setActiveFilter('DIRECT_CHAT')}
+              >
+                <Text style={[styles.filterChipText, activeFilter === 'DIRECT_CHAT' && styles.filterChipTextActive]}>Direct Chat</Text>
+              </TouchableOpacity>
             </View>
           </>
         }
