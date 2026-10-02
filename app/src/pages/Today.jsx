@@ -273,7 +273,7 @@ export default function Today() {
             Good {new Date().getHours() < 12 ? 'morning' : 'afternoon'}, {userProfile?.display_name || 'User'}
           </h1>
           <p className="text-secondary" style={{ fontSize: '0.9rem', marginTop: '0.25rem' }}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} &bull; {userProfile?.role || 'Operator'}
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} &bull; {userProfile?.role || 'Staff'}
           </p>
         </div>
         

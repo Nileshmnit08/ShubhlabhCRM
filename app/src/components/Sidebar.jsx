@@ -323,7 +323,7 @@ export default function Sidebar({
 }) {
   const { userProfile } = useContext(AuthContext);
   const location = useLocation();
-  const userRole = userProfile?.role || 'Operator';
+  const userRole = userProfile?.role || 'Staff';
   const isAdmin = userRole === 'Admin';
 
   // ── Collapsed state ──

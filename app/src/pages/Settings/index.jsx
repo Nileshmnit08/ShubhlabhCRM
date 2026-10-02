@@ -272,8 +272,7 @@ export default function Settings() {
     }
   };
 
-  const toggleUserRole = async (userId, currentRole) => {
-    const newRole = currentRole === 'Admin' ? 'Operator' : 'Admin';
+  const toggleUserRole = async (userId, newRole) => {
     const { error } = await supabase.from('app_users').update({ role: newRole }).eq('id', userId);
     if (!error) {
       fetchTeam();
@@ -738,6 +737,7 @@ export default function Settings() {
                           >
                             <option value="Admin">Admin</option>
                             <option value="Operator">Operator</option>
+                            <option value="Staff">Staff</option>
                           </select>
                         </td>
                         <td style={{padding: '1.25rem 2rem'}}>

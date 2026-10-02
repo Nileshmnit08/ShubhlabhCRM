@@ -124,7 +124,7 @@ function App() {
            // Poll briefly for auto-provisioning
            setTimeout(async () => {
              const { data: retryData } = await supabase.from('app_users').select('*').eq('id', userId).single();
-             setUserProfile(retryData || { role: 'Operator', is_active: false });
+             setUserProfile(retryData || { role: 'Staff', is_active: false });
              setLoading(false);
            }, 1000);
            return;
