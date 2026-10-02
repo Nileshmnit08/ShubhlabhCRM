@@ -11,6 +11,12 @@ export function CallProvider({ children, userProfile }) {
   const [remoteUser, setRemoteUser] = useState(null); // { id, name, role }
   const [callType, setCallType] = useState('AUDIO');
   const [isIncoming, setIsIncoming] = useState(false);
+
+  // We need to use refs for callbacks to have latest state without re-rendering signaling
+  const stateRef = useRef(callState);
+  const sessionRef = useRef(currentSession);
+  useEffect(() => { stateRef.current = callState; }, [callState]);
+  useEffect(() => { sessionRef.current = currentSession; }, [currentSession]);
   
   // Audio Ringtone Ref
   const ringtoneRef = useRef(null);
@@ -37,6 +43,20 @@ export function CallProvider({ children, userProfile }) {
   const [incomingAnswer, setIncomingAnswer] = useState(null);
   const [incomingIceCandidates, setIncomingIceCandidates] = useState([]);
 
+  const resetCall = useCallback(() => {
+    setCallState('IDLE');
+    setCurrentSession(null);
+    setRemoteUser(null);
+    setIncomingOffer(null);
+    setIncomingAnswer(null);
+    setIncomingIceCandidates([]);
+    setIsIncoming(false);
+    stopRingtone();
+  }, [stopRingtone]);
+
+  // We need a ref to sendSignal to break the circular dependency
+  const sendSignalRef = useRef(null);
+
   // Handle Incoming Signals
   const handleSignal = useCallback((payload) => {
     const currentState = stateRef.current;
@@ -47,7 +67,7 @@ export function CallProvider({ children, userProfile }) {
     
     // Ignore signals if we are busy in another call
     if (type === 'CALL_INITIATED' && currentState !== 'IDLE') {
-      sendSignal(senderId, { type: 'CALL_BUSY', callSessionId });
+      sendSignalRef.current?.(senderId, { type: 'CALL_BUSY', callSessionId });
       return;
     }
 
@@ -66,7 +86,7 @@ export function CallProvider({ children, userProfile }) {
         playRingtone();
         
         // Let caller know we are ringing
-        sendSignal(senderId, { type: 'CALL_RINGING', callSessionId });
+        sendSignalRef.current?.(senderId, { type: 'CALL_RINGING', callSessionId });
         break;
         
       case 'CALL_RINGING':
@@ -107,26 +127,13 @@ export function CallProvider({ children, userProfile }) {
       default:
         break;
     }
-  }, [playRingtone, stopRingtone, sendSignal]);
+  }, [playRingtone, stopRingtone, resetCall]);
 
   const { sendSignal } = useSignaling(userProfile?.id, handleSignal);
-
-  // We need to use refs for callbacks to have latest state without re-rendering signaling
-  const stateRef = useRef(callState);
-  const sessionRef = useRef(currentSession);
-  useEffect(() => { stateRef.current = callState; }, [callState]);
-  useEffect(() => { sessionRef.current = currentSession; }, [currentSession]);
-
-  const resetCall = useCallback(() => {
-    setCallState('IDLE');
-    setCurrentSession(null);
-    setRemoteUser(null);
-    setIncomingOffer(null);
-    setIncomingAnswer(null);
-    setIncomingIceCandidates([]);
-    setIsIncoming(false);
-    stopRingtone();
-  }, [stopRingtone]);
+  
+  useEffect(() => {
+    sendSignalRef.current = sendSignal;
+  }, [sendSignal]);
 
   const initiateCall = useCallback(async (targetUser, type) => {
     if (callState !== 'IDLE') return;
