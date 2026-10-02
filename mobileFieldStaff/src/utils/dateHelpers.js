@@ -1,3 +1,12 @@
+export const parseUTCString = (isoString) => {
+  if (!isoString) return new Date('');
+  let normalized = isoString;
+  if (!normalized.endsWith('Z') && !normalized.includes('+') && !normalized.match(/-\d{2}:\d{2}$/)) {
+    normalized = normalized.replace(' ', 'T') + 'Z';
+  }
+  return new Date(normalized);
+};
+
 export const formatDateFull = (dateString) => {
   if (!dateString) return 'Unknown';
   const d = new Date(dateString);

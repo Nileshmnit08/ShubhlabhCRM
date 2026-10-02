@@ -223,7 +223,50 @@ export const CallProvider = ({ children }) => {
       }
 
       case 'CALL_CANCELLED':
-        if (currentState === 'RINGING') resetCall();
+        if (currentState === 'RINGING' || currentState === 'INITIATING') resetCall();
+        break;
+
+      case 'CALL_ACCEPTED':
+        if (currentState === 'INITIATING' || currentState === 'RINGING') {
+          setCallState('ACCEPTED');
+          // Since mobile always creates the offer (role reversal), we create it here if we were the caller.
+          // Wait, if we are the caller, we received ACCEPTED. We should start the WebRTC handshake.
+          if (!isIncoming) {
+            (async () => {
+              const pc = createPeerConnection();
+              if (!pc) { resetCall(); return; }
+              const withVideo = callType === 'VIDEO' || cType === 'VIDEO';
+              const stream = await getLocalStream(withVideo);
+              if (!stream) { resetCall(); return; }
+              stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+              const offerDesc = await pc.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: withVideo,
+              });
+              await pc.setLocalDescription(offerDesc);
+
+              sendSignalRef.current?.(senderId, {
+                type: 'WEBRTC_OFFER',
+                callSessionId: session?.id,
+                offer: offerDesc,
+              });
+              setCallState('CONNECTING');
+            })();
+          }
+        }
+        break;
+
+      case 'CALL_REJECTED':
+        if (currentState === 'INITIATING' || currentState === 'RINGING') {
+           resetCall();
+        }
+        break;
+
+      case 'CALL_BUSY':
+        if (currentState === 'INITIATING') {
+           resetCall();
+        }
         break;
 
       case 'WEBRTC_OFFER': {
@@ -293,6 +336,63 @@ export const CallProvider = ({ children }) => {
       channelRef.current = null;
     };
   }, [userId, handleSignal]);
+
+  // ─── Initiate Call ─────────────────────────────────────────────────
+  const initiateCall = useCallback(async (targetUser, type) => {
+    if (stateRef.current !== 'IDLE') return;
+
+    setCallState('INITIATING');
+    setRemoteUser(targetUser);
+    setCallType(type);
+    setIsIncoming(false);
+
+    const { data, error } = await supabase
+      .from('call_sessions')
+      .insert({
+        caller_id: userId,
+        receiver_id: targetUser.id,
+        call_type: type,
+        status: 'INITIATING'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Failed to create call session', error);
+      resetCall();
+      return;
+    }
+
+    setCurrentSession(data);
+    
+    sendSignalRef.current?.(targetUser.id, {
+      type: 'CALL_INITIATED',
+      callSessionId: data.id,
+      callType: type,
+      senderName: staffProfile?.full_name || session?.user?.user_metadata?.full_name || 'Staff',
+      senderRole: staffProfile?.role || 'Staff'
+    });
+  }, [userId, staffProfile, session, resetCall]);
+
+  const cancelCall = useCallback(async () => {
+    if (stateRef.current !== 'RINGING' && stateRef.current !== 'INITIATING') return;
+    const session = sessionRef.current;
+    const remote = remoteUserRef.current;
+
+    if (session) {
+      await supabase
+        .from('call_sessions')
+        .update({ status: 'CANCELLED', end_reason: 'CANCELLED', ended_at: new Date().toISOString() })
+        .eq('id', session.id);
+    }
+
+    sendSignalRef.current?.(remote?.id, {
+      type: 'CALL_CANCELLED',
+      callSessionId: session?.id,
+    });
+
+    resetCall();
+  }, [resetCall]);
 
   // ─── Accept Call ───────────────────────────────────────────────────
   const acceptCall = useCallback(async () => {
@@ -448,8 +548,10 @@ export const CallProvider = ({ children }) => {
     isCameraOff,
     isFrontCamera,
     callDuration,
+    initiateCall,
     acceptCall,
     rejectCall,
+    cancelCall,
     endCall,
     toggleMute,
     toggleCamera,

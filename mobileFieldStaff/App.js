@@ -55,7 +55,7 @@ import { VisitProvider } from './src/context/VisitContext';
 function GlobalCallOverlay() {
   const { callState } = useCall();
   if (callState === 'RINGING') return <IncomingCallScreen />;
-  if (callState === 'ACCEPTED' || callState === 'CONNECTING' || callState === 'CONNECTED') {
+  if (callState === 'INITIATING' || callState === 'ACCEPTED' || callState === 'CONNECTING' || callState === 'CONNECTED') {
     return <ActiveCallScreen />;
   }
   return null;

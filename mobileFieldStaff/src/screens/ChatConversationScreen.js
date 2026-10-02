@@ -23,10 +23,11 @@ import { supabase } from '../lib/supabase';
 import { useNotifications } from '../context/NotificationContext';
 import { useVoiceToText, MicState } from '../hooks/useVoiceToText';
 import { useCall } from '../context/CallContext';
+import { parseUTCString } from '../utils/dateHelpers';
 
 const formatTime = (dateString) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
+  const date = parseUTCString(dateString);
   let hours = date.getHours();
   const minutes = date.getMinutes().toString().padStart(2, '0');
   const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -36,7 +37,7 @@ const formatTime = (dateString) => {
 
 const formatSeparatorDate = (dateString) => {
   if (!dateString) return null;
-  const date = new Date(dateString);
+  const date = parseUTCString(dateString);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);

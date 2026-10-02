@@ -17,10 +17,11 @@ import { chatService } from '../services/ChatService';
 import { useIsFocused } from '@react-navigation/native';
 import { BottomSheetFoundation } from '../components/BottomSheet';
 import { AppHeader } from '../components';
+import { parseUTCString } from '../utils/dateHelpers';
 
 const getRelativeTime = (dateString) => {
   if (!dateString) return '';
-  const date = new Date(dateString);
+  const date = parseUTCString(dateString);
   const now = new Date();
   const diffInSeconds = Math.floor((now - date) / 1000);
 
