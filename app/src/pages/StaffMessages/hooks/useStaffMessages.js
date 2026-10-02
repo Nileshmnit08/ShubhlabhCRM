@@ -22,7 +22,7 @@ export function useStaffMessages(userProfile) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('ADMIN_CHAT');
+  const [activeTab, setActiveTab] = useState('DIRECT_CHAT');
   const [filterMode, setFilterMode] = useState('All');
 
   // ─── Search ─────────────────────────────────────────
@@ -119,7 +119,10 @@ export function useStaffMessages(userProfile) {
 
   // Re-filter when tab, conversations, filter mode, or search changes
   useEffect(() => {
-    const tabType = activeTab === 'ADMIN_CHAT' ? 'ADMIN_STAFF' : 'TEAM';
+    let tabType;
+    if (activeTab === 'DIRECT_CHAT') tabType = 'DIRECT_CHAT';
+    else if (activeTab === 'ADMIN_CHAT') tabType = 'ADMIN_STAFF';
+    else tabType = 'TEAM';
     let base = conversations.filter((c) => c.type === tabType);
 
     if (searchQuery.trim().length > 0) {
@@ -397,6 +400,9 @@ export function useStaffMessages(userProfile) {
   // ──────────────────────────────────────────────────────────────────────────
 
   const unreadCountByType = {
+    DIRECT_CHAT: conversations.filter(
+      (c) => c.type === 'DIRECT_CHAT' && c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id
+    ).length,
     ADMIN_STAFF: conversations.filter(
       (c) => c.type === 'ADMIN_STAFF' && c.latestMessage && !c.latestMessage.read_at && c.latestMessage.sender_id !== userProfile?.id
     ).length,

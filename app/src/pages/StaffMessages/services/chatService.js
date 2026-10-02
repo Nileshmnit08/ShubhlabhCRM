@@ -87,7 +87,7 @@ export async function fetchConversations(currentUserId) {
     });
 
     let type = conv.type;
-    if (type !== 'TEAM_GROUP') {
+    if (type !== 'TEAM_GROUP' && type !== 'DIRECT_CHAT') {
       type = hasAdmin ? 'ADMIN_STAFF' : 'TEAM';
     }
 

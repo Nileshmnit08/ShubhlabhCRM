@@ -40,6 +40,15 @@ export default function ConversationList({
       {/* ── Tabs ─────────────────────────────────────── */}
       <div className="sm-tabs">
         <button
+          className={`sm-tab ${activeTab === 'TEAM_CHAT' ? 'sm-tab--active' : ''}`}
+          onClick={() => onTabChange('TEAM_CHAT')}
+        >
+          Team Chat
+          {unreadCountByType.TEAM > 0 && (
+            <span className="sm-unread-badge">{unreadCountByType.TEAM}</span>
+          )}
+        </button>
+        <button
           className={`sm-tab ${activeTab === 'ADMIN_CHAT' ? 'sm-tab--active' : ''}`}
           onClick={() => onTabChange('ADMIN_CHAT')}
         >
@@ -49,12 +58,12 @@ export default function ConversationList({
           )}
         </button>
         <button
-          className={`sm-tab ${activeTab === 'TEAM_CHAT' ? 'sm-tab--active' : ''}`}
-          onClick={() => onTabChange('TEAM_CHAT')}
+          className={`sm-tab ${activeTab === 'DIRECT_CHAT' ? 'sm-tab--active' : ''}`}
+          onClick={() => onTabChange('DIRECT_CHAT')}
         >
-          Team Chat
-          {unreadCountByType.TEAM > 0 && (
-            <span className="sm-unread-badge">{unreadCountByType.TEAM}</span>
+          Direct Chat
+          {unreadCountByType.DIRECT_CHAT > 0 && (
+            <span className="sm-unread-badge">{unreadCountByType.DIRECT_CHAT}</span>
           )}
         </button>
       </div>
@@ -74,13 +83,13 @@ export default function ConversationList({
             <button className="sm-search-clear" onClick={() => setSearchQuery('')} title="Clear search">×</button>
           )}
         </div>
-        {activeTab === 'ADMIN_CHAT' && (
+        {activeTab === 'DIRECT_CHAT' && (
           <button
             className="btn btn-primary sm-new-chat-btn"
             onClick={onStartChat}
-            title="Start a new conversation"
+            title="Start a new direct chat"
           >
-            <Plus size={16} />
+            <Plus size={16} /> New
           </button>
         )}
       </div>
