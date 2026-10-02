@@ -89,8 +89,8 @@ class ChatService {
           let type = convData.type;
           let finalOtherUser = otherUserObj;
 
-          if (type === 'TEAM_GROUP') {
-             finalOtherUser = { id: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
+          if (type === 'TEAM_GROUP' && convData.title) {
+             finalOtherUser = { id: convData.id, full_name: convData.title, isGroup: true };
              type = 'TEAM';
           } else {
              // 1:1 chats are DIRECT_CHAT
@@ -101,6 +101,10 @@ class ChatService {
                const isOwnerAdmin = currentUserObj.role === 'Admin' || currentUserObj.role === 'Owner' || currentUserObj.role === 'Superadmin';
                const isOtherAdmin = otherUserObj.role === 'Admin' || otherUserObj.role === 'Owner' || otherUserObj.role === 'Superadmin';
                type = (isOwnerAdmin || isOtherAdmin) ? 'ADMIN_STAFF' : 'TEAM';
+             }
+             
+             if (isGroup) {
+               finalOtherUser = { id: convData.id, full_name: 'Group Chat', isGroup: true };
              }
           }
 
