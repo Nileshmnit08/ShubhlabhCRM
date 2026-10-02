@@ -14,6 +14,7 @@ export async function fetchConversations(currentUserId) {
     .select(`
       id,
       type,
+      title,
       updated_at,
       chat_participants (
         user_id
@@ -65,8 +66,18 @@ export async function fetchConversations(currentUserId) {
       .map((p) => userMap[p.user_id])
       .filter(Boolean);
 
-    const names = staffUsers.map((u) => u.display_name || 'Unknown').join(' & ');
-    const roles = staffUsers.map((u) => u.role || 'Staff').join(', ');
+    const isGroup = conv.chat_participants.length > 2;
+
+    let names = staffUsers.map((u) => u.display_name || 'Unknown').join(' & ');
+    if (isGroup) {
+      names = conv.title || `Group (${conv.chat_participants.length} members)`;
+    }
+
+    let roles = staffUsers.map((u) => u.role || 'Staff').join(', ');
+    if (isGroup) {
+      roles = 'Team Chat';
+    }
+
     const staffUserIds = staffUsers.map((u) => u.id);
 
     // Determine type based on participants
@@ -221,46 +232,25 @@ export async function sendMessage(conversationId, senderId, senderProfile, messa
 
 /**
  * Find or create a 1:1 conversation between the current user and a staff member.
+ * Safe against race conditions via Postgres RPC and transaction lock.
  */
 export async function findOrCreateConversation(currentUserId, staffUserId) {
-  // Check if a shared conversation already exists via participants
-  const { data: myParticipations } = await supabase
-    .from('chat_participants')
-    .select('conversation_id')
-    .eq('user_id', currentUserId);
+  // Call the atomic RPC to get or create the direct chat.
+  // The RPC verifies auth.uid() automatically. We do not pass currentUserId to the DB.
+  const { data, error } = await supabase.rpc('get_or_create_direct_chat', {
+    target_user_id: staffUserId,
+  });
 
-  if (myParticipations && myParticipations.length > 0) {
-    const myConvIds = myParticipations.map((p) => p.conversation_id);
-    const { data: sharedParticipation } = await supabase
-      .from('chat_participants')
-      .select('conversation_id')
-      .eq('user_id', staffUserId)
-      .in('conversation_id', myConvIds);
-
-    if (sharedParticipation && sharedParticipation.length > 0) {
-      return { conversationId: sharedParticipation[0].conversation_id, isNew: false };
-    }
+  if (error) {
+    console.error("RPC Error:", error);
+    throw error;
   }
 
-  // Create new conversation
-  const { data: newConv, error: convError } = await supabase
-    .from('chat_conversations')
-    .insert([{}])
-    .select()
-    .single();
-
-  if (convError) throw convError;
-
-  const { error: partError } = await supabase
-    .from('chat_participants')
-    .insert([
-      { conversation_id: newConv.id, user_id: currentUserId },
-      { conversation_id: newConv.id, user_id: staffUserId },
-    ]);
-
-  if (partError) throw partError;
-
-  return { conversationId: newConv.id, isNew: true };
+  // The RPC returns JSONB: { conversation_id: UUID, is_new: BOOLEAN }
+  return {
+    conversationId: data.conversation_id,
+    isNew: data.is_new,
+  };
 }
 
 /**
