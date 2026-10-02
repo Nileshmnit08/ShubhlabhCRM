@@ -70,6 +70,7 @@ export const CallProvider = ({ children }) => {
   const [isFrontCamera, setIsFrontCamera] = useState(true);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
+  const [isSwitchingCamera, setIsSwitchingCamera] = useState(false);
 
   // ─── Audio Routing ────────────────────────────────────────────────
   const configureAudioMode = useCallback(async (speaker) => {
@@ -101,6 +102,7 @@ export const CallProvider = ({ children }) => {
   const durationTimerRef = useRef(null);
   const channelRef = useRef(null);
   const pendingIceCandidatesRef = useRef([]);
+  const switchingCameraRef = useRef(false);
 
   useEffect(() => { stateRef.current = callState; }, [callState]);
   useEffect(() => { sessionRef.current = currentSession; }, [currentSession]);
@@ -618,13 +620,30 @@ export const CallProvider = ({ children }) => {
     }
   }, []);
 
-  const switchCamera = useCallback(() => {
+  const switchCamera = useCallback(async () => {
+    if (switchingCameraRef.current) {
+      console.log('[WEBRTC_DIAGNOSTIC] CAMERA_SWITCH_IGNORED_BUSY (CallId: ' + sessionRef.current?.id + ')');
+      return;
+    }
     const stream = localStreamRef.current;
     if (!stream) return;
     const videoTrack = stream.getVideoTracks()[0];
     if (videoTrack && videoTrack._switchCamera) {
-      videoTrack._switchCamera();
-      setIsFrontCamera(prev => !prev);
+      console.log('[WEBRTC_DIAGNOSTIC] CAMERA_SWITCH_REQUEST');
+      switchingCameraRef.current = true;
+      setIsSwitchingCamera(true);
+      console.log('[WEBRTC_DIAGNOSTIC] CAMERA_SWITCH_START');
+      try {
+        await videoTrack._switchCamera();
+        setIsFrontCamera(prev => !prev);
+        console.log('[WEBRTC_DIAGNOSTIC] CAMERA_SWITCH_SUCCESS');
+      } catch (error) {
+        console.error('[WEBRTC_DIAGNOSTIC] CAMERA_SWITCH_FAILED:', error);
+      } finally {
+        switchingCameraRef.current = false;
+        setIsSwitchingCamera(false);
+        console.log('[WEBRTC_DIAGNOSTIC] CAMERA_SWITCH_END');
+      }
     }
   }, []);
 
@@ -678,6 +697,7 @@ export const CallProvider = ({ children }) => {
     toggleMute,
     toggleCamera,
     switchCamera,
+    isSwitchingCamera,
     toggleSpeaker,
   };
 
