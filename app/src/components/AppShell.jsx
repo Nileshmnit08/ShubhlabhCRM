@@ -22,6 +22,9 @@ import CreateRequirementModal from './CreateRequirementModal';
 import { PlusSquare } from 'lucide-react';
 import { useStaffMessages } from '../pages/StaffMessages/hooks/useStaffMessages';
 import FloatingStaffMessages from './FloatingStaffMessages';
+import { CallProvider } from '../pages/Calling/CallProvider';
+import IncomingCallModal from '../pages/Calling/IncomingCallModal';
+import ActiveCallUI from '../pages/Calling/ActiveCallUI';
 
 export default function AppShell() {
   const { userProfile, crmSettings } = useContext(AuthContext);
@@ -59,7 +62,8 @@ export default function AppShell() {
   };
 
   return (
-    <div className="app-container">
+    <CallProvider userProfile={userProfile}>
+      <div className="app-container">
       {/* ── Sidebar ── */}
       <Sidebar
         isOpen={mobileOpen}
@@ -133,12 +137,17 @@ export default function AppShell() {
         </div>
       </main>
 
-      <CreateRequirementModal 
-        isOpen={reqModalOpen} 
-        onClose={() => setReqModalOpen(false)} 
-      />
+        <CreateRequirementModal 
+          isOpen={reqModalOpen} 
+          onClose={() => setReqModalOpen(false)} 
+        />
 
-      <FloatingStaffMessages sm={sm} isAuthorized={isAuthorized} />
-    </div>
+        <FloatingStaffMessages sm={sm} isAuthorized={isAuthorized} />
+        
+        {/* Calling Global UI */}
+        <IncomingCallModal />
+        <ActiveCallUI />
+      </div>
+    </CallProvider>
   );
 }
