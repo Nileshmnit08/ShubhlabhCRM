@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useContext } from 'react';
 import { AuthContext } from '../../AuthContext';
-import { MessageSquare, ChevronLeft, Shield, Info } from 'lucide-react';
+import { MessageSquare, ChevronLeft, Shield, Info, Phone, Video } from 'lucide-react';
+import { CallContext } from '../Calling/CallProvider';
 import { useStaffMessages } from './hooks/useStaffMessages';
 import ConversationList from './ConversationList';
 import MessageList from './MessageList';
@@ -23,6 +24,7 @@ import './StaffMessages.css';
  */
 export default function StaffMessagesUI({ sm, isFloating = false }) {
   const { userProfile } = useContext(AuthContext);
+  const { initiateCall } = useContext(CallContext) || {};
   const messagesEndRef = useRef(null);
   const [showContextPanel, setShowContextPanel] = React.useState(false);
 
@@ -151,10 +153,40 @@ export default function StaffMessagesUI({ sm, isFloating = false }) {
                     <div className="sm-chat-header-role">{staffRole}</div>
                   </div>
 
+                  {activeConv?.type === 'DIRECT_CHAT' && (
+                    <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto', marginRight: sm.isMobile ? '0' : '0.5rem' }}>
+                      {(() => {
+                        const targetUser = activeConv.participants?.find(p => p.user_id !== userProfile?.id);
+                        if (!targetUser || !initiateCall) return null;
+                        return (
+                          <>
+                            <button 
+                              className="btn-icon" 
+                              style={{ color: 'var(--text-secondary)' }}
+                              onClick={() => initiateCall({id: targetUser.user_id, name: targetUser.display_name, role: targetUser.role}, 'AUDIO')}
+                              title="Audio Call"
+                            >
+                              <Phone size={20} />
+                            </button>
+                            <button 
+                              className="btn-icon" 
+                              style={{ color: 'var(--text-secondary)' }}
+                              onClick={() => initiateCall({id: targetUser.user_id, name: targetUser.display_name, role: targetUser.role}, 'VIDEO')}
+                              title="Video Call"
+                            >
+                              <Video size={20} />
+                            </button>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   {/* Context toggle button (mobile) */}
                   {sm.isMobile && (
                     <button
                       className="btn-icon sm-ctx-toggle-btn"
+                      style={{ marginLeft: activeConv?.type === 'DIRECT_CHAT' ? '0' : 'auto' }}
                       onClick={() => setShowContextPanel((v) => !v)}
                       title="Staff context"
                     >
