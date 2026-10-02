@@ -49,7 +49,8 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async () => {
             type: 'chat_message',
             conversation_id: notif.entity_id,
             notification_id: notif.id
-          }
+          },
+          sound: true
         },
         trigger: null, // deliver immediately
       });

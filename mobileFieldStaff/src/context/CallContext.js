@@ -146,20 +146,28 @@ export const CallProvider = ({ children }) => {
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
+      } else if (event.track) {
+        setRemoteStream(prev => {
+          let MediaStream;
+          try { MediaStream = require('react-native-webrtc').MediaStream; } catch (e) { return prev; }
+          const s = prev || new MediaStream();
+          s.addTrack(event.track);
+          return s;
+        });
       }
     };
 
-    pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'connected') {
+    pc.oniceconnectionstatechange = () => {
+      const state = pc.iceConnectionState;
+      if (state === 'connected' || state === 'completed') {
         setCallState('CONNECTED');
         supabase
           .from('call_sessions')
           .update({ status: 'CONNECTED', connected_at: new Date().toISOString() })
           .eq('id', sessionRef.current?.id);
       } else if (
-        pc.connectionState === 'disconnected' ||
-        pc.connectionState === 'failed' ||
-        pc.connectionState === 'closed'
+        state === 'failed' ||
+        state === 'closed'
       ) {
         resetCall();
       }
@@ -237,7 +245,14 @@ export const CallProvider = ({ children }) => {
               if (!pc) { resetCall(); return; }
               const withVideo = callType === 'VIDEO' || cType === 'VIDEO';
               const stream = await getLocalStream(withVideo);
-              if (!stream) { resetCall(); return; }
+              if (!stream) { 
+                sendSignalRef.current?.(senderId, {
+                  type: 'CALL_CANCELLED',
+                  callSessionId: session?.id,
+                });
+                resetCall(); 
+                return; 
+              }
               stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
               const offerDesc = await pc.createOffer({
@@ -274,7 +289,14 @@ export const CallProvider = ({ children }) => {
         const pc = createPeerConnection();
         if (!pc) break;
         const stream = await getLocalStream(callType === 'VIDEO' || cType === 'VIDEO');
-        if (!stream) break;
+        if (!stream) {
+          sendSignalRef.current?.(remoteUserRef.current?.id, {
+            type: 'CALL_CANCELLED',
+            callSessionId: sessionRef.current?.id,
+          });
+          resetCall();
+          break;
+        }
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
         const RTCSessionDescription = require('react-native-webrtc').RTCSessionDescription;
@@ -414,32 +436,8 @@ export const CallProvider = ({ children }) => {
       type: 'CALL_ACCEPTED',
       callSessionId: session.id,
     });
-
-    // Get media, create peer connection, send offer
-    const withVideo = callType === 'VIDEO';
-    const stream = await getLocalStream(withVideo);
-    if (!stream) { resetCall(); return; }
-
-    const pc = createPeerConnection();
-    if (!pc) { resetCall(); return; }
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-    // IMPORTANT: The receiver creates the offer (role reversal vs browser WebRTC norms)
-    // This is because the web caller has already rendered its UI; mobile staff initiates
-    // the actual WebRTC handshake after accepting.
-    const offerDesc = await pc.createOffer({
-      offerToReceiveAudio: true,
-      offerToReceiveVideo: withVideo,
-    });
-    await pc.setLocalDescription(offerDesc);
-
-    sendSignalRef.current?.(remote.id, {
-      type: 'WEBRTC_OFFER',
-      callSessionId: session.id,
-      offer: offerDesc,
-    });
-    setCallState('CONNECTING');
-  }, [callType, createPeerConnection, getLocalStream, resetCall]);
+    // Wait for WEBRTC_OFFER from the caller
+  }, [resetCall]);
 
   // ─── Reject Call ───────────────────────────────────────────────────
   const rejectCall = useCallback(async () => {

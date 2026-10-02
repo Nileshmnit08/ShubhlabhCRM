@@ -31,7 +31,7 @@ export const CallNotificationService = {
         lightColor: '#3B82F6',
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
         bypassDnd: true,     // Bypass Do Not Disturb for calls
-        sound: 'default',
+        sound: true,
       });
     }
   },
@@ -57,7 +57,7 @@ export const CallNotificationService = {
           callType,
         },
         categoryIdentifier: 'incoming_call',
-        sound: 'default',
+        sound: true,
         priority: 'max',
         ...(Platform.OS === 'android' && {
           channelId: CALL_CHANNEL_ID,

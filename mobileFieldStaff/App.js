@@ -253,6 +253,7 @@ export default function App() {
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#0061A4',
+          sound: true,
         });
       }
       
