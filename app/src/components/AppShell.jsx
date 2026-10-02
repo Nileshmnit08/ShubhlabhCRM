@@ -20,10 +20,18 @@ import NotificationBell from './NotificationBell';
 import useNavBadges from '../lib/useNavBadges';
 import CreateRequirementModal from './CreateRequirementModal';
 import { PlusSquare } from 'lucide-react';
+import { useStaffMessages } from '../pages/StaffMessages/hooks/useStaffMessages';
+import FloatingStaffMessages from './FloatingStaffMessages';
 
 export default function AppShell() {
   const { userProfile, crmSettings } = useContext(AuthContext);
   const { language, setLanguage } = useContext(LanguageContext);
+
+  const sm = useStaffMessages(userProfile);
+  const isAuthorized =
+    userProfile?.role === 'Admin' ||
+    userProfile?.role === 'Owner' ||
+    userProfile?.role === 'Superadmin';
 
   // Mobile drawer state
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -121,7 +129,7 @@ export default function AppShell() {
         </header>
 
         <div className="page-container">
-          <Outlet />
+          <Outlet context={{ sm }} />
         </div>
       </main>
 
@@ -129,6 +137,8 @@ export default function AppShell() {
         isOpen={reqModalOpen} 
         onClose={() => setReqModalOpen(false)} 
       />
+
+      <FloatingStaffMessages sm={sm} isAuthorized={isAuthorized} />
     </div>
   );
 }
