@@ -45,6 +45,7 @@ export default function ActiveCallScreen() {
     toggleMute,
     toggleCamera,
     switchCamera,
+    isSwitchingCamera,
     isSpeakerOn,
     toggleSpeaker,
   } = useCall();
@@ -153,9 +154,13 @@ export default function ActiveCallScreen() {
                   <Text style={styles.controlLabel}>{isCameraOff ? 'Cam On' : 'Cam Off'}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.controlBtn} onPress={switchCamera}>
+                <TouchableOpacity 
+                  style={[styles.controlBtn, isSwitchingCamera && { opacity: 0.5 }]} 
+                  onPress={switchCamera}
+                  disabled={isSwitchingCamera}
+                >
                   <MaterialIcons name="flip-camera-android" size={26} color="#fff" />
-                  <Text style={styles.controlLabel}>Flip</Text>
+                  <Text style={styles.controlLabel}>{isSwitchingCamera ? 'Switching...' : 'Flip'}</Text>
                 </TouchableOpacity>
               </>
             )}
