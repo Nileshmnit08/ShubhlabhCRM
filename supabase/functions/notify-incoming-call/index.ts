@@ -1,26 +1,31 @@
 /**
  * Supabase Edge Function: notify-incoming-call
  * 
- * Called when a call is initiated from the Web CRM.
- * Sends a high-priority FCM push notification to the Staff member's device
- * so they receive an incoming call alert even when the app is backgrounded or the screen is locked.
- * 
- * Endpoint: POST /functions/v1/notify-incoming-call
- * Body: { receiverId, callSessionId, callerName, callerRole, callType }
- * 
+ * Called when a call is initiated from the Web CRM or mobile app.
+ * Sends a high-priority FCM push notification to the Staff member's active device(s).
+ *
  * Setup:
- *   1. Store FCM Server Key in Supabase secrets: FCM_SERVER_KEY
- *   2. Store device push tokens in a 'push_tokens' table (see SQL below)
- *   3. Call this function from the web CallProvider after initiateCall()
+ *   1. Store Firebase service account JSON in Supabase secrets: FCM_SERVICE_ACCOUNT
+ *   2. Store device push tokens in the `user_push_tokens` table.
  */
-
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { JWT } from 'https://esm.sh/google-auth-library@8';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+async function getFcmAccessToken(serviceAccountJson: any) {
+  const jwtClient = new JWT({
+    email: serviceAccountJson.client_email,
+    key: serviceAccountJson.private_key,
+    scopes: ['https://www.googleapis.com/auth/firebase.messaging'],
+  });
+  const tokens = await jwtClient.authorize();
+  return tokens.access_token;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -37,11 +42,17 @@ serve(async (req) => {
       });
     }
 
-    // Initialize Supabase admin client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return new Response(JSON.stringify({ error: 'Supabase env variables missing' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Validate caller is authenticated
     const authHeader = req.headers.get('Authorization');
@@ -77,70 +88,72 @@ serve(async (req) => {
       });
     }
 
-    // Fetch the receiver's push token
-    const { data: tokenData } = await supabase
-      .from('push_tokens')
-      .select('token')
+    // Fetch the receiver's active push tokens from the new multi-device table
+    const { data: tokensData } = await supabase
+      .from('user_push_tokens')
+      .select('id, fcm_token')
       .eq('user_id', receiverId)
-      .single();
+      .eq('is_active', true);
 
-    if (!tokenData?.token) {
-      return new Response(JSON.stringify({ sent: false, reason: 'No push token for receiver' }), {
+    if (!tokensData || tokensData.length === 0) {
+      return new Response(JSON.stringify({ sent: false, reason: 'No active push tokens for receiver' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Send FCM push notification
-    const fcmKey = Deno.env.get('FCM_SERVER_KEY');
-    if (!fcmKey) {
-      return new Response(JSON.stringify({ error: 'FCM not configured' }), {
+    const serviceAccountStr = Deno.env.get('FCM_SERVICE_ACCOUNT');
+    if (!serviceAccountStr) {
+      return new Response(JSON.stringify({ error: 'FCM Service Account not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const isVideo = callType === 'VIDEO';
-    const fcmPayload = {
-      to: tokenData.token,
-      priority: 'high',
-      notification: {
-        title: `Incoming ${isVideo ? 'Video' : 'Audio'} Call`,
-        body: `${callerName} (${callerRole}) is calling you`,
-        sound: 'default',
-        android_channel_id: 'incoming_calls',
-        priority: 'high',
-      },
-      data: {
-        type: 'incoming_call',
-        callSessionId,
-        callerName,
-        callerRole,
-        callType: callType || 'AUDIO',
-        senderId: callerData.user.id,
-      },
-      android: {
-        priority: 'high',
-        notification: {
-          channel_id: 'incoming_calls',
-          priority: 'max',
-          visibility: 'public',
+    const serviceAccount = JSON.parse(serviceAccountStr);
+    const projectId = serviceAccount.project_id;
+    const accessToken = await getFcmAccessToken(serviceAccount);
+    const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
+    
+    const fcmResults = [];
+
+    // Send FCM push notification to all active devices
+    for (const tokenRow of tokensData) {
+      const fcmPayload = {
+        message: {
+          token: tokenRow.fcm_token,
+          data: {
+            type: 'CALL_INITIATED',
+            callId: callSessionId,
+            callerId: callerData.user.id,
+            callerName: callerName,
+            callType: callType || 'AUDIO',
+          },
+          android: {
+            priority: 'high',
+          }
+        }
+      };
+
+      const fcmResponse = await fetch(fcmUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
         },
-      },
-    };
+        body: JSON.stringify(fcmPayload),
+      });
 
-    const fcmResponse = await fetch('https://fcm.googleapis.com/fcm/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `key=${fcmKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(fcmPayload),
-    });
+      const fcmResult = await fcmResponse.json();
+      fcmResults.push({ token_id: tokenRow.id, result: fcmResult });
 
-    const fcmResult = await fcmResponse.json();
+      // Clean up stale tokens
+      if (fcmResult.error && (fcmResult.error.status === 'NOT_FOUND' || fcmResult.error.details?.some((d: any) => d.errorCode === 'UNREGISTERED'))) {
+         await supabase.from('user_push_tokens').update({ is_active: false }).eq('id', tokenRow.id);
+      }
+    }
 
-    return new Response(JSON.stringify({ sent: true, fcm: fcmResult }), {
+    return new Response(JSON.stringify({ sent: true, fcm: fcmResults }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
@@ -150,23 +163,3 @@ serve(async (req) => {
     });
   }
 });
-
-/**
- * Required SQL (run in Supabase SQL editor):
- * 
- * CREATE TABLE IF NOT EXISTS public.push_tokens (
- *   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
- *   user_id UUID NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
- *   token TEXT NOT NULL,
- *   platform TEXT, -- 'android' | 'ios'
- *   updated_at TIMESTAMPTZ DEFAULT NOW(),
- *   UNIQUE(user_id)
- * );
- * 
- * ALTER TABLE public.push_tokens ENABLE ROW LEVEL SECURITY;
- * 
- * -- Users can only manage their own token
- * CREATE POLICY "own_token" ON public.push_tokens
- *   USING (auth.uid() = user_id)
- *   WITH CHECK (auth.uid() = user_id);
- */

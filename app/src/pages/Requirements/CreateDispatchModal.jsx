@@ -77,18 +77,19 @@ export default function CreateDispatchModal({ requirement, onClose, onComplete }
       const { data, error: insertErr } = await supabase.from('requirement_dispatches').insert(payload).select().single();
       if (insertErr) throw insertErr;
 
-      // Ensure requirement status is moved to Won or Dispatched? The prompt says "A requirement should normally be moved to Dispatched only after it is Won... If total dispatched quantity equals or exceeds required quantity, show “Fully Dispatched”." We don't overwrite original requirement quantity or status immediately to "Dispatched" if it was just "Won", but wait, "Dispatched" is a status in the pipeline.
-      // If we selected 'Dispatched', we want to update the requirement status to 'Dispatched' as part of this process if it's not already.
-      
-      if (requirement.status !== 'Dispatched') {
-         await supabase.from('requirements').update({ status: 'Dispatched' }).eq('id', requirement.id);
+      // If fully dispatched, we update the status to Closed
+      const pendingQty = requirement.pending_quantity || requirement.quantity;
+      const isFullyDispatched = parseFloat(formData.quantity) >= pendingQty;
+
+      if (isFullyDispatched && requirement.status !== 'Closed') {
+         await supabase.from('requirements').update({ status: 'Closed' }).eq('id', requirement.id);
          
          // Log history
          await supabase.from('requirement_status_history').insert({
            requirement_id: requirement.id,
            old_status: requirement.status,
-           new_status: 'Dispatched',
-           note: `Status updated via dispatch entry for ${payload.quantity} ${payload.unit}.`,
+           new_status: 'Closed',
+           note: `Status updated to Closed via full dispatch entry for ${payload.quantity} ${payload.unit}.`,
            changed_by: sessionData?.session?.user?.id || null
          });
       }

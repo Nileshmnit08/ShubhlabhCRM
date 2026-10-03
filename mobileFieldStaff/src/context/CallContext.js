@@ -100,13 +100,17 @@ export const CallProvider = ({ children }) => {
   const localStreamRef = useRef(null);
   const sendSignalRef = useRef(null);
   const durationTimerRef = useRef(null);
-  const channelRef = useRef(null);
+  const connectionTimeoutRef = useRef(null);
+  const inboundChannelRef = useRef(null);
+  const outboundChannelsRef = useRef({});
   const pendingIceCandidatesRef = useRef([]);
   const switchingCameraRef = useRef(false);
+  const callTypeRef = useRef('AUDIO');
 
   useEffect(() => { stateRef.current = callState; }, [callState]);
   useEffect(() => { sessionRef.current = currentSession; }, [currentSession]);
   useEffect(() => { remoteUserRef.current = remoteUser; }, [remoteUser]);
+  useEffect(() => { callTypeRef.current = callType; }, [callType]);
 
   // ─── Duration Timer ────────────────────────────────────────────────
   useEffect(() => {
@@ -141,6 +145,17 @@ export const CallProvider = ({ children }) => {
     setIsMuted(false);
     setIsCameraOff(false);
     pendingIceCandidatesRef.current = [];
+
+    // Cleanup outbound channels
+    Object.values(outboundChannelsRef.current).forEach(cs => {
+      if (cs.channel) supabase.removeChannel(cs.channel);
+    });
+    outboundChannelsRef.current = {};
+    
+    if (connectionTimeoutRef.current) {
+      clearTimeout(connectionTimeoutRef.current);
+      connectionTimeoutRef.current = null;
+    }
   }, []);
 
   const resetCall = useCallback(() => {
@@ -153,21 +168,54 @@ export const CallProvider = ({ children }) => {
     setCallDuration(0);
   }, [cleanupMedia]);
 
+  // ─── Connection Timeout ───────────────────────────────────────────
+  useEffect(() => {
+    if (callState === 'CONNECTING') {
+      connectionTimeoutRef.current = setTimeout(() => {
+        if (stateRef.current !== 'CONNECTED') {
+           setCallState('FAILED');
+           setTimeout(() => resetCall(), 2000);
+        }
+      }, 25000); // 25s timeout for full ICE gathering
+    } else {
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
+        connectionTimeoutRef.current = null;
+      }
+    }
+  }, [callState, resetCall]);
+
   // ─── Send Signal via Supabase Broadcast ───────────────────────────
   const sendSignal = useCallback(async (targetUserId, signalData) => {
     if (!targetUserId || !userId) return;
     const targetChannelName = `call_signals:${targetUserId}`;
-    const channel = supabase.channel(targetChannelName);
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        channel.send({
-          type: 'broadcast',
-          event: 'call_event',
-          payload: { ...signalData, senderId: userId },
-        });
-        setTimeout(() => supabase.removeChannel(channel), 600);
+    const payload = {
+      type: 'broadcast',
+      event: 'call_event',
+      payload: { ...signalData, senderId: userId },
+    };
+
+    let channelState = outboundChannelsRef.current[targetUserId];
+    if (!channelState) {
+      const channel = supabase.channel(targetChannelName);
+      channelState = { channel, status: 'JOINING', queue: [payload] };
+      outboundChannelsRef.current[targetUserId] = channelState;
+      channel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          channelState.status = 'SUBSCRIBED';
+          channelState.queue.forEach(msg => channel.send(msg));
+          channelState.queue = [];
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          delete outboundChannelsRef.current[targetUserId];
+        }
+      });
+    } else {
+      if (channelState.status === 'SUBSCRIBED') {
+        channelState.channel.send(payload);
+      } else {
+        channelState.queue.push(payload);
       }
-    });
+    }
   }, [userId]);
 
   useEffect(() => { sendSignalRef.current = sendSignal; }, [sendSignal]);
@@ -209,20 +257,32 @@ export const CallProvider = ({ children }) => {
       }
     };
 
-    pc.oniceconnectionstatechange = () => {
-      const state = pc.iceConnectionState;
-      if (state === 'connected' || state === 'completed') {
+    pc.onconnectionstatechange = () => {
+      const state = pc.connectionState;
+      if (state === 'connected') {
         setCallState('CONNECTED');
         supabase
           .from('call_sessions')
           .update({ status: 'CONNECTED', connected_at: new Date().toISOString() })
           .eq('id', sessionRef.current?.id);
-      } else if (
-        state === 'failed' ||
-        state === 'closed'
-      ) {
+      } else if (state === 'failed' || state === 'closed') {
         setCallState('FAILED');
         setTimeout(() => resetCall(), 2000);
+      }
+    };
+
+    // Keep fallback for older WebRTC implementations
+    pc.oniceconnectionstatechange = () => {
+      const state = pc.iceConnectionState;
+      if (state === 'failed' || state === 'closed') {
+        setCallState('FAILED');
+        setTimeout(() => resetCall(), 2000);
+      } else if ((state === 'connected' || state === 'completed') && pc.connectionState !== 'connected') {
+        setCallState('CONNECTED');
+        supabase
+          .from('call_sessions')
+          .update({ status: 'CONNECTED', connected_at: new Date().toISOString() })
+          .eq('id', sessionRef.current?.id);
       }
     };
 
@@ -264,6 +324,7 @@ export const CallProvider = ({ children }) => {
     const { type, callSessionId, senderId, senderName, senderRole, callType: cType, offer, answer, candidate } = payload;
     const currentState = stateRef.current;
     const session = sessionRef.current;
+    const effectiveCallType = cType || callTypeRef.current;
 
     // Busy guard
     if (type === 'CALL_INITIATED' && currentState !== 'IDLE') {
@@ -277,8 +338,8 @@ export const CallProvider = ({ children }) => {
     switch (type) {
       case 'CALL_INITIATED': {
         setRemoteUser({ id: senderId, name: senderName, role: senderRole });
-        setCallType(cType || 'AUDIO');
-        setIsSpeakerOn(cType === 'VIDEO');
+        setCallType(effectiveCallType);
+        setIsSpeakerOn(effectiveCallType === 'VIDEO');
         setCurrentSession({ id: callSessionId });
         setIsIncoming(true);
         setCallState('RINGING');
@@ -298,7 +359,7 @@ export const CallProvider = ({ children }) => {
             (async () => {
               const pc = createPeerConnection();
               if (!pc) { resetCall(); return; }
-              const withVideo = callType === 'VIDEO' || cType === 'VIDEO';
+              const withVideo = effectiveCallType === 'VIDEO';
               const stream = await getLocalStream(withVideo);
               if (!stream) { 
                 sendSignalRef.current?.(senderId, {
@@ -356,7 +417,7 @@ export const CallProvider = ({ children }) => {
 
         const pc = createPeerConnection();
         if (!pc) break;
-        const stream = await getLocalStream(callType === 'VIDEO' || cType === 'VIDEO');
+        const stream = await getLocalStream(effectiveCallType === 'VIDEO');
         if (!stream) {
           sendSignalRef.current?.(remoteUserRef.current?.id, {
             type: 'CALL_CANCELLED',
@@ -457,7 +518,10 @@ export const CallProvider = ({ children }) => {
       default:
         break;
     }
-  }, [callType, createPeerConnection, getLocalStream, resetCall]);
+  }, [createPeerConnection, getLocalStream, resetCall]);
+
+  const handleSignalRef = useRef(handleSignal);
+  useEffect(() => { handleSignalRef.current = handleSignal; }, [handleSignal]);
 
   // ─── Subscribe to Signaling Channel ───────────────────────────────
   useEffect(() => {
@@ -467,17 +531,17 @@ export const CallProvider = ({ children }) => {
     const channel = supabase.channel(channelName);
     channel
       .on('broadcast', { event: 'call_event' }, (event) => {
-        handleSignal(event.payload);
+        handleSignalRef.current(event.payload);
       })
       .subscribe();
 
-    channelRef.current = channel;
+    inboundChannelRef.current = channel;
 
     return () => {
       supabase.removeChannel(channel);
-      channelRef.current = null;
+      inboundChannelRef.current = null;
     };
-  }, [userId, handleSignal]);
+  }, [userId]);
 
   // ─── Initiate Call ─────────────────────────────────────────────────
   const initiateCall = useCallback(async (targetUser, type) => {
@@ -707,3 +771,4 @@ export const CallProvider = ({ children }) => {
     </CallContext.Provider>
   );
 };
+

@@ -8,6 +8,9 @@ import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
 
 const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, openDispatchModal, menuPosition }) => {
+  const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
+  const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
+  
   if (openMenuId !== req.id) return null;
   return createPortal(
     <>
@@ -18,7 +21,7 @@ const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal,
       }}>
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ClipboardList size={14} /> View details</button>
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}/edit`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><Edit size={14} /> Edit requirement</button>
-        {req.status !== 'Dispatched' ? (
+        {actualPending > 0 && req.status !== 'Closed' ? (
           <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
         ) : (
           <button onClick={() => { setOpenMenuId(null); navigate(`/dispatches/list?requirement_id=${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ListIcon size={14} /> View Dispatches</button>
@@ -302,7 +305,7 @@ export default function RequirementList() {
     try {
       const { error } = await supabase
         .from('requirements')
-        .update({ status: 'Cancelled' })
+        .update({ status: 'Closed' })
         .eq('id', reqToCancel.id);
         
       if (error) throw error;
@@ -359,16 +362,16 @@ export default function RequirementList() {
       const { error: dispatchErr } = await supabase.from('requirement_dispatches').insert(dispatchPayload);
       if (dispatchErr) throw dispatchErr;
 
-      // 2. Update requirement status
-      const { error } = await supabase.from('requirements').update({ status: 'Dispatched' }).eq('id', reqToDispatch.id);
+      // 2. Update requirement status to Closed since it's fully dispatched
+      const { error } = await supabase.from('requirements').update({ status: 'Closed' }).eq('id', reqToDispatch.id);
       if (error) throw error;
       
       if (userProfile?.id) {
          await supabase.from('requirement_status_history').insert({
             requirement_id: reqToDispatch.id,
             old_status: reqToDispatch.status,
-            new_status: 'Dispatched',
-            note: 'Marked as dispatched from requirements list.',
+            new_status: 'Closed',
+            note: 'Marked as dispatched (closed) from requirements list.',
             changed_by: userProfile.id
          });
       }
@@ -465,10 +468,10 @@ export default function RequirementList() {
 
   // --- Formatting Helpers ---
   const getStatusBadge = (status) => {
-    if (status === 'Identified') return 'badge badge-dormant';
+    if (status === 'Identified' || status === 'New') return 'badge badge-dormant';
     if (status === 'Engaged' || status === 'Qualified') return 'badge badge-active';
-    if (status === 'Commercial Intent') return 'badge badge-warning';
-    if (status === 'Won' || status === 'Dispatched' || status === 'Fulfilled' || status === 'Completed') return 'badge badge-success';
+    if (status === 'Commercial Intent' || status === 'Negotiation') return 'badge badge-warning';
+    if (status === 'Won' || status === 'Dispatched' || status === 'Fulfilled' || status === 'Completed' || status === 'Confirmed' || status === 'Closed') return 'badge badge-success';
     if (status === 'Lost' || status === 'Cancelled') return 'badge badge-danger';
     if (status === 'On Hold') return 'badge badge-neutral';
     return 'badge';
