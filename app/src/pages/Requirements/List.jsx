@@ -22,7 +22,7 @@ const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal,
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ClipboardList size={14} /> View details</button>
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}/edit`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><Edit size={14} /> Edit requirement</button>
         {actualPending > 0 && req.status !== 'Closed' ? (
-          <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
+          <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req.id); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
         ) : (
           <button onClick={() => { setOpenMenuId(null); navigate(`/dispatches/list?requirement_id=${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ListIcon size={14} /> View Dispatches</button>
         )}
@@ -327,11 +327,29 @@ export default function RequirementList() {
   };
 
   // --- Dispatch Flow ---
-  const openDispatchModal = (e, req) => {
+  const openDispatchModal = (e, reqOrId) => {
     e.preventDefault();
     e.stopPropagation();
     triggerRef.current = e.currentTarget;
-    setReqToDispatch(req);
+    
+    // Explicitly lookup the requirement by its unique ID to ensure we have the exact object
+    const reqId = typeof reqOrId === 'string' ? reqOrId : reqOrId?.id;
+    
+    // Search in all groups if in customer view, otherwise search in flat requirements array
+    let selected = null;
+    if (viewMode === 'customer') {
+      for (const group of groupedCustomers) {
+        const found = group.requirements.find(r => r.id === reqId);
+        if (found) {
+          selected = found;
+          break;
+        }
+      }
+    } else {
+      selected = requirements.find(r => r.id === reqId);
+    }
+    
+    setReqToDispatch(selected || (typeof reqOrId === 'object' ? reqOrId : null));
     setDispatchModalOpen(true);
     setOpenMenuId(null);
   };

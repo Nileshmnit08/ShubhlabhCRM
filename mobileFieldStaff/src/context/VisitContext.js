@@ -264,8 +264,7 @@ export const VisitProvider = ({ children }) => {
           quantity: req.quantity || 1,
           expected_date: req.expected_date,
           status: 'New', // Complies with req_status_check
-          assigned_to: userId,
-          created_by: userId
+          assigned_to: userId
         };
         await SyncService.enqueueOperation('requirements', reqPayload, userId);
         

@@ -265,6 +265,12 @@ export class SyncService {
               pendingOp.payload.product_type = 'General Requirement';
             }
 
+            // Recovery: Remove 'created_by' from old failed queued requirements
+            if (safePayload.created_by) {
+              delete safePayload.created_by;
+              delete pendingOp.payload.created_by;
+            }
+
             // Fix for old failed payloads: remove weight from nested requirement_items
             if (safePayload.requirement_items && Array.isArray(safePayload.requirement_items)) {
               safePayload.requirement_items.forEach(item => {

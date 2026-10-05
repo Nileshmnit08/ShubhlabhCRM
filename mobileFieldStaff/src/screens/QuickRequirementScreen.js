@@ -229,8 +229,7 @@ export function QuickRequirementScreen({ navigation, route }) {
             expected_date: reqPayload.expected_date,
             quantity: 1, // Satisfy req_positive_values constraint
             product_type: 'General Requirement',
-            assigned_to: userId,
-            created_by: userId
+            assigned_to: userId
          }, userId, actionType);
          for (const item of reqPayload.requirement_items) {
             await SyncService.enqueueOperation('requirement_items', item, userId, 'upsert');
