@@ -141,13 +141,13 @@ export default function AppShell() {
           isOpen={reqModalOpen} 
           onClose={() => setReqModalOpen(false)} 
         />
-
-        <FloatingStaffMessages sm={sm} isAuthorized={isAuthorized} />
-        
-        {/* Calling Global UI */}
-        <IncomingCallModal />
-        <ActiveCallUI />
       </div>
+
+      <FloatingStaffMessages sm={sm} isAuthorized={isAuthorized} />
+      
+      {/* Calling Global UI */}
+      <IncomingCallModal />
+      <ActiveCallUI />
     </CallProvider>
   );
 }
