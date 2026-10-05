@@ -266,7 +266,7 @@ export class SyncService {
             }
 
             // Recovery: Remove 'created_by' from old failed queued requirements
-            if (safePayload.created_by) {
+            if ('created_by' in safePayload) {
               delete safePayload.created_by;
               delete pendingOp.payload.created_by;
             }
@@ -353,8 +353,13 @@ export class SyncService {
                  item.last_error = error.message || 'Unknown database error';
                  item.last_attempted_at = new Date().toISOString();
                  // Save the recovery patch if it failed
-                 if (pendingOp.table === 'requirements' && item.payload.status === 'Open') {
-                     item.payload.status = 'New';
+                 if (pendingOp.table === 'requirements') {
+                     if (item.payload.status === 'Open') {
+                         item.payload.status = 'New';
+                     }
+                     if ('created_by' in item.payload) {
+                         delete item.payload.created_by;
+                     }
                  }
               }
             }
