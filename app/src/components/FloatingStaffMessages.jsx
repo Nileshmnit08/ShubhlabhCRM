@@ -24,7 +24,7 @@ export default function FloatingStaffMessages({ sm, isAuthorized }) {
     <>
       {/* FAB */}
       <button 
-        className="floating-comm-fab"
+        className="floating-comm-fab chat-inverse-theme"
         onClick={() => setIsOpen(true)}
         aria-label="Open Communication"
       >

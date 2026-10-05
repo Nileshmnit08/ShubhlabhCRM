@@ -66,7 +66,7 @@
 }
 
 .sm-unread-badge {
-  background: var(--danger);
+  background: var(--primary);
   color: white;
   font-size: 0.65rem;
   font-weight: 700;
@@ -237,12 +237,12 @@
 }
 
 .sm-conv-card--active {
-  background: rgba(15, 118, 110, 0.06);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
   border-left-color: var(--primary);
 }
 
 .sm-conv-card--unread {
-  background: rgba(15, 118, 110, 0.03);
+  background: color-mix(in srgb, var(--primary) 3%, transparent);
 }
 
 /* ── Avatar ───────────────────────────────────────────────── */
@@ -260,7 +260,7 @@
   font-weight: 700;
   font-size: 0.85rem;
   flex-shrink: 0;
-  border: 1.5px solid rgba(15,118,110,0.2);
+  border: 1.5px solid color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .sm-avatar--unread {
@@ -495,7 +495,7 @@
   font-weight: 700;
   font-size: 0.85rem;
   flex-shrink: 0;
-  border: 1.5px solid rgba(15,118,110,0.2);
+  border: 1.5px solid color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 .sm-chat-header-info {
@@ -960,7 +960,7 @@
 
 .sm-ctx-item:hover {
   border-color: var(--primary);
-  background: rgba(15,118,110,0.04);
+  background: color-mix(in srgb, var(--primary) 4%, transparent);
 }
 
 .sm-ctx-item-type {
@@ -1440,8 +1440,8 @@
   position: absolute;
   top: 0;
   right: 0;
-  background: var(--danger);
-  color: white;
+  background: var(--bg-surface);
+  color: var(--primary);
   font-size: 0.75rem;
   font-weight: bold;
   padding: 0.15rem 0.4rem;
