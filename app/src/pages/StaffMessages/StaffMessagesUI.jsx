@@ -50,7 +50,7 @@ export default function StaffMessagesUI({ sm, isFloating = false }) {
 
   if (!isAuthorized && !sm.loading) {
     return (
-      <div className="sm-access-denied">
+      <div className="sm-access-denied chat-inverse-theme">
         <Shield size={40} className="sm-access-icon" />
         <h2>Access Restricted</h2>
         <p>Staff Messages is available to administrators only.</p>
@@ -60,7 +60,7 @@ export default function StaffMessagesUI({ sm, isFloating = false }) {
 
   if (sm.loading) {
     return (
-      <div className="sm-page-loading">
+      <div className="sm-page-loading chat-inverse-theme">
         <div className="sm-page-loading-spinner" />
         <div>Loading Staff Messages…</div>
       </div>
@@ -69,7 +69,7 @@ export default function StaffMessagesUI({ sm, isFloating = false }) {
 
   if (sm.error) {
     return (
-      <div className="sm-error-state">
+      <div className="sm-error-state chat-inverse-theme">
         <div className="sm-error-icon">⚠️</div>
         <div className="sm-error-title">{sm.error}</div>
         <button className="btn btn-primary btn-sm" onClick={sm.loadConversations}>
@@ -89,7 +89,7 @@ export default function StaffMessagesUI({ sm, isFloating = false }) {
   const showChat = !sm.isMobile || !!sm.selectedConversationId;
 
   return (
-    <div className={`sm-page ${isFloating ? 'sm-page-floating' : ''}`}>
+    <div className={`sm-page ${isFloating ? 'sm-page-floating' : ''} chat-inverse-theme`}>
       {/* Left panel */}
       {showList && (
         <ConversationList

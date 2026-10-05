@@ -35,7 +35,7 @@ export default function FloatingStaffMessages({ sm, isAuthorized }) {
       </button>
 
       {/* Floating Panel */}
-      <div className={`floating-comm-panel ${isOpen ? 'open' : ''}`}>
+      <div className={`floating-comm-panel ${isOpen ? 'open' : ''} chat-inverse-theme`}>
         <div className="floating-comm-header">
           <div className="floating-comm-title">
             <MessageSquare size={16} style={{ marginRight: '0.5rem' }} />

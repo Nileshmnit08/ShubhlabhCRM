@@ -36,6 +36,36 @@
   --header-height: 70px;
   
   --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Inverse Theme (Dark) tokens for Light Mode */
+  --inverse-bg-base: #0f172a;
+  --inverse-bg-surface: #1e293b;
+  --inverse-bg-surface-hover: #334155;
+  --inverse-text-primary: #f8fafc;
+  --inverse-text-secondary: #94a3b8;
+  --inverse-text-muted: #64748B;
+  --inverse-border: #334155;
+}
+
+:root.dark {
+  /* Inverse Theme (Light) tokens for Dark Mode */
+  --inverse-bg-base: #F8FAFC;
+  --inverse-bg-surface: #FFFFFF;
+  --inverse-bg-surface-hover: #f1f5f9;
+  --inverse-text-primary: #1E293B;
+  --inverse-text-secondary: #475569;
+  --inverse-text-muted: #64748B;
+  --inverse-border: #CBD5E1;
+}
+
+.chat-inverse-theme {
+  --bg-base: var(--inverse-bg-base) !important;
+  --bg-surface: var(--inverse-bg-surface) !important;
+  --bg-surface-hover: var(--inverse-bg-surface-hover) !important;
+  --text-primary: var(--inverse-text-primary) !important;
+  --text-secondary: var(--inverse-text-secondary) !important;
+  --text-muted: var(--inverse-text-muted) !important;
+  --border: var(--inverse-border) !important;
 }
 
 * {
