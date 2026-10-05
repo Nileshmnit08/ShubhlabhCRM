@@ -1,9 +1,9 @@
 import { registerRootComponent } from 'expo';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
 import App from './App';
 
 // Register background handler
-messaging().setBackgroundMessageHandler(async remoteMessage => {
+setBackgroundMessageHandler(getMessaging(), async remoteMessage => {
   console.log('[FCM Background] Message handled in the background!', remoteMessage);
   // The actual Wake-up / Call Notification logic will be handled by Notifee / Call UI
   // in the next sprint. For now, this ensures the message is received and acknowledged.

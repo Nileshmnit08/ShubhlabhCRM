@@ -8,7 +8,13 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import messaging from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  getToken,
+  onTokenRefresh,
+  requestPermission,
+  AuthorizationStatus
+} from '@react-native-firebase/messaging';
 import { v4 as uuidv4 } from 'uuid';
 
 export function usePushTokenRegistration() {
@@ -25,7 +31,7 @@ export function usePushTokenRegistration() {
     
     registerTokens();
 
-    const unsubscribe = messaging().onTokenRefresh(async (newToken) => {
+    const unsubscribe = onTokenRefresh(getMessaging(), async (newToken) => {
       const currentUserId = userIdRef.current;
       if (currentUserId && newToken) {
         await saveFcmToken(currentUserId, newToken);
@@ -77,13 +83,13 @@ export function usePushTokenRegistration() {
   const registerTokens = async () => {
     try {
       // 1. Native FCM Token (Phase 2 Migration)
-      const authStatus = await messaging().requestPermission();
+      const authStatus = await requestPermission(getMessaging());
       const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        authStatus === AuthorizationStatus.AUTHORIZED ||
+        authStatus === AuthorizationStatus.PROVISIONAL;
 
       if (enabled) {
-        const fcmToken = await messaging().getToken();
+        const fcmToken = await getToken(getMessaging());
         if (fcmToken) {
           await saveFcmToken(userId, fcmToken);
         }
