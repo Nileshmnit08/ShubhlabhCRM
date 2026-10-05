@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuth } from '../AuthContext';
 import { supabase } from '../lib/supabase';
-import { LayoutDashboard, Users, Phone, CalendarClock, BarChart3, Settings } from 'lucide-react-native';
+import { LayoutDashboard, Users, MessageSquare, CalendarClock, BarChart3, Settings } from 'lucide-react-native';
 import { theme } from '../theme';
 
 // NEW: Stitch-approved Admin Control Center replaces old HomeScreen / "Global Overview"
@@ -53,11 +53,11 @@ export default function AdminWorkspace() {
         }}
       />
       <Tab.Screen
-        name="Calls"
+        name="Comms"
         component={AdminCallsScreen}
         options={{
-          tabBarLabel: 'Calls',
-          tabBarIcon: ({ color, size }) => <Phone color={color} size={size} />,
+          tabBarLabel: 'Comms',
+          tabBarIcon: ({ color, size }) => <MessageSquare color={color} size={size} />,
         }}
       />
       <Tab.Screen

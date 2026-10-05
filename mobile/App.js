@@ -24,6 +24,7 @@ import StaffDetailScreen from './src/screens/StaffDetailScreen';
 import AdminCallDetailScreen from './src/screens/AdminCallDetailScreen';
 import AddCustomerScreen from './src/screens/AddCustomerScreen';
 import AdminSettingsScreen from './src/screens/AdminSettingsScreen';
+import CustomerCommunicationDetailScreen from './src/screens/CustomerCommunicationDetailScreen';
 import { StatusBar } from 'expo-status-bar';
 import './src/i18n'; // Initialize i18n
 
@@ -75,6 +76,7 @@ function AppNavigator() {
           <Stack.Screen name="StaffDetail" component={StaffDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AdminCallDetail" component={AdminCallDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AddCustomer" component={AddCustomerScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="CustomerCommunicationDetail" component={CustomerCommunicationDetailScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Admin Settings" component={AdminSettingsScreen} options={{ headerShown: false }} />
         </Stack.Navigator>
       </NavigationContainer>

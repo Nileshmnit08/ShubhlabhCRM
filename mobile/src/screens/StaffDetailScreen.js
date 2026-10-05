@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator, ScrollView,
-  TouchableOpacity, FlatList, TextInput
+  TouchableOpacity, FlatList, TextInput, Alert, Linking, RefreshControl
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { theme } from '../theme';
@@ -9,7 +9,8 @@ import ScreenHeader from '../components/ScreenHeader';
 import Badge from '../components/Badge';
 import {
   User, Phone, CalendarClock, MapPin, Building2,
-  Calendar, Clock, CheckCircle2, Search, AlertCircle, ChevronLeft, ChevronRight
+  Calendar, Clock, CheckCircle2, Search, AlertCircle, 
+  ChevronLeft, ChevronRight, PhoneIncoming, PhoneOutgoing, PhoneMissed, MessageCircle, FileText, Users
 } from 'lucide-react-native';
 
 const TODAY_STR = new Date().toISOString().split('T')[0];
@@ -29,84 +30,101 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function getDaysLabel(dateStr) {
-  if (!dateStr) return '';
-  const diff = Math.round((new Date(dateStr) - new Date(TODAY_STR)) / 86400000);
-  if (diff === 0) return 'Today';
-  if (diff === 1) return 'Tomorrow';
-  if (diff === -1) return 'Yesterday';
-  if (diff < 0) return `${Math.abs(diff)}d overdue`;
-  return `In ${diff}d`;
-}
-
 export default function StaffDetailScreen({ route, navigation }) {
   const { staffId } = route.params;
+  
   const [staff, setStaff] = useState(null);
-  
-  const [parties, setParties] = useState([]);
-  const [filteredParties, setFilteredParties] = useState([]);
-  const [partySearchQuery, setPartySearchQuery] = useState('');
-
-  const [followUps, setFollowUps] = useState([]);
-  const [historyTab, setHistoryTab] = useState('Day'); // Day, Week, Month
-  
-  const [stats, setStats] = useState({ calls: 0, customers: 0, followUps: 0, dueToday: 0 });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Raw data
+  const [assignedParties, setAssignedParties] = useState([]);
+  const [followUps, setFollowUps] = useState([]);
+  const [allCalls, setAllCalls] = useState([]);
+  const [todayCalls, setTodayCalls] = useState([]);
+  const [todayOtherInts, setTodayOtherInts] = useState({ whatsapp: 0, notes: 0 });
+
+  // UI state
+  const [custFilter, setCustFilter] = useState('All');
+  const [historyFilter, setHistoryFilter] = useState('Month');
 
   const fetchStaffData = useCallback(async () => {
     try {
       setLoading(true);
 
-      // 1. Fetch Staff Profile
-      const { data: profile, error: profileErr } = await supabase
-        .from('app_users')
-        .select('*')
-        .eq('id', staffId)
-        .single();
-      if (profileErr) throw profileErr;
-      setStaff(profile);
+      // 1. Staff Profile
+      const { data: profile } = await supabase.from('app_users').select('*').eq('id', staffId).single();
+      if (profile) setStaff(profile);
 
-      // 2. Fetch Assigned Parties
-      const { data: partiesData, error: partiesErr } = await supabase
+      // 2. Assigned Parties
+      const { data: partiesData } = await supabase
         .from('crm_parties')
         .select('*')
         .eq('assigned_owner_id', staffId)
         .order('display_name', { ascending: true });
-      if (partiesErr) throw partiesErr;
-      setParties(partiesData || []);
-      setFilteredParties(partiesData || []);
+      const parties = partiesData || [];
+      setAssignedParties(parties);
 
-      // 3. Fetch Follow-ups
-      const { data: followUpsData, error: fuErr } = await supabase
+      // 3. Follow-ups
+      const { data: followUpsData } = await supabase
         .from('follow_ups')
         .select('*, crm_parties(display_name)')
         .eq('assigned_to', staffId)
         .order('follow_up_date', { ascending: true });
-      if (fuErr) throw fuErr;
-      setFollowUps(followUpsData || []);
+      const fUps = followUpsData || [];
+      setFollowUps(fUps);
 
-      // 4. Fetch Calls Logged Today
-      const { count: callsToday } = await supabase
-        .from('interactions')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', staffId)
-        .gte('created_at', TODAY_STR + 'T00:00:00Z');
+      // 4. Communication Log (All Time for Coverage/Suggestions)
+      // We will use start of year to bound it, or maybe last 90 days.
+      const now = new Date();
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(now.getDate() - 90);
 
-      // Aggregate Stats
-      const pendingFus = followUpsData?.filter(f => f.status === 'Pending') || [];
-      const dueToday = pendingFus.filter(f => f.follow_up_date === TODAY_STR).length;
-      
-      setStats({
-        calls: callsToday || 0,
-        customers: partiesData?.length || 0,
-        followUps: pendingFus.length,
-        dueToday
+      const { data: callsData } = await supabase.rpc('get_communication_dashboard_grouped', {
+        p_start_date: ninetyDaysAgo.toISOString(),
+        p_end_date: now.toISOString(),
+        p_staff_id: staffId,
+        p_limit: 1000,
+        p_offset: 0
       });
+      const cData = callsData || [];
+      setAllCalls(cData);
+
+      // 5. Today's Call Activity
+      const todayStart = new Date();
+      todayStart.setHours(0,0,0,0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23,59,59,999);
+
+      const { data: todayCData } = await supabase.rpc('get_communication_dashboard_grouped', {
+        p_start_date: todayStart.toISOString(),
+        p_end_date: todayEnd.toISOString(),
+        p_staff_id: staffId,
+        p_limit: 1000,
+        p_offset: 0
+      });
+      setTodayCalls(todayCData || []);
+
+      // 6. Today's WhatsApp / Notes
+      const { data: todayInts } = await supabase
+        .from('interactions')
+        .select('channel')
+        .eq('user_id', staffId)
+        .gte('created_at', todayStart.toISOString())
+        .lte('created_at', todayEnd.toISOString());
+
+      let waCount = 0; let noteCount = 0;
+      (todayInts || []).forEach(i => {
+        if (i.channel === 'WhatsApp') waCount++;
+        if (i.channel === 'Note') noteCount++;
+      });
+      setTodayOtherInts({ whatsapp: waCount, notes: noteCount });
 
     } catch (err) {
       console.error('[StaffDetail] Fetch Error:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [staffId]);
 
@@ -114,245 +132,396 @@ export default function StaffDetailScreen({ route, navigation }) {
     fetchStaffData();
   }, [fetchStaffData]);
 
-  // Handle Party Search
-  useEffect(() => {
-    const q = partySearchQuery.toLowerCase();
-    if (!q) {
-      setFilteredParties(parties);
-    } else {
-      setFilteredParties(parties.filter(p => p.display_name?.toLowerCase().includes(q) || p.city?.toLowerCase().includes(q)));
-    }
-  }, [partySearchQuery, parties]);
+  // ── Computations ──────────────────────────────────────────────────────────
 
-  // Handle Follow-up History Filter
-  const getFilteredFollowUps = () => {
-    switch (historyTab) {
-      case 'Day':
-        return followUps.filter(f => f.follow_up_date === TODAY_STR);
-      case 'Week': {
-        // Just a simple approximation for the current week's followups (last 7 days + next 7 days for demo)
-        const d = new Date();
-        const past = new Date(d); past.setDate(d.getDate() - 7);
-        const future = new Date(d); future.setDate(d.getDate() + 7);
-        return followUps.filter(f => {
-          const fd = new Date(f.follow_up_date);
-          return fd >= past && fd <= future;
-        });
+  const pendingFollowUps = useMemo(() => followUps.filter(f => f.status === 'Pending'), [followUps]);
+  const overdueFollowUps = useMemo(() => pendingFollowUps.filter(f => f.follow_up_date && f.follow_up_date < TODAY_STR), [pendingFollowUps]);
+  const dueFollowUps = useMemo(() => pendingFollowUps.filter(f => f.follow_up_date && f.follow_up_date >= TODAY_STR), [pendingFollowUps]);
+
+  // Contact Coverage
+  const contactedPartyIds = useMemo(() => {
+    const ids = new Set();
+    allCalls.forEach(c => { if (c.party_id) ids.add(c.party_id); });
+    return ids;
+  }, [allCalls]);
+
+  const coveragePercent = assignedParties.length > 0 
+    ? Math.round((contactedPartyIds.size / assignedParties.length) * 100) 
+    : 0;
+
+  // Today's Totals
+  const todaySummary = useMemo(() => {
+    if (!todayCalls.length) return { custContacted: 0, incoming: 0, outgoing: 0, missed: 0 };
+    return {
+      custContacted: todayCalls.length,
+      incoming: Number(todayCalls[0].grand_incoming || 0),
+      outgoing: Number(todayCalls[0].grand_outgoing || 0),
+      missed: Number(todayCalls[0].grand_missed || 0)
+    };
+  }, [todayCalls]);
+
+  // Generate Suggestions
+  const suggestions = useMemo(() => {
+    const suggs = [];
+    const partyIdsWithPendingFUs = new Set(pendingFollowUps.map(f => f.party_id));
+
+    allCalls.forEach(callGroup => {
+      // 1. Missed Call Requiring Callback
+      if (Number(callGroup.missed_count) > 0 && callGroup.last_call_direction === 'MISSED') {
+        if (!partyIdsWithPendingFUs.has(callGroup.party_id)) {
+          suggs.push({
+            id: 'sugg_missed_' + callGroup.normalized_phone,
+            partyId: callGroup.party_id,
+            partyName: callGroup.party_name || 'Unknown',
+            phone: callGroup.normalized_phone,
+            reason: 'Recent Missed Call',
+            detail: `Missed call at ${new Date(callGroup.last_call_at).toLocaleString()}`
+          });
+        }
       }
-      case 'Month': {
-        const thisMonth = TODAY_STR.substring(0, 7);
-        return followUps.filter(f => f.follow_up_date?.startsWith(thisMonth));
+      
+      // 2. Customer Contacted but no next action
+      // If last call was today and no pending FU
+      else if (callGroup.last_call_at && callGroup.last_call_at.startsWith(TODAY_STR)) {
+        if (!partyIdsWithPendingFUs.has(callGroup.party_id)) {
+          suggs.push({
+            id: 'sugg_no_action_' + callGroup.normalized_phone,
+            partyId: callGroup.party_id,
+            partyName: callGroup.party_name || 'Unknown',
+            phone: callGroup.normalized_phone,
+            reason: 'Contacted Today - No Next Action',
+            detail: `Last call was ${callGroup.last_call_direction ? callGroup.last_call_direction.toLowerCase() : 'unknown'}`
+          });
+        }
       }
-      default: return followUps;
-    }
+      
+      // 3. Multiple outgoing calls with no response
+      else if (Number(callGroup.outgoing_count) >= 3 && Number(callGroup.talk_seconds) === 0) {
+        if (!partyIdsWithPendingFUs.has(callGroup.party_id)) {
+          suggs.push({
+            id: 'sugg_no_resp_' + callGroup.normalized_phone,
+            partyId: callGroup.party_id,
+            partyName: callGroup.party_name || 'Unknown',
+            phone: callGroup.normalized_phone,
+            reason: 'No Response to Outgoing Calls',
+            detail: `${callGroup.outgoing_count} outgoing attempts with 0s talk time`
+          });
+        }
+      }
+    });
+
+    return suggs.slice(0, 10); // Limit to top 10 actionable suggestions
+  }, [allCalls, pendingFollowUps]);
+
+  // Customer Activity List
+  const customerList = useMemo(() => {
+    return assignedParties.map(p => {
+      const isContacted = contactedPartyIds.has(p.id);
+      const callData = allCalls.find(c => c.party_id === p.id);
+      const hasPendingFU = pendingFollowUps.some(f => f.party_id === p.id);
+      const isOverdue = overdueFollowUps.some(f => f.party_id === p.id);
+      
+      return { ...p, isContacted, callData, hasPendingFU, isOverdue };
+    }).filter(p => {
+      if (custFilter === 'Contacted') return p.isContacted;
+      if (custFilter === 'Not Contacted') return !p.isContacted;
+      if (custFilter === 'Follow-up Due') return p.hasPendingFU && !p.isOverdue;
+      if (custFilter === 'Overdue') return p.isOverdue;
+      return true;
+    });
+  }, [assignedParties, custFilter, contactedPartyIds, allCalls, pendingFollowUps, overdueFollowUps]);
+
+  // History List
+  const historyList = useMemo(() => {
+    const pastFus = followUps.filter(f => f.status !== 'Pending');
+    const now = new Date();
+    
+    return pastFus.filter(f => {
+      if (!f.follow_up_date) return false;
+      const d = new Date(f.follow_up_date);
+      if (historyFilter === 'Day') return d.toDateString() === now.toDateString();
+      if (historyFilter === 'Week') {
+        const diff = Math.abs(now - d) / 86400000;
+        return diff <= 7;
+      }
+      if (historyFilter === 'Month') {
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      }
+      return true;
+    });
+  }, [followUps, historyFilter]);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const handleCreateFollowUp = (partyId, partyName) => {
+    navigation.navigate('AddFollowUp', { partyId, partyName });
   };
 
-  const renderedFollowUps = getFilteredFollowUps();
-  
-  // Follow-up Summary
-  const fuTotal = renderedFollowUps.length;
-  const fuCompleted = renderedFollowUps.filter(f => f.status === 'Completed').length;
-  const fuPending = renderedFollowUps.filter(f => f.status === 'Pending' && f.follow_up_date >= TODAY_STR).length;
-  const fuOverdue = renderedFollowUps.filter(f => f.status === 'Pending' && f.follow_up_date < TODAY_STR).length;
+  const handleCall = (phone) => {
+    if (!phone) return Alert.alert('Error', 'No phone number available.');
+    Linking.openURL(`tel:${phone}`);
+  };
 
-  if (loading) {
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (loading && !refreshing) {
     return (
       <View style={styles.container}>
         <ScreenHeader title="Staff Detail" showBack />
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={theme.colors.secondary} />
-        </View>
+        <ActivityIndicator size="large" color={theme.colors.secondary} style={{marginTop: 40}} />
       </View>
     );
   }
-
-  if (!staff) {
-    return (
-      <View style={styles.container}>
-        <ScreenHeader title="Staff Detail" showBack />
-        <Text style={styles.empty}>Staff not found.</Text>
-      </View>
-    );
-  }
-
-  const getInitials = (name) => (name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 
   return (
     <View style={styles.container}>
-      <ScreenHeader title={`Staff: ${staff.display_name}`} showBack />
+      <ScreenHeader title={staff?.display_name || 'Staff Member'} subtitle={staff?.role || 'Unknown Role'} showBack />
       
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchStaffData(); }} />}
+      >
         
-        {/* ─── 1. STAFF HEADER ─── */}
-        <View style={styles.headerCard}>
-          <View style={styles.headerTopRow}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{getInitials(staff.display_name)}</Text>
+        {/* 1. STAFF SUMMARY */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Summary</Text>
+          <View style={styles.summaryGrid}>
+            <View style={styles.summaryBox}>
+              <Text style={styles.summaryVal}>{assignedParties.length}</Text>
+              <Text style={styles.summaryLbl}>Assigned Customers</Text>
             </View>
-            <View style={styles.headerInfo}>
-              <Text style={styles.profileName}>{staff.display_name}</Text>
-              <Text style={styles.profileRole}>{staff.role || 'Field Sales'} • Active</Text>
-              <View style={styles.telemetryRow}>
-                <MapPin size={12} color={theme.colors.secondary} />
-                <Text style={styles.telemetryText}>Location Locked • 2m ago</Text>
-              </View>
+            <View style={styles.summaryBox}>
+              <Text style={styles.summaryVal}>{contactedPartyIds.size}</Text>
+              <Text style={styles.summaryLbl}>Customers Contacted</Text>
+            </View>
+            <View style={styles.summaryBox}>
+              <Text style={[styles.summaryVal, { color: theme.colors.primary }]}>{dueFollowUps.length}</Text>
+              <Text style={styles.summaryLbl}>Follow-ups Due</Text>
+            </View>
+            <View style={styles.summaryBox}>
+              <Text style={[styles.summaryVal, { color: theme.colors.error }]}>{overdueFollowUps.length}</Text>
+              <Text style={styles.summaryLbl}>Overdue</Text>
             </View>
           </View>
 
-          <View style={styles.statsBar}>
-            <View style={styles.statBox}>
-              <Text style={styles.statVal}>{stats.customers}</Text>
-              <Text style={styles.statLabel}>Parties</Text>
+          {/* Contact Coverage Bar */}
+          <View style={styles.coverageWrap}>
+            <View style={styles.coverageRow}>
+              <Text style={styles.coverageLabel}>Contact Coverage</Text>
+              <Text style={styles.coverageVal}>{contactedPartyIds.size} / {assignedParties.length} ({coveragePercent}%)</Text>
             </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statVal, stats.dueToday > 0 && {color: theme.colors.error}]}>{stats.dueToday}</Text>
-              <Text style={styles.statLabel}>Due Today</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statVal}>{stats.calls}</Text>
-              <Text style={styles.statLabel}>Calls</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statVal}>{stats.followUps}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+            <View style={styles.coverageBarBg}>
+              <View style={[styles.coverageBarFill, { width: `${coveragePercent}%` }]} />
             </View>
           </View>
         </View>
 
-        {/* ─── 2. ASSIGNED PARTIES ─── */}
-        <Text style={styles.sectionTitle}>Assigned Parties</Text>
-        <View style={styles.partiesCard}>
-          <View style={styles.searchBox}>
-            <Search size={18} color={theme.colors.onSurfaceVariant} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search assigned parties..."
-              placeholderTextColor={theme.colors.onSurfaceVariant}
-              value={partySearchQuery}
-              onChangeText={setPartySearchQuery}
-            />
+        {/* 2. TODAY'S ACTIVITY */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Today's Communication</Text>
+          <View style={styles.activityRow}>
+            <View style={styles.actItem}>
+              <Users size={16} color={theme.colors.onSurfaceVariant} />
+              <Text style={styles.actVal}>{todaySummary.custContacted}</Text>
+              <Text style={styles.actLbl}>Contacted</Text>
+            </View>
+            <View style={styles.actItem}>
+              <PhoneIncoming size={16} color={theme.colors.success} />
+              <Text style={styles.actVal}>{todaySummary.incoming}</Text>
+              <Text style={styles.actLbl}>Incoming</Text>
+            </View>
+            <View style={styles.actItem}>
+              <PhoneOutgoing size={16} color="#3b82f6" />
+              <Text style={styles.actVal}>{todaySummary.outgoing}</Text>
+              <Text style={styles.actLbl}>Outgoing</Text>
+            </View>
+            <View style={styles.actItem}>
+              <PhoneMissed size={16} color={theme.colors.error} />
+              <Text style={styles.actVal}>{todaySummary.missed}</Text>
+              <Text style={styles.actLbl}>Missed</Text>
+            </View>
           </View>
-
-          {filteredParties.length === 0 ? (
-            <Text style={styles.emptySubtext}>No parties found.</Text>
-          ) : (
-            filteredParties.slice(0, 5).map(party => (
-              <TouchableOpacity 
-                key={party.id} 
-                style={styles.partyRow}
-                onPress={() => navigation.navigate('CustomerDetail', { customerId: party.id })}
-              >
-                <View style={styles.partyIcon}>
-                  <Building2 size={20} color={theme.colors.primary} />
-                </View>
-                <View style={styles.partyInfo}>
-                  <Text style={styles.partyName} numberOfLines={1}>{party.display_name}</Text>
-                  <Text style={styles.partyMeta}>{party.party_type || 'Customer'} • {party.city || 'Unknown'}</Text>
-                </View>
-                <View style={styles.partyRight}>
-                  <ChevronRight size={16} color={theme.colors.outline} />
-                </View>
-              </TouchableOpacity>
-            ))
-          )}
-          {filteredParties.length > 5 && (
-            <TouchableOpacity 
-              style={styles.viewAllBtn}
-              onPress={() => navigation.navigate('MyCustomers', { 
-                staffId: staff.id, 
-                staffName: staff.display_name 
-              })}
-            >
-              <Text style={styles.viewAllText}>View All ({filteredParties.length})</Text>
-            </TouchableOpacity>
-          )}
+          <View style={[styles.activityRow, { marginTop: 12, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 12 }]}>
+            <View style={styles.actItem}>
+              <MessageCircle size={16} color="#25D366" />
+              <Text style={styles.actVal}>{todayOtherInts.whatsapp}</Text>
+              <Text style={styles.actLbl}>WhatsApp</Text>
+            </View>
+            <View style={styles.actItem}>
+              <FileText size={16} color="#8b5cf6" />
+              <Text style={styles.actVal}>{todayOtherInts.notes}</Text>
+              <Text style={styles.actLbl}>Notes</Text>
+            </View>
+          </View>
         </View>
 
-        {/* ─── 3. FOLLOW-UP HISTORY ─── */}
-        <Text style={styles.sectionTitle}>Follow-up History</Text>
-        <View style={styles.historyCard}>
+        {/* 3. FOLLOW-UP INTELLIGENCE */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Follow-up Intelligence</Text>
           
-          {/* Segmented Control */}
-          <View style={styles.segmentedControl}>
-            {['Day', 'Week', 'Month'].map(tab => {
-              const isActive = historyTab === tab;
-              return (
-                <TouchableOpacity 
-                  key={tab} 
-                  style={[styles.segmentBtn, isActive && styles.segmentBtnActive]}
-                  onPress={() => setHistoryTab(tab)}
-                >
-                  <Text style={[styles.segmentText, isActive && styles.segmentTextActive]}>{tab}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Date Navigator Placeholder (Optional UX) */}
-          <View style={styles.dateNav}>
-            <TouchableOpacity><ChevronLeft size={20} color={theme.colors.onSurface} /></TouchableOpacity>
-            <Text style={styles.dateNavText}>{historyTab === 'Day' ? 'Today' : historyTab === 'Week' ? 'This Week' : 'This Month'}</Text>
-            <TouchableOpacity><ChevronRight size={20} color={theme.colors.onSurface} /></TouchableOpacity>
-          </View>
-
-          {/* Tally */}
-          <View style={styles.tallyRow}>
-            <View style={styles.tallyBox}>
-              <Text style={styles.tallyVal}>{fuTotal}</Text>
-              <Text style={styles.tallyLabel}>Total</Text>
-            </View>
-            <View style={styles.tallyBox}>
-              <Text style={[styles.tallyVal, {color: theme.colors.success}]}>{fuCompleted}</Text>
-              <Text style={styles.tallyLabel}>Completed</Text>
-            </View>
-            <View style={styles.tallyBox}>
-              <Text style={[styles.tallyVal, {color: theme.colors.warning}]}>{fuPending}</Text>
-              <Text style={styles.tallyLabel}>Pending</Text>
-            </View>
-            <View style={styles.tallyBox}>
-              <Text style={[styles.tallyVal, {color: theme.colors.error}]}>{fuOverdue}</Text>
-              <Text style={styles.tallyLabel}>Overdue</Text>
-            </View>
-          </View>
-
-          {/* Follow-ups List */}
-          <View style={styles.fuList}>
-            {renderedFollowUps.length === 0 ? (
-              <View style={styles.centerEmpty}>
-                <CheckCircle2 size={32} color={theme.colors.success} />
-                <Text style={styles.emptySubtext}>No follow-ups for this period.</Text>
+          {/* Overdue */}
+          {overdueFollowUps.length > 0 && (
+            <View style={styles.fuGroup}>
+              <View style={styles.fuHeaderRow}>
+                <AlertCircle size={16} color={theme.colors.error} />
+                <Text style={styles.fuHeaderTitle}>Overdue ({overdueFollowUps.length})</Text>
               </View>
-            ) : (
-              renderedFollowUps.map(fu => {
-                const isOverdue = fu.follow_up_date < TODAY_STR && fu.status === 'Pending';
-                return (
-                  <TouchableOpacity 
-                    key={fu.id} 
-                    style={styles.fuRow}
-                    onPress={() => navigation.navigate('FollowUpDetail', { followUpId: fu.id })}
-                  >
-                    <View style={styles.fuLeft}>
-                      <Text style={styles.fuTime}>{formatDate(fu.follow_up_date)}</Text>
-                      <Badge label={fu.status} status={getStatusBadge(fu.status)} />
-                    </View>
-                    <View style={styles.fuRight}>
-                      <Text style={styles.fuParty} numberOfLines={1}>{fu.crm_parties?.display_name || 'General'}</Text>
-                      <Text style={styles.fuReason} numberOfLines={2}>{fu.reason || fu.follow_up_reason}</Text>
-                      {isOverdue && (
-                        <View style={styles.overdueBadge}>
-                          <AlertCircle size={12} color={theme.colors.error} />
-                          <Text style={styles.overdueText}>Overdue</Text>
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })
-            )}
-          </View>
+              {overdueFollowUps.map(fu => (
+                <View key={fu.id} style={[styles.fuItem, { borderLeftColor: theme.colors.error }]}>
+                  <Text style={styles.fuItemParty}>{fu.crm_parties?.display_name || 'Unknown'}</Text>
+                  <Text style={styles.fuItemReason}>{fu.reason}</Text>
+                  <Text style={[styles.fuItemDate, { color: theme.colors.error }]}>Due: {formatDate(fu.follow_up_date)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
+          {/* Due / Needs Attention */}
+          {dueFollowUps.length > 0 && (
+            <View style={styles.fuGroup}>
+              <View style={styles.fuHeaderRow}>
+                <CalendarClock size={16} color={theme.colors.warning} />
+                <Text style={styles.fuHeaderTitle}>Due / Needs Attention ({dueFollowUps.length})</Text>
+              </View>
+              {dueFollowUps.map(fu => (
+                <View key={fu.id} style={[styles.fuItem, { borderLeftColor: theme.colors.warning }]}>
+                  <Text style={styles.fuItemParty}>{fu.crm_parties?.display_name || 'Unknown'}</Text>
+                  <Text style={styles.fuItemReason}>{fu.reason}</Text>
+                  <Text style={styles.fuItemDate}>Due: {formatDate(fu.follow_up_date)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Suggested */}
+          {suggestions.length > 0 && (
+            <View style={styles.fuGroup}>
+              <View style={styles.fuHeaderRow}>
+                <AlertCircle size={16} color={theme.colors.primary} />
+                <Text style={styles.fuHeaderTitle}>Suggested Follow-ups ({suggestions.length})</Text>
+              </View>
+              {suggestions.map(sugg => (
+                <View key={sugg.id} style={[styles.fuItem, { borderLeftColor: theme.colors.primary, backgroundColor: theme.colors.surfaceContainerLowest }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.fuItemParty}>{sugg.partyName}</Text>
+                      <Text style={styles.fuItemReason}>{sugg.reason}</Text>
+                      <Text style={styles.fuItemDate}>{sugg.detail}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TouchableOpacity style={styles.miniBtn} onPress={() => handleCall(sugg.phone)}>
+                        <Phone size={14} color="#fff" />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.miniBtn, { backgroundColor: theme.colors.primary }]} onPress={() => handleCreateFollowUp(sugg.partyId, sugg.partyName)}>
+                        <Calendar size={14} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {pendingFollowUps.length === 0 && suggestions.length === 0 && (
+             <Text style={styles.emptyText}>No follow-ups require attention right now.</Text>
+          )}
         </View>
-        
+
+        {/* 6. CUSTOMER ACTIVITY */}
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Customer Activity</Text>
+          
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            {['All', 'Contacted', 'Not Contacted', 'Follow-up Due', 'Overdue'].map(f => (
+              <TouchableOpacity 
+                key={f} 
+                style={[styles.filterChip, custFilter === f && styles.filterChipActive]}
+                onPress={() => setCustFilter(f)}
+              >
+                <Text style={[styles.filterChipText, custFilter === f && styles.filterChipTextActive]}>{f}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {customerList.slice(0, 20).map(cust => (
+            <View key={cust.id} style={styles.custCard}>
+              <View style={styles.custCardHeader}>
+                <Text style={styles.custName}>{cust.display_name}</Text>
+                <Text style={styles.custLoc}>{cust.city}</Text>
+              </View>
+              
+              {cust.callData ? (
+                <View style={styles.custDataRow}>
+                  <Text style={styles.custLabel}>Last contact: {cust.callData.last_call_at ? new Date(cust.callData.last_call_at).toLocaleString() : 'Unknown'}</Text>
+                  <Text style={styles.custLabel}>{cust.callData.total_calls} Calls ({cust.callData.outgoing_count} Out)</Text>
+                </View>
+              ) : (
+                <Text style={styles.custLabel}>No communication recorded</Text>
+              )}
+
+              {cust.hasPendingFU && (
+                <View style={[styles.custBadge, cust.isOverdue && { backgroundColor: '#fff5f5', borderColor: theme.colors.error + '40' }]}>
+                  <Text style={[styles.custBadgeText, cust.isOverdue && { color: theme.colors.error }]}>
+                    {cust.isOverdue ? 'Overdue Follow-up' : 'Follow-up Scheduled'}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.custActions}>
+                <TouchableOpacity style={[styles.actBtn, { backgroundColor: theme.colors.success }]} onPress={() => handleCall(cust.mobile)}>
+                  <Phone size={14} color="#fff" />
+                  <Text style={styles.actBtnText}>Call</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.actBtn, { backgroundColor: theme.colors.primary }]} onPress={() => handleCreateFollowUp(cust.id, cust.display_name)}>
+                  <Calendar size={14} color="#fff" />
+                  <Text style={styles.actBtnText}>Schedule</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.actBtn, { backgroundColor: theme.colors.surfaceContainerLow, borderWidth: 1, borderColor: theme.colors.border }]} 
+                  onPress={() => navigation.navigate('CustomerCommunicationDetail', { customerId: cust.id, customerName: cust.display_name })}
+                >
+                  <Text style={[styles.actBtnText, { color: theme.colors.onSurface }]}>History</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
+          {customerList.length > 20 && (
+             <Text style={styles.emptyText}>Showing top 20 of {customerList.length} customers.</Text>
+          )}
+          {customerList.length === 0 && (
+             <Text style={styles.emptyText}>No customers match this filter.</Text>
+          )}
+        </View>
+
+        {/* 9. FOLLOW-UP HISTORY */}
+        <View style={styles.sectionCard}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <Text style={styles.sectionTitle}>Follow-up History</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {['Day', 'Week', 'Month'].map(hf => (
+                <TouchableOpacity key={hf} onPress={() => setHistoryFilter(hf)}>
+                  <Text style={{ fontSize: 12, fontWeight: historyFilter === hf ? '700' : '500', color: historyFilter === hf ? theme.colors.secondary : theme.colors.onSurfaceVariant }}>
+                    {hf}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+          
+          {historyList.map(h => (
+            <View key={h.id} style={styles.histItem}>
+              <Badge label={h.status} type={getStatusBadge(h.status)} style={{ alignSelf: 'flex-start', marginBottom: 4 }} />
+              <Text style={styles.histParty}>{h.crm_parties?.display_name || 'Unknown'}</Text>
+              <Text style={styles.histReason}>{h.reason}</Text>
+              <Text style={styles.histDate}>Completed: {formatDate(h.completed_at)}</Text>
+            </View>
+          ))}
+          
+          {historyList.length === 0 && (
+            <Text style={styles.emptyText}>No historical follow-ups in this period.</Text>
+          )}
+        </View>
+
       </ScrollView>
     </View>
   );
@@ -360,100 +529,75 @@ export default function StaffDetailScreen({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
-  content: { padding: theme.spacing['screen-edge'], paddingBottom: 60 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  centerEmpty: { padding: 24, alignItems: 'center', gap: 8 },
-  empty: { textAlign: 'center', marginTop: 40, color: theme.colors.onSurfaceVariant, fontSize: 16 },
   
-  headerCard: {
-    backgroundColor: theme.colors.surfaceContainerLowest,
-    borderRadius: theme.borders.radius.xl,
-    padding: theme.spacing.lg,
-    marginBottom: theme.spacing.xl,
+  sectionCard: {
+    backgroundColor: theme.colors.surface, padding: 16,
+    borderRadius: 12, marginBottom: 16,
     borderWidth: 1, borderColor: theme.colors.border,
     ...theme.shadows.sm
   },
-  headerTopRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
-  avatarCircle: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: theme.colors.primaryContainer,
-    alignItems: 'center', justifyContent: 'center'
-  },
-  avatarText: { fontSize: 22, fontWeight: '700', color: theme.colors.onPrimaryContainer },
-  headerInfo: { flex: 1 },
-  profileName: { fontSize: 20, fontWeight: '700', color: theme.colors.onSurface, marginBottom: 2 },
-  profileRole: { fontSize: 14, color: theme.colors.onSurfaceVariant, marginBottom: 4 },
-  telemetryRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  telemetryText: { fontSize: 12, color: theme.colors.secondary, fontWeight: '500' },
-  
-  statsBar: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    backgroundColor: theme.colors.surfaceContainerHighest,
-    borderRadius: theme.borders.radius.lg,
-    padding: 12,
-  },
-  statBox: { alignItems: 'center', flex: 1 },
-  statVal: { fontSize: 18, fontWeight: '700', color: theme.colors.onSurface },
-  statLabel: { fontSize: 11, fontWeight: '600', color: theme.colors.onSurfaceVariant, textTransform: 'uppercase', marginTop: 2 },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: theme.colors.onSurface, marginBottom: 12 },
 
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: theme.colors.onSurface, marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
-  
-  partiesCard: {
-    backgroundColor: theme.colors.surfaceContainerLowest,
-    borderRadius: theme.borders.radius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
-    borderWidth: 1, borderColor: theme.colors.border,
+  // Summary Grid
+  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  summaryBox: {
+    width: '48%', backgroundColor: theme.colors.surfaceContainerLowest,
+    padding: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border
   },
-  searchBox: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borders.radius.md,
-    paddingHorizontal: 12, height: 40,
-    borderWidth: 1, borderColor: theme.colors.border,
-    marginBottom: 12
+  summaryVal: { fontSize: 20, fontWeight: '700', color: theme.colors.onSurface },
+  summaryLbl: { fontSize: 11, color: theme.colors.onSurfaceVariant, marginTop: 4, fontWeight: '500' },
+
+  coverageWrap: { marginTop: 16 },
+  coverageRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  coverageLabel: { fontSize: 12, fontWeight: '600', color: theme.colors.onSurface },
+  coverageVal: { fontSize: 12, color: theme.colors.onSurfaceVariant },
+  coverageBarBg: { height: 8, backgroundColor: theme.colors.surfaceContainerHigh, borderRadius: 4 },
+  coverageBarFill: { height: 8, backgroundColor: theme.colors.secondary, borderRadius: 4 },
+
+  // Activity
+  activityRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  actItem: { alignItems: 'center', flex: 1 },
+  actVal: { fontSize: 16, fontWeight: '700', color: theme.colors.onSurface, marginVertical: 2 },
+  actLbl: { fontSize: 10, color: theme.colors.onSurfaceVariant },
+
+  // Follow Ups
+  fuGroup: { marginBottom: 16 },
+  fuHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
+  fuHeaderTitle: { fontSize: 13, fontWeight: '700', color: theme.colors.onSurfaceVariant },
+  fuItem: {
+    backgroundColor: theme.colors.surfaceContainerLow,
+    padding: 12, borderRadius: 8, marginBottom: 8,
+    borderLeftWidth: 4,
   },
-  searchInput: { flex: 1, height: 40, marginLeft: 8, fontSize: 14, color: theme.colors.onSurface },
-  partyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.surfaceContainerHighest },
-  partyIcon: { width: 40, height: 40, borderRadius: 8, backgroundColor: theme.colors.primaryContainer, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  partyInfo: { flex: 1 },
-  partyName: { fontSize: 15, fontWeight: '600', color: theme.colors.onSurface, marginBottom: 2 },
-  partyMeta: { fontSize: 13, color: theme.colors.onSurfaceVariant },
-  partyRight: { paddingLeft: 8 },
-  viewAllBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
-  viewAllText: { fontSize: 14, fontWeight: '600', color: theme.colors.secondary },
+  fuItemParty: { fontSize: 14, fontWeight: '700', color: theme.colors.onSurface, marginBottom: 2 },
+  fuItemReason: { fontSize: 13, color: theme.colors.onSurfaceVariant, marginBottom: 4 },
+  fuItemDate: { fontSize: 11, fontWeight: '500', color: theme.colors.onSurfaceVariant },
+  miniBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: theme.colors.success, alignItems: 'center', justifyContent: 'center' },
 
-  historyCard: {
-    backgroundColor: theme.colors.surfaceContainerLowest,
-    borderRadius: theme.borders.radius.lg,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
-    borderWidth: 1, borderColor: theme.colors.border,
-  },
-  segmentedControl: {
-    flexDirection: 'row', backgroundColor: theme.colors.surfaceContainerHighest,
-    borderRadius: 8, padding: 4, marginBottom: 16
-  },
-  segmentBtn: { flex: 1, paddingVertical: 6, alignItems: 'center', borderRadius: 6 },
-  segmentBtnActive: { backgroundColor: theme.colors.surfaceContainerLowest, ...theme.shadows.sm },
-  segmentText: { fontSize: 13, fontWeight: '600', color: theme.colors.onSurfaceVariant },
-  segmentTextActive: { color: theme.colors.onSurface },
+  // Filters
+  filterChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: theme.colors.surfaceContainerLow, borderWidth: 1, borderColor: theme.colors.border, marginRight: 8 },
+  filterChipActive: { backgroundColor: theme.colors.secondary, borderColor: theme.colors.secondary },
+  filterChipText: { fontSize: 11, fontWeight: '600', color: theme.colors.onSurfaceVariant },
+  filterChipTextActive: { color: '#fff' },
 
-  dateNav: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 8 },
-  dateNavText: { fontSize: 15, fontWeight: '600', color: theme.colors.onSurface },
+  // Cust Card
+  custCard: { backgroundColor: theme.colors.surfaceContainerLowest, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 8 },
+  custCardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  custName: { fontSize: 14, fontWeight: '700', color: theme.colors.onSurface },
+  custLoc: { fontSize: 12, color: theme.colors.onSurfaceVariant },
+  custDataRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  custLabel: { fontSize: 11, color: theme.colors.onSurfaceVariant },
+  custBadge: { paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#f0fdf4', borderRadius: 4, alignSelf: 'flex-start', borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 8 },
+  custBadgeText: { fontSize: 10, fontWeight: '600', color: theme.colors.success },
+  custActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  actBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 6, gap: 4 },
+  actBtnText: { color: '#fff', fontSize: 11, fontWeight: '600' },
 
-  tallyRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16, borderBottomWidth: 1, borderBottomColor: theme.colors.border, paddingBottom: 16 },
-  tallyBox: { alignItems: 'center' },
-  tallyVal: { fontSize: 20, fontWeight: '700', color: theme.colors.onSurface },
-  tallyLabel: { fontSize: 12, color: theme.colors.onSurfaceVariant, marginTop: 4 },
+  // History
+  histItem: { backgroundColor: theme.colors.surfaceContainerLowest, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border, marginBottom: 8 },
+  histParty: { fontSize: 13, fontWeight: '700', color: theme.colors.onSurface },
+  histReason: { fontSize: 12, color: theme.colors.onSurfaceVariant, marginVertical: 2 },
+  histDate: { fontSize: 10, color: theme.colors.onSurfaceVariant },
 
-  fuList: { gap: 12 },
-  fuRow: { flexDirection: 'row', gap: 12, backgroundColor: theme.colors.surface, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.colors.border },
-  fuLeft: { width: 80, gap: 8, alignItems: 'flex-start' },
-  fuTime: { fontSize: 12, fontWeight: '600', color: theme.colors.onSurfaceVariant },
-  fuRight: { flex: 1 },
-  fuParty: { fontSize: 15, fontWeight: '700', color: theme.colors.onSurface, marginBottom: 4 },
-  fuReason: { fontSize: 13, color: theme.colors.onSurfaceVariant, lineHeight: 18 },
-  overdueBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-  overdueText: { fontSize: 11, fontWeight: '600', color: theme.colors.error }
+  emptyText: { textAlign: 'center', color: theme.colors.onSurfaceVariant, fontSize: 13, fontStyle: 'italic', marginVertical: 8 },
 });
