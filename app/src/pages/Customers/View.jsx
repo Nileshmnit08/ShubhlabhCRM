@@ -33,6 +33,7 @@ export default function CustomerView({ isLeadMode = false }) {
   const [retentionOpp, setRetentionOpp] = useState(null);
   const [issues, setIssues] = useState([]);
   const [accountReviews, setAccountReviews] = useState([]);
+  const [buyerAccount, setBuyerAccount] = useState(null);
   
   // Forms
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
@@ -61,6 +62,9 @@ export default function CustomerView({ isLeadMode = false }) {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [newReview, setNewReview] = useState({ notes: '', next_actions: '', next_review_date: '' });
   const [dealerProfile, setDealerProfile] = useState(null);
+  const [buyerForm, setBuyerForm] = useState({ loginId: '', password: '', confirm: '' });
+  const [isProvisioning, setIsProvisioning] = useState(false);
+  const [provisionError, setProvisionError] = useState('');
   
   // Schemes
   const [activeSchemes, setActiveSchemes] = useState([]);
@@ -107,6 +111,13 @@ export default function CustomerView({ isLeadMode = false }) {
         setActiveTab(prev => prev === 'details' ? 'execution' : prev);
       }
       
+      if (userProfile?.role === 'Admin') {
+        try {
+          const { data: bData } = await supabase.from('app_users').select('*').eq('crm_party_id', id).eq('role', 'Buyer').maybeSingle();
+          if (bData) setBuyerAccount(bData);
+        } catch (e) { console.error('Failed to fetch buyer account:', e); }
+      }
+
       try {
         const { data: fData } = await supabase.from('follow_ups').select('*, assigned_owner:app_users!assigned_to(display_name)').eq('party_id', id).order('created_at', { ascending: false });
         setFollowUps(fData || []);
@@ -400,6 +411,45 @@ Please contact this customer and update Contact Information in CRM.`;
     } catch (err) {
       console.error(err);
       alert("Failed to save account review.");
+    }
+  };
+
+  const handleProvisionBuyer = async (e) => {
+    e.preventDefault();
+    if (buyerForm.password !== buyerForm.confirm) {
+      setProvisionError("Passwords do not match.");
+      return;
+    }
+    if (buyerForm.password.length < 6) {
+      setProvisionError("Password must be at least 6 characters.");
+      return;
+    }
+    setIsProvisioning(true);
+    setProvisionError('');
+    try {
+      const { error } = await supabase.rpc('admin_create_buyer', {
+        new_email: buyerForm.loginId,
+        new_password: buyerForm.password,
+        new_display_name: customer.display_name,
+        new_crm_party_id: id,
+        new_is_active: true
+      });
+      if (error) throw error;
+      
+      await supabase.from('interactions').insert({
+        party_id: id,
+        assigned_owner_id: userProfile?.id,
+        channel: 'Note',
+        outcome: `App Access Provisioned with Login ID: ${buyerForm.loginId}`
+      });
+
+      setBuyerForm({ loginId: '', password: '', confirm: '' });
+      fetchCustomerContext();
+    } catch (err) {
+      console.error(err);
+      setProvisionError(err.message || "Failed to provision app access.");
+    } finally {
+      setIsProvisioning(false);
     }
   };
 
@@ -1097,6 +1147,11 @@ Please contact this customer and update Contact Information in CRM.`;
             Service Issues <span style={{ marginLeft: '0.25rem', opacity: 0.6, color: issues.some(i => i.status !== 'Resolved' && i.status !== 'Closed') ? 'var(--danger)' : 'inherit' }}>{issues.length}</span>
           </button>
         )}
+        {!isLeadMode && userProfile?.role === 'Admin' && (
+          <button className={`cv-tab ${activeTab==='appAccess'?'active':''}`} onClick={() => setActiveTab('appAccess')}>
+            App Access {buyerAccount && <span style={{ marginLeft: '0.25rem', color: 'var(--success)' }}>✓</span>}
+          </button>
+        )}
         {!isLeadMode && (
           <button className={`cv-tab ${activeTab==='activity'?'active':''}`} onClick={() => setActiveTab('activity')}>
             Timeline <span style={{ marginLeft: '0.25rem', opacity: 0.6 }}>{timelineEvents.length}</span>
@@ -1120,6 +1175,63 @@ Please contact this customer and update Contact Information in CRM.`;
       </div>
 
       {/* Tab Content Areas */}
+
+      {/* APP ACCESS */}
+      {activeTab === 'appAccess' && userProfile?.role === 'Admin' && (
+        <div className="animate-fade-in" style={{ display: 'grid', gap: '2rem' }}>
+          <div className="cv-panel" style={{ padding: '2rem', borderTop: '4px solid var(--primary)' }}>
+             <h3 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+               <ShieldAlert size={20} className="text-primary" /> App Access (Shubh Labh Order)
+             </h3>
+             {buyerAccount ? (
+               <div style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid var(--success)', padding: '1.5rem', borderRadius: '8px' }}>
+                 <h4 style={{ color: 'var(--success)', margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                   <CheckCircle2 size={20} /> Account Provisioned
+                 </h4>
+                 <div style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '0.75rem 2rem', fontSize: '0.95rem' }}>
+                   <span style={{ color: 'var(--text-secondary)' }}>Status:</span>
+                   <strong style={{ color: buyerAccount.is_active ? 'var(--success)' : 'var(--danger)' }}>{buyerAccount.is_active ? 'Active' : 'Inactive'}</strong>
+                   
+                   <span style={{ color: 'var(--text-secondary)' }}>Login ID:</span>
+                   <strong>{buyerAccount.email || 'Email managed securely'}</strong>
+                   
+                   <span style={{ color: 'var(--text-secondary)' }}>Display Name:</span>
+                   <strong>{buyerAccount.display_name}</strong>
+                 </div>
+                 <p style={{ marginTop: '1.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                   To reset the password, use the Supabase Auth dashboard or create a dedicated password reset workflow.
+                 </p>
+               </div>
+             ) : (
+               <form onSubmit={handleProvisionBuyer} style={{ maxWidth: '400px' }}>
+                 <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                   Create a login for this customer to access the Shubh Labh Order mobile app. Do not use OTP/Phone auth.
+                 </p>
+                 {provisionError && (
+                   <div style={{ padding: '0.75rem', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', borderRadius: '4px', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                     {provisionError}
+                   </div>
+                 )}
+                 <div style={{ marginBottom: '1rem' }}>
+                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Login ID (Email format required by Auth)</label>
+                   <input type="email" required className="form-control" value={buyerForm.loginId} onChange={e => setBuyerForm({...buyerForm, loginId: e.target.value})} placeholder="e.g. sl1234@buyer.shubhlabh.local" style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
+                 </div>
+                 <div style={{ marginBottom: '1rem' }}>
+                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Password</label>
+                   <input type="password" required minLength="6" className="form-control" value={buyerForm.password} onChange={e => setBuyerForm({...buyerForm, password: e.target.value})} placeholder="Minimum 6 characters" style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
+                 </div>
+                 <div style={{ marginBottom: '1.5rem' }}>
+                   <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Confirm Password</label>
+                   <input type="password" required minLength="6" className="form-control" value={buyerForm.confirm} onChange={e => setBuyerForm({...buyerForm, confirm: e.target.value})} placeholder="Re-type password" style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)' }} />
+                 </div>
+                 <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={isProvisioning}>
+                   {isProvisioning ? 'Creating...' : 'Create Customer Login'}
+                 </button>
+               </form>
+             )}
+          </div>
+        </div>
+      )}
       
       {/* 1.5 EXECUTION DASHBOARD (DEALERS ONLY) */}
       {activeTab === 'execution' && customer?.relationship_type === 'Dealer' && (
