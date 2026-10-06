@@ -82,5 +82,5 @@ const styles = StyleSheet.create({
   statusBadge: { backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   statusText: { color: '#D97706', fontSize: 12, fontWeight: 'bold' },
   
-  finalAmount: { fontSize: 18, fontWeight: 'bold', color: '#F97316' },
+  finalAmount: { fontSize: 18, fontWeight: 'bold', color: '#F28C28' },
 });

@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Linking } from 'react-native';
 import * as Location from 'expo-location';
 import { useOnboarding } from './OnboardingContext';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from '../../shared/localization/i18n';
+import SLButton from '../../shared/components/SLButton';
+import SLCard from '../../shared/components/SLCard';
 
 export default function ShopLocationScreen() {
   const { updateData } = useOnboarding();
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [locationStatus, setLocationStatus] = useState('first_request'); // 'first_request', 'loading', 'success', 'denied', 'error'
   const [locationDetails, setLocationDetails] = useState(null);
 
@@ -62,8 +66,8 @@ export default function ShopLocationScreen() {
     if (locationStatus === 'loading') {
       return (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color="#F97316" />
-          <Text style={styles.subtext}>Location li jaa rahi hai...</Text>
+          <ActivityIndicator size="large" color="#F28C28" />
+          <Text style={styles.subtext}>{t('common.loading')}</Text>
         </View>
       );
     }
@@ -71,11 +75,11 @@ export default function ShopLocationScreen() {
     if (locationStatus === 'success') {
       return (
         <View style={styles.center}>
-          <Text style={styles.subtext}>SHOP LOCATION</Text>
-          <Text style={styles.addressText}>{locationDetails?.address}</Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={handleConfirm}>
-            <Text style={styles.primaryButtonText}>LOCATION CONFIRM KAREIN</Text>
-          </TouchableOpacity>
+          <Text style={styles.subtext}>{t('onboarding.shopLocation')}</Text>
+          <SLCard style={styles.addressCard}>
+            <Text style={styles.addressText}>{locationDetails?.address}</Text>
+          </SLCard>
+          <SLButton title={t('common.confirm')} onPress={handleConfirm} style={{width: '100%'}} />
         </View>
       );
     }
@@ -83,13 +87,9 @@ export default function ShopLocationScreen() {
     if (locationStatus === 'denied') {
       return (
         <View style={styles.center}>
-          <Text style={styles.errorText}>Location permission nahi mili.</Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={requestLocation}>
-            <Text style={styles.primaryButtonText}>DOBARA TRY KAREIN</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleOpenSettings}>
-            <Text style={styles.secondaryButtonText}>PHONE SETTINGS KHOLEN</Text>
-          </TouchableOpacity>
+          <Text style={styles.errorText}>Permission Denied</Text>
+          <SLButton title={t('common.retry')} onPress={requestLocation} style={{width: '100%', marginBottom: 16}} />
+          <SLButton title="Settings" variant="secondary" onPress={handleOpenSettings} style={{width: '100%'}} />
         </View>
       );
     }
@@ -97,10 +97,8 @@ export default function ShopLocationScreen() {
     if (locationStatus === 'error') {
       return (
         <View style={styles.center}>
-          <Text style={styles.errorText}>Location nahi mil rahi.</Text>
-          <TouchableOpacity style={styles.primaryButton} onPress={requestLocation}>
-            <Text style={styles.primaryButtonText}>DOBARA TRY KAREIN</Text>
-          </TouchableOpacity>
+          <Text style={styles.errorText}>{t('common.error')}</Text>
+          <SLButton title={t('common.retry')} onPress={requestLocation} style={{width: '100%'}} />
         </View>
       );
     }
@@ -108,36 +106,28 @@ export default function ShopLocationScreen() {
     // first_request
     return (
       <View style={styles.center}>
-        <Text style={styles.subtext}>Shop ki location lene ke liye location permission chahiye.</Text>
-        <TouchableOpacity style={styles.primaryButton} onPress={requestLocation}>
-          <Text style={styles.primaryButtonText}>📍 LOCATION KI IJAZAT DEIN</Text>
-        </TouchableOpacity>
+        <Text style={styles.subtext}>Location required.</Text>
+        <SLButton title="📍 Location" onPress={requestLocation} style={{width: '100%'}} />
       </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>AAPKI SHOP KAHAN HAI?</Text>
+      <Text style={styles.heading}>{t('onboarding.shopLocation')}</Text>
       {renderContent()}
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backButtonText}>WAAPAS</Text>
-      </TouchableOpacity>
+      <View style={{ height: 32 }} />
+      <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  center: { alignItems: 'center' },
-  heading: { fontSize: 28, fontWeight: 'bold', color: '#1F2937', textAlign: 'center', marginBottom: 32 },
-  subtext: { fontSize: 18, color: '#4B5563', textAlign: 'center', marginBottom: 24 },
-  addressText: { fontSize: 20, fontWeight: '500', color: '#111827', textAlign: 'center', marginBottom: 32, backgroundColor: '#F3F4F6', padding: 16, borderRadius: 8, width: '100%' },
-  errorText: { fontSize: 18, color: '#DC2626', textAlign: 'center', marginBottom: 24 },
-  primaryButton: { backgroundColor: '#F97316', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 16, width: '100%' },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
-  secondaryButton: { backgroundColor: '#F3F4F6', padding: 16, borderRadius: 12, alignItems: 'center', width: '100%' },
-  secondaryButtonText: { color: '#4B5563', fontSize: 18, fontWeight: 'bold' },
-  backButton: { marginTop: 32, padding: 16, alignItems: 'center' },
-  backButtonText: { color: '#6B7280', fontSize: 16, fontWeight: 'bold' }
+  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
+  center: { alignItems: 'center', width: '100%' },
+  heading: { fontSize: 28, fontWeight: 'bold', color: '#202124', textAlign: 'center', marginBottom: 32 },
+  subtext: { fontSize: 18, color: '#1A4B8C', textAlign: 'center', marginBottom: 24 },
+  addressCard: { width: '100%', padding: 16, marginBottom: 32 },
+  addressText: { fontSize: 20, fontWeight: '500', color: '#202124', textAlign: 'center' },
+  errorText: { fontSize: 18, color: '#D93025', textAlign: 'center', marginBottom: 24 }
 });

@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, Linking } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { useOnboarding } from './OnboardingContext';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from '../../shared/localization/i18n';
+import SLButton from '../../shared/components/SLButton';
+import SLCard from '../../shared/components/SLCard';
 
 export default function ShopConfirmScreen() {
   const { userProfile, customerProfile } = useAuth();
   const { updateData } = useOnboarding();
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [isWrongShop, setIsWrongShop] = useState(false);
 
   const handleConfirm = () => {
@@ -16,51 +20,36 @@ export default function ShopConfirmScreen() {
   };
 
   const handleContactSupport = () => {
-    Alert.alert(
-      'Sampark Karein',
-      'Shubh Labh support ko call ya WhatsApp karein.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Call', onPress: () => Linking.openURL('tel:+919999999999') }
-      ]
-    );
+    Linking.openURL('tel:+919999999999');
   };
 
   if (isWrongShop) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorHeading}>SHOP KI JANKARI GALAT HAI?</Text>
-        <Text style={styles.errorSub}>Kripya Shubh Labh se sampark karein.</Text>
-        <TouchableOpacity style={styles.contactButton} onPress={handleContactSupport}>
-          <Text style={styles.contactButtonText}>CALL SHUBH LABH</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.whatsappButton} onPress={handleContactSupport}>
-          <Text style={styles.whatsappButtonText}>WHATSAPP</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.backButton} onPress={() => setIsWrongShop(false)}>
-          <Text style={styles.backButtonText}>WAAPAS</Text>
-        </TouchableOpacity>
+        <Text style={styles.errorHeading}>{t('common.error')}</Text>
+        <Text style={styles.errorSub}>{t('auth.support')}</Text>
+        <SLButton title="CALL SHUBH LABH" onPress={handleContactSupport} />
+        <View style={{ height: 16 }} />
+        <SLButton title="WHATSAPP" variant="secondary" onPress={handleContactSupport} />
+        <View style={{ height: 32 }} />
+        <SLButton title={t('common.cancel')} variant="secondary" onPress={() => setIsWrongShop(false)} />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>KYA YE AAPKI SHOP HAI?</Text>
+      <Text style={styles.heading}>{t('onboarding.shopConfirm')}</Text>
       
-      <View style={styles.card}>
+      <SLCard style={styles.card}>
         <Text style={styles.icon}>🏪</Text>
-        <Text style={styles.shopName}>{customerProfile?.shop_name || 'No Shop Name'}</Text>
-        <Text style={styles.buyerName}>{userProfile?.display_name || customerProfile?.name || 'No Name'}</Text>
-      </View>
+        <Text style={styles.shopName}>{customerProfile?.display_name || customerProfile?.legal_or_core_name || 'No Shop Name'}</Text>
+        <Text style={styles.buyerName}>{userProfile?.display_name || customerProfile?.mobile || 'No Name'}</Text>
+      </SLCard>
 
-      <TouchableOpacity style={styles.primaryButton} onPress={handleConfirm}>
-        <Text style={styles.primaryButtonText}>HAAN, MERI SHOP HAI</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.secondaryButton} onPress={() => setIsWrongShop(true)}>
-        <Text style={styles.secondaryButtonText}>NAHI, GALAT HAI</Text>
-      </TouchableOpacity>
+      <SLButton title={t('common.confirm')} onPress={handleConfirm} />
+      <View style={{ height: 16 }} />
+      <SLButton title={t('common.cancel')} variant="secondary" onPress={() => setIsWrongShop(true)} />
     </View>
   );
 }
@@ -70,20 +59,18 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 24,
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#FFFDF8',
   },
   heading: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#202124',
     textAlign: 'center',
     marginBottom: 32,
   },
   card: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    padding: 24,
     alignItems: 'center',
+    padding: 24,
     marginBottom: 32,
   },
   icon: {
@@ -93,82 +80,26 @@ const styles = StyleSheet.create({
   shopName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#111827',
+    color: '#202124',
     textAlign: 'center',
     marginBottom: 8,
   },
   buyerName: {
     fontSize: 18,
-    color: '#4B5563',
+    color: '#1A4B8C',
     textAlign: 'center',
-  },
-  primaryButton: {
-    backgroundColor: '#F97316',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  secondaryButton: {
-    backgroundColor: '#F3F4F6',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#4B5563',
-    fontSize: 18,
-    fontWeight: 'bold',
   },
   errorHeading: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#DC2626',
+    color: '#D93025',
     textAlign: 'center',
     marginBottom: 16,
   },
   errorSub: {
     fontSize: 18,
-    color: '#4B5563',
+    color: '#202124',
     textAlign: 'center',
     marginBottom: 32,
-  },
-  contactButton: {
-    backgroundColor: '#3B82F6',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  contactButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  whatsappButton: {
-    backgroundColor: '#10B981',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  whatsappButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  backButton: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  backButtonText: {
-    color: '#4B5563',
-    fontSize: 16,
-    fontWeight: 'bold',
   }
 });

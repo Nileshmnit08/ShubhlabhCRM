@@ -76,7 +76,7 @@ export default function MyOrdersScreen({ navigation }) {
 
         <View style={styles.cardFooter}>
           <Text style={styles.actionText}>ORDER DEKHEIN</Text>
-          <ChevronRight color="#F97316" size={20} />
+          <ChevronRight color="#F28C28" size={20} />
         </View>
       </TouchableOpacity>
     );
@@ -85,7 +85,7 @@ export default function MyOrdersScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#F97316" />
+        <ActivityIndicator size="large" color="#F28C28" />
         <Text style={styles.loadingText}>Orders load ho rahe hain...</Text>
       </View>
     );
@@ -144,11 +144,11 @@ const styles = StyleSheet.create({
   statusText: { color: '#D97706', fontSize: 12, fontWeight: 'bold' },
   
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
-  actionText: { color: '#F97316', fontSize: 14, fontWeight: 'bold' },
+  actionText: { color: '#F28C28', fontSize: 14, fontWeight: 'bold' },
   
   emptyContainer: { alignItems: 'center', padding: 40, marginTop: 60 },
   emptyTitle: { fontSize: 18, color: '#6B7280', marginBottom: 24, textAlign: 'center' },
   
-  primaryCTA: { backgroundColor: '#F97316', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12 },
+  primaryCTA: { backgroundColor: '#F28C28', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12 },
   primaryCTAText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }
 });

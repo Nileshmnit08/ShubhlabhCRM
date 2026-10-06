@@ -55,7 +55,7 @@ export function OrderListProvider({ children }) {
 
   return (
     <OrderListContext.Provider value={{
-      orderItems,
+      orderList: orderItems,
       addToOrderList,
       updateQuantity,
       removeFromOrderList,

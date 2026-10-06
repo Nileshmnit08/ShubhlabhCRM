@@ -57,9 +57,12 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   };
 
-  const fetchBuyerData = async (userId) => {
+    const fetchBuyerData = async (userId) => {
     try {
       setAuthError(null);
+      // Log AUTH SUCCESS
+      console.log('AUTH SUCCESS:', { id: userId, email: session?.user?.email });
+
       // 1. Fetch User Profile
       const { data: user, error: userError } = await supabase
         .from('app_users')
@@ -67,6 +70,13 @@ export const AuthProvider = ({ children }) => {
         .eq('id', userId)
         .single();
       
+      console.log('APP USER:', {
+        exists: !!user,
+        role: user?.role,
+        is_active: user?.is_active,
+        crm_party_id: user?.crm_party_id
+      });
+
       if (userError) throw userError;
 
       // 2. Verify Buyer Role
@@ -88,10 +98,15 @@ export const AuthProvider = ({ children }) => {
       // 4. Load Buyer Profile (Customer)
       const { data: customer, error: customerError } = await supabase
         .from('crm_parties')
-        .select('id, name, shop_name, phone_primary, city, assigned_owner_id, territory_id, status, is_onboarded')
+        .select('id, display_name, legal_or_core_name, mobile, city, state, assigned_owner_id, territory_id, crm_status, latitude, longitude')
         .eq('id', user.crm_party_id)
         .single();
       
+      console.log('CRM PARTY:', {
+        exists: !!customer,
+        party_id: customer?.id
+      });
+
       if (customerError) throw customerError;
 
       setCustomerProfile(customer);

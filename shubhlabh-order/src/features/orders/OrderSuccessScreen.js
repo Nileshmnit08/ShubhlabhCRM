@@ -1,67 +1,74 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { theme } from '../../shared/theme';
+import { SLButton } from '../../shared/components/SLButton';
+import { useTranslation } from '../../shared/localization/i18n';
 import { CheckCircle } from 'lucide-react-native';
 
-export default function OrderSuccessScreen({ route, navigation }) {
-  const { orderNo, amount, bags } = route.params;
-
-  const navigateToOrders = () => {
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'MainTabs' }], // Assuming MainTabs is the root navigator, but we'll adapt.
-    });
-    // In our nested structure, we might need a specific action. For now, we go back to catalogue and let the user tap 'Orders'
-    navigation.navigate('Catalogue');
-  };
+export default function OrderSuccessScreen({ navigation }) {
+  const { t } = useTranslation();
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <CheckCircle color="#10B981" size={80} style={{ marginBottom: 24 }} />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <CheckCircle size={80} color={theme.colors.green} style={styles.icon} />
         
-        <Text style={styles.title}>Order Ho Gaya! ✓</Text>
-        <Text style={styles.subtitle}>Aapka order successfully bhej diya gaya hai.</Text>
-
-        <View style={styles.orderCard}>
-          <Text style={styles.label}>Order No:</Text>
-          <Text style={styles.orderNo}>{orderNo}</Text>
-          
-          <View style={styles.divider} />
-          
+        <Text style={styles.title}>{t('order.confirmed')}</Text>
+        <Text style={styles.subtitle}>{t('order.number')}: ORD-9921</Text>
+        
+        <View style={styles.detailsBox}>
           <View style={styles.row}>
-            <Text style={styles.details}>{bags} Bags</Text>
-            <Text style={styles.amount}>₹{amount?.toLocaleString('en-IN')}</Text>
+            <Text style={styles.label}>{t('order.total')}:</Text>
+            <Text style={styles.value}>₹24,500</Text>
+          </View>
+          <View style={styles.row}>
+            <Text style={styles.label}>{t('order.expectedDispatch')}:</Text>
+            <Text style={styles.value}>Tomorrow, 10:00 AM</Text>
           </View>
         </View>
-      </View>
 
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.primaryCTA} onPress={navigateToOrders}>
-          <Text style={styles.primaryCTAText}>HOME PAR JAYEIN</Text>
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          <SLButton 
+            title={t('order.viewOrder')} 
+            onPress={() => navigation.replace('OrdersTab')} 
+            style={styles.btn}
+          />
+          <SLButton 
+            title={t('order.trackOrder')} 
+            variant="outline" 
+            onPress={() => navigation.replace('OrdersTab', { screen: 'OrderTracking' })} 
+            style={styles.btn}
+          />
+          <SLButton 
+            title={t('common.backToHome')} 
+            variant="secondary" 
+            onPress={() => navigation.navigate('HomeTab')} 
+            style={styles.btn}
+          />
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  
-  title: { fontSize: 28, fontWeight: 'bold', color: '#111827', marginBottom: 12, textAlign: 'center' },
-  subtitle: { fontSize: 16, color: '#6B7280', textAlign: 'center', marginBottom: 40 },
-  
-  orderCard: { backgroundColor: '#F9FAFB', borderRadius: 16, padding: 24, width: '100%', borderWidth: 1, borderColor: '#E5E7EB', alignItems: 'center' },
-  label: { fontSize: 14, color: '#6B7280', marginBottom: 4 },
-  orderNo: { fontSize: 24, fontWeight: 'bold', color: '#1F2937', marginBottom: 16 },
-  
-  divider: { height: 1, width: '100%', backgroundColor: '#E5E7EB', marginBottom: 16 },
-  
-  row: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', alignItems: 'center' },
-  details: { fontSize: 18, color: '#4B5563', fontWeight: '500' },
-  amount: { fontSize: 20, color: '#111827', fontWeight: 'bold' },
-  
-  bottomBar: { padding: 20, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
-  primaryCTA: { backgroundColor: '#F97316', paddingVertical: 18, borderRadius: 16, alignItems: 'center' },
-  primaryCTAText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' }
+  safeArea: { flex: 1, backgroundColor: theme.colors.background },
+  container: { flex: 1, padding: theme.spacing.xl, alignItems: 'center', justifyContent: 'center' },
+  icon: { marginBottom: theme.spacing.lg },
+  title: { ...theme.typography.h1, color: theme.colors.green, marginBottom: theme.spacing.xs, textAlign: 'center' },
+  subtitle: { ...theme.typography.bodyLarge, color: theme.colors.textSecondary, marginBottom: theme.spacing.xl },
+  detailsBox: {
+    width: '100%',
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.lg,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: theme.spacing.xl * 1.5,
+  },
+  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: theme.spacing.sm },
+  label: { ...theme.typography.bodyMedium, color: theme.colors.textSecondary },
+  value: { ...theme.typography.bodyMedium, fontWeight: '600' },
+  actions: { width: '100%' },
+  btn: { marginBottom: theme.spacing.md },
 });

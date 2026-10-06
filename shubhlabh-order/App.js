@@ -63,17 +63,20 @@ function MainNavigator() {
 }
 
 import { OrderListProvider } from './src/features/orders/OrderListContext';
+import { I18nProvider } from './src/shared/localization/i18n';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <OrderListProvider>
-        <NavigationContainer>
-          <StatusBar style="auto" />
-          <MainNavigator />
-        </NavigationContainer>
-      </OrderListProvider>
-    </AuthProvider>
+    <I18nProvider>
+      <AuthProvider>
+        <OrderListProvider>
+          <NavigationContainer>
+            <StatusBar style="auto" />
+            <MainNavigator />
+          </NavigationContainer>
+        </OrderListProvider>
+      </AuthProvider>
+    </I18nProvider>
   );
 }
 

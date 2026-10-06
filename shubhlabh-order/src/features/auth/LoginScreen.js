@@ -1,43 +1,44 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, Linking, Image, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
 import { supabase } from '../../core/api/supabase';
 import { useAuth } from './AuthContext';
 import { theme } from '../../shared/theme';
+import { SLButton } from '../../shared/components/SLButton';
+import { SLCard } from '../../shared/components/SLCard';
+import { useTranslation } from '../../shared/localization/i18n';
+import { Eye, EyeOff } from 'lucide-react-native';
 
 export default function LoginScreen() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const { authError, logout } = useAuth();
 
   const handleLogin = async () => {
-    if (!email && !password) {
-      Alert.alert('Error', 'Login ID aur Password daalein.');
-      return;
-    }
-    if (!email) {
-      Alert.alert('Error', 'Login ID daalein.');
-      return;
-    }
-    if (!password) {
-      Alert.alert('Error', 'Password daalein.');
+    if (!email || !password) {
+      Alert.alert('Error', t('common.error')); // simplify alert for this sprint
       return;
     }
 
     setIsLoggingIn(true);
+    const cleanEmail = email.trim();
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
         password,
       });
 
       if (error) {
         if (error.message.includes('Invalid login credentials') || error.message.includes('Email not confirmed')) {
           Alert.alert('Error', 'Login ID ya Password galat hai.');
+        } else if (error.message.includes('Database error querying schema')) {
+          Alert.alert('System Error', 'Account configuration error. Please contact the administrator to fix your profile.');
         } else if (error.message.includes('Failed to fetch') || error.message.includes('Network')) {
           Alert.alert('Error', 'Internet connection check karein.');
         } else {
-          Alert.alert('Error', 'Abhi login nahi ho pa raha.');
+          Alert.alert('Error', error.message || 'Abhi login nahi ho pa raha.');
         }
       }
     } catch (err) {
@@ -48,12 +49,11 @@ export default function LoginScreen() {
   };
 
   const handleContactSupport = () => {
-    // Basic intent to call or open whatsapp, depending on implementation
     Alert.alert(
-      'Sampark Karein',
-      'Shubh Labh support ko call ya WhatsApp karein.',
+      t('auth.support'),
+      '',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         { text: 'Call', onPress: () => Linking.openURL('tel:+919999999999') }
       ]
     );
@@ -61,205 +61,204 @@ export default function LoginScreen() {
 
   if (authError) {
     return (
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.errorTitle}>Access Denied</Text>
-          {authError === 'ROLE_INVALID' && (
-            <Text style={styles.errorMessage}>Ye account Shubh Labh Order App ke liye available nahi hai.</Text>
-          )}
-          {authError === 'MAPPING_INVALID' && (
-            <Text style={styles.errorMessage}>Aapke account ki customer jankari available nahi hai.</Text>
-          )}
-          {authError === 'NOT_FOUND' && (
-            <Text style={styles.errorMessage}>Account profile nahi mila.</Text>
-          )}
-          
-          <TouchableOpacity style={styles.contactButton} onPress={handleContactSupport}>
-            <Text style={styles.contactButtonText}>CONTACT SHUBH LABH</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-            <Text style={styles.logoutButtonText}>LOGOUT</Text>
-          </TouchableOpacity>
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <SLCard style={styles.errorCard}>
+            <Text style={styles.errorTitle}>Access Denied</Text>
+            {authError === 'ROLE_INVALID' && (
+              <Text style={styles.errorMessage}>Ye account Shubh Labh Order App ke liye available nahi hai.</Text>
+            )}
+            {authError === 'MAPPING_INVALID' && (
+              <Text style={styles.errorMessage}>Aapke account ki customer jankari available nahi hai.</Text>
+            )}
+            {authError === 'NOT_FOUND' && (
+              <Text style={styles.errorMessage}>Account profile nahi mila.</Text>
+            )}
+            
+            <SLButton 
+              title="CONTACT SHUBH LABH" 
+              variant="primary" 
+              onPress={handleContactSupport} 
+              style={{ marginBottom: theme.spacing.md, backgroundColor: theme.colors.alert }} 
+            />
+            
+            <SLButton 
+              title={t('profile.logout')} 
+              variant="outline" 
+              onPress={logout} 
+            />
+          </SLCard>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.appName}>Shubh Labh Order</Text>
-
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Login ID</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          editable={!isLoggingIn}
-        />
-      </View>
-
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Password</Text>
-        <View style={styles.passwordWrapper}>
-          <TextInput
-            style={styles.inputPassword}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!isLoggingIn}
-          />
-          <Text style={styles.eyeIcon}>👁</Text>
-        </View>
-      </View>
-
-      <TouchableOpacity
-        style={[styles.loginButton, isLoggingIn && styles.loginButtonDisabled]}
-        onPress={handleLogin}
-        disabled={isLoggingIn}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
       >
-        {isLoggingIn ? (
-          <Text style={styles.loginButtonText}>Login ho raha hai...</Text>
-        ) : (
-          <Text style={styles.loginButtonText}>LOGIN</Text>
-        )}
-      </TouchableOpacity>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.brandTitle}>Shubh Labh</Text>
+            <Text style={styles.brandSubtitle}>Order App</Text>
+          </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Password bhool gaye?</Text>
-        <TouchableOpacity onPress={handleContactSupport}>
-          <Text style={styles.footerLink}>Shubh Labh se sampark karein</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          <SLCard>
+            <Text style={styles.cardTitle}>{t('auth.login')}</Text>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>{t('auth.loginID')}</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!isLoggingIn}
+                placeholder="email@example.com"
+                placeholderTextColor={theme.colors.disabled}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>{t('auth.password')}</Text>
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  editable={!isLoggingIn}
+                  placeholder="••••••••"
+                  placeholderTextColor={theme.colors.disabled}
+                />
+                <TouchableOpacity 
+                  style={styles.eyeIcon} 
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff size={20} color={theme.colors.textSecondary} />
+                  ) : (
+                    <Eye size={20} color={theme.colors.textSecondary} />
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <SLButton
+              title={isLoggingIn ? t('common.loading') : t('auth.login')}
+              onPress={handleLogin}
+              loading={isLoggingIn}
+              style={styles.loginBtn}
+            />
+          </SLCard>
+
+          <TouchableOpacity style={styles.supportBtn} onPress={handleContactSupport}>
+            <Text style={styles.supportText}>{t('auth.support')}</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
   container: {
     flex: 1,
-    padding: 24,
+    padding: theme.spacing.lg,
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
   },
-  appName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#F97316', // Orange
+  content: {
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl * 1.5,
+  },
+  brandTitle: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: theme.colors.primary,
+    letterSpacing: 1,
+  },
+  brandSubtitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: theme.colors.green,
+    marginTop: theme.spacing.xs,
+  },
+  cardTitle: {
+    ...theme.typography.h2,
+    marginBottom: theme.spacing.lg,
     textAlign: 'center',
-    marginBottom: 48,
   },
-  inputContainer: {
-    marginBottom: 20,
+  inputGroup: {
+    marginBottom: theme.spacing.md,
   },
   label: {
-    fontSize: 16,
-    color: '#4B5563',
-    marginBottom: 8,
+    ...theme.typography.bodyMedium,
+    fontWeight: '600',
+    marginBottom: theme.spacing.xs,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#1F2937',
-    backgroundColor: '#F9FAFB',
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    padding: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    ...theme.typography.bodyLarge,
   },
-  passwordWrapper: {
+  passwordContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    backgroundColor: '#F9FAFB',
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surface,
   },
-  inputPassword: {
+  passwordInput: {
     flex: 1,
-    padding: 12,
-    fontSize: 16,
-    color: '#1F2937',
+    padding: theme.spacing.md,
+    ...theme.typography.bodyLarge,
   },
   eyeIcon: {
-    padding: 12,
-    fontSize: 18,
-    color: '#6B7280',
+    padding: theme.spacing.md,
   },
-  loginButton: {
-    backgroundColor: '#F97316',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 12,
+  loginBtn: {
+    marginTop: theme.spacing.md,
   },
-  loginButtonDisabled: {
-    backgroundColor: '#FDBA74',
-  },
-  loginButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  footer: {
-    marginTop: 32,
+  supportBtn: {
+    marginTop: theme.spacing.xl,
     alignItems: 'center',
   },
-  footerText: {
-    fontSize: 16,
-    color: '#4B5563',
-    marginBottom: 4,
-  },
-  footerLink: {
-    fontSize: 16,
-    color: '#3B82F6',
+  supportText: {
+    ...theme.typography.bodyMedium,
+    color: theme.colors.primary,
     fontWeight: '600',
   },
-  card: {
-    padding: 24,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
+  errorCard: {
+    borderColor: theme.colors.alert,
+    borderWidth: 2,
     alignItems: 'center',
+    padding: theme.spacing.xl,
   },
   errorTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#DC2626',
-    marginBottom: 12,
+    ...theme.typography.h2,
+    color: theme.colors.alert,
+    marginBottom: theme.spacing.md,
   },
   errorMessage: {
-    fontSize: 16,
-    color: '#991B1B',
+    ...theme.typography.bodyLarge,
     textAlign: 'center',
-    marginBottom: 24,
-  },
-  contactButton: {
-    backgroundColor: '#DC2626',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  contactButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  logoutButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    width: '100%',
-    alignItems: 'center',
-  },
-  logoutButtonText: {
-    color: '#6B7280',
-    fontWeight: 'bold',
-    fontSize: 16,
+    marginBottom: theme.spacing.xl,
+    color: theme.colors.textSecondary,
   },
 });

@@ -5,27 +5,32 @@ import { Home, Package, ClipboardList, User } from 'lucide-react-native';
 import HomeScreen from '../features/home/HomeScreen';
 import ProductsStackNavigator from './ProductsStackNavigator';
 import OrdersStackNavigator from './OrdersStackNavigator';
-import ProfileScreen from '../features/profile/ProfileScreen';
+import ProfileStackNavigator from './ProfileStackNavigator';
 import { theme } from '../shared/theme';
+import { useTranslation } from '../shared/localization/i18n';
 
 const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
+  const { t } = useTranslation();
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#F97316', // Shubh Labh Orange
-        tabBarInactiveTintColor: '#6B7280',
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: {
           paddingBottom: 8,
           paddingTop: 8,
           height: 60,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: theme.colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.border,
         },
         tabBarLabelStyle: {
           fontSize: 12,
-          fontWeight: 'bold',
+          fontWeight: '600',
         }
       }}
     >
@@ -33,7 +38,7 @@ export default function MainTabNavigator() {
         name="HomeTab" 
         component={HomeScreen} 
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: t('profile.language') === 'Language' ? 'Home' : 'होम',
           tabBarIcon: ({ color, size }) => <Home color={color} size={24} />
         }}
       />
@@ -41,7 +46,7 @@ export default function MainTabNavigator() {
         name="ProductsTab" 
         component={ProductsStackNavigator} 
         options={{
-          tabBarLabel: 'Products',
+          tabBarLabel: t('profile.language') === 'Language' ? 'Products' : 'उत्पाद',
           tabBarIcon: ({ color, size }) => <Package color={color} size={24} />
         }}
       />
@@ -49,15 +54,15 @@ export default function MainTabNavigator() {
         name="OrdersTab" 
         component={OrdersStackNavigator} 
         options={{
-          tabBarLabel: 'Orders',
+          tabBarLabel: t('profile.language') === 'Language' ? 'Orders' : 'ऑर्डर',
           tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={24} />
         }}
       />
       <Tab.Screen 
         name="ProfileTab" 
-        component={ProfileScreen} 
+        component={ProfileStackNavigator} 
         options={{
-          tabBarLabel: 'Profile',
+          tabBarLabel: t('profile.language') === 'Language' ? 'Profile' : 'प्रोफ़ाइल',
           tabBarIcon: ({ color, size }) => <User color={color} size={24} />
         }}
       />

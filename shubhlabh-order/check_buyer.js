@@ -1,0 +1,24 @@
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseUrl = 'https://fwkjddflpzkowlawkmka.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3a2pkZGZscHprb3dsYXdrbWthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5NTQ4NjksImV4cCI6MjEwMjUzMDg2OX0.C5lDLeWilx9oCJiZND2vZwDcgSMXI13Aexkaab3WE2Q';
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function checkUser() {
+  const { data, error } = await supabase.from('app_users').select('*').eq('email', 'test@shubhlabh.com');
+  console.log('App Users:', data);
+
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    email: 'test@shubhlabh.com',
+    password: 'password'
+  });
+  
+  if (authError) {
+    console.error('Auth Error:', authError);
+  } else {
+    console.log('User Metadata:', JSON.stringify(authData.session.user.user_metadata, null, 2));
+  }
+}
+
+checkUser();

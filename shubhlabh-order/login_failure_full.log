@@ -1,0 +1,1777 @@
+--------- beginning of main
+10-06 14:29:19.802   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:19.802   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:19.953   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:20.059 18372 18746 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:20.063 18372 18746 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:20.087   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:20.089   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:20.089   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:20.094   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:20.096   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:20.096   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+--------- beginning of crash
+10-06 14:29:20.123 16875 16875 F linker  : CANNOT LINK EXECUTABLE "/system/bin/dpmd": "/system/lib64/libdpmframework.so" is 32-bit instead of 64-bit
+10-06 14:29:20.137   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:20.157 18372 18746 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:20.158 18372 18746 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:20.159 18372 18746 E PowerUtils: getQuickChargerType
+10-06 14:29:20.159 18372 18746 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:20.159 18372 18746 E PowerUtils: getQuickChargerType
+10-06 14:29:20.159 18372 18746 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:20.159 18372 18746 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:20.164 18372 18746 E PowerUtils: getQuickChargerType
+10-06 14:29:20.164 18372 18746 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:20.164 18372 18746 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:20.164 18372 18746 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:20.164 18372 18746 I PowerUtils: Device name:whyred
+10-06 14:29:20.164 18372 18746 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:20.477  2643  6285 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-06 14:29:20.642 16872 16872 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-06 14:29:21.094   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:21.095   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+--------- beginning of system
+10-06 14:29:21.170  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:21.170  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:21.170  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:21.170  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:21.170  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:21.170  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:21.172  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:21.172  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:21.173  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:21.173  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:21.174   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:21.174 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:21.174  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:21.245   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:21.376 16872 16872 W main    : type=1400 audit(0.0:37957): avc: denied { read } for name="u:object_r:vendor_mpctl_prop:s0" dev="tmpfs" ino=13749 scontext=u:r:shell:s0 tcontext=u:object_r:vendor_mpctl_prop:s0 tclass=file permissive=0
+10-06 14:29:21.388 16872 16872 E libc    : Access denied finding property "ro.vendor.at_library"
+10-06 14:29:21.446 16872 16872 D AndroidRuntime: Calling main entry com.android.commands.monkey.Monkey
+10-06 14:29:21.607  2070  2095 W BroadcastQueue: Skipping deliver [background] BroadcastRecord{71b0b3c u-1 android.net.conn.CONNECTIVITY_CHANGE} to ReceiverList{5840c5 16872 (unknown name)/2000/u-1 remote:cf80b0e}: process gone or crashing
+10-06 14:29:21.671  2070  6382 W Binder  : Outgoing transactions from this process must be FLAG_ONEWAY
+10-06 14:29:21.671  2070  6382 W Binder  : java.lang.Throwable
+10-06 14:29:21.671  2070  6382 W Binder  : 	at android.os.BinderProxy.transact(Binder.java:1120)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at android.app.IActivityController$Stub$Proxy.activityStarting(IActivityController.java:176)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at com.android.server.am.ExtraActivityManagerService.checkStartActivityLocked(ExtraActivityManagerService.java:318)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at com.android.server.am.ExtraActivityManagerService.checkStartActivityPermission(ExtraActivityManagerService.java:239)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at com.android.server.am.ActivityStarter.startActivityMayWait(ActivityStarter.java:1129)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at com.android.server.am.ActivityStarter.execute(ActivityStarter.java:496)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at com.android.server.am.ActivityManagerService.startActivityAsUser(ActivityManagerService.java:5355)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at com.android.server.am.ActivityManagerService.startActivityAsUser(ActivityManagerService.java:5329)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at com.android.server.am.ActivityManagerService.startActivity(ActivityManagerService.java:5320)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at android.app.IActivityManager$Stub.onTransact$startActivity$(IActivityManager.java:10198)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:123)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at com.android.server.am.ActivityManagerService.onTransact(ActivityManagerService.java:3409)
+10-06 14:29:21.671  2070  6382 W Binder  : 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:21.674 18372 18385 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:21.675 18372 18385 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:21.684 31434 16885 D AndroidUtils: MCC MNC = 
+10-06 14:29:21.691  2070  6382 I ActivityManager: START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.shubhlabh.order/.MainActivity} from uid 2000
+10-06 14:29:21.692 31434 31461 E PackageManagerUtils: NameNotFound android.uid.system:1000
+10-06 14:29:21.697   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:21.698  2070  6382 D ActivityTrigger: activityResumeTrigger: The activity in ApplicationInfo{d5d56c1 com.shubhlabh.order} is now in focus and seems to be in full-screen mode
+10-06 14:29:21.699   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:21.699   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:21.699  2070  6382 E ActivityTrigger: activityResumeTrigger: not whiteListedcom.shubhlabh.order/com.shubhlabh.order.MainActivity/1
+10-06 14:29:21.702   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:21.704   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:21.704   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:21.705  2289  2289 D EventBus: [2289, u0] send(AppTransitionFinishedEvent)
+10-06 14:29:21.706  2289  2289 D EventBus: [2289, u0]  -> ForcedResizableInfoActivityController [0x84ea81d, P1] onBusEvent(AppTransitionFinishedEvent)
+10-06 14:29:21.706  2289  2289 D EventBus: [2289, u0] onBusEvent(AppTransitionFinishedEvent) duration: 20 microseconds, avg: 1914
+10-06 14:29:21.706  2289  2289 D EventBus: [2289, u0] send(AppTransitionFinishedEvent)
+10-06 14:29:21.706  2289  2289 D EventBus: [2289, u0]  -> ForcedResizableInfoActivityController [0x84ea81d, P1] onBusEvent(AppTransitionFinishedEvent)
+10-06 14:29:21.706  2289  2289 D EventBus: [2289, u0] onBusEvent(AppTransitionFinishedEvent) duration: 16 microseconds, avg: 1914
+10-06 14:29:21.707  2289  2289 D EventBus: [2289, u0] send(AppTransitionFinishedEvent)
+10-06 14:29:21.707  2289  2289 D EventBus: [2289, u0]  -> ForcedResizableInfoActivityController [0x84ea81d, P1] onBusEvent(AppTransitionFinishedEvent)
+10-06 14:29:21.707  2289  2289 D EventBus: [2289, u0] onBusEvent(AppTransitionFinishedEvent) duration: 12 microseconds, avg: 1913
+10-06 14:29:21.707  2070  6382 D ActivityTrigger: ActivityTrigger activityPauseTrigger 
+10-06 14:29:21.724  2070 11568 I Timeline: Timeline: App_transition_ready time:364350181
+10-06 14:29:21.725  2070 11568 I Timeline: Timeline: App_transition_stopped time:364350181
+10-06 14:29:21.740  2070  2173 I InputReader: Reconfiguring input devices.  changes=0x00000004
+10-06 14:29:21.744   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:21.745  2070  2070 V SettingsProvider: Notifying for 0: content://settings/system/accelerometer_rotation
+10-06 14:29:21.746  7771  7771 W unknown:BridgelessReact: ReactHost{0}.onHostResume(activity)
+10-06 14:29:21.747  7771  7771 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostResume()
+10-06 14:29:21.759 18372 18385 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:21.759 18372 18385 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:21.760 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:21.760 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:21.760 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:21.760 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:21.760 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:21.749  2070  2070 V SettingsProvider: Notifying for 0: content://settings/system/accelerometer_rotation
+10-06 14:29:21.763  2070  2180 V UiModeManager: switch night mode to 1
+10-06 14:29:21.764 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:21.764 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:21.764 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:21.765 18372 18385 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:21.765 16872 16872 I com.android.commands.monkey: System.exit called, status: 0
+10-06 14:29:21.765 16872 16872 I AndroidRuntime: VM exiting with result code 0.
+10-06 14:29:21.766 18372 18385 I PowerUtils: Device name:whyred
+10-06 14:29:21.766 18372 18385 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:21.795  7771  7771 W unknown:BridgelessReact: ReactHost{0}.onHostPause(activity)
+10-06 14:29:21.795  7771  7771 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostPause()
+10-06 14:29:21.807  2070  2095 D ActivityTrigger: ActivityTrigger activityStopTrigger 
+10-06 14:29:21.844 31434 31461 E PackageManagerUtils: NameNotFound android.uid.system:1000
+10-06 14:29:22.476  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:22.476  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:22.476  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:22.476  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:22.477  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:22.478  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:22.479  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:22.480  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:22.480  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:22.480   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:22.480  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:22.481 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:22.482  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:22.705   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:22.705   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:22.856   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:22.980 18372 24692 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:22.982 18372 24692 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:23.008   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:23.010   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:23.010   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:23.014   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:23.016   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:23.016   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:23.057   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:23.086 18372 24692 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:23.086 18372 24692 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:23.087 18372 24692 E PowerUtils: getQuickChargerType
+10-06 14:29:23.087 18372 24692 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:23.087 18372 24692 E PowerUtils: getQuickChargerType
+10-06 14:29:23.087 18372 24692 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:23.087 18372 24692 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:23.090 18372 24692 E PowerUtils: getQuickChargerType
+10-06 14:29:23.090 18372 24692 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:23.090 18372 24692 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:23.091 18372 24692 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:23.091 18372 24692 I PowerUtils: Device name:whyred
+10-06 14:29:23.091 18372 24692 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:24.016   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:24.017   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:24.111  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:24.111  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:24.111  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:24.112  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:24.112  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:24.112  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:24.114  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:24.114 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:24.115  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:24.116  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:24.116  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:24.116   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:24.116  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:24.169   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:24.482  2643  6285 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-06 14:29:24.617 18372 18385 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:24.619 18372 18385 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:24.649   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:24.654   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:24.654   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:24.661   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:24.663   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:24.664   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:24.709   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:24.736 18372 18385 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:24.736 18372 18385 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:24.737 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:24.737 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:24.737 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:24.738 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:24.738 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:24.738 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:24.741 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:24.741 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:24.741 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:24.741 18372 18385 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:24.741 18372 18385 I PowerUtils: Device name:whyred
+10-06 14:29:24.742 18372 18385 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:25.148 16893 16893 F linker  : CANNOT LINK EXECUTABLE "/system/bin/dpmd": "/system/lib64/libdpmframework.so" is 32-bit instead of 64-bit
+10-06 14:29:25.408  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:25.408  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:25.409  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:25.410  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:25.411  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:25.411   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:25.411  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:25.413  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:25.414  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:25.415  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:25.415  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:25.415 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:25.416  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:25.664   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:25.664   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:25.815   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:25.919 18372 24692 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:25.921 18372 24692 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:25.950   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:25.954   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:25.954   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:25.958   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:25.958   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:25.958   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:25.999   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:26.031 18372 24692 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:26.031 18372 24692 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:26.032 18372 24692 E PowerUtils: getQuickChargerType
+10-06 14:29:26.032 18372 24692 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:26.032 18372 24692 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:26.033 18372 24692 E PowerUtils: getQuickChargerType
+10-06 14:29:26.033 18372 24692 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:26.033 18372 24692 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:26.036 18372 24692 E PowerUtils: getQuickChargerType
+10-06 14:29:26.036 18372 24692 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:26.036 18372 24692 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:26.036 18372 24692 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:26.036 18372 24692 I PowerUtils: Device name:whyred
+10-06 14:29:26.036 18372 24692 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:26.958   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:26.958   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:27.042  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:27.043  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:27.044   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:27.044 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:27.045  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:27.041  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:27.046  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:27.046  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:27.046  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:27.046  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:27.046  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:27.046  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:27.047  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:27.110   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:27.552 18372 18385 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:27.556 18372 18385 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:27.596   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:27.601   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:27.601   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:27.605   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:27.606   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:27.606   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:27.650   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:27.677 18372 18385 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:27.677 18372 18385 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:27.678 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:27.678 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:27.678 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:27.679 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:27.679 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:27.679 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:27.682 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:27.682 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:27.682 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:27.682 18372 18385 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:27.683 18372 18385 I PowerUtils: Device name:whyred
+10-06 14:29:27.683 18372 18385 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:28.335  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:28.335  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:28.335  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:28.337  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:28.337  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:28.339  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:28.342  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:28.342   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:28.343  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:28.343  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:28.344  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:28.344 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:28.345  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:28.492  2643  6285 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-06 14:29:28.608   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:28.608   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:28.761   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:28.846 18372 18746 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:28.847 18372 18746 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:28.877   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:28.882   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:28.882   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:28.886   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:28.887   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:28.887   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:28.928   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:28.975 18372 18746 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:28.975 18372 18746 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:28.976 18372 18746 E PowerUtils: getQuickChargerType
+10-06 14:29:28.976 18372 18746 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:28.976 18372 18746 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:28.977 18372 18746 E PowerUtils: getQuickChargerType
+10-06 14:29:28.977 18372 18746 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:28.977 18372 18746 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:28.980 18372 18746 E PowerUtils: getQuickChargerType
+10-06 14:29:28.980 18372 18746 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:28.980 18372 18746 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:28.980 18372 18746 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:28.981 18372 18746 I PowerUtils: Device name:whyred
+10-06 14:29:28.981 18372 18746 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:29.886   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:29.887   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:29.978  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:29.979  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:29.982  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:29.982  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:29.982  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:29.983   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:29.984 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:29.986  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:29.986  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:29.986  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:29.988  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:29.988  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:29.988  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:30.038   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:30.160 16894 16894 F linker  : CANNOT LINK EXECUTABLE "/system/bin/dpmd": "/system/lib64/libdpmframework.so" is 32-bit instead of 64-bit
+10-06 14:29:30.498 18372 18385 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:30.501 18372 18385 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:30.545   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:30.549   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:30.549   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:30.553   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:30.556   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:30.556   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:30.597   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:30.640 18372 18385 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:30.640 18372 18385 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:30.641 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:30.641 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:30.641 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:30.641 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:30.641 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:30.645 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:30.645 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:30.645 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:30.646 18372 18385 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:30.646 18372 18385 I PowerUtils: Device name:whyred
+10-06 14:29:30.646 18372 18385 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:30.762 18372 18382 I tycenter.remot: Background concurrent copying GC freed 65647(4MB) AllocSpace objects, 6(1848KB) LOS objects, 49% free, 5MB/11MB, paused 417us total 146.844ms
+10-06 14:29:31.265  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:31.265  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:31.267  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:31.267  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:31.267   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:31.268  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:31.268  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:31.269  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:31.269  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:31.271  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:31.271  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:31.271  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:31.271 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:31.555   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:31.555   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:31.705   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:31.778 18372 18840 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:31.782 18372 18840 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:31.817   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:31.824   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:31.824   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:31.829   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:31.830   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:31.831   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:31.872   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:31.936 18372 18840 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:31.936 18372 18840 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:31.937 18372 18840 E PowerUtils: getQuickChargerType
+10-06 14:29:31.937 18372 18840 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:31.937 18372 18840 E PowerUtils: getQuickChargerType
+10-06 14:29:31.937 18372 18840 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:31.937 18372 18840 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:31.941 18372 18840 E PowerUtils: getQuickChargerType
+10-06 14:29:31.941 18372 18840 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:31.941 18372 18840 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:31.941 18372 18840 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:31.941 18372 18840 I PowerUtils: Device name:whyred
+10-06 14:29:31.941 18372 18840 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:32.501  2643  6285 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-06 14:29:32.831   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:32.832   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:32.906  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:32.906  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:32.907  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:32.907  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:32.908  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:32.908  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:32.909  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:32.909   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:32.909  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:32.910  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:32.910  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:32.910  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:32.910 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:32.984   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:33.417 18372 18385 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:33.420 18372 18385 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:33.445   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:33.449   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:33.449   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:33.453   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:33.454   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:33.455   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:33.496   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:33.528 18372 18385 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:33.528 18372 18385 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:33.529 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:33.529 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:33.529 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:33.530 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:33.530 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:33.530 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:33.533 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:33.533 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:33.533 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:33.533 18372 18385 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:33.533 18372 18385 I PowerUtils: Device name:whyred
+10-06 14:29:33.533 18372 18385 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:34.204  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:34.204  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:34.206  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:34.204  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:34.207  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:34.208  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:34.208  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:34.208  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:34.208  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:34.209  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:34.209   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:34.209 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:34.211  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:34.453   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:34.453   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:34.606   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:34.713 18372 18384 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:34.717 18372 18384 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:34.752   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:34.754   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:34.754   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:34.755   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:34.757   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:34.757   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:34.799   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:34.838 18372 18384 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:34.838 18372 18384 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:34.839 18372 18384 E PowerUtils: getQuickChargerType
+10-06 14:29:34.839 18372 18384 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:34.839 18372 18384 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:34.840 18372 18384 E PowerUtils: getQuickChargerType
+10-06 14:29:34.840 18372 18384 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:34.840 18372 18384 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:34.843 18372 18384 E PowerUtils: getQuickChargerType
+10-06 14:29:34.843 18372 18384 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:34.843 18372 18384 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:34.844 18372 18384 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:34.844 18372 18384 I PowerUtils: Device name:whyred
+10-06 14:29:34.844 18372 18384 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:34.993  2070  2173 W BaseMiuiPhoneWindowManager: keyCode:26 down:true eventTime:364363448 downTime:364363448 policyFlags:2000000 flags:8 deviceId:6 isScreenOn:false keyguardActive:true repeatCount:0
+10-06 14:29:34.994  2070  2173 D systemui_boost: notification panel visible=true
+10-06 14:29:34.994  2070  2173 D systemui_boost: ui thread tid=2070
+10-06 14:29:34.994  2070  2173 D systemui_boost: render thread tid=0
+10-06 14:29:34.994  2070  2173 E systemui_boost: render-thread tid = 0, do not boost
+10-06 14:29:34.997  2070  2173 D NotificationService: updateLightsLocked | midtestflag=false
+10-06 14:29:35.000  2070  2173 I PowerManagerService: Waking up from sleep (uid=1000 reason=android.policy:POWER)...
+10-06 14:29:35.000  2070  2173 I PowerManagerService: waking up from opPackageName = android opUid = 1000
+10-06 14:29:35.001  2070  2070 W UsageStatsService: Event reported without a package name
+10-06 14:29:35.013  2289  3220 D KeyguardViewMediator: onStartedWakingUp, reason = android.policy:POWER
+10-06 14:29:35.013  2289  3220 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.013  2289  3220 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.014  2289  3220 D FaceManagerImpl_client: isSupportScreenOnDelayed:true
+10-06 14:29:35.014  2289  3220 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.014  2289  3220 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.015  2070  2107 I DisplayPowerController: Blocking screen on until initial contents have been drawn.
+10-06 14:29:35.015  2070  2107 I WindowManager: Screen turning on...
+10-06 14:29:35.040  2070  2070 I WindowManager: Started waking up...
+10-06 14:29:35.041  2289 10079 W KeyguardViewMediator: notifyScreenOn
+10-06 14:29:35.042  2289 10079 D KeyguardViewMediator: onStartedWakingUp, seq = 241
+10-06 14:29:35.042  2289 10079 D KeyguardViewMediator: notifyStartedWakingUp
+10-06 14:29:35.042  2289  2289 W KeyguardViewMediator: handleNotifyScreenTurningOn
+10-06 14:29:35.042  2289  2289 W KeyguardViewMediator: notifyDrawn
+10-06 14:29:35.042  2289  2289 D KeyguardViewMediator: handleNotifyWakingUp
+10-06 14:29:35.043  2070  6760 I WindowManager: mKeyguardDelegate.ShowListener.onDrawn.
+10-06 14:29:35.043  2070  2096 W WindowManager: Setting mKeyguardDrawComplete
+10-06 14:29:35.044   703   703 E QTI PowerHAL: Failed to acquire lock.
+10-06 14:29:35.044   703   703 I QTI PowerHAL: Got set_interactive hint
+10-06 14:29:35.044  2070  2241 I LocalDisplayAdapter: setDisplayState(id=0, state=ON)
+10-06 14:29:35.045  2070  2104 I DisplayManagerService: Display device changed state: "Built-in Screen", ON
+10-06 14:29:35.045   744   744 D SurfaceFlinger: Set power mode=2, type=0 flinger=0x7d75a55000
+10-06 14:29:35.045   698  7378 I SDM     : DisplayBase::SetDisplayState: Set state = 1, display 0
+10-06 14:29:35.046  2070  2096 I WindowManager: All windows ready for display!
+10-06 14:29:35.046  2070  2096 W WindowManager: Setting mWindowManagerDrawComplete
+10-06 14:29:35.047  2070  2096 I SensorService: check list, getPackageName  com.android.server.policy.WindowOrientationListener
+10-06 14:29:35.047  2070  2070 D StorageManagerService: Get the action of screen on
+10-06 14:29:35.048   629   635 D vold    : The trim thread is not running
+10-06 14:29:35.051  3038  3098 I octvm_power: power mode [keyguard] start 1791277175
+10-06 14:29:35.051  3038  3098 I octvm_drv: common drv: get_current_battery_uAh will return 0
+10-06 14:29:35.051  3038  3098 I octvm_power: Action: set_thermal_config(restore) for [foreground_change]
+10-06 14:29:35.052  3038  3098 I octvm_drv: platform_set_thermal_mode cur_global_config:[], target mode:[restore], profile=0, ret=0
+10-06 14:29:35.052  3038  3098 I octvm_drv: common drv: get_current_battery_uAh will return 0
+10-06 14:29:35.052  3038  3098 I octvm_power: onPowerModeChanged[keyguard] called
+10-06 14:29:35.054  2070  2173 I InputReader: Reconfiguring input devices.  changes=0x00000004
+10-06 14:29:35.055  2070  2070 D NotificationService: updateLightsLocked | midtestflag=false
+10-06 14:29:35.056   739 13961 V AudioFlinger: setParameters(): io 0, keyvalue screen_state=on, calling pid 2070 calling uid 1000
+10-06 14:29:35.056   739 13961 V AudioFlinger: setParameters: filtered keyvalue screen_state=on
+10-06 14:29:35.057   688   941 D audio_hw_primary: adev_set_parameters: enter: screen_state=on
+10-06 14:29:35.057   688   941 D audio_hw_extn: audio_extn_set_anc_parameters: anc_enabled:0
+10-06 14:29:35.057   688   941 D audio_hw_spkr_prot: audio_extn_fbsp_set_parameters: Speaker protection disabled
+10-06 14:29:35.057   688   941 V ultrasound_extn: ultrasound_extn_set_parameters: enter
+10-06 14:29:35.057   688   941 V ultrasound_extn: ultrasound_handle_screen_on_message: enter
+10-06 14:29:35.057   688   941 V ultrasound_extn: ultrasound_handle_screen_on_message: exit
+10-06 14:29:35.057   688   941 V ultrasound_extn: ultrasound_handle_sensor_fusion_message: enter
+10-06 14:29:35.057   688   941 V ultrasound_extn: ultrasound_handle_sensor_fusion_message: exit
+10-06 14:29:35.057   688   941 V ultrasound_extn: ultrasound_handle_slider_change_message: enter
+10-06 14:29:35.057   688   941 V ultrasound_extn: ultrasound_handle_slider_change_message: exit
+10-06 14:29:35.057   688   941 V ultrasound_extn: ultrasound_extn_set_parameters: usecase handling parms:screen_state=on
+10-06 14:29:35.058  2070  2463 D systemui_boost: notification panel visible=true
+10-06 14:29:35.058  2070  2463 D systemui_boost: ui thread tid=2289
+10-06 14:29:35.058  2070  2463 D systemui_boost: render thread tid=2454
+10-06 14:29:35.058  2070  2463 D systemui_boost: ui thread old priority=-10
+10-06 14:29:35.058  2070  2463 D systemui_boost: render thread old priority=-10
+10-06 14:29:35.059  2070  2463 D systemui_boost: thread tid=2289, priority is set to -10
+10-06 14:29:35.059  2070  2463 D systemui_boost: thread tid=2454, priority is set to -10
+10-06 14:29:35.059  2070  2463 D systemui_boost: ui thread and render thread are boosted
+10-06 14:29:35.059  2070  2096 I WindowManager: finishScreenTurningOn: mAwake=true, mScreenOnEarly=true, mScreenOnFully=false, mKeyguardDrawComplete=true, mWindowManagerDrawComplete=true
+10-06 14:29:35.059  2070  2096 I WindowManager: Finished screen turning on...
+10-06 14:29:35.059  2070  2107 I DisplayPowerController: Unblocked screen on after 44 ms
+10-06 14:29:35.059  2289 10079 D EventBus: [2289, u0] post(ScreenOnEvent)
+10-06 14:29:35.061  2289  2289 I StatusBar: updateDozing: mDozing:false
+10-06 14:29:35.061  2289  2289 I KeyguardViewMediator: setAodShowing: false
+10-06 14:29:35.062  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication null
+10-06 14:29:35.062  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.063  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.063  2289  2289 D FaceManagerImpl_client: inernational:true supportR:[IN, ID, RU, HK, TW, TR, TH, SG, MY, VN, AE, QA, UA, NP, LK, BD] nowR:IN
+10-06 14:29:35.064  2070  2070 V LocationPolicy: Screen state changed
+10-06 14:29:35.064  2070  2094 D GnssLocationProvider: receive broadcast intent, action: android.intent.action.SCREEN_ON
+10-06 14:29:35.065  2289  2289 V KeyguardSecurityModel: getSecurityMode security=0
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 D StatusBar: updatePublicMode() showingKeyguard=true,devicePublic=false
+10-06 14:29:35.066  2289  2289 D StatusBar: updateStackScrollerState() publicMode=false,isKeyguardShowing=true
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.066  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.069  2289  2289 D StatusBar: disable<e i a s B H R C s > disable2<q i n g r >
+10-06 14:29:35.070  2289  2289 D StatusBarClock:  isNormalMode= true clock visible=false
+10-06 14:29:35.071  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.071  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.072  2289  2289 D FaceManagerImpl_client: inernational:true supportR:[IN, ID, RU, HK, TW, TR, TH, SG, MY, VN, AE, QA, UA, NP, LK, BD] nowR:IN
+10-06 14:29:35.072  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.072  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.072  2289  2289 I KeyguardViewMediator: getBouncerPromptReason trust = false fingerprint = false faceUnlock = false bleUnlock = false strongAuth = 0
+10-06 14:29:35.073  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.073  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.073  2289  2289 D FaceManagerImpl_client: inernational:true supportR:[IN, ID, RU, HK, TW, TR, TH, SG, MY, VN, AE, QA, UA, NP, LK, BD] nowR:IN
+10-06 14:29:35.073  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.073  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.073  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:35.073  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:35.073  2289  2289 V KeyguardUpdateMonitor: startListeningForFingerprint()
+10-06 14:29:35.074  2289  2289 D MiuiBleUnlockHelper: verifyBLEDeviceRssi  isShowing = true isOccluded = false isMXtelcel = false isHiding = false isDeviceInteractive = true
+10-06 14:29:35.075  2070  3228 W ActivityManager: Sending non-protected broadcast com.miui.systemui.LOCKSCREEN_WALLPAPER_EVENTS from system 2289:com.android.systemui/1000 pkg com.android.systemui. Callers=
+10-06 14:29:35.076  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:35.077  2070  4389 V LocSvc_HIDL_Subscription_jni: screen_status_update
+10-06 14:29:35.077  2070  4389 V LocSvc_HIDL_Subscription_jni: [screen_status_update][528] [HC] =>> [HS]
+10-06 14:29:35.078   714   714 V LocSvc_HIDL_IzatSubscription: [screenStatusUpdate][571] [HS] <<<<= [HC]
+10-06 14:29:35.078  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:35.086  4666  4941 D PowerKeeper.AppBgIdle: setUidState, uid = 10193 allow = false
+10-06 14:29:35.087  2070  3228 V LocationPolicy: writePolicyLocked()
+10-06 14:29:35.090  4666  4994 D PowerCheckerService: foreground, uid = 10193, app = com.shubhlabh.order
+10-06 14:29:35.093  2643  2643 D DPMJ    : |SERVICE| DPM received action android.intent.action.SCREEN_ON
+10-06 14:29:35.094  2643  2643 I DPMJ    : |SERVICE| sendScreenState: state: true
+10-06 14:29:35.098  9755  9755 D MiShare:MiShareService: onReceive action=android.intent.action.SCREEN_ON
+10-06 14:29:35.100 28602 28602 D BtOppService: action : android.intent.action.SCREEN_ON
+10-06 14:29:35.104 26278 26278 D MiuiFastConnectService: onReceive: action = android.intent.action.SCREEN_ON
+10-06 14:29:35.108 16195 16195 I FG_LOG  : LockScreenEvent: onReceiver start,  action : com.miui.systemui.LOCKSCREEN_WALLPAPER_EVENTS event : Screen_ON
+10-06 14:29:35.115 17443 17443 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:35.116 17443 17443 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:35.121 18372 18372 D PowerNoticeUI: ScreenOnEvent
+10-06 14:29:35.135  2289  2289 D EventBus: [2289, u0]  -> PowerUI [0x7178985, P1] onBusEvent(ScreenOnEvent)
+10-06 14:29:35.135  2289  2289 D PowerUI : onBusEvent ScreenOnEvent
+10-06 14:29:35.135  2289  2289 D EventBus: [2289, u0] onBusEvent(ScreenOnEvent) duration: 40 microseconds, avg: 1913
+10-06 14:29:35.135  2289  2289 D EventBus: [2289, u0]  -> StatusBar [0x969e2d0, P1] onBusEvent(ScreenOnEvent)
+10-06 14:29:35.135  2289  2289 D EventBus: [2289, u0] onBusEvent(ScreenOnEvent) duration: 7 microseconds, avg: 1913
+10-06 14:29:35.135  2289  2289 D EventBus: [2289, u0]  -> MiuiChargeController [0x74a7a1, P1] onBusEvent(ScreenOnEvent)
+10-06 14:29:35.135  2289  2289 D EventBus: [2289, u0] onBusEvent(ScreenOnEvent) duration: 25 microseconds, avg: 1913
+10-06 14:29:35.135  2289  2289 D BluetoothController: fireStateChange
+10-06 14:29:35.136  2289  2289 I LollipopRapidChargeView: removeFromWindow: onStartedWakingUp
+10-06 14:29:35.140 31434 31434 W AD-PLUGIN-PushAdManager: pushRealTimeRequest mode mismatching
+10-06 14:29:35.142 31434 31434 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:35.143 31434 31434 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:35.145   744   936 W SurfaceFlinger: Attempting to destroy on removed layer: 2029115 rapid_charge#0
+10-06 14:29:35.159  2070  2173 W BaseMiuiPhoneWindowManager: keyCode:26 down:false eventTime:364363615 downTime:364363448 policyFlags:22000000 flags:8 deviceId:6 isScreenOn:true keyguardActive:true repeatCount:0
+10-06 14:29:35.160  2070  2096 W ActivityManager: Sending non-protected broadcast android.intent.action.KEYCODE_POWER_UP from system 2070:system/1000 pkg android. Callers=com.android.server.am.ActivityManagerService.broadcastIntentLocked:22640 com.android.server.am.ActivityManagerService.broadcastIntent:22827 android.app.ContextImpl.sendBroadcastAsUser:1195 com.android.server.policy.BaseMiuiPhoneWindowManager$17.run:2452 android.os.Handler.handleCallback:873 
+10-06 14:29:35.162 16905 16905 F linker  : CANNOT LINK EXECUTABLE "/system/bin/dpmd": "/system/lib64/libdpmframework.so" is 32-bit instead of 64-bit
+10-06 14:29:35.175 18848 18848 D BoundBrokerSvc: onRebind: Intent { act=com.google.android.gms.clearcut.bootcount.service.START dat=chimera-action: cmp=com.google.android.gms/.chimera.PersistentBoundBrokerService }
+10-06 14:29:35.218  1391  1739 D [GF_HAL][gf_hal_device]: [gf_hal_netlink_recv] send message value=3
+10-06 14:29:35.218  1391  1738 D [GF_HAL][gf_hal_device]: [gf_handle_thread] ignore screen on msg.
+10-06 14:29:35.219   744   744 D SurfaceFlinger: Finished set power mode=2, type=0
+10-06 14:29:35.221  2070  2241 D SurfaceControl: Excessive delay in setPowerMode()
+10-06 14:29:35.221  2070  2230 D DisplayFeatureManager: setScreenEffect mode=0 value=2
+10-06 14:29:35.221  2070  2230 D DisplayFeatureControl: GUOQ setFeature value = 2 mode = 0mode_status = 0
+10-06 14:29:35.222  2070  2107 W PowerManagerService: Screen on took 230 ms
+10-06 14:29:35.222  2070  2070 I WindowManager: Finished waking up...
+10-06 14:29:35.222  2289 10079 D KeyguardViewMediator: notifyScreenTurnedOn
+10-06 14:29:35.222  2289  2289 D KeyguardViewMediator: handleNotifyScreenTurnedOn
+10-06 14:29:35.223   701   701 D qdlights: entry write_int path = /sys/class/leds/lcd-backlight/brightness, value=804
+10-06 14:29:35.224   701   701 E libc    : Access denied finding property "persist.sys.display_debug"
+10-06 14:29:35.216   701   701 W light@2.0-servi: type=1400 audit(0.0:37958): avc: denied { read } for name="u:object_r:system_prop:s0" dev="tmpfs" ino=13717 scontext=u:r:hal_light_default:s0 tcontext=u:object_r:system_prop:s0 tclass=file permissive=0
+10-06 14:29:35.238 32418 32426 W System  : A resource failed to call end. 
+10-06 14:29:35.262  2070  2230 D DisplayFeatureControl: GUOQ setActiveMode value = 2
+10-06 14:29:35.267  2070  2230 D DisplayFeatureControl: sClientColor->setActiveMode() succeeded!
+10-06 14:29:35.577 18372 18384 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:35.578 18372 18384 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:35.591   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:35.591   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:35.604 26278 26278 D MiuiFastConnectService: handleMessage: what: 1, msg.arg1: 0, msg.arg2: 0
+10-06 14:29:35.608 26278 26278 D BluetoothAdapter: isLeEnabled(): ON
+10-06 14:29:35.611 28602  3525 D BtGatt.GattService: registerScanner() - UUID=85071448-4f2d-4db3-83cc-b586ec04dc22
+10-06 14:29:35.611 28602 28655 I bt_stack: [INFO:gatt_api.cc(958)] GATT_Register07304a54-260e-113f-0b84-5c4f12e046b6
+10-06 14:29:35.612 28602 28655 I bt_stack: [INFO:gatt_api.cc(978)] allocated gatt_if=4
+10-06 14:29:35.612 28602 28630 D BtGatt.GattService: onScannerRegistered() - UUID=85071448-4f2d-4db3-83cc-b586ec04dc22, scannerId=4, status=0
+10-06 14:29:35.612 26278  6225 D BluetoothLeScanner: onScannerRegistered() - status=0 scannerId=4 mScannerId=0
+10-06 14:29:35.615 28602  3525 D BtGatt.GattService: start scan with filters
+10-06 14:29:35.623 28602 28641 D BtGatt.ScanManager: handling starting scan
+10-06 14:29:35.626 28602 28641 D BtGatt.ScanManager: isAptXLowLatencyModeEnabled: false
+10-06 14:29:35.628 28602 28630 D BtGatt.GattService: onScanFilterEnableDisabled() - clientIf=4, status=0, action=1
+10-06 14:29:35.628 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 4 status - 0
+10-06 14:29:35.629 28602 28630 D BtGatt.GattService: onScanFilterConfig() - clientIf=4, action = 0 status = 0, filterType=5, availableSpace=31
+10-06 14:29:35.629 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 4 status - 0
+10-06 14:29:35.630 28602 28641 D BtGatt.ScanManager: configureFilterParamter 500 10000 1 0, deliveryMode=0
+10-06 14:29:35.631 28602 28630 D BtGatt.GattService: onScanFilterParamsConfigured() - clientIf=4, status=0, action=0, availableSpace=15
+10-06 14:29:35.631 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 4 status - 0
+10-06 14:29:35.631 28602 28641 D BtGatt.ScanManager: configureRegularScanParams() - queue=1
+10-06 14:29:35.631 28602 28641 D BtGatt.ScanManager: configureRegularScanParams() - ScanSetting LE 1M Scan mode=0ScanSetting LE Coded Scan mode=0 mLastConfiguredScanSettingLE1M=-2147483648 mLastConfiguredScanSettingLECoded=-2147483648scanPhy=255
+10-06 14:29:35.633 28602 28641 D BtGatt.ScanManager: configureRegularScanParams - scanInterval LE 1M = 5120configureRegularScanParams - scanWindow LE 1M= 512configureRegularScanParams - scanWindow LE Coded= 512configureRegularScanParams - scanWindow LE Coded= 512
+10-06 14:29:35.633 28602 28630 D BtGatt.GattService: onScanParamSetupCompleted : 0
+10-06 14:29:35.640 18372 18384 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:35.640 18372 18384 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:35.641 18372 18384 E PowerUtils: getQuickChargerType
+10-06 14:29:35.641 18372 18384 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:35.641 18372 18384 E PowerUtils: getQuickChargerType
+10-06 14:29:35.641 18372 18384 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:35.641 18372 18384 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:35.643 18372 18384 E PowerUtils: getQuickChargerType
+10-06 14:29:35.643 18372 18384 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:35.643 18372 18384 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:35.643 18372 18384 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:35.643 18372 18384 I PowerUtils: Device name:whyred
+10-06 14:29:35.643 18372 18384 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:35.678   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:35.812  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:35.813  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:35.814  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:35.814 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:35.814  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:35.814  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:35.814  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:35.814  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:35.814   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:35.814  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:35.815  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:35.815  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:35.815  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:36.209  2070  2240 W MiuiGesturePointerEventListener: onActionDown: mDownY =2159,hotSpace = 35
+10-06 14:29:36.209  2070  2240 W MiuiGesturePointerEventListener: Forbid gesture because the gesture stub isn't visible.
+10-06 14:29:36.209  2070  2240 W MiuiGesturePointerEventListener: ForbidGesture: now GestureStubWindow isn't visible
+10-06 14:29:36.209  2070  2240 W MiuiGesturePointerEventListener: onActionDown end: mGestureStatus = 0
+10-06 14:29:36.211  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:36.226  2289  2289 W Choreographer: OPTS_INPUT: First frame was drawed before optimized, so skip!
+10-06 14:29:36.248  2289  2505 D BrightnessController: BrightnessObserver: startObserving.
+10-06 14:29:36.251  2289  2505 D BrightnessController: UpdateSliderRunnable: value: 804
+10-06 14:29:36.272 15444 15444 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:36.275 15444 15444 I chatty  : uid=10147(com.xiaomi.mipicks) identical 1 line
+10-06 14:29:36.277 15444 15444 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:36.277 15444 15489 W FirebaseRemoteConfig: No value of type 'FirebaseRemoteConfigValue' exists for parameter key 'cancelUninstallWhenScreenOn'.
+10-06 14:29:36.300 16195 16195 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:36.301 16195 16195 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:36.310  2289  2289 D KeyguardSecurityView: showNextSecurityScreenOrFinish(false)
+10-06 14:29:36.311  2289  2289 V KeyguardSecurityModel: getSecurityMode security=0
+10-06 14:29:36.312  2289  2289 D KeyguardViewMediator: tryKeyguardDone mKeyguardDonePending = false mHideAnimationRun = false mHideAnimationRunning = false
+10-06 14:29:36.312  2289  2289 D KeyguardViewMediator: tryKeyguardDone mKeyguardDonePending = false mHideAnimationRun = true mHideAnimationRunning = false
+10-06 14:29:36.312  2289  2289 D KeyguardViewMediator: handleKeyguardDone
+10-06 14:29:36.312  2289  2289 D KeyguardViewMediator: handleHide
+10-06 14:29:36.312  2289  2289 D KeyguardViewMediator: keyguardGoingAway
+10-06 14:29:36.314  2070  2081 D ActivityTrigger: activityResumeTrigger: The activity in ApplicationInfo{d5d56c1 com.shubhlabh.order} is now in focus and seems to be in full-screen mode
+10-06 14:29:36.314  2070  2081 E ActivityTrigger: activityResumeTrigger: not whiteListedcom.shubhlabh.order/com.shubhlabh.order.MainActivity/1
+10-06 14:29:36.315   716   746 E ANDR-PERF-MPCTL: Invalid profile no. 0, total profiles 0 only
+10-06 14:29:36.320  2070  2081 D CompatibilityInfo: mCompatibilityFlags - 0
+10-06 14:29:36.320  2070  2081 D CompatibilityInfo: applicationDensity - 440
+10-06 14:29:36.320  2070  2081 D CompatibilityInfo: applicationScale - 1.0
+10-06 14:29:36.325  2070  2081 I Timeline: Timeline: App_transition_ready time:364364781
+10-06 14:29:36.325  2070  2081 I Timeline: Timeline: App_transition_stopped time:364364782
+10-06 14:29:36.327  2289  2289 D KeyguardViewMediator: call fw keyguardGoingAway: flags = 2
+10-06 14:29:36.327  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.327  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.327  2289  2289 D FaceManagerImpl_client: inernational:true supportR:[IN, ID, RU, HK, TW, TR, TH, SG, MY, VN, AE, QA, UA, NP, LK, BD] nowR:IN
+10-06 14:29:36.327  2289  2289 I face_unlock: keyguard dismiss time=1791277176327
+10-06 14:29:36.327  2289  2289 I face_unlock: face unlock time=1791277176327
+10-06 14:29:36.328  2289  2430 W miui_keyguard: unlock keyguard by none
+10-06 14:29:36.329  2070  2173 I InputReader: Reconfiguring input devices.  changes=0x00000004
+10-06 14:29:36.329  2289  2289 D BluetoothController: fireStateChange
+10-06 14:29:36.333   739 13961 V APM_AudioPolicyManager: AudioPolicyManager:setRecordSilenced(uid:10193, silenced:0)
+10-06 14:29:36.333   739 13961 V AudioFlinger: AudioFlinger::setRecordSilenced(uid:10193, silenced:0)
+10-06 14:29:36.335  2070 11416 W ActivityManager: Sending non-protected broadcast com.miui.systemui.LOCKSCREEN_WALLPAPER_EVENTS from system 2289:com.android.systemui/1000 pkg com.android.systemui. Callers=
+10-06 14:29:36.340  2289  2289 D EventBus: [2289, u0] send(AppTransitionFinishedEvent)
+10-06 14:29:36.340  2289  2289 D EventBus: [2289, u0]  -> ForcedResizableInfoActivityController [0x84ea81d, P1] onBusEvent(AppTransitionFinishedEvent)
+10-06 14:29:36.340  2289  2289 D EventBus: [2289, u0] onBusEvent(AppTransitionFinishedEvent) duration: 21 microseconds, avg: 1913
+10-06 14:29:36.340  2289  2289 D EventBus: [2289, u0] send(AppTransitionFinishedEvent)
+10-06 14:29:36.340  2289  2289 D EventBus: [2289, u0]  -> ForcedResizableInfoActivityController [0x84ea81d, P1] onBusEvent(AppTransitionFinishedEvent)
+10-06 14:29:36.340  2289  2289 D EventBus: [2289, u0] onBusEvent(AppTransitionFinishedEvent) duration: 12 microseconds, avg: 1912
+10-06 14:29:36.340  2289  2289 D KeyguardViewMediator: handleStartKeyguardExitAnimation startTime=364364781 fadeoutDuration=0
+10-06 14:29:36.342  2070  3228 W UsageStatsService: Event reported without a package name
+10-06 14:29:36.342  2070  2095 V UsbDeviceManager: onKeyguardStateChanged: isShowing:false secure:false user:0
+10-06 14:29:36.343   739 13961 V APM_AudioPolicyManager: selectOutput() commonFlags for output 13, 0000
+10-06 14:29:36.343   739 13961 V APM_AudioPolicyManager: selectOutput() commonFlags for output 21, 0000
+10-06 14:29:36.343   739 13961 V APM_AudioPolicyManager: getOutput() stream 1 selected device 00000002, output 13
+10-06 14:29:36.343 16195 16195 I FG_LOG  : LockScreenEvent: onReceiver start,  action : android.intent.action.SCREEN_ON event : null
+10-06 14:29:36.343  2070  2102 E UsbDeviceManager: handle message = 13
+10-06 14:29:36.343   739 13961 V APM_AudioPolicyManager: selectOutput() commonFlags for output 13, 0000
+10-06 14:29:36.343   739 13961 V APM_AudioPolicyManager: selectOutput() commonFlags for output 21, 0000
+10-06 14:29:36.343   739 13961 V APM_AudioPolicyManager: getOutput() stream 1 selected device 00000002, output 13
+10-06 14:29:36.343  2289  2430 V AudioTrack: start: server read:-400932  cumulative flushed:0  client written:0
+10-06 14:29:36.344  2289  2289 D StatusBar: disable<e i a s B H R C s > disable2<q i n g r >
+10-06 14:29:36.344  2289  2289 D StatusBarClock:  isNormalMode= true clock visible=false
+10-06 14:29:36.344  2289  2289 D KeyguardViewMediator: adjustStatusBarLocked: mShowing=false mOccluded=false force=false --> flags=0x0
+10-06 14:29:36.344  2289  2289 D StatusBar: disable<e i a s B H R C s > disable2<q i n g r >
+10-06 14:29:36.345   739   928 V APM_AudioPolicyManager: startOutput() output 13, stream 1, session 5497
+10-06 14:29:36.345   739   928 V APM_AudioPolicyManager: getNewOutputDevice() selected device 2
+10-06 14:29:36.345  2289  2289 D StatusBarClock:  isNormalMode= true clock visible=false
+10-06 14:29:36.345   739   928 V APM_AudioPolicyManager: setOutputDevice() device 0002 delayMs 0
+10-06 14:29:36.345   739   928 V APM_AudioPolicyManager: setOutputDevice() prevDevice 0x0002
+10-06 14:29:36.345   739   928 D APM::AudioPolicyEngine: XXX -4: getDeviceForStrategyInt() STRATEGY_SONIFICATION_RESPECTFUL :Use STRATEGY_SONIFICATION to getDevice
+10-06 14:29:36.345   739   928 V APM_AudioPolicyManager: setOutputDevice() setting same device 0x0002 or null device
+10-06 14:29:36.346  7771  7771 W unknown:BridgelessReact: ReactHost{0}.onHostResume(activity)
+10-06 14:29:36.346  7771  7771 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostResume()
+10-06 14:29:36.347   688 18277 D audio_hw_primary: start_output_stream: enter: stream(0xf0fef000)usecase(1: low-latency-playback) devices(0x2)
+10-06 14:29:36.348   688 18277 D audio_hw_primary: select_devices for use case (low-latency-playback)
+10-06 14:29:36.348   688 18277 D ultrasound_extn: dump_usecase_list: SDM660 enter sensor_activated:0 hw_port_enabled:0
+10-06 14:29:36.348   688 18277 D ultrasound_extn: dump_usecase_list: SDM660 select_devices exit usecase[#0]:(1, low-latency-playback) in_dev:(0, ) out_dv:(0, )
+10-06 14:29:36.348   688 18277 D audio_hw_primary: select_devices: out_snd_device(2: speaker) in_snd_device(0: )
+10-06 14:29:36.348   688 18277 D ultrasound_extn: ultrasound_select_devices_pre ultrasound_enabled:0 usecase(low-latency-playback), devices:2 in_snd_device(0, ), out_snd_device(2, speaker)
+10-06 14:29:36.348   688 18277 D ultrasound_extn: dump_usecase_list: SDM660 enter sensor_activated:0 hw_port_enabled:0
+10-06 14:29:36.348   688 18277 D ultrasound_extn: dump_usecase_list: SDM660 select_devices_pre usecase[#0]:(1, low-latency-playback) in_dev:(0, ) out_dv:(0, )
+10-06 14:29:36.348  2289  2289 I StatusBar: updateDozing: mDozing:false
+10-06 14:29:36.348   688 18277 I msm8916_platform: platform_check_and_set_codec_backend_cfg:becf: afe: bitwidth 16, samplerate 48000 channels 2, backend_idx 0 usecase = 1 device (speaker)
+10-06 14:29:36.348   688 18277 D msm8916_platform: platform_split_snd_device: snd_device(2) num devices(1) new_snd_devices(0)
+10-06 14:29:36.348   688 18277 I msm8916_platform: platform_check_and_set_codec_backend_cfg: becf: new_snd_devices[0] is speaker
+10-06 14:29:36.348   688 18277 I msm8916_platform: platform_check_codec_backend_cfg:becf: afe: Codec selected backend: 0 current bit width: 16 sample rate: 48000 channels: 2 usecase 1 device (speaker)
+10-06 14:29:36.348   688 18277 D msm8916_platform: platform_check_codec_backend_cfg:becf: afe: playback on codec device not supporting native playback set default Sample Rate(48k)
+10-06 14:29:36.348   688 18277 I msm8916_platform: platform_check_codec_backend_cfg:becf: afe: Codec selected backend: 0 updated bit width: 16 sample rate: 48000 channels: 2
+10-06 14:29:36.348   688 18277 D audio_hw_primary: check_usecases_codec_backend:becf: force routing 0
+10-06 14:29:36.348   688 18277 E msm8916_platform: platform_check_backends_match: Invalid snd_device = 
+10-06 14:29:36.348   688 18277 D audio_hw_primary: check_usecases_codec_backend:becf: (85) check_usecases curr device: speaker, usecase device: backends match 0
+10-06 14:29:36.348   688 18277 D audio_hw_primary: check_usecases_codec_backend:becf: check_usecases num.of Usecases to switch 0
+10-06 14:29:36.348   688 18277 E msm8916_platform: platform_get_snd_device_name_extn: device_name=,snd_device=2, device_table[snd_device]=speaker
+10-06 14:29:36.348   688 18277 D hardware_info: hw_info_append_hw_type : device_name = speaker
+10-06 14:29:36.348   688 18277 D msm8916_platform: platform_split_snd_device: snd_device(2) num devices(0) new_snd_devices(0)
+10-06 14:29:36.348   688 18277 D audio_hw_primary: enable_snd_device: snd_device(2: speaker)
+10-06 14:29:36.348   688 18277 I soundtrigger: audio_extn_sound_trigger_update_device_status: device 0x2 of type 0 for Event 1, with Raise=0
+10-06 14:29:36.348   688 18277 D audio_route: Apply path: speaker
+10-06 14:29:36.348   688 18277 E audio_route: Path: speaker, length: 0
+10-06 14:29:36.348   688 18277 E soundtrigger: audio_extn_sound_trigger_update_stream_status: invalid input device 0x0, for event 3
+10-06 14:29:36.348   688 18277 D soundtrigger: audio_extn_sound_trigger_update_stream_status: uc_info->id 1 of type 0 for Event 3, with Raise=0
+10-06 14:29:36.348   688 18277 D audio_hw_utils: audio_extn_utils_send_app_type_cfg: usecase->out_snd_device speaker
+10-06 14:29:36.348   688 18277 D msm8916_platform: platform_split_snd_device: snd_device(2) num devices(0) new_snd_devices(0)
+10-06 14:29:36.348  2289  2289 I KeyguardViewMediator: setAodShowing: false
+10-06 14:29:36.348  2289  2289 D KeyguardUpdateMonitor: onKeyguardVisibilityChanged(false)
+10-06 14:29:36.348  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.348  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.348  2289  2289 D FaceManagerImpl_client: inernational:true supportR:[IN, ID, RU, HK, TW, TR, TH, SG, MY, VN, AE, QA, UA, NP, LK, BD] nowR:IN
+10-06 14:29:36.348   688 18277 D audio_hw_utils: audio_extn_btsco_get_sample_rate:Not a BT SCO device, need not update sampling rate
+10-06 14:29:36.348   688 18277 I audio_hw_utils: send_app_type_cfg_for_device PLAYBACK app_type 69937, acdb_dev_id 15, sample_rate 48000, snd_device_be_idx 43
+10-06 14:29:36.349   688 18277 D msm8916_platform: platform_split_snd_device: snd_device(2) num devices(1) new_snd_devices(0)
+10-06 14:29:36.349  2289  2289 I KeyguardIndication: updateIndication: mVisible true mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> send_audio_cal, acdb_id = 15, path = 0, app id = 0x11131, sample rate = 48000
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> send_asm_topology
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AUDPROC_STREAM_TOPOLOGY_ID
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> send_adm_topology
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AUDPROC_COMMON_TOPOLOGY_ID
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> send_audtable
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AUDPROC_COMMON_TABLE_SIZE
+10-06 14:29:36.349   688 18277 D         : ACDBFILE_MGR:Read the devices count as zero, please check the acdb file
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AUDPROC_COMMON_TABLE
+10-06 14:29:36.349   688 18277 D         : ACDBFILE_MGR:Read the devices count as zero, please check the acdb file
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> AUDIO_SET_AUDPROC_CAL
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> send_audvoltable
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AUDPROC_VOL_STEP_TABLE_SIZE
+10-06 14:29:36.349   688 18277 D         : ACDBFILE_MGR:Read the devices count as zero, please check the acdb file
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AUDPROC_GAIN_DEP_STEP_TABLE, vol index 5
+10-06 14:29:36.349   688 18277 D         : ACDBFILE_MGR:Read the devices count as zero, please check the acdb file
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> AUDIO_SET_VOL_CAL cal type = 12
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AUDPROC_STREAM_TABLE_SIZE
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> send_audstrmtable
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AUDPROC_STREAM_TABLE_V2
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> audstrm_cal->cal_type.cal_data.cal_size = 16
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> send_afe_topology
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AFE_TOPOLOGY_ID
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> GET_AFE_TOPOLOGY_ID for adcd_id 15, Topology Id 112fc
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> send_afe_cal
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AFE_COMMON_TABLE_SIZE
+10-06 14:29:36.349   688 18277 D         : ACDBFILE_MGR:Read the devices count as zero, please check the acdb file
+10-06 14:29:36.349   688 18277 D         : Failed to fetch the lookup information of the device 0000000F 
+10-06 14:29:36.349   688 18277 E ACDB-LOADER: Error: ACDB_CMD_GET_AFE_COMMON_TABLE_SIZE Returned = -19
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_CMD_GET_AFE_COMMON_TABLE
+10-06 14:29:36.349   688 18277 D         : ACDBFILE_MGR:Read the devices count as zero, please check the acdb file
+10-06 14:29:36.349   688 18277 D         : Failed to fetch the lookup information of the device 0000000F 
+10-06 14:29:36.349   688 18277 E ACDB-LOADER: Error: ACDB AFE returned = -19
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> AUDIO_SET_AFE_CAL
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> send_hw_delay : acdb_id = 15 path = 0
+10-06 14:29:36.349   688 18277 D ACDB-LOADER: ACDB -> ACDB_AVSYNC_INFO: ACDB_CMD_GET_DEVICE_PROPERTY
+10-06 14:29:36.349   688 18277 D audio_hw_primary: enable_audio_route: apply mixer and update path: low-latency-playback speaker
+10-06 14:29:36.349   688 18277 D audio_route: Apply path: low-latency-playback speaker
+10-06 14:29:36.349   688 18277 E audio_route: Path: low-latency-playback speaker, length: 1
+10-06 14:29:36.349   688 18277 E audio_route:   id=0: ctl=PRI_MI2S_RX Audio Mixer MultiMedia5
+10-06 14:29:36.349   688 18277 E audio_route:     id=0 value=1
+10-06 14:29:36.350   688 18277 D ultrasound_extn: ultrasound_select_devices_post: enter: engine_suspended: 0, headphone_is_active: 0, headset_mic_is_active: 0
+10-06 14:29:36.350   688 18277 D ultrasound_extn: dump_usecase_list: SDM660 enter sensor_activated:0 hw_port_enabled:0
+10-06 14:29:36.350   688 18277 D ultrasound_extn: dump_usecase_list: SDM660 select_devices_post usecase[#0]:(1, low-latency-playback) in_dev:(0, ) out_dv:(2, speaker)
+10-06 14:29:36.350   688 18277 D ultrasound_extn: dump_usecase_list: SDM660 enter sensor_activated:0 hw_port_enabled:0
+10-06 14:29:36.350   688 18277 D ultrasound_extn: dump_usecase_list: SDM660 select_devices exit usecase[#0]:(1, low-latency-playback) in_dev:(0, ) out_dv:(2, speaker)
+10-06 14:29:36.350   688 18277 D audio_hw_primary: select_devices: done
+10-06 14:29:36.355  2070  2180 V UiModeManager: switch night mode to 1
+10-06 14:29:36.356  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.356  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.356  2289  2289 D FaceManagerImpl_client: inernational:true supportR:[IN, ID, RU, HK, TW, TR, TH, SG, MY, VN, AE, QA, UA, NP, LK, BD] nowR:IN
+10-06 14:29:36.358  2289  2289 D StatusBar: updatePublicMode() showingKeyguard=false,devicePublic=false
+10-06 14:29:36.358  2289  2289 D StatusBar: updateStackScrollerState() publicMode=false,isKeyguardShowing=false
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.358 16663 16663 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.358  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.359 16663 16663 D BroadcastExecutor: BroadcastExecutor : 2
+10-06 14:29:36.362  2289  2289 V KeyguardDisplayManager: hide
+10-06 14:29:36.362  2289  2289 D KeyguardViewMediator: adjustStatusBarLocked: mShowing=false mOccluded=false force=false --> flags=0x0
+10-06 14:29:36.363  2289  2289 E MiuiFaceFactory: getCurrentAuthType sCurrentAuthType = 1
+10-06 14:29:36.363  2289  2289 E MiuiFaceFactory: getFaceManager sCurrentAuthType = 1
+10-06 14:29:36.363  2289  2289 D FaceManagerImpl_client: inernational:true supportR:[IN, ID, RU, HK, TW, TR, TH, SG, MY, VN, AE, QA, UA, NP, LK, BD] nowR:IN
+10-06 14:29:36.363  2289  2289 I face_unlock: keyguard exit time=1791277176363
+10-06 14:29:36.364  2289  2289 I StatusBar: updateDozing: mDozing:false
+10-06 14:29:36.364  2289  2289 I KeyguardViewMediator: setAodShowing: false
+10-06 14:29:36.364  2070  2104 I Timeline: Timeline: Activity_windows_visible id: ActivityRecord{41e4b45 u0 com.shubhlabh.order/.MainActivity t439} time:364364821
+10-06 14:29:36.369 26278 26278 D MiuiFastConnectService: onReceive: action = android.intent.action.USER_PRESENT
+10-06 14:29:36.370  2070  2095 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.USER_PRESENT flg=0x24200011 } to com.android.chrome/org.chromium.chrome.browser.sharing.click_to_call.ClickToCallMessageHandler$PhoneUnlockedReceiver
+10-06 14:29:36.370 18429 18429 D Launcher_UnlockAnimationStateMachine: onUserPresent:IDLE
+10-06 14:29:36.370 18372 18372 D home_receiver: receive broadcast
+10-06 14:29:36.370  4666  4941 D PowerKeeper.AppStandby: disable standby chain
+10-06 14:29:36.371  4666  6202 D NetdExecutor: SND -> {0 firewall disable_chain standby_miui¿Ä} this=com.miui.powerkeeper.utils.NetdExecutor@ee0e341
+10-06 14:29:36.371 18372 18372 E PackageUtils: package not install, pkg=com.miui.cleaner
+10-06 14:29:36.372  3311  3311 D miui.face.FaceService: lock screen passed
+10-06 14:29:36.372  1253  1406 E CommandListener: failed to parse child firewall chain (standby_miui)
+10-06 14:29:36.372  4666  6202 D NetdExecutor: REV <- {200 0 Firewall command succeeded}
+10-06 14:29:36.372  4666  6202 D NetdExecutor: closing output stream for netd
+10-06 14:29:36.372  4666  6202 D NetdExecutor: closing input stream for netd
+10-06 14:29:36.372  4666  6202 D NetdExecutor: closing socket for netd
+10-06 14:29:36.372 18372 18372 I b       :  cm need send notification = true
+10-06 14:29:36.372  3038  3098 I octvm_power: power mode [normal] start 1791277176
+10-06 14:29:36.373  3038  3098 I octvm_power: Action: set_lcd_mode(default) for [foreground_change]
+10-06 14:29:36.373  3038  3098 I octvm_drv: common drv: platform_set_lcd_mode -> platform not support
+10-06 14:29:36.373  3038  3098 I octvm_power: Action: set_thermal_config(restore) for [foreground_change]
+10-06 14:29:36.373  3038  3098 I octvm_drv: platform_set_thermal_mode cur_global_config:[], target mode:[restore], profile=0, ret=0
+10-06 14:29:36.373  2070  2070 W system_server: Unknown chunk type '200'.
+10-06 14:29:36.373  3038  3098 I octvm_power: onPowerModeChanged[normal] called
+10-06 14:29:36.376 18372 18372 I NotificationHelper: onReceive: 	 wechatNeed = false	 wechatSize = 0
+10-06 14:29:36.376 18372 16912 E PackageUtils: package not install, pkg=com.xiaomi.smarthome
+10-06 14:29:36.377  2070  2095 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.USER_PRESENT flg=0x24200011 } to com.facebook.services/com.facebook.oxygen.services.fbns.RegisteredMqttSystemBroadcastReceiver
+10-06 14:29:36.377 18372 18372 I NotificationHelper: onReceive: 	 generalNeed = true	 generalSize = 586317220
+10-06 14:29:36.379 18372 18372 I NotificationHelper: isFrequencyValid: 	 lastTimeKey = general_last_time	 lastTime = 1790779839445	 current = 1791277176379
+10-06 14:29:36.380  2070 11940 D CompatibilityInfo: mCompatibilityFlags - 0
+10-06 14:29:36.380  2070 11940 D CompatibilityInfo: applicationDensity - 440
+10-06 14:29:36.380  2070 11940 D CompatibilityInfo: applicationScale - 1.0
+10-06 14:29:36.381  2070  2095 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.USER_PRESENT flg=0x24200011 } to com.google.android.gms/.auth.setup.devicesignals.LockScreenReceiver
+10-06 14:29:36.381 18372 18372 I NotificationHelper: checkAndSendGeneralNotification: alreadyHas false
+10-06 14:29:36.382  2070  2095 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.USER_PRESENT flg=0x24200011 } to com.google.android.gms/.chimera.GmsIntentOperationService$PersistentTrustedReceiver
+10-06 14:29:36.384 18372 18372 I NotificationHelper: onReceive: 	 whatsappNeed = false	 whatsAppSize = 0
+10-06 14:29:36.387  2289  2289 D StatusBar: disable<e i a s b!h!r!c!s > disable2<q i n g r >
+10-06 14:29:36.388  2289  2289 D PhoneStatusBar/NavigationBarView: setDisabledFlags back:false home:false recent:false
+10-06 14:29:36.388  2289  2289 D StatusBarClock:  isNormalMode= true clock visible=true
+10-06 14:29:36.389  2070  6760 D systemui_boost: notification panel visible=false
+10-06 14:29:36.389  2070  6760 D systemui_boost: ui thread tid=2289
+10-06 14:29:36.389  2070  6760 D systemui_boost: render thread tid=2454
+10-06 14:29:36.389  2070  6760 D systemui_boost: thread tid=2289, priority is set to -10
+10-06 14:29:36.389  2070  6760 D systemui_boost: thread tid=2454, priority is set to -10
+10-06 14:29:36.389  2070  6760 D systemui_boost: ui thread and render thread are reset
+10-06 14:29:36.390 18848 16889 I NearbySharing: Screen is unlocked
+10-06 14:29:36.390  2289  2289 D StatusBar: disable<e i a s b h r c s > disable2<q i n g r >
+10-06 14:29:36.391  2289  2289 D StatusBarClock:  isNormalMode= true clock visible=true
+10-06 14:29:36.391  2289  2505 D BrightnessController: BrightnessObserver: stopObserving.
+10-06 14:29:36.391  2289  2289 D GestureStubView: resetRenderProperty: showGestureStub
+10-06 14:29:36.391  2289  2289 D GestureStubView: showGestureStub
+10-06 14:29:36.391  2289  2289 D GestureStubView: resetRenderProperty: showGestureStub
+10-06 14:29:36.391  2289  2289 D GestureStubView: showGestureStub
+10-06 14:29:36.392 18848 16889 I NearbySharing: Uwb feature is off.
+10-06 14:29:36.394  2289  2289 D KeyguardUpdateMonitor: handleTimeUpdate
+10-06 14:29:36.394  2289  2289 I MiuiChargeController: dismissRapidChargeAnimation: USER_PRESENT
+10-06 14:29:36.394  2289  2289 I MiuiChargeController: dismissWirelessRapidChargeAnimation: USER_PRESENT
+10-06 14:29:36.394 31434  3066 D AndroidUtils: MCC MNC = 
+10-06 14:29:36.398 18848 16889 I NearbySharing: Uwb feature is off.
+10-06 14:29:36.399 31434 31461 E PackageManagerUtils: NameNotFound android.uid.system:1000
+10-06 14:29:36.404  2070  6382 D CompatibilityInfo: mCompatibilityFlags - 0
+10-06 14:29:36.404  2070  6382 D CompatibilityInfo: applicationDensity - 440
+10-06 14:29:36.404  2070  6382 D CompatibilityInfo: applicationScale - 1.0
+10-06 14:29:36.407   688 18277 D msm8916_platform: platform_set_channel_map mixer_ctl_name:Playback Channel Map13
+10-06 14:29:36.408   688 18277 D msm8916_platform: platform_set_channel_map: set mapping(1 2 0 0 0 0 0 0) for channel:2
+10-06 14:29:36.409   688 18277 D audio_hw_primary: start_output_stream: exit
+10-06 14:29:36.410 16195 16195 I FG_LOG  : LockScreenEvent: onReceiver start,  action : com.miui.systemui.LOCKSCREEN_WALLPAPER_EVENTS event : Device_Unlock
+10-06 14:29:36.419 18848 16889 I NearbySharing: SendProvider: Starting discovery with options: SendManagerOptions(mode=BACKGROUND, flowId=7526596682029773575, uwbSenderInfo=null, deviceType=1, dataUsage=2, vendorId=0).
+10-06 14:29:36.420 18848 16889 I NearbySharing: NearbySharing Internal event SendManagerStart(mode=BACKGROUND, useCase=0, sendSurfaceState=0, sendSurfaceStartTimeMillis=-1, useQrCode=false, success=true)
+10-06 14:29:36.420 18848 16918 I NearbyMediums: ModuleInitializer handles incoming intent android.intent.action.USER_PRESENT
+10-06 14:29:36.420 18848 16889 I NearbySharing: Scanning has started in the BACKGROUND
+10-06 14:29:36.424 18848 16889 I NearbySharing: Stopping Fast Init advertisement because we're not scanning in the foreground.
+10-06 14:29:36.424  2289  2289 D GestureStubView: gatherTransparentRegion: need render w:54  h:1296
+10-06 14:29:36.431 18848 18848 I RCNIntentOperation: RCN is disabled on this network.
+10-06 14:29:36.434  2289  2289 D GestureStubView: gatherTransparentRegion: need render w:54  h:1296
+10-06 14:29:36.434  2070  6760 D CompatibilityInfo: mCompatibilityFlags - 0
+10-06 14:29:36.434  2070  6760 D CompatibilityInfo: applicationDensity - 440
+10-06 14:29:36.434  2070  6760 D CompatibilityInfo: applicationScale - 1.0
+10-06 14:29:36.436 18848 16889 I NearbySharing: Start advertising with mode BACKGROUND certificate visibility SELF_SHARE data usage preference ONLINE, bt advertising false, vendorId 0, deviceName included: false
+10-06 14:29:36.436 18848 16889 I NearbySharing: Uwb feature is off.
+10-06 14:29:36.436 18848 18848 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.pay.service.BIND dat=chimera-action: cmp=com.google.android.gms/.chimera.GmsApiService }
+10-06 14:29:36.437 18848 18848 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.pay.service.BIND dat=chimera-action: cmp=com.google.android.gms/.chimera.GmsApiService }
+10-06 14:29:36.437 18848 16889 I NearbySharing: Updating advertising options for [dxkt@1f5fab7, ecfx@b6b1695] providers
+10-06 14:29:36.437 18848 16924 I SystemUpdate: [Phone,PhoneModuleInitIntentOperation] Enabling the system update activity since the user is allowed to update.
+10-06 14:29:36.437 18848 16889 I NearbySharing: Updating advertising options: AdvertisingOptions{mode=BACKGROUND, dataUsage=2, flowId=0, uwbSenderInfo=[], deviceType=1, bluetoothClassicEnabled=false, useStableIdentifiers=false, allowGattConnections=false, allowBleL2capConnections=false, vendorId=0, advertisePlaintextDeviceName=false, isPinCodeEnabled=false, listenOnly=false}
+10-06 14:29:36.438 18848 16889 I NearbySharing: Updating advertising options: AdvertisingOptions{mode=BACKGROUND, dataUsage=2, flowId=0, uwbSenderInfo=[], deviceType=1, bluetoothClassicEnabled=false, useStableIdentifiers=false, allowGattConnections=false, allowBleL2capConnections=false, vendorId=0, advertisePlaintextDeviceName=false, isPinCodeEnabled=false, listenOnly=false}
+10-06 14:29:36.438 18848 16889 I NearbySharing: ReceiveProvider: Received request to update advertising.
+10-06 14:29:36.439 18848 16889 I NearbySharing: Advertising has started with mode BACKGROUND, Bt enabled : false
+10-06 14:29:36.442 18848 16929 I PersonalSafety: ConnectivityProtectionLockingIntentOperation: cancelled task [CONTEXT service_id=310 ]
+10-06 14:29:36.453 18848 18941 I NearbyConnections: Client 15640046 requested discovery to start.
+10-06 14:29:36.454 18848 16928 I NearbyConnections: 15640046 0p:com.google.android.gms.nearby.sharing startDiscovery in nc mode.
+10-06 14:29:36.455 18848 16889 I NearbySharing: Starting scanning for Fast Initiation.
+10-06 14:29:36.456 18848 16604 I NearbyConnections: Get local endpoint id from the existing localEndpointId:JN4D (last:0H0B) for client 15640046(0p:com.google.android.gms.nearby.sharing)
+10-06 14:29:36.456 18848 16604 I NearbyConnections: In startNfcDiscovery(), client 15640046 couldn't start scanning on NFC for serviceId NearbySharing.
+10-06 14:29:36.458 18848 16889 D BluetoothAdapter: isLeEnabled(): ON
+10-06 14:29:36.459 18848 16604 I NearbyMediums: In ScanningCancellationFlag, service-id=NearbySharing has become the first scanner. The flag has been reset.
+10-06 14:29:36.460 18848 16914 D BluetoothAdapter: isLeEnabled(): ON
+10-06 14:29:36.462 28602  3525 D BtGatt.GattService: registerScanner() - UUID=68c11d3e-7f27-4bcb-8afa-0b3a11745fe6
+10-06 14:29:36.463 28602 28655 I bt_stack: [INFO:gatt_api.cc(958)] GATT_Register5c766a88-3090-9df8-3ebd-4e4595075b96
+10-06 14:29:36.463 28602 28655 I bt_stack: [INFO:gatt_api.cc(978)] allocated gatt_if=5
+10-06 14:29:36.464 28602 28630 D BtGatt.GattService: onScannerRegistered() - UUID=68c11d3e-7f27-4bcb-8afa-0b3a11745fe6, scannerId=5, status=0
+10-06 14:29:36.464 18848 18942 D BluetoothLeScanner: onScannerRegistered() - status=0 scannerId=5 mScannerId=0
+10-06 14:29:36.466 28602  3525 D BtGatt.GattService: start scan with filters
+10-06 14:29:36.470 28602 28641 D BtGatt.ScanManager: handling starting scan
+10-06 14:29:36.471 28602 28641 D BtGatt.ScanManager: isAptXLowLatencyModeEnabled: false
+10-06 14:29:36.473   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:36.473   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:36.473 18848 16889 I NearbySharing: Started scanning for FastInitiation with mode: SCAN_MODE_BALANCED
+10-06 14:29:36.474 28602 28630 D BtGatt.GattService: onScanFilterEnableDisabled() - clientIf=5, status=0, action=1
+10-06 14:29:36.474 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 5 status - 0
+10-06 14:29:36.476 28602 28630 D BtGatt.GattService: onScanFilterConfig() - clientIf=5, action = 0 status = 0, filterType=6, availableSpace=31
+10-06 14:29:36.476 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 5 status - 0
+10-06 14:29:36.476 28602 28641 D BtGatt.ScanManager: configureFilterParamter 500 10000 1 0, deliveryMode=0
+10-06 14:29:36.476 28602  3525 D BtGatt.GattService: registerScanner() - UUID=8a6d1060-7970-458f-ad4a-b43b3bca9b4e
+10-06 14:29:36.477 18848 16889 I NearbySharing: Fast Initiation Scanning has started
+10-06 14:29:36.477 18848 16889 I NearbySharing: Dismissing HUN as there's no device nearby.
+10-06 14:29:36.477 28602 28655 I bt_stack: [INFO:gatt_api.cc(958)] GATT_Registerd14b39c7-3088-d237-6097-9cd4e6b663ce
+10-06 14:29:36.478 28602 28655 I bt_stack: [INFO:gatt_api.cc(978)] allocated gatt_if=7
+10-06 14:29:36.478  2289  2289 D KeyguardUpdateMonitor: set_lock_wallpaper_result:false
+10-06 14:29:36.478 28602 28630 D BtGatt.GattService: onScanFilterParamsConfigured() - clientIf=5, status=0, action=0, availableSpace=14
+10-06 14:29:36.478 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 5 status - 0
+10-06 14:29:36.478 28602 28630 D BtGatt.GattService: onScannerRegistered() - UUID=8a6d1060-7970-458f-ad4a-b43b3bca9b4e, scannerId=7, status=0
+10-06 14:29:36.479 28602 28630 D BtGatt.GattService: onScanFilterConfig() - clientIf=5, action = 0 status = 0, filterType=2, availableSpace=31
+10-06 14:29:36.479 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 5 status - 0
+10-06 14:29:36.479 28602 28641 D BtGatt.ScanManager: configureFilterParamter 500 10000 1 0, deliveryMode=0
+10-06 14:29:36.480  2289  2289 D GestureStubView: resetRenderProperty: showGestureStub
+10-06 14:29:36.480  2289  2289 D GestureStubView: showGestureStub
+10-06 14:29:36.480  2289  2289 D GestureStubView: resetRenderProperty: showGestureStub
+10-06 14:29:36.480  2289  2289 D GestureStubView: showGestureStub
+10-06 14:29:36.480 28602 28630 D BtGatt.GattService: onScanFilterParamsConfigured() - clientIf=5, status=0, action=0, availableSpace=13
+10-06 14:29:36.481 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 5 status - 0
+10-06 14:29:36.481 18848 18942 D BluetoothLeScanner: onScannerRegistered() - status=0 scannerId=7 mScannerId=0
+10-06 14:29:36.481 28602 28641 D BtGatt.ScanManager: configureRegularScanParams() - queue=2
+10-06 14:29:36.481 28602 28641 D BtGatt.ScanManager: configureRegularScanParams() - ScanSetting LE 1M Scan mode=1ScanSetting LE Coded Scan mode=1 mLastConfiguredScanSettingLE1M=0 mLastConfiguredScanSettingLECoded=0scanPhy=255
+10-06 14:29:36.481 28602 28641 D BtGatt.ScanManager: configureRegularScanParams - scanInterval LE 1M = 730configureRegularScanParams - scanWindow LE 1M= 183configureRegularScanParams - scanWindow LE Coded= 183configureRegularScanParams - scanWindow LE Coded= 183
+10-06 14:29:36.481  2070  6382 W ActivityManager: Sending non-protected broadcast com.android.systemui.fsgesture from system 2289:com.android.systemui/1000 pkg com.android.systemui. Callers=
+10-06 14:29:36.481 28602 28630 D BtGatt.GattService: onScanParamSetupCompleted : 0
+10-06 14:29:36.481  2070  6382 W ActivityManager: Sending non-protected broadcast com.android.systemui.fsgesture from system 2289:com.android.systemui/1000 pkg com.android.systemui. Callers=
+10-06 14:29:36.482 28602  3525 D BtGatt.GattService: start scan with filters
+10-06 14:29:36.485 28602 28641 D BtGatt.ScanManager: handling starting scan
+10-06 14:29:36.487 28602 28641 D BtGatt.ScanManager: isAptXLowLatencyModeEnabled: false
+10-06 14:29:36.488 18848 16604 I NearbyMediums: Started BLE scanning, service-id=NearbySharing, is-extended-advert=false, power-level=2, scan-mode=balanced
+10-06 14:29:36.489 28602 28630 D BtGatt.GattService: onScanFilterEnableDisabled() - clientIf=7, status=0, action=1
+10-06 14:29:36.489 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 7 status - 0
+10-06 14:29:36.492 28602 28630 D BtGatt.GattService: onScanFilterConfig() - clientIf=7, action = 0 status = 0, filterType=2, availableSpace=30
+10-06 14:29:36.492 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 7 status - 0
+10-06 14:29:36.492 28602 28641 D BtGatt.ScanManager: configureFilterParamter 500 10000 1 0, deliveryMode=0
+10-06 14:29:36.493 28602 28630 D BtGatt.GattService: onScanFilterParamsConfigured() - clientIf=7, status=0, action=0, availableSpace=12
+10-06 14:29:36.493 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 7 status - 0
+10-06 14:29:36.494 28602 28630 D BtGatt.GattService: onScanFilterConfig() - clientIf=7, action = 0 status = 0, filterType=6, availableSpace=30
+10-06 14:29:36.494 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 7 status - 0
+10-06 14:29:36.494 28602 28641 D BtGatt.ScanManager: configureFilterParamter 500 10000 1 0, deliveryMode=0
+10-06 14:29:36.494  2289  2289 D GestureStubView: gatherTransparentRegion: need render w:54  h:1296
+10-06 14:29:36.495 28602 28630 D BtGatt.GattService: onScanFilterParamsConfigured() - clientIf=7, status=0, action=0, availableSpace=11
+10-06 14:29:36.495 28602 28630 D BtGatt.ScanManager: callback done for scannerId - 7 status - 0
+10-06 14:29:36.495 28602 28641 D BtGatt.ScanManager: configureRegularScanParams() - queue=3
+10-06 14:29:36.496 28602 28641 D BtGatt.ScanManager: configureRegularScanParams() - ScanSetting LE 1M Scan mode=1ScanSetting LE Coded Scan mode=1 mLastConfiguredScanSettingLE1M=1 mLastConfiguredScanSettingLECoded=1scanPhy=255
+10-06 14:29:36.498  2289  2289 D GestureStubView: gatherTransparentRegion: need render w:54  h:1296
+10-06 14:29:36.499 18848 16897 I NearbySharing: Loading certificates with visibility SELF_SHARE
+10-06 14:29:36.500 18848 16897 I NearbySharing: Saving the private certificate to file nearby_sharing_private_certificate_file_for_self.
+10-06 14:29:36.504  2643  6285 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-06 14:29:36.521  2070  2081 D CompatibilityInfo: mCompatibilityFlags - 0
+10-06 14:29:36.521  2070  2081 D CompatibilityInfo: applicationDensity - 440
+10-06 14:29:36.521  2070  2081 D CompatibilityInfo: applicationScale - 1.0
+10-06 14:29:36.523 18848 18848 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.measurement.START pkg=com.google.android.gms }
+10-06 14:29:36.523 18848 18848 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.measurement.START pkg=com.google.android.gms }
+10-06 14:29:36.528  2289  2289 W StaticLayout: maxLineHeight should not be -1.  maxLines:1 lineCount:1
+10-06 14:29:36.528  2289  2289 W StaticLayout: maxLineHeight should not be -1.  maxLines:1 lineCount:1
+10-06 14:29:36.535   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:36.537  2289  2289 D GestureStubView: resetRenderProperty: showGestureStub
+10-06 14:29:36.537  2289  2289 D GestureStubView: showGestureStub
+10-06 14:29:36.537  2289  2289 D GestureStubView: resetRenderProperty: showGestureStub
+10-06 14:29:36.537  2289  2289 D GestureStubView: showGestureStub
+10-06 14:29:36.548 18848 16897 I NearbySharing: Network state changed: NetworkState(isRestricted=false, isOnline=true, isCongested=false, isMetered=false, isWifiConnected=true)
+10-06 14:29:36.549 18848 16897 I NearbySharing: Network state changed: NetworkState(isRestricted=false, isOnline=true, isCongested=false, isMetered=false, isWifiConnected=true)
+10-06 14:29:36.550 18848 18941 I NearbyConnections: ClientProxy(0p:com.google.android.gms.nearby.sharing) allow WebRtc to use mobile data.
+10-06 14:29:36.551 18848 18941 I NearbyConnections: Client 15640046 requested to update advertising options.
+10-06 14:29:36.551 18848 16604 I NearbyConnections: [PcpManager] In updateAdvertisingOptions() advertisingMediums:[BLE] upgradeMediums:[USB, WIFI_LAN, WIFI_DIRECT, WIFI_AWARE, WIFI_HOTSPOT, WEB_RTC, BLE_L2CAP, BLUETOOTH, BLE, NFC] requireRegisterWifiStatusChangedCallback:true
+10-06 14:29:36.552 18848 16604 I NearbyConnections: Get local endpoint id from random generation 1JME (last:JN4D) for client 15640046
+10-06 14:29:36.552 18848 16604 I NearbyConnections: generateRxInstantConnectionAdvBytes() returns null due to supportInstantConnection not enabled.
+10-06 14:29:36.553 28602  3525 D BtGatt.AdvertiseManager: stopAdvertisingSet() android.os.BinderProxy@1cb6fac
+10-06 14:29:36.554 18848 16604 I NearbyMediums: Device token rotated, old deviceToken : [ 0x9b 0x03 ].
+10-06 14:29:36.556 18848 16604 D BluetoothAdapter: isLeEnabled(): ON
+10-06 14:29:36.556 18848 16604 D BluetoothAdapter: isLeEnabled(): ON
+10-06 14:29:36.557 28602 26351 D BluetoothAdapterService: getAdapterService() - returning com.android.bluetooth.btservice.AdapterService@ace57ef
+10-06 14:29:36.557 28602 26351 D BtGatt.AdvertiseManager: startAdvertisingSet() - reg_id=-1105, callback: android.os.BinderProxy@4326d2d
+10-06 14:29:36.557   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:36.557   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:36.563  2289  2289 D GestureStubView: gatherTransparentRegion: need render w:54  h:1296
+10-06 14:29:36.563 28602 28630 D BtGatt.AdvertiseManager: onAdvertisingSetStarted() - regId=-1105, advertiserId=1, status=0
+10-06 14:29:36.564 18848 18848 I NearbyMediums: [InstantOnLostManager] Start instant onLost legacy advertising, hashes = [ 0x7b 0xff 0xb2 0x86 ].
+10-06 14:29:36.564 18848 16604 I NearbyMediums: Successfully stopped BLE advertising for service NearbySharing
+10-06 14:29:36.568  2289  2289 D GestureStubView: gatherTransparentRegion: need render w:54  h:1296
+10-06 14:29:36.573 18848 16604 D BluetoothAdapter: isLeEnabled(): ON
+10-06 14:29:36.574 28602 26351 D BluetoothAdapterService: getAdapterService() - returning com.android.bluetooth.btservice.AdapterService@ace57ef
+10-06 14:29:36.575 28602 26351 D BtGatt.AdvertiseManager: startAdvertisingSet() - reg_id=-1106, callback: android.os.BinderProxy@48a6262
+10-06 14:29:36.580 28602 28630 D BtGatt.AdvertiseManager: onAdvertisingSetStarted() - regId=-1106, advertiserId=2, status=0
+10-06 14:29:36.581 18848 16604 I NearbyMediums: Started BLE Legacy advertising. Regular Header Advertised : false, Fast Advertised : true, AdvertisingSettings : BleAdvertisingSetting{powerLevel= BALANCED_POWER, isConnectable= false, isPrivateGatt= false}, isAcceptingConnection : false
+10-06 14:29:36.582 18848 16604 I NearbyMediums: Successfully started BLE advertising of size 23 for service NearbySharing, deviceToken : [ 0x48 0x75 ].
+10-06 14:29:36.582 18848 16604 W NearbyMediums: [WifiNetworkV2] WifiStatusChangedCallback was not registered for NearbySharing.
+10-06 14:29:36.583 18848 16604 I NearbySharing: [broadcast provider] advertising options updated (BroadcastProviderOptions(powerLevel=2, flowId=921838691382301950, uwbSenderInfo=[], deviceType=1, advertisingMediums=[4], upgradeMediums=[11, 5, 8, 6, 3, 9, 10, 2, 4, 7], useStableIdentifiers=false, allowBluetoothRadioToggling=false, allowWifiRadioToggling=false, enableBleL2capListening=false, allowGattConnections=false, enableFastAdvertisement=true, listenOnly=false)).
+10-06 14:29:36.584 18848 16604 I NearbySharing: NearbySharing Internal event ReceiveManagerUpdate(mode=2, isEveryoneMode=false, dataUsage=2, useQrCode=false, success=true)
+10-06 14:29:36.584 18848 16928 I NearbySharing: [ClearcutLog] ADVERTISE_DEVICE_PRESENCE_START sessionId=0 flowId=921838691382301950 sessionStatus: 1, visibility: 4
+10-06 14:29:36.620   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:36.644 18848 18931 W gle.android.gm: Profile data size exceeds 500000 bytes
+10-06 14:29:36.688   739   928 V APM_AudioPolicyManager: stopOutput() output 13, stream 1, session 5497
+10-06 14:29:36.688   739   928 V APM_AudioPolicyManager: getNewOutputDevice() selected device 0
+10-06 14:29:36.688   739   928 V APM_AudioPolicyManager: setOutputDevice() device 0000 delayMs 96
+10-06 14:29:36.688   739   928 V APM_AudioPolicyManager: setOutputDevice() prevDevice 0x0002
+10-06 14:29:36.688   739   928 D APM::AudioPolicyEngine: XXX -4: getDeviceForStrategyInt() STRATEGY_SONIFICATION_RESPECTFUL :Use STRATEGY_SONIFICATION to getDevice
+10-06 14:29:36.688   739   928 V APM_AudioPolicyManager: setOutputDevice() setting same device 0x0000 or null device
+10-06 14:29:36.850 18372 18385 I PowerCenterProvider: call METHOD_GET_BATTERY_INFO
+10-06 14:29:36.851 18372 18385 W BatteryHistoryLoadMgr: getHistoryInfo begin
+10-06 14:29:36.862   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:36.862   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:36.893 18848 18848 D BoundBrokerSvc: onRebind: Intent { act=com.google.android.gms.presencemanager.service.START dat=chimera-action: cmp=com.google.android.gms/.chimera.PersistentApiService }
+10-06 14:29:36.898 18848 18848 D BoundBrokerSvc: onRebind: Intent { act=com.google.android.gms.presencemanager.service.INTERNAL_IDENTITY dat=chimera-action: cmp=com.google.android.gms/.chimera.PersistentApiService }
+10-06 14:29:36.904   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:36.929  1382  2249 I LOWI-8.6.0.26: [LOWI-Scan] lowi_close_record:Scan done in 460680026ms, 3 APs in scan results
+10-06 14:29:36.930  2070 11568 D WificondControl: Scan result ready event
+10-06 14:29:36.930  1382  1465 I LOWI-8.6.0.26: [LOWIController] processMeasurementResults: Results for Req 0x0.Current Req GTP-FDAL_18
+10-06 14:29:36.930  1382  1465 I LOWI-8.6.0.26: [LOWIUtils] responseToOutPostcard - TO: XT-CS, FROM:   LOWI-SERVER, RESP:  LOWI_ASYNC_DISCOVERY_SCAN_RESULTS
+10-06 14:29:36.943 18848 16809 I NetworkScheduler: (REDACTED) Error inserting %s
+10-06 14:29:36.953 18372 18385 W BatteryHistoryLoadMgr: get firstHistoryInfo time: 454140710
+10-06 14:29:36.966 18372 18385 D BatteryHistoryLoadMgr: getHistoryInfo end
+10-06 14:29:36.967 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:36.967 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:136)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:36.967 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:36.967 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:237)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:0)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:36.967 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:36.970 18848 16899 I NetworkScheduler: (REDACTED) Error inserting %s
+10-06 14:29:36.972 18372 18385 E PowerUtils: getQuickChargerType
+10-06 14:29:36.972 18372 18385 E PowerUtils: java.io.FileNotFoundException: sys/class/power_supply/usb/quick_charge_type (No such file or directory)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open0(Native Method)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at java.io.FileInputStream.open(FileInputStream.java:231)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at java.io.FileInputStream.<init>(FileInputStream.java:165)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at java.io.FileReader.<init>(FileReader.java:72)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at com.miui.powercenter.utils.n.b(Unknown Source:14)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.a(Unknown Source:3)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at com.miui.powercenter.batteryhistory.b.b(Unknown Source:94)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at com.miui.powercenter.provider.PowerCenterProvider.call(Unknown Source:44)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at android.content.ContentProvider$Transport.call(ContentProvider.java:403)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:272)
+10-06 14:29:36.972 18372 18385 E PowerUtils: 	at android.os.Binder.execTransact(Binder.java:735)
+10-06 14:29:36.972 18372 18385 I BatteryChargeTimeHelper: Use history time, 0.0 0ms
+10-06 14:29:36.972 18372 18385 I PowerUtils: Device name:whyred
+10-06 14:29:36.973 18372 18385 W PowerUtils: should not use this capacity value 4000
+10-06 14:29:36.995  2070 11568 D PerfShielderService: com.android.systemui|StatusBar|240|364365032331890|57|3|7
+10-06 14:29:36.996  3202 14241 W MiuiPerfServiceClient: interceptAndQueuing:2289|com.android.systemui|240|57|unknown|null|StatusBar|364365032331890|Slow handle traversal|7
+10-06 14:29:37.191  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:37.194  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:37.194  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:37.196  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:37.196  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:37.196   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:37.197  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:37.199 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:37.200  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:37.492 18848 18848 D BoundBrokerSvc: onRebind: Intent { act=com.google.android.gms.libs.gmscorelogger.service.START dat=chimera-action: cmp=com.google.android.gms/.chimera.PersistentDirectBootAwareApiService }
+10-06 14:29:37.862   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:37.862   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:38.013   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:38.568 28602 26351 D BtGatt.AdvertiseManager: stopAdvertisingSet() android.os.BinderProxy@4326d2d
+10-06 14:29:38.568   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-06 14:29:38.570   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-06 14:29:38.570   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-06 14:29:38.573  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:38.574  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:38.574   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:38.574  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:38.575   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-06 14:29:38.575  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:38.575 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:38.575  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:38.576   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-06 14:29:38.576   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-06 14:29:38.573  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:38.583  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:38.583  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:38.584  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:38.584  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:38.584  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:38.617   689 28652 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-06 14:29:39.575   689 28658 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-06 14:29:39.575   689 28658 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-06 14:29:39.670   688   688 D audio_hw_primary: out_standby: enter: stream (0xf0fef000) usecase(1: low-latency-playback)
+10-06 14:29:39.726   689 28645 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-06 14:29:39.730   688   688 D audio_hw_primary: disable_audio_route: reset and update mixer path: low-latency-playback speaker
+10-06 14:29:39.732   688   688 E soundtrigger: audio_extn_sound_trigger_update_stream_status: invalid input device 0x0, for event 2
+10-06 14:29:39.732   688   688 D soundtrigger: audio_extn_sound_trigger_update_stream_status: uc_info->id 1 of type 0 for Event 2, with Raise=0
+10-06 14:29:39.732   688   688 E msm8916_platform: platform_get_snd_device_name_extn: device_name=,snd_device=2, device_table[snd_device]=speaker
+10-06 14:29:39.732   688   688 D hardware_info: hw_info_append_hw_type : device_name = speaker
+10-06 14:29:39.732   688   688 D audio_hw_primary: disable_snd_device: snd_device(2: speaker)
+10-06 14:29:39.732   688   688 D msm8916_platform: platform_split_snd_device: snd_device(2) num devices(0) new_snd_devices(0)
+10-06 14:29:39.732   688   688 I soundtrigger: audio_extn_sound_trigger_update_device_status: device 0x2 of type 0 for Event 0, with Raise=0
+10-06 14:29:39.733   688   688 D audio_hw_primary: out_standby: exit
+10-06 14:29:40.186 16938 16938 F linker  : CANNOT LINK EXECUTABLE "/system/bin/dpmd": "/system/lib64/libdpmframework.so" is 32-bit instead of 64-bit
+10-06 14:29:40.210  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:40.210  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:40.211  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:40.211  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:40.211  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:40.211  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:40.212  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:40.212  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:40.212  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:40.212   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:40.213  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:40.214  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:40.215 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:40.506  2643  6285 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-06 14:29:41.511  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:41.511  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:41.512  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:41.512  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:41.512  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:41.513  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:41.514   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:41.514  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:41.515 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:41.515  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:41.517  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:41.518  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:41.518  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:42.484 18848 16914 I NearbySharing: FastInitiation warming period has ended
+10-06 14:29:43.145  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:43.145  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:43.145  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:43.145  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:43.146  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:43.146  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:43.146  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:43.147   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:43.147  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:43.147  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:43.147  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:43.148  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:43.149 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:44.442  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:44.444  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:44.444   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:44.445  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:44.445  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:44.446  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:44.446  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:44.446 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:44.446  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:44.447  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:44.448  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:44.448  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:44.448  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:44.510  2643  6285 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-06 14:29:45.181 16944 16944 F linker  : CANNOT LINK EXECUTABLE "/system/bin/dpmd": "/system/lib64/libdpmframework.so" is 32-bit instead of 64-bit
+10-06 14:29:46.079  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:46.080  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:46.080  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:46.080  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:46.080  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:46.081  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:46.083  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:46.084  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:46.084  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:46.085   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:46.085  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:46.086  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:46.088 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:46.189   714  2373 E IzatSvc_PassiveLocListener: Exiting with error onLocationChanged line 154 "1"
+10-06 14:29:46.189   714  2373 V LocSvc_HIDL_IzatProvider: [onLocationChanged][72] [HS] =>>>> [HC]
+10-06 14:29:46.189  2070  2175 V LocSvc_HIDL_IzatProvider_jni: [onLocationChanged][208] [HC] <<= [HS]
+10-06 14:29:46.248  2070  2240 W MiuiGesturePointerEventListener: onActionDown end: mGestureStatus = 0
+10-06 14:29:46.489 18848 16914 I NearbyMediums: No BLE Fast/GATT advertisements found in the latest cycle.
+10-06 14:29:46.490 18848 16914 I NearbyMediums: Current Tracked Scanning Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing}
+10-06 14:29:46.887  2070  2219 I JobServiceContext: Client timed out while executing (no jobFinished received), sending onStop: 810faa2 #u0a187/61927 com.whatsapp/androidx.work.impl.background.systemjob.SystemJobService
+10-06 14:29:46.889 31824 31824 D WM-SystemJobService: onStopJob for WorkGenerationalId(workSpecId=f39bed59-942b-4d1c-951a-9f092cdc9396, generation=0)
+10-06 14:29:46.896 31824 31882 D WM-Processor: WorkerWrapper interrupted for f39bed59-942b-4d1c-951a-9f092cdc9396
+10-06 14:29:46.896 31824 31882 D WM-StopWorkRunnable: StopWorkRunnable for f39bed59-942b-4d1c-951a-9f092cdc9396; Processor.stopWork = true
+10-06 14:29:46.902 31824 31876 I WM-WorkerWrapper: Work [ id=f39bed59-942b-4d1c-951a-9f092cdc9396, tags={ com.whatsapp.infra.cron.daily.RandomizedDailyCronWorker,tag.whatsapp.cron.daily.randomized } ] was cancelled
+10-06 14:29:46.902 31824 31876 I WM-WorkerWrapper: X.Iji
+10-06 14:29:46.902 31824 31876 I WM-WorkerWrapper: 	at X.G1k.A01(:6)
+10-06 14:29:46.902 31824 31876 I WM-WorkerWrapper: 	at X.IZl.run(:84)
+10-06 14:29:46.902 31824 31876 I WM-WorkerWrapper: 	at X.G3C.run(:2)
+10-06 14:29:46.902 31824 31876 I WM-WorkerWrapper: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+10-06 14:29:46.902 31824 31876 I WM-WorkerWrapper: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+10-06 14:29:46.902 31824 31876 I WM-WorkerWrapper: 	at java.lang.Thread.run(Thread.java:764)
+10-06 14:29:46.905  2070 11568 I ActivityManager: Killing 15273:com.android.cellbroadcastreceiver/u0a54 (adj 906): empty #17
+10-06 14:29:46.906  2070  2099 W libprocessgroup: kill(-15273, 9) failed: No such process
+10-06 14:29:46.907 31824 31876 D WM-WorkerWrapper: Status for f39bed59-942b-4d1c-951a-9f092cdc9396 is RUNNING; not doing any work and rescheduling for later execution
+10-06 14:29:46.912  2070  2099 W libprocessgroup: kill(-15273, 9) failed: No such process
+10-06 14:29:46.917 31824 31824 D WM-Processor: G1k f39bed59-942b-4d1c-951a-9f092cdc9396 executed; reschedule = true
+10-06 14:29:46.918  2070  2099 W libprocessgroup: kill(-15273, 9) failed: No such process
+10-06 14:29:46.935  2070  2099 I chatty  : uid=1000(system) ActivityManager identical 3 lines
+10-06 14:29:46.941  2070  2099 W libprocessgroup: kill(-15273, 9) failed: No such process
+10-06 14:29:46.943  1212  1212 I Zygote  : Process 15273 exited due to signal (9)
+10-06 14:29:46.944 17402 17413 D ProcessObserverV8: onProcessDied:pid = 15273,died-uid=10054
+10-06 14:29:46.947  2070  2099 W libprocessgroup: kill(-15273, 9) failed: No such process
+10-06 14:29:46.947  2070  2099 I libprocessgroup: Successfully killed process cgroup uid 10054 pid 15273 in 41ms
+10-06 14:29:46.972 31824 31881 D WM-GreedyScheduler: Cancelling work ID f39bed59-942b-4d1c-951a-9f092cdc9396
+10-06 14:29:46.981 31824 31881 D WM-SystemJobScheduler: Scheduling work ID f39bed59-942b-4d1c-951a-9f092cdc9396Job ID 61928
+10-06 14:29:46.991  2070  3236 D CompatibilityInfo: mCompatibilityFlags - 0
+10-06 14:29:46.991  2070  3236 D CompatibilityInfo: applicationDensity - 440
+10-06 14:29:46.991  2070  3236 D CompatibilityInfo: applicationScale - 1.0
+10-06 14:29:46.999 31824 31881 D WM-GreedyScheduler: Starting work for f39bed59-942b-4d1c-951a-9f092cdc9396
+10-06 14:29:46.999 31824 31824 D WM-SystemJobService: onStartJob for WorkGenerationalId(workSpecId=f39bed59-942b-4d1c-951a-9f092cdc9396, generation=0)
+10-06 14:29:47.005 18848 18848 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.measurement.START pkg=com.google.android.gms }
+10-06 14:29:47.007 31824 31876 D WM-Processor: G1k: processing WorkGenerationalId(workSpecId=f39bed59-942b-4d1c-951a-9f092cdc9396, generation=0)
+10-06 14:29:47.010 31824 31882 D WM-Processor: Work WorkGenerationalId(workSpecId=f39bed59-942b-4d1c-951a-9f092cdc9396, generation=0) is already enqueued for processing
+10-06 14:29:47.110 31824 31824 D WM-WorkerWrapper: Starting work for com.whatsapp.infra.cron.daily.RandomizedDailyCronWorker
+10-06 14:29:47.175   744   744 D SurfaceFlinger: duplicate layer name: changing com.shubhlabh.order/com.shubhlabh.order.MainActivity to com.shubhlabh.order/com.shubhlabh.order.MainActivity#1
+10-06 14:29:47.242  2289  2289 D StatusBar: disable<e i a s b h r c s > disable2<q i n g r >
+10-06 14:29:47.244  2289  2289 D PhoneStatusBar/NavigationBarView: setDisabledFlags back:false home:false recent:false
+10-06 14:29:47.244  2289  2289 D StatusBarClock:  isNormalMode= true clock visible=true
+10-06 14:29:47.368  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:47.369  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:47.369  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:47.369   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:47.371  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:47.371  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:47.373  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:47.379  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:47.379 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:47.385  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:47.388  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:47.388  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:47.388  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:48.229  2070  2240 W MiuiGesturePointerEventListener: onActionDown end: mGestureStatus = 0
+10-06 14:29:48.354  7771  7817 D OpenGLRenderer: endAllActiveAnimators on 0x7237136500 (RippleDrawable) with handle 0x7238c29540
+10-06 14:29:48.384  2289  2289 D StatusBar: disable<e i a s b h r c s > disable2<q i n g r >
+10-06 14:29:48.384  2289  2289 D PhoneStatusBar/NavigationBarView: setDisabledFlags back:false home:false recent:false
+10-06 14:29:48.384  2289  2289 D StatusBarClock:  isNormalMode= true clock visible=true
+10-06 14:29:48.514  2643  6285 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-06 14:29:48.528   744  2954 W SurfaceFlinger: Attempting to set client state on removed layer: com.shubhlabh.order/com.shubhlabh.order.MainActivity#1
+10-06 14:29:48.529   744  2954 W SurfaceFlinger: Attempting to destroy on removed layer: com.shubhlabh.order/com.shubhlabh.order.MainActivity#1
+10-06 14:29:49.005  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:49.006  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:49.006  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:49.006  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:49.006  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:49.006  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:49.007  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:49.009  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:49.009  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:49.010  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:49.010   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:49.010  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:49.011 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:50.198 16950 16950 F linker  : CANNOT LINK EXECUTABLE "/system/bin/dpmd": "/system/lib64/libdpmframework.so" is 32-bit instead of 64-bit
+10-06 14:29:50.223 18848 18848 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.clearcut.bootcount.service.START dat=chimera-action: cmp=com.google.android.gms/.chimera.PersistentBoundBrokerService }
+10-06 14:29:50.292  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:50.292  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:50.293  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:50.293   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:50.293  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:50.294 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:50.295  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:50.289  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:50.297  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:50.297  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:50.303  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:50.303  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:50.304  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:51.469 18848 18848 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.pay.service.BIND dat=chimera-action: cmp=com.google.android.gms/.chimera.GmsApiService }
+10-06 14:29:51.917 18848 18848 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.presencemanager.service.START dat=chimera-action: cmp=com.google.android.gms/.chimera.PersistentApiService }
+10-06 14:29:51.920 18848 18848 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.presencemanager.service.INTERNAL_IDENTITY dat=chimera-action: cmp=com.google.android.gms/.chimera.PersistentApiService }
+10-06 14:29:51.933  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:51.934  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:51.936 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:51.937  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:51.937   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:51.938  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:51.938  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-06 14:29:51.939  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 1, scale = 100
+10-06 14:29:51.940  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:51.940  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:51.942  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:51.942  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:51.942  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:52.512 18848 18848 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.libs.gmscorelogger.service.START dat=chimera-action: cmp=com.google.android.gms/.chimera.PersistentDirectBootAwareApiService }
+10-06 14:29:52.517  2643  6285 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-06 14:29:53.224  2289  2289 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 5 isPlugged: 1 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-06 14:29:53.224  2289  2289 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-06 14:29:53.225  2289  2289 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-06 14:29:53.225  2289  2289 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 5 plugged 1 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-06 14:29:53.225  2289  2289 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-06 14:29:53.225  2070  4389 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-06 14:29:53.226  4666  4994 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 5, level = 100, plug = 1, scale = 100
+10-06 14:29:53.227  2681  2681 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-06 14:29:53.227 18372 18372 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-06 14:29:53.228  2070  2102 E UsbDeviceManager: handle message = 9
+10-06 14:29:53.228  2070  4389 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-06 14:29:53.228   714   714 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-06 14:29:53.229  2070  4389 V LocSvc_HIDL_Subscription_jni: Exit Result 0

@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ActivityIndicator, Alert, Linking, ScrollView } from 'react-native';
 import * as Location from 'expo-location';
 import { useOnboarding } from './OnboardingContext';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from '../../shared/localization/i18n';
+import SLButton from '../../shared/components/SLButton';
+import SLCard from '../../shared/components/SLCard';
 
 export default function DeliveryAddressScreen() {
   const { updateData } = useOnboarding();
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [address, setAddress] = useState('');
   const [village, setVillage] = useState('');
   const [isCapturing, setIsCapturing] = useState(false);
@@ -17,8 +21,8 @@ export default function DeliveryAddressScreen() {
     setIsCapturing(true);
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission denied', 'Location permission nahi mili. Phone settings check karein.', [
-        { text: 'Cancel', style: 'cancel' },
+      Alert.alert('Permission denied', 'Location permission denied.', [
+        { text: t('common.cancel'), style: 'cancel' },
         { text: 'Settings', onPress: () => Linking.openSettings() }
       ]);
       setIsCapturing(false);
@@ -44,7 +48,7 @@ export default function DeliveryAddressScreen() {
         accuracy: location.coords.accuracy,
       });
     } catch (error) {
-      Alert.alert('Error', 'Location nahi mil rahi. Khud se type karein.');
+      Alert.alert('Error', t('common.error'));
     } finally {
       setIsCapturing(false);
     }
@@ -52,7 +56,7 @@ export default function DeliveryAddressScreen() {
 
   const handleSubmit = () => {
     if (!address) {
-      Alert.alert('Error', 'Pura address daalein.');
+      Alert.alert('Error', 'Please enter address.');
       return;
     }
     setIsConfirming(true);
@@ -70,32 +74,29 @@ export default function DeliveryAddressScreen() {
   if (isConfirming) {
     return (
       <View style={styles.container}>
-        <Text style={styles.heading}>MAAL YAHAN PAHUCHANA HAI?</Text>
-        <View style={styles.card}>
+        <Text style={styles.heading}>{t('onboarding.confirmDetails')}</Text>
+        <SLCard style={styles.card}>
           <Text style={styles.icon}>🏠</Text>
           <Text style={styles.cardText}>{village ? village + ', ' : ''}{address}</Text>
-        </View>
-        <TouchableOpacity style={styles.primaryButton} onPress={handleConfirm}>
-          <Text style={styles.primaryButtonText}>HAAN, YAHIN</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryButton} onPress={() => setIsConfirming(false)}>
-          <Text style={styles.secondaryButtonText}>BADLEIN</Text>
-        </TouchableOpacity>
+        </SLCard>
+        <SLButton title={t('common.confirm')} onPress={handleConfirm} />
+        <View style={{ height: 16 }} />
+        <SLButton title={t('common.cancel')} variant="secondary" onPress={() => setIsConfirming(false)} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>DUSRA ADDRESS</Text>
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <Text style={styles.heading}>{t('onboarding.deliveryAddress')}</Text>
       
-      <TouchableOpacity style={styles.locationButton} onPress={handleCaptureLocation} disabled={isCapturing}>
-        {isCapturing ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.locationButtonText}>📍 MERI LOCATION LEIN</Text>
-        )}
-      </TouchableOpacity>
+      <SLButton 
+        title={isCapturing ? t('common.loading') : '📍 Capture Location'} 
+        onPress={handleCaptureLocation} 
+        disabled={isCapturing}
+        variant="secondary"
+        style={{ marginBottom: 32 }}
+      />
 
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Address / Locality</Text>
@@ -103,7 +104,8 @@ export default function DeliveryAddressScreen() {
           style={styles.input}
           value={address}
           onChangeText={setAddress}
-          placeholder="Makaan No., Gali, etc."
+          placeholder="Street, locality, etc."
+          placeholderTextColor="#9AA0A6"
         />
       </View>
 
@@ -113,36 +115,26 @@ export default function DeliveryAddressScreen() {
           style={styles.input}
           value={village}
           onChangeText={setVillage}
-          placeholder="Gaon ya Shehar"
+          placeholder="City or Town"
+          placeholderTextColor="#9AA0A6"
         />
       </View>
 
-      <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
-        <Text style={styles.primaryButtonText}>AAGE BADEIN</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backButtonText}>WAAPAS</Text>
-      </TouchableOpacity>
-    </View>
+      <SLButton title={t('common.confirm')} onPress={handleSubmit} style={{ marginTop: 16 }} />
+      <View style={{ height: 16 }} />
+      <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  heading: { fontSize: 28, fontWeight: 'bold', color: '#1F2937', textAlign: 'center', marginBottom: 24 },
-  locationButton: { backgroundColor: '#3B82F6', padding: 16, borderRadius: 12, alignItems: 'center', marginBottom: 32 },
-  locationButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  scrollContainer: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
+  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
+  heading: { fontSize: 28, fontWeight: 'bold', color: '#202124', textAlign: 'center', marginBottom: 24 },
   inputContainer: { marginBottom: 16 },
-  label: { fontSize: 16, color: '#4B5563', marginBottom: 8 },
-  input: { borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: '#F9FAFB' },
-  primaryButton: { backgroundColor: '#F97316', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 16 },
-  primaryButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
-  secondaryButton: { backgroundColor: '#F3F4F6', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 16 },
-  secondaryButtonText: { color: '#4B5563', fontSize: 18, fontWeight: 'bold' },
-  backButton: { marginTop: 16, padding: 16, alignItems: 'center' },
-  backButtonText: { color: '#6B7280', fontSize: 16, fontWeight: 'bold' },
-  card: { backgroundColor: '#F3F4F6', padding: 24, borderRadius: 12, marginBottom: 32, alignItems: 'center' },
-  cardText: { fontSize: 18, color: '#111827', textAlign: 'center' },
+  label: { fontSize: 16, color: '#1A4B8C', marginBottom: 8 },
+  input: { borderWidth: 1, borderColor: '#E8EAED', borderRadius: 8, padding: 12, fontSize: 16, backgroundColor: '#FFFFFF', color: '#202124' },
+  card: { padding: 24, marginBottom: 32, alignItems: 'center' },
+  cardText: { fontSize: 18, color: '#202124', textAlign: 'center' },
   icon: { fontSize: 32, marginBottom: 8 }
 });
