@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { theme } from '../../shared/theme';
 import { useTranslation } from '../../shared/localization/i18n';
@@ -6,6 +6,8 @@ import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../../core/api/supabase';
 import { User, Store, Plus, Minus, Trash2, Edit2, ShoppingCart, CheckCircle } from 'lucide-react-native';
 import SLHeader from '../../shared/components/SLHeader';
+import { useProducts } from '../products/useProducts';
+import { useOrderList } from './OrderListContext';
 
 const generateId = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
