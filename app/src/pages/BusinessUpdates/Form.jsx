@@ -139,22 +139,61 @@ export default function BusinessUpdateForm() {
   if (loading) return <div className="p-6">Loading...</div>;
 
   return (
-    <div className="p-6">
-      <div className="d-flex align-items-center mb-6">
-        <button className="btn btn-icon me-4" onClick={() => navigate('/customer-updates')}>
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="h3 mb-0">{id ? 'Edit Update' : 'Create Update'}</h1>
+    <div className="animate-fade-in" style={{paddingBottom: '4rem'}}>
+      <div className="page-header" style={{position: 'sticky', top: 0, zIndex: 50, background: 'var(--bg-base)', padding: '1rem 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+        <div>
+          <h1 style={{margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+            <button className="btn btn-icon" onClick={() => navigate('/customer-updates')} style={{border: 'none', background: 'none', color: 'var(--text-secondary)'}}>
+              <ArrowLeft size={24} />
+            </button>
+            {id ? 'Edit Update' : 'Create Customer Update'}
+          </h1>
+        </div>
+        <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
+          {formData.status === 'DRAFT' ? (
+            <>
+              <button className="btn btn-secondary" onClick={() => navigate('/customer-updates')} disabled={submitting}>
+                Cancel
+              </button>
+              <button 
+                className="btn btn-outline-primary"
+                onClick={() => handleSave(false)}
+                disabled={submitting}
+                style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}
+              >
+                <Save size={18} /> Save Draft
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={() => handleSave(true)}
+                disabled={submitting}
+                style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}
+              >
+                <Send size={18} /> Publish
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-secondary" onClick={() => navigate('/customer-updates')} disabled={submitting}>
+                Back
+              </button>
+              <div className="badge badge-success" style={{display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem'}}>
+                <Send size={16} /> Published
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="row">
-        <div className="col-lg-8">
-          <div className="card p-6 mb-6">
-            <div className="form-group mb-4">
-              <label className="form-label">Title</label>
+      <div style={{maxWidth: '800px', margin: '2rem auto'}}>
+        <div className="glass-panel" style={{padding: '2rem'}}>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
+            
+            <div>
+              <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Title</label>
               <input 
                 type="text" 
-                className="form-control" 
+                style={{width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '1rem'}}
                 value={formData.title} 
                 onChange={e => setFormData({...formData, title: e.target.value})} 
                 placeholder="Enter update title"
@@ -162,10 +201,10 @@ export default function BusinessUpdateForm() {
               />
             </div>
             
-            <div className="form-group mb-4">
-              <label className="form-label">Type</label>
+            <div>
+              <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Communication Type</label>
               <select 
-                className="form-select" 
+                style={{width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '1rem'}}
                 value={formData.type} 
                 onChange={e => setFormData({...formData, type: e.target.value})}
                 disabled={formData.status === 'PUBLISHED'}
@@ -174,109 +213,81 @@ export default function BusinessUpdateForm() {
               </select>
             </div>
 
-            <div className="form-group mb-4">
-              <label className="form-label">Message</label>
+            <div>
+              <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Message</label>
               <textarea 
-                className="form-control" 
                 rows="6" 
+                style={{width: '100%', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', fontSize: '1rem', resize: 'vertical'}}
                 value={formData.message} 
                 onChange={e => setFormData({...formData, message: e.target.value})}
                 disabled={formData.status === 'PUBLISHED'}
               />
             </div>
 
-            <div className="form-group mb-4">
-              <label className="form-label d-block">Audience</label>
-              <div className="form-check form-check-inline">
-                <input 
-                  className="form-check-input" 
-                  type="radio" 
-                  name="audience" 
-                  id="audAll" 
-                  checked={formData.audience_type === 'ALL'}
-                  onChange={() => setFormData({...formData, audience_type: 'ALL'})}
-                  disabled={formData.status === 'PUBLISHED'}
-                />
-                <label className="form-check-label" htmlFor="audAll">All Customers</label>
-              </div>
-              <div className="form-check form-check-inline">
-                <input 
-                  className="form-check-input" 
-                  type="radio" 
-                  name="audience" 
-                  id="audSelected" 
-                  checked={formData.audience_type === 'SELECTED'}
-                  onChange={() => setFormData({...formData, audience_type: 'SELECTED'})}
-                  disabled={formData.status === 'PUBLISHED'}
-                />
-                <label className="form-check-label" htmlFor="audSelected">Selected Customers</label>
+            <div>
+              <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500, color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Audience</label>
+              <div style={{display: 'flex', gap: '2rem'}}>
+                <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: formData.status === 'PUBLISHED' ? 'not-allowed' : 'pointer'}}>
+                  <input 
+                    type="radio" 
+                    name="audience" 
+                    checked={formData.audience_type === 'ALL'}
+                    onChange={() => setFormData({...formData, audience_type: 'ALL'})}
+                    disabled={formData.status === 'PUBLISHED'}
+                  />
+                  <span>All Customers</span>
+                </label>
+                <label style={{display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: formData.status === 'PUBLISHED' ? 'not-allowed' : 'pointer'}}>
+                  <input 
+                    type="radio" 
+                    name="audience" 
+                    checked={formData.audience_type === 'SELECTED'}
+                    onChange={() => setFormData({...formData, audience_type: 'SELECTED'})}
+                    disabled={formData.status === 'PUBLISHED'}
+                  />
+                  <span>Selected Customers</span>
+                </label>
               </div>
             </div>
 
             {formData.audience_type === 'SELECTED' && formData.status !== 'PUBLISHED' && (
-              <div className="mb-4 p-4 border rounded">
-                <div className="form-group mb-3">
+              <div style={{marginTop: '0.5rem', padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-base)'}}>
+                <div style={{marginBottom: '1rem'}}>
                   <input 
                     type="text" 
-                    className="form-control" 
                     placeholder="Search Customer..." 
+                    style={{width: '100%', padding: '0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--bg-surface)', color: 'var(--text-primary)'}}
                     value={customerSearch}
                     onChange={e => setCustomerSearch(e.target.value)}
                   />
                 </div>
-                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
                   {filteredCustomers.map(c => (
-                    <div key={c.id} className="form-check py-2 border-bottom">
+                    <label key={c.id} style={{display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)', cursor: 'pointer', margin: 0}}>
                       <input 
-                        className="form-check-input" 
                         type="checkbox" 
-                        id={`c_${c.id}`} 
                         checked={selectedCustomers.includes(c.id)}
                         onChange={() => toggleCustomer(c.id)}
                       />
-                      <label className="form-check-label w-100" htmlFor={`c_${c.id}`}>
-                        {c.display_name} <span className="text-muted text-sm d-block">{c.mobile}</span>
-                      </label>
-                    </div>
+                      <div style={{display: 'flex', flexDirection: 'column'}}>
+                        <span style={{fontWeight: 500}}>{c.display_name}</span>
+                        <span style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>{c.mobile}</span>
+                      </div>
+                    </label>
                   ))}
+                  {filteredCustomers.length === 0 && (
+                    <div style={{padding: '1rem', textAlign: 'center', color: 'var(--text-muted)'}}>No customers match search.</div>
+                  )}
+                </div>
+                <div style={{marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)'}}>
+                  {selectedCustomers.length} customer(s) selected
                 </div>
               </div>
             )}
 
             {formData.audience_type === 'SELECTED' && formData.status === 'PUBLISHED' && (
-              <div className="mb-4">
-                <p className="text-muted">Targeted to {selectedCustomers.length} customers.</p>
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <div className="col-lg-4">
-          <div className="card p-6">
-            <h3 className="h5 mb-4">Actions</h3>
-            {formData.status === 'DRAFT' ? (
-              <div className="d-flex flex-column gap-3">
-                <button 
-                  className="btn btn-outline-primary d-flex align-items-center justify-content-center gap-2"
-                  onClick={() => handleSave(false)}
-                  disabled={submitting}
-                >
-                  <Save size={18} />
-                  Save Draft
-                </button>
-                <button 
-                  className="btn btn-primary d-flex align-items-center justify-content-center gap-2"
-                  onClick={() => handleSave(true)}
-                  disabled={submitting}
-                >
-                  <Send size={18} />
-                  Publish Update
-                </button>
-              </div>
-            ) : (
-              <div className="alert alert-success d-flex align-items-center gap-2 mb-0">
-                <Send size={18} />
-                Published
+              <div style={{padding: '1rem', backgroundColor: 'var(--bg-base)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)'}}>
+                <p style={{margin: 0, color: 'var(--text-secondary)'}}>Targeted to <strong>{selectedCustomers.length}</strong> customers.</p>
               </div>
             )}
           </div>

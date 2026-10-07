@@ -42,62 +42,70 @@ export default function BusinessUpdateDetail() {
   const readCount = recipients.filter(r => r.read_at).length;
 
   return (
-    <div className="p-6">
-      <div className="d-flex align-items-center mb-6">
-        <Link to="/customer-updates" className="btn btn-icon me-4">
-          <ArrowLeft size={20} />
-        </Link>
-        <h1 className="h3 mb-0">Update Detail</h1>
+    <div className="animate-fade-in" style={{paddingBottom: '4rem'}}>
+      <div className="page-header" style={{position: 'sticky', top: 0, zIndex: 50, background: 'var(--bg-base)', padding: '1rem 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+        <div>
+          <h1 style={{margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+            <Link to="/customer-updates" style={{color: 'var(--text-muted)', textDecoration: 'none'}}>
+              <ArrowLeft size={24} />
+            </Link>
+            Update Detail
+          </h1>
+        </div>
+        <div style={{display: 'flex', gap: '0.75rem', alignItems: 'center'}}>
+          <Link to={`/customer-updates/${id}/edit`} className="btn btn-primary">Edit Update</Link>
+        </div>
       </div>
 
-      <div className="row">
-        <div className="col-lg-8">
-          <div className="card p-6 mb-6">
-            <h2 className="h4 mb-2">{update.title}</h2>
-            <div className="text-muted mb-4 d-flex gap-3">
-              <span className="badge bg-primary">{update.type.replace(/_/g, ' ')}</span>
-              <span>Published: {new Date(update.published_at || update.created_at).toLocaleString()}</span>
-              <span>Audience: {update.audience_type}</span>
+      <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '1.5rem'}}>
+        <div style={{gridColumn: '1 / span 2'}}>
+          <div className="glass-panel" style={{padding: '2rem'}}>
+            <h2 style={{margin: '0 0 1rem 0', fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-primary)'}}>{update.title}</h2>
+            <div style={{display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap'}}>
+              <span className="badge badge-primary" style={{fontSize: '0.8rem', padding: '0.25rem 0.75rem'}}>{update.type.replace(/_/g, ' ')}</span>
+              <span style={{color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Published: <strong>{new Date(update.published_at || update.created_at).toLocaleString()}</strong></span>
+              <span style={{color: 'var(--text-secondary)', fontSize: '0.9rem'}}>Audience: <strong>{update.audience_type}</strong></span>
+              <span className={`badge ${update.status === 'PUBLISHED' ? 'badge-success' : 'badge-warning'}`} style={{fontSize: '0.8rem', padding: '0.25rem 0.75rem'}}>{update.status}</span>
             </div>
-            <div className="p-4 bg-light rounded" style={{ whiteSpace: 'pre-wrap' }}>
+            <div style={{padding: '1.5rem', backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', whiteSpace: 'pre-wrap', color: 'var(--text-primary)', lineHeight: 1.6}}>
               {update.message}
             </div>
           </div>
         </div>
 
-        <div className="col-lg-4">
-          <div className="card p-6 mb-6">
-            <h3 className="h5 mb-4">Recipient Stats</h3>
-            <div className="d-flex justify-content-between mb-2">
-              <span>Total Targeted:</span>
-              <strong>{update.audience_type === 'ALL' ? 'All Customers' : recipients.length}</strong>
+        <div>
+          <div className="glass-panel" style={{padding: '1.5rem', marginBottom: '1.5rem'}}>
+            <h3 style={{margin: '0 0 1rem 0', fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)'}}>Recipient Stats</h3>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem'}}>
+              <span style={{color: 'var(--text-secondary)'}}>Total Targeted:</span>
+              <strong style={{color: 'var(--text-primary)'}}>{update.audience_type === 'ALL' ? 'All Customers' : recipients.length}</strong>
             </div>
-            <div className="d-flex justify-content-between mb-2">
-              <span>Total Read:</span>
-              <strong>{readCount}</strong>
+            <div style={{display: 'flex', justifyContent: 'space-between'}}>
+              <span style={{color: 'var(--text-secondary)'}}>Total Read:</span>
+              <strong style={{color: 'var(--success)'}}>{readCount}</strong>
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-header bg-transparent border-bottom p-4">
-              <h3 className="h5 mb-0">Recipients List</h3>
+          <div className="glass-panel" style={{padding: '0'}}>
+            <div style={{padding: '1rem 1.5rem', borderBottom: '1px solid var(--border)'}}>
+              <h3 style={{margin: 0, fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)'}}>Recipients List</h3>
             </div>
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {recipients.length === 0 ? (
-                <div className="p-4 text-muted">No explicit recipients linked (or All Customers targeted).</div>
+                <div style={{padding: '2rem', textAlign: 'center', color: 'var(--text-muted)'}}>No explicit recipients linked (or All Customers targeted).</div>
               ) : (
-                <ul className="list-group list-group-flush">
+                <div style={{display: 'flex', flexDirection: 'column'}}>
                   {recipients.map(r => (
-                    <li key={r.id} className="list-group-item d-flex justify-content-between align-items-center">
-                      <span>{r.crm_parties?.display_name || r.customer_id}</span>
+                    <div key={r.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)'}}>
+                      <span style={{color: 'var(--text-primary)', fontWeight: 500}}>{r.crm_parties?.display_name || r.customer_id}</span>
                       {r.read_at ? (
-                        <span className="badge bg-success">Read</span>
+                        <span className="badge badge-success" style={{fontSize: '0.7rem'}}>Read</span>
                       ) : (
-                        <span className="badge bg-secondary">Unread</span>
+                        <span className="badge badge-secondary" style={{fontSize: '0.7rem'}}>Unread</span>
                       )}
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
             </div>
           </div>

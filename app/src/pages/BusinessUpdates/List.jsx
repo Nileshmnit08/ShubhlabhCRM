@@ -76,97 +76,97 @@ export default function BusinessUpdatesList() {
   };
 
   return (
-    <div className="p-6">
-      <div className="d-flex align-items-center justify-content-between mb-6">
-        <h1 className="h3">Customer Updates</h1>
-        <Link to="/customer-updates/new" className="btn btn-primary d-flex align-items-center gap-2">
-          <Plus size={18} />
-          Create Update
-        </Link>
+    <div className="animate-fade-in" style={{paddingBottom: '4rem'}}>
+      <div className="page-header" style={{flexWrap: 'wrap', gap: '1rem', position: 'sticky', top: 0, zIndex: 50, background: 'var(--bg-base)', padding: '1rem 0', borderBottom: '1px solid var(--border)'}}>
+        <div>
+          <h1 style={{margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem'}}>Customer Updates</h1>
+          <p className="text-secondary" style={{marginTop: '0.25rem'}}>Create and manage business communications sent to customers.</p>
+        </div>
+        <div style={{display: 'flex', gap: '0.75rem', alignItems: 'center'}}>
+          <Link to="/customer-updates/new" className="btn btn-primary" style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+            <Plus size={18} /> Create Update
+          </Link>
+        </div>
       </div>
 
-      <div className="card mb-6 p-4">
-        <div className="d-flex flex-wrap gap-4 align-items-end">
-          <div className="form-group flex-1" style={{ minWidth: '200px' }}>
-            <label className="form-label">Type</label>
-            <select className="form-select" value={selectedType} onChange={e => setSelectedType(e.target.value)}>
+      <div className="glass-panel" style={{margin: '1.5rem 0', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.25rem', backgroundColor: 'var(--bg-surface)'}}>
+        <div style={{display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end'}}>
+          <div style={{flex: '1 1 200px'}}>
+            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Type</label>
+            <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={selectedType} onChange={e => setSelectedType(e.target.value)}>
               {UPDATE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
 
-          <div className="form-group flex-1" style={{ minWidth: '200px' }}>
-            <label className="form-label">Date Filter</label>
-            <select className="form-select" value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
+          <div style={{flex: '1 1 200px'}}>
+            <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>Date Filter</label>
+            <select style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={dateFilter} onChange={e => setDateFilter(e.target.value)}>
               {DATE_FILTERS.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
 
           {dateFilter === 'Custom Range' && (
             <>
-              <div className="form-group">
-                <label className="form-label">From</label>
-                <input type="date" className="form-control" value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+              <div style={{flex: '1 1 150px'}}>
+                <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>From</label>
+                <input type="date" style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
               </div>
-              <div className="form-group">
-                <label className="form-label">To</label>
-                <input type="date" className="form-control" value={customTo} onChange={e => setCustomTo(e.target.value)} />
+              <div style={{flex: '1 1 150px'}}>
+                <label style={{fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'block', fontWeight: 500}}>To</label>
+                <input type="date" style={{width: '100%', height: '38px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--bg-base)', padding: '0 0.75rem', fontSize: '0.85rem', color: 'var(--text-primary)'}} value={customTo} onChange={e => setCustomTo(e.target.value)} />
               </div>
             </>
           )}
         </div>
       </div>
 
-      <div className="card">
+      <div className="data-table-container">
         {loading ? (
-          <div className="p-6 text-center text-muted">Loading updates...</div>
+          <div style={{padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)'}}>Loading updates...</div>
         ) : updates.length === 0 ? (
-          <div className="p-6 text-center text-muted">No updates found.</div>
-        ) : (
-          <div className="table-responsive">
-            <table className="table table-hover mb-0">
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Date</th>
-                  <th>Recipients</th>
-                  <th>Read</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {updates.map(u => {
-                  const recipients = u.business_update_recipients || [];
-                  const readCount = recipients.filter(r => r.read_at).length;
-                  const displayType = u.type.replace(/_/g, ' ');
-
-                  return (
-                    <tr key={u.id}>
-                      <td>
-                        <strong>{u.title}</strong>
-                        {u.audience_type === 'ALL' && <span className="badge bg-secondary ms-2">All Customers</span>}
-                      </td>
-                      <td>{displayType}</td>
-                      <td>
-                        <span className={`badge ${u.status === 'PUBLISHED' ? 'bg-success' : 'bg-warning'}`}>
-                          {u.status}
-                        </span>
-                      </td>
-                      <td>{new Date(u.created_at).toLocaleDateString()}</td>
-                      <td>{u.audience_type === 'ALL' ? 'All' : recipients.length}</td>
-                      <td>{readCount}</td>
-                      <td>
-                        <Link to={`/customer-updates/${u.id}`} className="btn btn-sm btn-outline-primary">
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div style={{padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)'}}>
+            <h3>No customer updates found.</h3>
+            <p>Try adjusting your filters or create a new update.</p>
           </div>
+        ) : (
+          <table className="data-table mobile-cards-table" style={{minWidth: '1000px'}}>
+            <thead>
+              <tr>
+                <th style={{width: '30%'}}>Update</th>
+                <th style={{width: '15%'}}>Type</th>
+                <th style={{width: '15%'}}>Audience</th>
+                <th style={{width: '15%'}}>Published</th>
+                <th style={{width: '10%'}}>Read</th>
+                <th style={{width: '15%', textAlign: 'right'}}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {updates.map(u => {
+                const recipients = u.business_update_recipients || [];
+                const readCount = recipients.filter(r => r.read_at).length;
+                const displayType = u.type.replace(/_/g, ' ');
+
+                return (
+                  <tr key={u.id}>
+                    <td>
+                      <div style={{fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px'}}>{u.title}</div>
+                      {u.status === 'DRAFT' && <span className="badge badge-warning" style={{fontSize: '0.7rem'}}>Draft</span>}
+                      {u.status === 'PUBLISHED' && <span className="badge badge-success" style={{fontSize: '0.7rem'}}>Published</span>}
+                    </td>
+                    <td>{displayType}</td>
+                    <td>{u.audience_type === 'ALL' ? 'All Customers' : `${recipients.length} Customers`}</td>
+                    <td>{u.published_at ? new Date(u.published_at).toLocaleDateString() : '-'}</td>
+                    <td>{readCount}</td>
+                    <td style={{textAlign: 'right'}}>
+                      <Link to={`/customer-updates/${u.id}`} className="btn btn-secondary" style={{padding: '0.25rem 0.75rem', fontSize: '0.8rem'}}>
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
     </div>
