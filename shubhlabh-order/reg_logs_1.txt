@@ -1,0 +1,657 @@
+--------- beginning of main
+10-07 14:23:08.340 14411 14411 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-07 14:23:08.730 14411 14411 W main    : type=1400 audit(0.0:1977): avc: denied { read } for name="u:object_r:vendor_mpctl_prop:s0" dev="tmpfs" ino=4532 scontext=u:r:shell:s0 tcontext=u:object_r:vendor_mpctl_prop:s0 tclass=file permissive=0
+10-07 14:23:08.748 14411 14411 E libc    : Access denied finding property "ro.vendor.at_library"
+10-07 14:23:08.790 14411 14411 D AndroidRuntime: Calling main entry com.android.commands.monkey.Monkey
+--------- beginning of system
+10-07 14:23:08.917  2081  2097 W BroadcastQueue: Skipping deliver [background] BroadcastRecord{636cbfd u-1 android.net.conn.CONNECTIVITY_CHANGE} to ReceiverList{a2a20f2 14411 (unknown name)/2000/u-1 remote:1ac3a7}: process gone or crashing
+10-07 14:23:08.950  2081  6265 W Binder  : Outgoing transactions from this process must be FLAG_ONEWAY
+10-07 14:23:08.950  2081  6265 W Binder  : java.lang.Throwable
+10-07 14:23:08.950  2081  6265 W Binder  : 	at android.os.BinderProxy.transact(Binder.java:1120)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at android.app.IActivityController$Stub$Proxy.activityStarting(IActivityController.java:176)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at com.android.server.am.ExtraActivityManagerService.checkStartActivityLocked(ExtraActivityManagerService.java:318)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at com.android.server.am.ExtraActivityManagerService.checkStartActivityPermission(ExtraActivityManagerService.java:239)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at com.android.server.am.ActivityStarter.startActivityMayWait(ActivityStarter.java:1129)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at com.android.server.am.ActivityStarter.execute(ActivityStarter.java:496)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at com.android.server.am.ActivityManagerService.startActivityAsUser(ActivityManagerService.java:5355)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at com.android.server.am.ActivityManagerService.startActivityAsUser(ActivityManagerService.java:5329)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at com.android.server.am.ActivityManagerService.startActivity(ActivityManagerService.java:5320)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at android.app.IActivityManager$Stub.onTransact$startActivity$(IActivityManager.java:10198)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at android.app.IActivityManager$Stub.onTransact(IActivityManager.java:123)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at com.android.server.am.ActivityManagerService.onTransact(ActivityManagerService.java:3409)
+10-07 14:23:08.950  2081  6265 W Binder  : 	at android.os.Binder.execTransact(Binder.java:735)
+10-07 14:23:08.954  9427 14408 D AndroidUtils: MCC MNC = 
+10-07 14:23:08.958  2081  6265 I ActivityManager: START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.shubhlabh.order/.MainActivity} from uid 2000
+10-07 14:23:08.959  9427  9578 E PackageManagerUtils: NameNotFound android.uid.system:1000
+10-07 14:23:08.961   715   739 E ANDR-PERF-MPCTL: Invalid profile no. 0, total profiles 0 only
+10-07 14:23:08.962   585   585 W hwservicemanager: getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device manifest.
+10-07 14:23:08.964  2081  6265 E ANDR-PERF-JNI: Iop tryGetService failed
+10-07 14:23:08.970  2726  2726 D Launcher.Lifecycle: onWindowFocusChanged:true,UserHandle{0},bacf62f,false
+10-07 14:23:08.970  2726  2726 D Launcher_UnlockAnimationStateMachine: onWindowFocus:IDLE
+10-07 14:23:08.975  2081  6265 D ActivityTrigger: activityStartTrigger: Activity is Triggerred in full screen ApplicationInfo{c4365ec com.shubhlabh.order}
+10-07 14:23:08.975  2081  6265 E ActivityTrigger: activityStartTrigger: not whiteListedcom.shubhlabh.order/com.shubhlabh.order.MainActivity/1
+10-07 14:23:08.976  2081  6265 D CompatibilityInfo: mCompatibilityFlags - 0
+10-07 14:23:08.976  2081  6265 D CompatibilityInfo: applicationDensity - 440
+10-07 14:23:08.976  2081  6265 D CompatibilityInfo: applicationScale - 1.0
+10-07 14:23:08.976  2081  6265 D ActivityTrigger: activityResumeTrigger: The activity in ApplicationInfo{c4365ec com.shubhlabh.order} is now in focus and seems to be in full-screen mode
+10-07 14:23:08.976  2081  6265 E ActivityTrigger: activityResumeTrigger: not whiteListedcom.shubhlabh.order/com.shubhlabh.order.MainActivity/1
+10-07 14:23:08.976  2081  6265 D ActivityTrigger: ActivityTrigger activityPauseTrigger 
+10-07 14:23:08.981  2293  2293 D StatusBar: recevie broadbcast ACTION_APPLICATION_MESSAGE_QUERY, requestFirstTime=false
+10-07 14:23:08.985  2726  2726 D Launcher.Lifecycle: onPause:UserHandle{0},bacf62f,true
+10-07 14:23:08.985  2726  2726 D Launcher_UnlockAnimationStateMachine: setState:PAUSE_WAIT
+10-07 14:23:08.986  2726  3057 D ScreenElementRoot: pause
+10-07 14:23:08.986  2726  3057 D LifecycleResourceManager: begin check cache... 
+10-07 14:23:08.986  2726  3057 D ScreenElementRoot: pause
+10-07 14:23:08.986  2726  3057 I NotifierManager: onUnregister: miui.maml.NotifierManager$MultiBroadcastNotifier@518e2ab
+10-07 14:23:08.986  2726  3057 I RenderThread: RenderThread paused, waiting for signal
+10-07 14:23:08.987  2081  2505 D ActivityTrigger: activityResumeTrigger: The activity in ApplicationInfo{c4365ec com.shubhlabh.order} is now in focus and seems to be in full-screen mode
+10-07 14:23:08.987  2081  2505 E ActivityTrigger: activityResumeTrigger: not whiteListedcom.shubhlabh.order/com.shubhlabh.order.MainActivity/1
+10-07 14:23:08.990  2293  2293 D StatusBar: disable<e i a s b h r c s > disable2<q i n g r >
+10-07 14:23:08.991  2081  2081 V SettingsProvider: Notifying for 0: content://settings/system/accelerometer_rotation
+10-07 14:23:08.991  2726  2784 D Launcher: disableStatusBarClock:false
+10-07 14:23:08.992  2293  2293 D PhoneStatusBar/NavigationBarView: setDisabledFlags back:false home:false recent:false
+10-07 14:23:08.992  2293  2293 D StatusBarClock:  isNormalMode= true clock visible=true
+10-07 14:23:08.995  2726  2726 D Launcher_WallpaperUtils: changeStatusBarMode:false
+10-07 14:23:08.995 14411 14411 I com.android.commands.monkey: System.exit called, status: 0
+10-07 14:23:08.996 14411 14411 I AndroidRuntime: VM exiting with result code 0.
+10-07 14:23:08.993  2081  2081 V SettingsProvider: Notifying for 0: content://settings/system/accelerometer_rotation
+10-07 14:23:09.036  2081  2099 D Boost   : hostingType=activity, hostingName=com.shubhlabh.order/.MainActivity, callerPackage=null, isSystem=true, isBoostNeeded=false.
+10-07 14:23:09.038  2081  2099 I ActivityManager: Start proc 14427:com.shubhlabh.order/u0a193 for activity com.shubhlabh.order/.MainActivity caller=null
+10-07 14:23:09.044 14427 14427 I shubhlabh.orde: Late-enabling -Xcheck:jni
+10-07 14:23:09.066  1105  1273 E storaged: getDiskStats failed with result NOT_SUPPORTED and size 0
+10-07 14:23:09.078  2726  2726 D Launcher.Lifecycle: onWindowFocusChanged:false,UserHandle{0},bacf62f,true
+10-07 14:23:09.126  2081  2505 D CompatibilityInfo: mCompatibilityFlags - 0
+10-07 14:23:09.126  2081  2505 D CompatibilityInfo: applicationDensity - 440
+10-07 14:23:09.126  2081  2505 D CompatibilityInfo: applicationScale - 1.0
+10-07 14:23:09.136  2081  2505 D CompatibilityInfo: mCompatibilityFlags - 0
+10-07 14:23:09.136  2081  2505 D CompatibilityInfo: applicationDensity - 440
+10-07 14:23:09.136  2081  2505 D CompatibilityInfo: applicationScale - 1.0
+10-07 14:23:09.137  9205  9227 I GST     : forePkg: com.shubhlabh.order, preForePkg: com.miui.home
+10-07 14:23:09.137  3698  4163 I ProcessMonitor: onForegroundInfoChanged: ForegroundInfo{mForegroundPackageName='com.shubhlabh.order', mForegroundUid=10193, mForegroundPid=14427, mLastForegroundPackageName='com.miui.home', mLastForegroundUid=10062, mLastForegroundPid=2726, mMultiWindowForegroundPackageName='null', mMultiWindowForegroundUid=-1, mFlags=1}
+10-07 14:23:09.137  3698  4163 I GameBoosterService: onForegroundInfoChanged: Cur=com.shubhlabh.order	 last=com.miui.home
+10-07 14:23:09.137  3698  4163 D GameBoosterService: onGameStatusChange foreground:ForegroundInfo{mForegroundPackageName='com.shubhlabh.order', mForegroundUid=10193, mForegroundPid=14427, mLastForegroundPackageName='com.miui.home', mLastForegroundUid=10062, mLastForegroundPid=2726, mMultiWindowForegroundPackageName='null', mMultiWindowForegroundUid=-1, mFlags=1}
+10-07 14:23:09.137  3698  4163 I GameBoosterService: onForegroundInfoChanged: Exit
+10-07 14:23:09.137  3698  4163 I VideoBoxUtils: isSupportVideoBox: false
+10-07 14:23:09.138  3698  4163 I VideoToolBoxService: onForegroundInfoChanged: Exit Vtb
+10-07 14:23:09.139  3812  7054 D ProcessObserverV8: onForegroundActivitiesChanged:pid = 14427,activity-uid=10193,foregroundActivities=true
+10-07 14:23:09.140   743   932 V APM_AudioPolicyManager: AudioPolicyManager:setRecordSilenced(uid:10193, silenced:0)
+10-07 14:23:09.140   743   932 V AudioFlinger: AudioFlinger::setRecordSilenced(uid:10193, silenced:0)
+10-07 14:23:09.141  3812  7054 D PkgUtil : getTopFromFocusedTask error: java.lang.ClassNotFoundException: android.app.ActivityTaskManager
+10-07 14:23:09.167  2081  2138 I Timeline: Timeline: App_transition_ready time:1399079
+10-07 14:23:09.169  2293  2293 D StatusBar: disable<e i a s b h r c s > disable2<q i n g r >
+10-07 14:23:09.172  2293  2293 D PhoneStatusBar/NavigationBarView: setDisabledFlags back:false home:false recent:false
+10-07 14:23:09.172  2293  2293 D StatusBarClock:  isNormalMode= true clock visible=true
+10-07 14:23:09.270  2726  2726 E Launcher: changeViewByFsGestureState,  view=FitSystemWindowView,  alpha=1.0,  scale=1.0
+10-07 14:23:09.270  2726  2726 E Launcher: changeViewByFsGestureState,  view=ShortcutMenuLayer,  alpha=1.0,  scale=1.0
+10-07 14:23:09.281 14427 14427 I Perf    : Connecting to perf service.
+10-07 14:23:09.286  2726  2726 D Launcher_UnlockAnimationStateMachine: mResetIdleStateRunnable
+10-07 14:23:09.296 14427 14427 W shubhlabh.orde: Accessing hidden field Landroid/os/Trace;->TRACE_TAG_APP:J (light greylist, reflection)
+10-07 14:23:09.296 14427 14427 W shubhlabh.orde: Accessing hidden method Landroid/os/Trace;->isTagEnabled(J)Z (light greylist, reflection)
+10-07 14:23:09.309 14427 14427 W SoLoader: Initializing SoLoader: 0
+10-07 14:23:09.310 14427 14427 W SoLoader: Recording new base apk path: /data/app/com.shubhlabh.order-_v6zkvR5FNYdURiadTqd1w==/base.apk
+10-07 14:23:09.310 14427 14427 W SoLoader: Previously recorded 0 base apk paths.
+10-07 14:23:09.312 14427 14427 I SoLoader: Preparing SO source: DirectorySoSource[root = /vendor/lib64 flags = 2]
+10-07 14:23:09.312 14427 14427 I SoLoader: Preparing SO source: DirectorySoSource[root = /system/lib64 flags = 2]
+10-07 14:23:09.312 14427 14427 I SoLoader: Preparing SO source: DirectApkSoSource[root = [/data/app/com.shubhlabh.order-_v6zkvR5FNYdURiadTqd1w==/base.apk!/lib/arm64-v8a]]
+10-07 14:23:09.333 14427 14427 I SoLoader: Preparing SO source: ApplicationSoSource[DirectorySoSource[root = /data/app/com.shubhlabh.order-_v6zkvR5FNYdURiadTqd1w==/lib/arm64 flags = 0]]
+10-07 14:23:09.333 14427 14427 I SoLoader: init finish: 4 SO sources prepared
+10-07 14:23:09.334 14427 14427 W SoLoader: SoLoader initialized: 8
+10-07 14:23:09.351 14427 14427 W linker  : Warning: "/data/app/com.shubhlabh.order-_v6zkvR5FNYdURiadTqd1w==/base.apk!/lib/arm64-v8a/libc++_shared.so" unused DT entry: unknown processor-specific (type 0x70000001 arg 0x0) (ignoring)
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Entering merged library JNI_OnLoad.
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing 13 pre-merged libs (including stub)
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libfabricjni_so.  onload_func: 0x70c6b9962c
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libreact_devsupportjni_so.  onload_func: 0x70c6df32dc
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libreact_featureflagsjni_so.  onload_func: 0x70c6e06804
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libreact_newarchdefaults_so.  onload_func: 0x70c6eb3a60
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libreact_tracingjni_so.  onload_func: 0x70c71c7338
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libreactnativeblob_so.  onload_func: 0x70c71db3d4
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libreactnativejni_so.  onload_func: 0x70c72000a4
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libreactnativejni_common_so.  onload_func: 0x70c7205ec8
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register librninstance_so.  onload_func: 0x70c728a278
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libturbomodulejsijni_so.  onload_func: 0x70c73e9980
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libuimanagerjni_so.  onload_func: 0x70c7400b6c
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: Preparing to register libyoga_so.  onload_func: 0x70c74105f0
+10-07 14:23:09.393 14427 14427 D jni_lib_merge: About to register 12 actual methods.
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Entering merged library JNI_OnLoad.
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing 13 pre-merged libs (including stub)
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libfabricjni_so.  onload_func: 0x70c6b9962c
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libreact_devsupportjni_so.  onload_func: 0x70c6df32dc
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libreact_featureflagsjni_so.  onload_func: 0x70c6e06804
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libreact_newarchdefaults_so.  onload_func: 0x70c6eb3a60
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libreact_tracingjni_so.  onload_func: 0x70c71c7338
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libreactnativeblob_so.  onload_func: 0x70c71db3d4
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libreactnativejni_so.  onload_func: 0x70c72000a4
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libreactnativejni_common_so.  onload_func: 0x70c7205ec8
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register librninstance_so.  onload_func: 0x70c728a278
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libturbomodulejsijni_so.  onload_func: 0x70c73e9980
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libuimanagerjni_so.  onload_func: 0x70c7400b6c
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: Preparing to register libyoga_so.  onload_func: 0x70c74105f0
+10-07 14:23:09.414 14427 14427 D jni_lib_merge: About to register 12 actual methods.
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Entering merged library JNI_OnLoad.
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing 13 pre-merged libs (including stub)
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libfabricjni_so.  onload_func: 0x70c6b9962c
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libreact_devsupportjni_so.  onload_func: 0x70c6df32dc
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libreact_featureflagsjni_so.  onload_func: 0x70c6e06804
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libreact_newarchdefaults_so.  onload_func: 0x70c6eb3a60
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libreact_tracingjni_so.  onload_func: 0x70c71c7338
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libreactnativeblob_so.  onload_func: 0x70c71db3d4
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libreactnativejni_so.  onload_func: 0x70c72000a4
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libreactnativejni_common_so.  onload_func: 0x70c7205ec8
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register librninstance_so.  onload_func: 0x70c728a278
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libturbomodulejsijni_so.  onload_func: 0x70c73e9980
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libuimanagerjni_so.  onload_func: 0x70c7400b6c
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: Preparing to register libyoga_so.  onload_func: 0x70c74105f0
+10-07 14:23:09.424 14427 14427 D jni_lib_merge: About to register 12 actual methods.
+--------- beginning of crash
+10-07 14:23:09.430 14446 14446 F linker  : CANNOT LINK EXECUTABLE "/system/bin/dpmd": "/system/lib64/libdpmframework.so" is 32-bit instead of 64-bit
+10-07 14:23:09.514 14427 14427 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+10-07 14:23:09.567 14427 14427 W shubhlabh.orde: Accessing hidden method Lcom/android/org/conscrypt/OpenSSLSocketImpl;->setUseSessionTickets(Z)V (light greylist, reflection)
+10-07 14:23:09.568 14427 14427 W shubhlabh.orde: Accessing hidden method Lcom/android/org/conscrypt/OpenSSLSocketImpl;->setHostname(Ljava/lang/String;)V (light greylist, reflection)
+10-07 14:23:09.568 14427 14427 W shubhlabh.orde: Accessing hidden method Lcom/android/org/conscrypt/OpenSSLSocketImpl;->getAlpnSelectedProtocol()[B (light greylist, reflection)
+10-07 14:23:09.568 14427 14427 W shubhlabh.orde: Accessing hidden method Lcom/android/org/conscrypt/OpenSSLSocketImpl;->setAlpnProtocols([B)V (light greylist, reflection)
+10-07 14:23:09.573 14427 14427 W shubhlabh.orde: Accessing hidden method Ldalvik/system/CloseGuard;->get()Ldalvik/system/CloseGuard; (light greylist, reflection)
+10-07 14:23:09.573 14427 14427 W shubhlabh.orde: Accessing hidden method Ldalvik/system/CloseGuard;->open(Ljava/lang/String;)V (light greylist, reflection)
+10-07 14:23:09.573 14427 14427 W shubhlabh.orde: Accessing hidden method Ldalvik/system/CloseGuard;->warnIfOpen()V (light greylist, reflection)
+10-07 14:23:09.574 14427 14427 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+10-07 14:23:09.577  2293  2293 D EventBus: [2293, u0] send(AppTransitionFinishedEvent)
+10-07 14:23:09.577  2293  2293 D EventBus: [2293, u0]  -> ForcedResizableInfoActivityController [0xff155c0, P1] onBusEvent(AppTransitionFinishedEvent)
+10-07 14:23:09.577  2293  2293 D EventBus: [2293, u0] onBusEvent(AppTransitionFinishedEvent) duration: 20 microseconds, avg: 1579
+10-07 14:23:09.585  2081 10747 I SensorService: check list, getPackageName  com.facebook.react.common.ShakeDetector
+10-07 14:23:09.679 14427 14427 W unknown:BridgelessReact: ReactHost{0}.startSurface(surfaceId = 0): Schedule
+10-07 14:23:09.680 14427 14427 W unknown:BridgelessReact: ReactHost{0}.attachSurface(surfaceId = 0)
+10-07 14:23:09.681 14427 14459 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask()
+10-07 14:23:09.682 14427 14459 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Start
+10-07 14:23:09.682 14427 14459 W unknown:BridgelessReact: ReactHost{0}.getJSBundleLoader()
+10-07 14:23:09.682 14427 14459 W unknown:BridgelessReact: ReactHost{0}.isMetroRunning()
+10-07 14:23:09.705 14427 14460 W unknown:BridgelessReact: ReactHost{0}.isMetroRunning(): Async result = true
+10-07 14:23:09.706 14427 14459 W unknown:BridgelessReact: ReactHost{0}.loadJSBundleFromMetro()
+10-07 14:23:09.710  2293  2293 D EventBus: [2293, u0] send(AppTransitionFinishedEvent)
+10-07 14:23:09.710  2293  2293 D EventBus: [2293, u0]  -> ForcedResizableInfoActivityController [0xff155c0, P1] onBusEvent(AppTransitionFinishedEvent)
+10-07 14:23:09.710  2293  2293 D EventBus: [2293, u0] onBusEvent(AppTransitionFinishedEvent) duration: 18 microseconds, avg: 1577
+10-07 14:23:09.711 14427 14427 W shubhlabh.orde: Accessing hidden method Landroid/view/ViewGroup;->makeOptionalFitsSystemWindows()V (light greylist, reflection)
+10-07 14:23:09.711  2081  2138 I Timeline: Timeline: App_transition_stopped time:1399623
+10-07 14:23:09.729 14427 14427 W unknown:BridgelessReact: ReactHost{0}.onHostResume(activity)
+10-07 14:23:09.729 14427 14427 W unknown:ReactNative: Packager connection already open, nooping.
+10-07 14:23:09.744  2081  2171 V UiModeManager: switch night mode to 1
+10-07 14:23:09.746  2293  2293 D GestureStubView: resetRenderProperty: showGestureStub
+10-07 14:23:09.746  2293  2293 D GestureStubView: showGestureStub
+10-07 14:23:09.746  2293  2293 D GestureStubView: resetRenderProperty: showGestureStub
+10-07 14:23:09.746  2293  2293 D GestureStubView: showGestureStub
+10-07 14:23:09.748 14427 14427 W shubhlabh.orde: Accessing hidden field Landroid/view/WindowInsets;->CONSUMED:Landroid/view/WindowInsets; (light greylist, reflection)
+10-07 14:23:09.750 14427 14427 W shubhlabh.orde: Accessing hidden method Landroid/view/View;->getViewRootImpl()Landroid/view/ViewRootImpl; (light greylist, reflection)
+10-07 14:23:09.750 14427 14427 W shubhlabh.orde: Accessing hidden field Landroid/view/View$AttachInfo;->mVisibleInsets:Landroid/graphics/Rect; (light greylist, reflection)
+10-07 14:23:09.750 14427 14427 W shubhlabh.orde: Accessing hidden field Landroid/view/ViewRootImpl;->mAttachInfo:Landroid/view/View$AttachInfo; (light greylist, reflection)
+10-07 14:23:09.782 14427 14461 I Adreno  : QUALCOMM build                   : c455b9b, Ib7912a5d4e
+10-07 14:23:09.782 14427 14461 I Adreno  : Build Date                       : 09/16/19
+10-07 14:23:09.782 14427 14461 I Adreno  : OpenGL ES Shader Compiler Version: EV031.25.03.07
+10-07 14:23:09.782 14427 14461 I Adreno  : Local Branch                     : mybranche9d87587-05ad-f10c-aeb4-5cb90179c3d8
+10-07 14:23:09.782 14427 14461 I Adreno  : Remote Branch                    : quic/gfx-adreno.lnx.1.0.r48-rel
+10-07 14:23:09.782 14427 14461 I Adreno  : Remote Branch                    : NONE
+10-07 14:23:09.782 14427 14461 I Adreno  : Reconstruct Branch               : NOTHING
+10-07 14:23:09.783 14427 14461 I Adreno  : Build Config                     : S L 6.0.7 AArch64
+10-07 14:23:09.783  2293  2293 D GestureStubView: gatherTransparentRegion: need render w:54  h:1296
+10-07 14:23:09.788 14427 14461 I Adreno  : PFP: 0x005ff112, ME: 0x005ff066
+10-07 14:23:09.792  2293  2293 D GestureStubView: gatherTransparentRegion: need render w:54  h:1296
+10-07 14:23:09.792 14427 14461 I ConfigStore: android::hardware::configstore::V1_0::ISurfaceFlingerConfigs::hasWideColorDisplay retrieved: 0
+10-07 14:23:09.792 14427 14461 I ConfigStore: android::hardware::configstore::V1_0::ISurfaceFlingerConfigs::hasHDRDisplay retrieved: 0
+10-07 14:23:09.793 14427 14461 I OpenGLRenderer: Initialized EGL, version 1.4
+10-07 14:23:09.793 14427 14461 D OpenGLRenderer: Swap behavior 2
+10-07 14:23:09.796 14427 14427 W Looper  : Slow Looper main: doFrame is 437ms late because of 2 msg, msg 1 took 322ms (h=android.app.ActivityThread$H w=110), msg 2 took 259ms (late=237ms h=android.app.ActivityThread$H w=159)
+10-07 14:23:09.810  2081  2081 W android.display: type=1400 audit(0.0:1978): avc: denied { write } for name="logd" dev="tmpfs" ino=19585 scontext=u:r:system_server:s0 tcontext=u:object_r:logd_socket:s0 tclass=sock_file permissive=0
+10-07 14:23:09.819  2081  2105 I ActivityManager: Displayed com.shubhlabh.order/.MainActivity: +826ms
+10-07 14:23:09.820  2081  2105 I Timeline: Timeline: Activity_windows_visible id: ActivityRecord{4192dc0 u0 com.shubhlabh.order/.MainActivity t17} time:1399731
+10-07 14:23:09.858  2293  2293 I MiuiChargeManager: notifyBatteryStatusChanged:  status: 2 isPlugged: 2 level: 100 wireState: 11 chargeSpeed: 0 mWiredChargeType: 0 mWirelessChargeType: 0 chargeDeviceType: -1
+10-07 14:23:09.858  2293  2293 D KeyguardUpdateMonitor: received broadcast android.intent.action.BATTERY_CHANGED
+10-07 14:23:09.858  2293  2293 D KeyguardUpdateMonitor: handleBatteryUpdate
+10-07 14:23:09.858  2293  2293 I MiuiChargeController: checkBatteryStatus: chargeType 11 status 2 plugged 2 isRapidCharge false isSuperCharge false isCarMode false mChargeDeviceType -1 mChargeDeviceForAnalytic -1
+10-07 14:23:09.858  2293  2293 I KeyguardIndication: updateIndication: mVisible false mDozing false mTransientIndication null mPowerPluggedIn true mUpArrowIndication Swipe up to unlock
+10-07 14:23:09.860  2081  2103 E UsbDeviceManager: handle message = 9
+10-07 14:23:09.861  2717  2717 D QtiCarrierConfigHelper: WARNING, no carrier configs on phone Id: 0
+10-07 14:23:09.862  2081  4318 V LocSvc_HIDL_Subscription_jni: battery_level_update
+10-07 14:23:09.862  3698  3698 I BatteryInfoReceiver: ACTION_BATTERY_CHANGED
+10-07 14:23:09.862  2081  4318 V LocSvc_HIDL_Subscription_jni: [battery_level_update][931] [HC] =>> [HS]
+10-07 14:23:09.862   713   713 V LocSvc_HIDL_IzatSubscription: [batteryLevelUpdate][777] [HS] <<<<= [HC]
+10-07 14:23:09.862  2081  4318 V LocSvc_HIDL_Subscription_jni: Exit Result 0
+10-07 14:23:09.863  4606  4743 D PowerCheckerService: onBatteryChanged, mBatteryLevel = 100, status = 2, level = 100, plug = 2, scale = 100
+10-07 14:23:09.890  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:09.899  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:09.900  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:09.920  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:09.927  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:09.928 14427 14427 W unknown:BridgelessReact: ReactHost{0}.raiseSoftException(onWindowFocusChange(hasFocus = "true")): Tried to access onWindowFocusChange while context is not ready
+10-07 14:23:09.929  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: Unhandled SoftException
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: com.facebook.react.bridge.ReactNoCrashSoftException: raiseSoftException(onWindowFocusChange(hasFocus = "true")): Tried to access onWindowFocusChange while context is not ready
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at com.facebook.react.runtime.ReactHostImpl.raiseSoftException(ReactHostImpl.kt:919)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at com.facebook.react.runtime.ReactHostImpl.raiseSoftException$default(ReactHostImpl.kt:910)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at com.facebook.react.runtime.ReactHostImpl.onWindowFocusChange(ReactHostImpl.kt:682)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at com.facebook.react.ReactDelegate.onWindowFocusChanged(ReactDelegate.kt:229)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at com.facebook.react.ReactActivityDelegate.onWindowFocusChanged(ReactActivityDelegate.java:235)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper$onWindowFocusChanged$1.invokeSuspend(ReactActivityDelegateWrapper.kt:320)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper$onWindowFocusChanged$1.invoke(Unknown Source:8)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper$onWindowFocusChanged$1.invoke(Unknown Source:4)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper$launchLifecycleScopeWithLock$1.invokeSuspend(ReactActivityDelegateWrapper.kt:452)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at kotlinx.coroutines.internal.DispatchedContinuationKt.resumeCancellableWith(DispatchedContinuation.kt:375)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at kotlinx.coroutines.intrinsics.CancellableKt.startCoroutineCancellable(Cancellable.kt:26)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at kotlinx.coroutines.CoroutineStart.invoke(CoroutineStart.kt:358)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at kotlinx.coroutines.AbstractCoroutine.start(AbstractCoroutine.kt:134)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at kotlinx.coroutines.BuildersKt__Builders_commonKt.launch(Builders.common.kt:53)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at kotlinx.coroutines.BuildersKt.launch(Unknown Source:1)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at kotlinx.coroutines.BuildersKt__Builders_commonKt.launch$default(Builders.common.kt:44)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at kotlinx.coroutines.BuildersKt.launch$default(Unknown Source:1)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper.launchLifecycleScopeWithLock(ReactActivityDelegateWrapper.kt:450)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper.launchLifecycleScopeWithLock$default(ReactActivityDelegateWrapper.kt:446)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at expo.modules.ReactActivityDelegateWrapper.onWindowFocusChanged(ReactActivityDelegateWrapper.kt:318)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at com.facebook.react.ReactActivity.onWindowFocusChanged(ReactActivity.java:161)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at androidx.appcompat.view.WindowCallbackWrapper.onWindowFocusChanged(WindowCallbackWrapper.java:124)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at com.android.internal.policy.DecorView.onWindowFocusChanged(DecorView.java:1522)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at android.view.View.dispatchWindowFocusChanged(View.java:12782)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at android.view.ViewGroup.dispatchWindowFocusChanged(ViewGroup.java:1456)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at android.view.ViewRootImpl.handleWindowFocusChanged(ViewRootImpl.java:2661)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at android.view.ViewRootImpl.access$900(ViewRootImpl.java:139)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at android.view.ViewRootImpl$ViewRootHandler.handleMessage(ViewRootImpl.java:4339)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at android.os.Looper.loop(Looper.java:201)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at android.app.ActivityThread.main(ActivityThread.java:6810)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at java.lang.reflect.Method.invoke(Native Method)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:547)
+10-07 14:23:09.930 14427 14427 E unknown:ReactHost: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:873)
+10-07 14:23:09.951  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:09.956  9427  9578 E PackageManagerUtils: NameNotFound android.uid.system:1000
+10-07 14:23:09.958  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:09.964  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:09.978  2293  2293 D StatusBar: disable<e i a s b h r c s > disable2<q i n g r >
+10-07 14:23:09.979  2293  2293 D PhoneStatusBar/NavigationBarView: setDisabledFlags back:false home:false recent:false
+10-07 14:23:09.980  2293  2293 D StatusBarClock:  isNormalMode= true clock visible=true
+10-07 14:23:09.981   752  2877 W SurfaceFlinger: Attempting to set client state on removed layer: Splash Screen com.shubhlabh.order#0
+10-07 14:23:09.982   752  2877 W SurfaceFlinger: Attempting to destroy on removed layer: Splash Screen com.shubhlabh.order#0
+10-07 14:23:09.983  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:09.990  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:09.991  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:10.014  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.020  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.022  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:10.048  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.054  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.055  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:10.080  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.086  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.087  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:10.111  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.117  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.118  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:10.140  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.146  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.147  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:10.169  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.175  2081  2175 D NtpTrustedTime: currentTimeMillis() cache hit
+10-07 14:23:10.176  3698  4513 I TrafficManageService: mina mTrafficStatsReceiver onReceive
+10-07 14:23:10.229  2677  5284 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-07 14:23:10.230 14427 14427 W shubhlabh.orde: Accessing hidden method Landroid/os/Trace;->asyncTraceBegin(JLjava/lang/String;I)V (light greylist, reflection)
+10-07 14:23:10.231 14427 14427 W shubhlabh.orde: Accessing hidden method Landroid/os/Trace;->asyncTraceEnd(JLjava/lang/String;I)V (light greylist, reflection)
+10-07 14:23:10.231 14427 14427 W shubhlabh.orde: Accessing hidden method Landroid/os/Trace;->traceCounter(JLjava/lang/String;I)V (light greylist, reflection)
+10-07 14:23:10.240  2549  2568 I FontLog : (REDACTED) Received query %s, URI %s
+10-07 14:23:10.241  2549  2568 I FontLog : (REDACTED) Query [%s] resolved to %s
+10-07 14:23:10.242  2549  2568 I FontLog : (REDACTED) Fetch %s end status %s
+10-07 14:23:10.248 14427 14462 W shubhlabh.orde: Accessing hidden method Landroid/graphics/FontFamily;-><init>()V (light greylist, reflection)
+10-07 14:23:10.248 14427 14462 W shubhlabh.orde: Accessing hidden method Landroid/graphics/FontFamily;->addFontFromAssetManager(Landroid/content/res/AssetManager;Ljava/lang/String;IZIII[Landroid/graphics/fonts/FontVariationAxis;)Z (light greylist, reflection)
+10-07 14:23:10.249 14427 14462 W shubhlabh.orde: Accessing hidden method Landroid/graphics/FontFamily;->addFontFromBuffer(Ljava/nio/ByteBuffer;I[Landroid/graphics/fonts/FontVariationAxis;II)Z (light greylist, reflection)
+10-07 14:23:10.249 14427 14462 W shubhlabh.orde: Accessing hidden method Landroid/graphics/FontFamily;->freeze()Z (light greylist, reflection)
+10-07 14:23:10.249 14427 14462 W shubhlabh.orde: Accessing hidden method Landroid/graphics/FontFamily;->abortCreation()V (light greylist, reflection)
+10-07 14:23:10.249 14427 14462 W shubhlabh.orde: Accessing hidden method Landroid/graphics/Typeface;->createFromFamiliesWithDefault([Landroid/graphics/FontFamily;Ljava/lang/String;II)Landroid/graphics/Typeface; (light greylist, reflection)
+10-07 14:23:10.252  2549  2568 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+10-07 14:23:10.259  2549  2568 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+10-07 14:23:10.286 14427 14460 W unknown:BridgelessReact: ReactHost{0}.loadJSBundleFromMetro(): Creating BundleLoader
+10-07 14:23:10.287 14427 14459 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Creating BridgelessReactContext
+10-07 14:23:10.288 14427 14459 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Creating ReactInstance
+10-07 14:23:10.315 14427 14459 D jni_lib_merge: Entering merged library JNI_OnLoad.
+10-07 14:23:10.315 14427 14459 D jni_lib_merge: Preparing 4 pre-merged libs (including stub)
+10-07 14:23:10.315 14427 14459 D jni_lib_merge: Preparing to register libhermes_executor_so.  onload_func: 0x70c27eed58
+10-07 14:23:10.315 14427 14459 D jni_lib_merge: Preparing to register libhermesinstancejni_so.  onload_func: 0x70c281dbf0
+10-07 14:23:10.315 14427 14459 D jni_lib_merge: Preparing to register libjsijniprofiler_so.  onload_func: 0x70c281fc68
+10-07 14:23:10.315 14427 14459 D jni_lib_merge: About to register 3 actual methods.
+10-07 14:23:10.421 14427 14459 I ExpoModulesCore: ✅ AppContext was initialized
+10-07 14:23:10.547 14427 14459 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Loading JS Bundle
+10-07 14:23:10.548 14427 14459 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): DevSupportManager.onNewReactContextCreated()
+10-07 14:23:10.553 14427 14427 W unknown:ReactNative: Packager connection already open, nooping.
+10-07 14:23:10.554 14427 14427 W unknown:BridgelessReact: ReactHost{0}.ReactContext.onHostResume()
+10-07 14:23:10.554 14427 14459 W unknown:BridgelessReact: ReactHost{0}.startSurface(surfaceId = 0): Execute
+10-07 14:23:10.561 14427 14427 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Executing ReactInstanceEventListeners
+10-07 14:23:11.053  2726 14406 I FA      : Application backgrounded at: timestamp_millis: 1791363189049
+10-07 14:23:11.489 14427 14464 W shubhlabh.orde: Unknown chunk type '200'.
+10-07 14:23:11.494 14427 14464 I WebViewFactory: Loading com.android.chrome version 138.0.7204.179 (code 720417921)
+10-07 14:23:11.496 14427 14464 W shubhlabh.orde: Unknown chunk type '200'.
+10-07 14:23:11.499 14427 14464 W linker  : Warning: "/data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/base.apk!/lib/arm64-v8a/libmonochrome.so" unused DT entry: unknown processor-specific (type 0x70000001 arg 0x0) (ignoring)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde: Rejecting re-init on previously-failed class java.lang.Class<P64>: java.lang.NoClassDefFoundError: Failed resolution of: Landroid/webkit/PacProcessor;
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.classForName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:-2)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:453)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getWebViewProviderClass(java.lang.ClassLoader) (WebViewFactory.java:176)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getProviderClass() (WebViewFactory.java:459)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at android.webkit.WebViewFactoryProvider android.webkit.WebViewFactory.getProvider() (WebViewFactory.java:251)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager android.webkit.CookieManager.getInstance() (CookieManager.java:40)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager com.facebook.react.modules.network.ForwardingCookieHandler.getCookieManager() (ForwardingCookieHandler.kt:73)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.util.Map com.facebook.react.modules.network.ForwardingCookieHandler.get(java.net.URI, java.util.Map) (ForwardingCookieHandler.kt:30)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.String com.facebook.react.modules.websocket.WebSocketModule.getCookie(java.lang.String) (WebSocketModule.kt:350)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.modules.websocket.WebSocketModule.connect(java.lang.String, com.facebook.react.bridge.ReadableArray, com.facebook.react.bridge.ReadableMap, double) (WebSocketModule.kt:99)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.jni.NativeRunnable.run() (NativeRunnable.java:-2)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void android.os.Handler.handleCallback(android.os.Message) (Handler.java:873)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:99)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadHandler.dispatchMessage(android.os.Message) (MessageQueueThreadHandler.kt:21)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void android.os.Looper.loop() (Looper.java:201)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.startNewBackgroundThread$lambda$0(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:152)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.$r8$lambda$YYXYCFexeoKtAeDpeNYkxZZlpbA(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:-1)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion$$ExternalSyntheticLambda0.run() (D8$$SyntheticClass:0)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void java.lang.Thread.run() (Thread.java:764)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde: Caused by: java.lang.ClassNotFoundException: Didn't find class "android.webkit.PacProcessor" on path: DexPathList[[zip file "/data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/base.apk"],nativeLibraryDirectories=[/data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/lib/arm64, /data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/base.apk!/lib/arm64-v8a, /system/lib64]]
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class dalvik.system.BaseDexClassLoader.findClass(java.lang.String) (BaseDexClassLoader.java:171)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String, boolean) (ClassLoader.java:379)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String) (ClassLoader.java:312)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.classForName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:-2)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:453)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getWebViewProviderClass(java.lang.ClassLoader) (WebViewFactory.java:176)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getProviderClass() (WebViewFactory.java:459)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at android.webkit.WebViewFactoryProvider android.webkit.WebViewFactory.getProvider() (WebViewFactory.java:251)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager android.webkit.CookieManager.getInstance() (CookieManager.java:40)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager com.facebook.react.modules.network.ForwardingCookieHandler.getCookieManager() (ForwardingCookieHandler.kt:73)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.util.Map com.facebook.react.modules.network.ForwardingCookieHandler.get(java.net.URI, java.util.Map) (ForwardingCookieHandler.kt:30)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at java.lang.String com.facebook.react.modules.websocket.WebSocketModule.getCookie(java.lang.String) (WebSocketModule.kt:350)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.modules.websocket.WebSocketModule.connect(java.lang.String, com.facebook.react.bridge.ReadableArray, com.facebook.react.bridge.ReadableMap, double) (WebSocketModule.kt:99)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.jni.NativeRunnable.run() (NativeRunnable.java:-2)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void android.os.Handler.handleCallback(android.os.Message) (Handler.java:873)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:99)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadHandler.dispatchMessage(android.os.Message) (MessageQueueThreadHandler.kt:21)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void android.os.Looper.loop() (Looper.java:201)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.startNewBackgroundThread$lambda$0(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:152)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.$r8$lambda$YYXYCFexeoKtAeDpeNYkxZZlpbA(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:-1)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion$$ExternalSyntheticLambda0.run() (D8$$SyntheticClass:0)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde:   at void java.lang.Thread.run() (Thread.java:764)
+10-07 14:23:11.521 14427 14464 I shubhlabh.orde: 
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde: Rejecting re-init on previously-failed class java.lang.Class<P64>: java.lang.NoClassDefFoundError: Failed resolution of: Landroid/webkit/PacProcessor;
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.classForName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:-2)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:453)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getWebViewProviderClass(java.lang.ClassLoader) (WebViewFactory.java:176)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getProviderClass() (WebViewFactory.java:459)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at android.webkit.WebViewFactoryProvider android.webkit.WebViewFactory.getProvider() (WebViewFactory.java:251)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager android.webkit.CookieManager.getInstance() (CookieManager.java:40)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager com.facebook.react.modules.network.ForwardingCookieHandler.getCookieManager() (ForwardingCookieHandler.kt:73)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.util.Map com.facebook.react.modules.network.ForwardingCookieHandler.get(java.net.URI, java.util.Map) (ForwardingCookieHandler.kt:30)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.String com.facebook.react.modules.websocket.WebSocketModule.getCookie(java.lang.String) (WebSocketModule.kt:350)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.modules.websocket.WebSocketModule.connect(java.lang.String, com.facebook.react.bridge.ReadableArray, com.facebook.react.bridge.ReadableMap, double) (WebSocketModule.kt:99)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.jni.NativeRunnable.run() (NativeRunnable.java:-2)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void android.os.Handler.handleCallback(android.os.Message) (Handler.java:873)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:99)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadHandler.dispatchMessage(android.os.Message) (MessageQueueThreadHandler.kt:21)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void android.os.Looper.loop() (Looper.java:201)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.startNewBackgroundThread$lambda$0(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:152)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.$r8$lambda$YYXYCFexeoKtAeDpeNYkxZZlpbA(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:-1)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion$$ExternalSyntheticLambda0.run() (D8$$SyntheticClass:0)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void java.lang.Thread.run() (Thread.java:764)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde: Caused by: java.lang.ClassNotFoundException: Didn't find class "android.webkit.PacProcessor" on path: DexPathList[[zip file "/data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/base.apk"],nativeLibraryDirectories=[/data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/lib/arm64, /data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/base.apk!/lib/arm64-v8a, /system/lib64]]
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class dalvik.system.BaseDexClassLoader.findClass(java.lang.String) (BaseDexClassLoader.java:171)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String, boolean) (ClassLoader.java:379)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String) (ClassLoader.java:312)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.classForName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:-2)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:453)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getWebViewProviderClass(java.lang.ClassLoader) (WebViewFactory.java:176)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getProviderClass() (WebViewFactory.java:459)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at android.webkit.WebViewFactoryProvider android.webkit.WebViewFactory.getProvider() (WebViewFactory.java:251)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager android.webkit.CookieManager.getInstance() (CookieManager.java:40)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager com.facebook.react.modules.network.ForwardingCookieHandler.getCookieManager() (ForwardingCookieHandler.kt:73)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.util.Map com.facebook.react.modules.network.ForwardingCookieHandler.get(java.net.URI, java.util.Map) (ForwardingCookieHandler.kt:30)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at java.lang.String com.facebook.react.modules.websocket.WebSocketModule.getCookie(java.lang.String) (WebSocketModule.kt:350)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.modules.websocket.WebSocketModule.connect(java.lang.String, com.facebook.react.bridge.ReadableArray, com.facebook.react.bridge.ReadableMap, double) (WebSocketModule.kt:99)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.jni.NativeRunnable.run() (NativeRunnable.java:-2)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void android.os.Handler.handleCallback(android.os.Message) (Handler.java:873)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:99)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadHandler.dispatchMessage(android.os.Message) (MessageQueueThreadHandler.kt:21)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void android.os.Looper.loop() (Looper.java:201)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.startNewBackgroundThread$lambda$0(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:152)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.$r8$lambda$YYXYCFexeoKtAeDpeNYkxZZlpbA(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:-1)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion$$ExternalSyntheticLambda0.run() (D8$$SyntheticClass:0)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde:   at void java.lang.Thread.run() (Thread.java:764)
+10-07 14:23:11.522 14427 14464 I shubhlabh.orde: 
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde: Rejecting re-init on previously-failed class java.lang.Class<P64>: java.lang.NoClassDefFoundError: Failed resolution of: Landroid/webkit/PacProcessor;
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.classForName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:-2)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:453)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getWebViewProviderClass(java.lang.ClassLoader) (WebViewFactory.java:176)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getProviderClass() (WebViewFactory.java:459)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at android.webkit.WebViewFactoryProvider android.webkit.WebViewFactory.getProvider() (WebViewFactory.java:251)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager android.webkit.CookieManager.getInstance() (CookieManager.java:40)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager com.facebook.react.modules.network.ForwardingCookieHandler.getCookieManager() (ForwardingCookieHandler.kt:73)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.util.Map com.facebook.react.modules.network.ForwardingCookieHandler.get(java.net.URI, java.util.Map) (ForwardingCookieHandler.kt:30)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.String com.facebook.react.modules.websocket.WebSocketModule.getCookie(java.lang.String) (WebSocketModule.kt:350)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.modules.websocket.WebSocketModule.connect(java.lang.String, com.facebook.react.bridge.ReadableArray, com.facebook.react.bridge.ReadableMap, double) (WebSocketModule.kt:99)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.jni.NativeRunnable.run() (NativeRunnable.java:-2)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void android.os.Handler.handleCallback(android.os.Message) (Handler.java:873)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:99)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadHandler.dispatchMessage(android.os.Message) (MessageQueueThreadHandler.kt:21)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void android.os.Looper.loop() (Looper.java:201)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.startNewBackgroundThread$lambda$0(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:152)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.$r8$lambda$YYXYCFexeoKtAeDpeNYkxZZlpbA(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:-1)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion$$ExternalSyntheticLambda0.run() (D8$$SyntheticClass:0)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void java.lang.Thread.run() (Thread.java:764)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde: Caused by: java.lang.ClassNotFoundException: Didn't find class "android.webkit.PacProcessor" on path: DexPathList[[zip file "/data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/base.apk"],nativeLibraryDirectories=[/data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/lib/arm64, /data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/base.apk!/lib/arm64-v8a, /system/lib64]]
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class dalvik.system.BaseDexClassLoader.findClass(java.lang.String) (BaseDexClassLoader.java:171)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String, boolean) (ClassLoader.java:379)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String) (ClassLoader.java:312)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.classForName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:-2)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:453)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getWebViewProviderClass(java.lang.ClassLoader) (WebViewFactory.java:176)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getProviderClass() (WebViewFactory.java:459)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at android.webkit.WebViewFactoryProvider android.webkit.WebViewFactory.getProvider() (WebViewFactory.java:251)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager android.webkit.CookieManager.getInstance() (CookieManager.java:40)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager com.facebook.react.modules.network.ForwardingCookieHandler.getCookieManager() (ForwardingCookieHandler.kt:73)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.util.Map com.facebook.react.modules.network.ForwardingCookieHandler.get(java.net.URI, java.util.Map) (ForwardingCookieHandler.kt:30)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.String com.facebook.react.modules.websocket.WebSocketModule.getCookie(java.lang.String) (WebSocketModule.kt:350)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.modules.websocket.WebSocketModule.connect(java.lang.String, com.facebook.react.bridge.ReadableArray, com.facebook.react.bridge.ReadableMap, double) (WebSocketModule.kt:99)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.jni.NativeRunnable.run() (NativeRunnable.java:-2)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void android.os.Handler.handleCallback(android.os.Message) (Handler.java:873)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:99)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadHandler.dispatchMessage(android.os.Message) (MessageQueueThreadHandler.kt:21)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void android.os.Looper.loop() (Looper.java:201)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.startNewBackgroundThread$lambda$0(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:152)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.$r8$lambda$YYXYCFexeoKtAeDpeNYkxZZlpbA(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:-1)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion$$ExternalSyntheticLambda0.run() (D8$$SyntheticClass:0)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void java.lang.Thread.run() (Thread.java:764)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde: 
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde: Rejecting re-init on previously-failed class java.lang.Class<P64>: java.lang.NoClassDefFoundError: Failed resolution of: Landroid/webkit/PacProcessor;
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.classForName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:-2)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:453)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getWebViewProviderClass(java.lang.ClassLoader) (WebViewFactory.java:176)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getProviderClass() (WebViewFactory.java:459)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at android.webkit.WebViewFactoryProvider android.webkit.WebViewFactory.getProvider() (WebViewFactory.java:251)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager android.webkit.CookieManager.getInstance() (CookieManager.java:40)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager com.facebook.react.modules.network.ForwardingCookieHandler.getCookieManager() (ForwardingCookieHandler.kt:73)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.util.Map com.facebook.react.modules.network.ForwardingCookieHandler.get(java.net.URI, java.util.Map) (ForwardingCookieHandler.kt:30)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at java.lang.String com.facebook.react.modules.websocket.WebSocketModule.getCookie(java.lang.String) (WebSocketModule.kt:350)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.react.modules.websocket.WebSocketModule.connect(java.lang.String, com.facebook.react.bridge.ReadableArray, com.facebook.react.bridge.ReadableMap, double) (WebSocketModule.kt:99)
+10-07 14:23:11.524 14427 14464 I shubhlabh.orde:   at void com.facebook.jni.NativeRunnable.run() (NativeRunnable.java:-2)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void android.os.Handler.handleCallback(android.os.Message) (Handler.java:873)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:99)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadHandler.dispatchMessage(android.os.Message) (MessageQueueThreadHandler.kt:21)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void android.os.Looper.loop() (Looper.java:201)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.startNewBackgroundThread$lambda$0(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:152)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.$r8$lambda$YYXYCFexeoKtAeDpeNYkxZZlpbA(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:-1)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion$$ExternalSyntheticLambda0.run() (D8$$SyntheticClass:0)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void java.lang.Thread.run() (Thread.java:764)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde: Caused by: java.lang.ClassNotFoundException: Didn't find class "android.webkit.PacProcessor" on path: DexPathList[[zip file "/data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/base.apk"],nativeLibraryDirectories=[/data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/lib/arm64, /data/app/com.android.chrome-W9GMAmfd1VrzCchubitDKA==/base.apk!/lib/arm64-v8a, /system/lib64]]
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at java.lang.Class dalvik.system.BaseDexClassLoader.findClass(java.lang.String) (BaseDexClassLoader.java:171)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String, boolean) (ClassLoader.java:379)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.ClassLoader.loadClass(java.lang.String) (ClassLoader.java:312)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.classForName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:-2)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at java.lang.Class java.lang.Class.forName(java.lang.String, boolean, java.lang.ClassLoader) (Class.java:453)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getWebViewProviderClass(java.lang.ClassLoader) (WebViewFactory.java:176)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at java.lang.Class android.webkit.WebViewFactory.getProviderClass() (WebViewFactory.java:459)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at android.webkit.WebViewFactoryProvider android.webkit.WebViewFactory.getProvider() (WebViewFactory.java:251)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager android.webkit.CookieManager.getInstance() (CookieManager.java:40)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at android.webkit.CookieManager com.facebook.react.modules.network.ForwardingCookieHandler.getCookieManager() (ForwardingCookieHandler.kt:73)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at java.util.Map com.facebook.react.modules.network.ForwardingCookieHandler.get(java.net.URI, java.util.Map) (ForwardingCookieHandler.kt:30)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at java.lang.String com.facebook.react.modules.websocket.WebSocketModule.getCookie(java.lang.String) (WebSocketModule.kt:350)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.react.modules.websocket.WebSocketModule.connect(java.lang.String, com.facebook.react.bridge.ReadableArray, com.facebook.react.bridge.ReadableMap, double) (WebSocketModule.kt:99)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.jni.NativeRunnable.run() (NativeRunnable.java:-2)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void android.os.Handler.handleCallback(android.os.Message) (Handler.java:873)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void android.os.Handler.dispatchMessage(android.os.Message) (Handler.java:99)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadHandler.dispatchMessage(android.os.Message) (MessageQueueThreadHandler.kt:21)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void android.os.Looper.loop() (Looper.java:201)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.startNewBackgroundThread$lambda$0(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:152)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion.$r8$lambda$YYXYCFexeoKtAeDpeNYkxZZlpbA(com.facebook.react.common.futures.SimpleSettableFuture) (MessageQueueThreadImpl.kt:-1)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void com.facebook.react.bridge.queue.MessageQueueThreadImpl$Companion$$ExternalSyntheticLambda0.run() (D8$$SyntheticClass:0)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde:   at void java.lang.Thread.run() (Thread.java:764)
+10-07 14:23:11.525 14427 14464 I shubhlabh.orde: 
+10-07 14:23:11.546 14427 14464 I cr_WVCFactoryProvider: version=138.0.7204.179 (720417921) minSdkVersion=26 isBundle=false multiprocess=true packageId=2
+10-07 14:23:11.560 14427 14479 I chromium: [1007/142311.560236:INFO:android_webview/browser/variations/variations_seed_loader.cc:67] Failed to open file for reading.: No such file or directory (2)
+10-07 14:23:11.568 14427 14464 I cr_LibraryLoader: Successfully loaded native library
+10-07 14:23:11.570 14427 14464 I cr_CachingUmaRecorder: Flushed 7 samples from 7 histograms, 0 samples were dropped.
+10-07 14:23:11.670 14427 14463 W BridgelessReactContext: [WARNING] Bridgeless doesn't support CatalystInstance. Accessing an API that's not part of the new architecture is not encouraged usage.
+10-07 14:23:11.682 14427 14463 I ExpoModulesCore: ✅ JSI interop was installed
+10-07 14:23:11.693 14427 14463 I ExpoModulesCore: ✅ Constants were exported
+10-07 14:23:11.780 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.th3rdwave.safeareacontext.SafeAreaProviderManager
+10-07 14:23:11.797 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.uimanager.LayoutShadowNode
+10-07 14:23:11.808 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.SearchBarManager
+10-07 14:23:11.813 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenFooterManager
+10-07 14:23:11.818 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class expo.modules.kotlin.views.GroupViewManagerWrapper
+10-07 14:23:11.823 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.tabs.host.TabsHostViewManager
+10-07 14:23:11.826 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenContainerViewManager
+10-07 14:23:11.830 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.stack.header.subview.StackHeaderSubviewViewManager
+10-07 14:23:11.837 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ModalScreenViewManager
+10-07 14:23:11.842 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.scrollviewmarker.ScrollViewMarkerViewManager
+10-07 14:23:11.845 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenStackHeaderConfigViewManager
+10-07 14:23:11.848 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.modals.formsheet.FormSheetContentWrapperViewManager
+10-07 14:23:11.852 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenContentWrapperManager
+10-07 14:23:11.855 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.th3rdwave.safeareacontext.SafeAreaViewManager
+10-07 14:23:11.865 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.th3rdwave.safeareacontext.SafeAreaViewShadowNode
+10-07 14:23:11.868 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.safearea.SafeAreaViewManager
+10-07 14:23:11.872 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenViewManager
+10-07 14:23:11.874 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.stack.host.StackHostViewManager
+10-07 14:23:11.876 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenStackHeaderSubviewManager
+10-07 14:23:11.879 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.stack.screen.StackScreenViewManager
+10-07 14:23:11.881 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenStackViewManager
+10-07 14:23:11.883 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.stack.header.config.StackHeaderConfigViewManager
+10-07 14:23:11.887 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.modals.formsheet.FormSheetHostViewManager
+10-07 14:23:11.890 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.tabs.screen.TabsScreenViewManager
+10-07 14:23:12.069 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$DefsViewManager
+10-07 14:23:12.074 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.VirtualViewManager$RenderableShadowNode
+10-07 14:23:12.085 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.debuggingoverlay.DebuggingOverlayManager
+10-07 14:23:12.094 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeMergeManager
+10-07 14:23:12.106 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.safeareaview.ReactSafeAreaViewManager
+10-07 14:23:12.115 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$LinearGradientManager
+10-07 14:23:12.128 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeGaussianBlurManager
+10-07 14:23:12.139 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.progressbar.ReactProgressBarViewManager
+10-07 14:23:12.150 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.scroll.ReactHorizontalScrollViewManager
+10-07 14:23:12.165 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.ReactTextViewManager
+10-07 14:23:12.178 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeColorMatrixManager
+10-07 14:23:12.189 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.scroll.ReactHorizontalScrollContainerViewManager
+10-07 14:23:12.199 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$ClipPathViewManager
+10-07 14:23:12.219 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$SymbolManager
+10-07 14:23:12.235 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$PatternManager
+10-07 14:23:12.251 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeBlendManager
+10-07 14:23:12.262 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.view.ReactViewManager
+10-07 14:23:12.272 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.SvgViewManager
+10-07 14:23:12.284 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.switchview.ReactSwitchManager
+10-07 14:23:12.295 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$UseViewManager
+10-07 14:23:12.308 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$CircleViewManager
+10-07 14:23:12.320 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$TSpanViewManager
+10-07 14:23:12.335 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FilterManager
+10-07 14:23:12.346 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$MarkerManager
+10-07 14:23:12.360 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.modal.ReactModalHostManager
+10-07 14:23:12.371 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$ForeignObjectManager
+10-07 14:23:12.384 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$EllipseViewManager
+10-07 14:23:12.396 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$LineViewManager
+10-07 14:23:12.409 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeFloodManager
+10-07 14:23:12.419 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$GroupViewManager
+10-07 14:23:12.430 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$TextViewManager
+10-07 14:23:12.442 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$ImageViewManager
+10-07 14:23:12.455 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeCompositeManager
+10-07 14:23:12.466 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.image.ReactImageManager
+10-07 14:23:12.477 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$RadialGradientManager
+10-07 14:23:12.489 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$MaskManager
+10-07 14:23:12.501 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.unimplementedview.ReactUnimplementedViewManager
+10-07 14:23:12.510 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$RectViewManager
+10-07 14:23:12.531 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$TextPathViewManager
+10-07 14:23:12.545 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.scroll.ReactScrollViewManager
+10-07 14:23:12.558 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeOffsetManager
+10-07 14:23:12.568 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$PathViewManager
+10-07 14:23:12.579 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.drawer.ReactDrawerLayoutManager
+10-07 14:23:12.590 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.swiperefresh.SwipeRefreshLayoutManager
+10-07 14:23:12.608 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.textinput.ReactTextInputManager
+10-07 14:23:12.622 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.SelectableTextViewManager
+10-07 14:23:12.631 14427 14463 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.virtual.view.ReactVirtualViewManager
+10-07 14:23:13.459   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:13.514  2081  2097 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.DROPBOX_ENTRY_ADDED flg=0x11 (has extras) } to com.google.android.gms/.stats.service.DropBoxEntryAddedReceiver
+10-07 14:23:13.487   628   628 I chatty  : uid=1000(system) keymaster@3.0-s identical 4 lines
+10-07 14:23:13.487   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:14.027  2549 13038 I NearbyMediums: No BLE Fast/GATT advertisements found in the latest cycle.
+10-07 14:23:14.027  2549 13038 I NearbyMediums: Current Tracked Scanning Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing}
+10-07 14:23:14.230  2677  5284 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-07 14:23:14.448 14489 14489 F linker  : CANNOT LINK EXECUTABLE "/system/bin/dpmd": "/system/lib64/libdpmframework.so" is 32-bit instead of 64-bit
+10-07 14:23:15.523 14427 14490 D ProfileInstaller: Installing profile for com.shubhlabh.order
+10-07 14:23:15.925  2974  2974 D MiuiFastConnectService: handleMessage: what: 8, msg.arg1: 0, msg.arg2: 0
+10-07 14:23:15.926  2974  2974 D MiuiFastConnectService: stopBleScan: scanning: true
+10-07 14:23:15.929  2974  2974 D BluetoothAdapter: isLeEnabled(): ON
+10-07 14:23:15.930  2264  2301 D BtGatt.GattService: stopScan() - queue size =4
+10-07 14:23:15.933  2264  2301 D BtGatt.GattService: unregisterScanner() - scannerId=6
+10-07 14:23:15.933   689   689 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+10-07 14:23:15.936   689   689 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+10-07 14:23:15.936   689   689 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+10-07 14:23:15.939   689  2921 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+10-07 14:23:15.940   689  2921 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-07 14:23:15.940   689  2921 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-07 14:23:15.942  2264  2423 D BtGatt.GattService: onScanFilterParamsConfigured() - clientIf=6, status=0, action=1, availableSpace=10
+10-07 14:23:15.942  2264  2423 D BtGatt.ScanManager: callback done for scannerId - 6 status - 0
+10-07 14:23:15.942  2264  2768 D BtGatt.ScanManager: configureRegularScanParams() - queue=3
+10-07 14:23:15.942  2264  2768 D BtGatt.ScanManager: configureRegularScanParams() - ScanSetting LE 1M Scan mode=1ScanSetting LE Coded Scan mode=1 mLastConfiguredScanSettingLE1M=1 mLastConfiguredScanSettingLECoded=1scanPhy=255
+10-07 14:23:15.980  2974  2974 D MiuiFastConnectService: handleMessage: what: 1, msg.arg1: 0, msg.arg2: 0
+10-07 14:23:15.982   689  2921 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-07 14:23:15.984  2974  2974 D BluetoothAdapter: isLeEnabled(): ON
+10-07 14:23:15.987  2264  2301 D BtGatt.GattService: registerScanner() - UUID=5ade7c93-c67f-4d50-a329-8f7c476bdb35
+10-07 14:23:15.988  2264  2924 I bt_stack: [INFO:gatt_api.cc(958)] GATT_Registerf45d026c-c25f-58a0-9c8d-6f2b02c33c9b
+10-07 14:23:15.988  2264  2924 I bt_stack: [INFO:gatt_api.cc(978)] allocated gatt_if=6
+10-07 14:23:15.988  2264  2423 D BtGatt.GattService: onScannerRegistered() - UUID=5ade7c93-c67f-4d50-a329-8f7c476bdb35, scannerId=6, status=0
+10-07 14:23:15.988  2974 12671 D BluetoothLeScanner: onScannerRegistered() - status=0 scannerId=6 mScannerId=0
+10-07 14:23:15.990  2264  2301 D BtGatt.GattService: start scan with filters
+10-07 14:23:15.996  2264  2768 D BtGatt.ScanManager: handling starting scan
+10-07 14:23:16.001  2264  2768 D BtGatt.ScanManager: isAptXLowLatencyModeEnabled: false
+10-07 14:23:16.004   689  2921 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+10-07 14:23:16.004   689  2921 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+10-07 14:23:16.005  2264  2423 D BtGatt.GattService: onScanFilterEnableDisabled() - clientIf=6, status=0, action=1
+10-07 14:23:16.005  2264  2423 D BtGatt.ScanManager: callback done for scannerId - 6 status - 0
+10-07 14:23:16.006  2264  2423 D BtGatt.GattService: onScanFilterConfig() - clientIf=6, action = 0 status = 0, filterType=5, availableSpace=31
+10-07 14:23:16.007  2264  2423 D BtGatt.ScanManager: callback done for scannerId - 6 status - 0
+10-07 14:23:16.007  2264  2768 D BtGatt.ScanManager: configureFilterParamter 500 10000 1 0, deliveryMode=0
+10-07 14:23:16.008  2264  2423 D BtGatt.GattService: onScanFilterParamsConfigured() - clientIf=6, status=0, action=0, availableSpace=9
+10-07 14:23:16.008  2264  2423 D BtGatt.ScanManager: callback done for scannerId - 6 status - 0
+10-07 14:23:16.008  2264  2768 D BtGatt.ScanManager: configureRegularScanParams() - queue=4
+10-07 14:23:16.008  2264  2768 D BtGatt.ScanManager: configureRegularScanParams() - ScanSetting LE 1M Scan mode=1ScanSetting LE Coded Scan mode=1 mLastConfiguredScanSettingLE1M=1 mLastConfiguredScanSettingLECoded=1scanPhy=255
+10-07 14:23:16.049   689  2921 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+10-07 14:23:16.761 14427 14463 I ReactNativeJS: Running "main" with {"rootTag":1,"initialProps":{},"fabric":true}
+10-07 14:23:16.880   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:16.968   628   628 I chatty  : uid=1000(system) keymaster@3.0-s identical 10 lines
+10-07 14:23:16.968   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:17.007   689  2928 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+10-07 14:23:17.007   689  2928 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+10-07 14:23:17.154 14427 14427 W shubhlabh.orde: Accessing hidden field Landroid/view/View;->mAccessibilityDelegate:Landroid/view/View$AccessibilityDelegate; (light greylist, reflection)
+10-07 14:23:17.158   689  2775 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+10-07 14:23:17.216 14427 14464 W unknown:ReactNative: StatusBarModule: Ignored status bar change, current activity is edge-to-edge.
+10-07 14:23:17.216 14427 14464 W unknown:ReactNative: StatusBarModule: Ignored status bar change, current activity is edge-to-edge.
+10-07 14:23:17.300   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:17.300   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:17.309 14427 14445 I shubhlabh.orde: ProcessProfilingInfo new_methods=0 is saved saved_to_disk=0 resolve_classes_delay=8000
+10-07 14:23:17.313   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:17.371   628   628 I chatty  : uid=1000(system) keymaster@3.0-s identical 4 lines
+10-07 14:23:17.371   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:17.382 14427 14463 I ReactNativeJS: 'AUTH SUCCESS:', { id: '32312c9e-e64e-418c-a5eb-4a6de39e7566', email: undefined }
+10-07 14:23:17.388   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:17.396   628   628 I chatty  : uid=1000(system) keymaster@3.0-s identical 2 lines
+10-07 14:23:17.397   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:17.425 14427 14463 I ReactNativeJS: 'AUTH SUCCESS:', { id: '32312c9e-e64e-418c-a5eb-4a6de39e7566', email: undefined }
+10-07 14:23:17.437   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:17.537   628   628 I chatty  : uid=1000(system) keymaster@3.0-s identical 10 lines
+10-07 14:23:17.537   628   628 W /vendor/bin/hw/android.hardware.keymaster@3.0-service: Not performing software digesting for symmetric cipher keys
+10-07 14:23:18.232  2677  5284 I DPMJ    : |REQ:RCVR| DPM creating socket
+10-07 14:23:18.236 14427 14463 I ReactNativeJS: 'APP USER:', { exists: true,
+10-07 14:23:18.236 14427 14463 I ReactNativeJS:   role: 'Buyer',
+10-07 14:23:18.236 14427 14463 I ReactNativeJS:   is_active: true,
+10-07 14:23:18.236 14427 14463 I ReactNativeJS:   crm_party_id: '231b398f-88a1-4d9d-b9d9-4699c42f8416' }
+10-07 14:23:18.237 14427 14463 I ReactNativeJS: 'CRM PARTY:', { exists: true,
+10-07 14:23:18.237 14427 14463 I ReactNativeJS:   party_id: '231b398f-88a1-4d9d-b9d9-4699c42f8416' }

@@ -109,7 +109,7 @@ export default function ProductCatalogueScreen({ navigation }) {
         title={t('profile.language') === 'Language' ? 'Product Catalogue' : 'उत्पाद सूची'} 
         showBack={false}
         rightComponent={
-          <TouchableOpacity onPress={() => navigation.navigate('OrdersTab')}>
+          <TouchableOpacity onPress={() => navigation.navigate('OrdersStack', { screen: 'MyOrders' })}>
             <ShoppingCart color={theme.colors.text} size={24} />
             {totalBags > 0 && (
               <View style={styles.badge}>
