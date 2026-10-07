@@ -60,13 +60,17 @@ export const AuthProvider = ({ children }) => {
     const fetchBuyerData = async (userId) => {
     try {
       setAuthError(null);
-      // Log AUTH SUCCESS
       console.log('AUTH SUCCESS:', { id: userId, email: session?.user?.email });
 
-      // 1. Fetch User Profile
+      // Fetch User Profile AND Customer Profile in a single network request
       const { data: user, error: userError } = await supabase
         .from('app_users')
-        .select('*')
+        .select(`
+          *,
+          crm_parties:crm_party_id (
+            id, display_name, legal_or_core_name, mobile, city, state, assigned_owner_id, territory_id, crm_status, latitude, longitude
+          )
+        `)
         .eq('id', userId)
         .single();
       
@@ -79,14 +83,14 @@ export const AuthProvider = ({ children }) => {
 
       if (userError) throw userError;
 
-      // 2. Verify Buyer Role
+      // Verify Buyer Role
       if (user.role !== 'Buyer' || !user.is_active) {
         setAuthError('ROLE_INVALID');
         setLoading(false);
         return;
       }
 
-      // 3. Check Customer Mapping
+      // Check Customer Mapping
       if (!user.crm_party_id) {
         setAuthError('MAPPING_INVALID');
         setLoading(false);
@@ -95,19 +99,18 @@ export const AuthProvider = ({ children }) => {
 
       setUserProfile(user);
 
-      // 4. Load Buyer Profile (Customer)
-      const { data: customer, error: customerError } = await supabase
-        .from('crm_parties')
-        .select('id, display_name, legal_or_core_name, mobile, city, state, assigned_owner_id, territory_id, crm_status, latitude, longitude')
-        .eq('id', user.crm_party_id)
-        .single();
+      // Extract Buyer Profile (Customer) from join
+      const customer = user.crm_parties;
       
       console.log('CRM PARTY:', {
         exists: !!customer,
         party_id: customer?.id
       });
 
-      if (customerError) throw customerError;
+      // The join returns null if crm_parties row does not exist
+      if (!customer) {
+          throw new Error('CRM Party not found despite having crm_party_id');
+      }
 
       setCustomerProfile(customer);
 
