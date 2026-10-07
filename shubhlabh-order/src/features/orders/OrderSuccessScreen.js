@@ -5,8 +5,9 @@ import { SLButton } from '../../shared/components/SLButton';
 import { useTranslation } from '../../shared/localization/i18n';
 import { CheckCircle } from 'lucide-react-native';
 
-export default function OrderSuccessScreen({ navigation }) {
+export default function OrderSuccessScreen({ route, navigation }) {
   const { t } = useTranslation();
+  const orderData = route.params?.orderData;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -14,12 +15,12 @@ export default function OrderSuccessScreen({ navigation }) {
         <CheckCircle size={80} color={theme.colors.green} style={styles.icon} />
         
         <Text style={styles.title}>{t('order.confirmed')}</Text>
-        <Text style={styles.subtitle}>{t('order.number')}: ORD-9921</Text>
+        <Text style={styles.subtitle}>{t('order.number')}: {orderData?.order_no || 'Pending'}</Text>
         
         <View style={styles.detailsBox}>
           <View style={styles.row}>
             <Text style={styles.label}>{t('order.total')}:</Text>
-            <Text style={styles.value}>₹24,500</Text>
+            <Text style={styles.value}>{orderData?.final_amount ? `₹${orderData.final_amount}` : 'TBD'}</Text>
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>{t('order.expectedDispatch')}:</Text>
@@ -30,19 +31,28 @@ export default function OrderSuccessScreen({ navigation }) {
         <View style={styles.actions}>
           <SLButton 
             title={t('order.viewOrder')} 
-            onPress={() => navigation.replace('OrdersTab')} 
+            onPress={() => {
+              navigation.navigate('NewOrderMain');
+              navigation.navigate('OrdersStack', { screen: 'OrderDetail', params: { orderId: orderData?.id, order: orderData } });
+            }} 
             style={styles.btn}
           />
           <SLButton 
-            title={t('order.trackOrder')} 
+            title={t('profile.language') === 'Language' ? 'My Orders' : 'मेरे ऑर्डर'} 
             variant="outline" 
-            onPress={() => navigation.replace('OrdersTab', { screen: 'OrderTracking' })} 
+            onPress={() => {
+              navigation.navigate('NewOrderMain');
+              navigation.navigate('OrdersStack', { screen: 'MyOrders' });
+            }} 
             style={styles.btn}
           />
           <SLButton 
             title={t('common.backToHome')} 
             variant="secondary" 
-            onPress={() => navigation.navigate('HomeTab')} 
+            onPress={() => {
+              navigation.navigate('NewOrderMain');
+              navigation.navigate('HomeTab');
+            }} 
             style={styles.btn}
           />
         </View>

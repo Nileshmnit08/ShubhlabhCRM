@@ -49,6 +49,12 @@ import DispatchDetail from './pages/Dispatches/Detail';
 
 import Logistics from './pages/Logistics';
 import CommunicationDashboard from './pages/CommunicationDashboard';
+
+// Business Updates
+import BusinessUpdatesList from './pages/BusinessUpdates/List';
+import BusinessUpdateForm from './pages/BusinessUpdates/Form';
+import BusinessUpdateDetail from './pages/BusinessUpdates/Detail';
+
 import TravelExpenses from './pages/TravelExpenses';
 import FieldMobility from './pages/FieldMobility';
 
@@ -246,6 +252,12 @@ function App() {
 
               {/* Admin-Only Routes */}
               <Route element={<AdminRoute />}>
+                <Route path="communication" element={<CommunicationDashboard />} />
+                <Route path="customer-updates">
+                  <Route index element={<BusinessUpdatesList />} />
+                  <Route path="new" element={<BusinessUpdateForm />} />
+                  <Route path=":id" element={<BusinessUpdateDetail />} />
+                </Route>
                 <Route path="system-requirements" element={<SystemRequirementsBoard />} />
                 <Route path="leads">
                   <Route index element={<CustomerList isLeadMode />} />

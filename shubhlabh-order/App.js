@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import OnboardingNavigator from './src/features/onboarding/OnboardingNavigator';
 
 import MainTabNavigator from './src/navigation/MainTabNavigator';
+import OrdersStackNavigator from './src/navigation/OrdersStackNavigator';
 
 const Stack = createNativeStackNavigator();
 
@@ -54,7 +55,10 @@ function MainNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {isOnboarded ? (
-        <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+        <>
+          <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+          <Stack.Screen name="OrdersStack" component={OrdersStackNavigator} />
+        </>
       ) : (
         <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
       )}

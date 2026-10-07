@@ -9,43 +9,35 @@ import { SLButton } from '../../shared/components/SLButton';
 import { Search, Plus, Minus, ShoppingCart } from 'lucide-react-native';
 import { useOrderList } from '../orders/OrderListContext';
 
+import { useProducts } from './useProducts';
+
 export default function ProductCatalogueScreen({ navigation }) {
   const { t } = useTranslation();
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { products, loading, error } = useProducts();
   const [searchQuery, setSearchQuery] = useState('');
   const [quantities, setQuantities] = useState({});
   const { addToOrderList, totalBags } = useOrderList();
-  const [activeCategory, setActiveCategory] = useState('category.cattleFeed');
+  const [activeCategory, setActiveCategory] = useState(null);
 
-  const categories = [
-    'category.cattleFeed',
-    'category.mineralMixture',
-    'category.feedSupplements',
-    'category.specialProducts'
-  ];
-
-  const MOCK_PRODUCTS = [
-    { id: '1', name: 'Dairy Special', category: 'category.cattleFeed', unit_of_measure: '50 KG Bag', price: 1450, scheme: 'Buy 10 get 1 free' },
-    { id: '2', name: 'Calf Starter', category: 'category.cattleFeed', unit_of_measure: '50 KG Bag', price: 1250 },
-    { id: '3', name: 'Mineral Product', category: 'category.mineralMixture', unit_of_measure: '25 KG Bag', price: 800 },
-    { id: '4', name: 'Calcium Supplement', category: 'category.feedSupplements', unit_of_measure: '5 Ltr', price: 500 },
-    { id: '5', name: 'Energy Booster', category: 'category.specialProducts', unit_of_measure: '1 Ltr', price: 300 }
-  ];
+  const categories = useMemo(() => {
+    return [...new Set(products.map(p => p.category).filter(Boolean))];
+  }, [products]);
 
   useEffect(() => {
-    // Simulate loading
-    setLoading(true);
-    setTimeout(() => {
-      setProducts(MOCK_PRODUCTS);
+    if (categories.length > 0 && (!activeCategory || !categories.includes(activeCategory))) {
+      setActiveCategory(categories[0]);
+    }
+  }, [categories, activeCategory]);
+
+  useEffect(() => {
+    if (products.length > 0) {
       const initialQuantities = {};
-      MOCK_PRODUCTS.forEach(p => {
+      products.forEach(p => {
         initialQuantities[p.id] = 1;
       });
       setQuantities(initialQuantities);
-      setLoading(false);
-    }, 500);
-  }, []);
+    }
+  }, [products]);
 
   const filteredProducts = useMemo(() => {
     let filtered = products.filter(p => p.category === activeCategory);
@@ -141,7 +133,7 @@ export default function ProductCatalogueScreen({ navigation }) {
               onPress={() => setActiveCategory(item)}
             >
               <Text style={[styles.categoryText, activeCategory === item && styles.categoryTextActive]}>
-                {t(item)}
+                {item}
               </Text>
             </TouchableOpacity>
           )}

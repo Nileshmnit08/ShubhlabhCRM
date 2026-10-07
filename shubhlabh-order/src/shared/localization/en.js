@@ -84,6 +84,9 @@ export const en = {
   'profile.settings': 'Settings',
   'profile.changePassword': 'Change Password',
   'profile.logout': 'Logout',
+  'profile.noSalesperson': 'No salesperson has been assigned yet.',
+  'profile.salespersonCall': 'Call',
+  'profile.salespersonWhatsApp': 'WhatsApp',
 
   // Onboarding
   'onboarding.shopConfirm': 'Is this your business/shop?',
@@ -92,4 +95,21 @@ export const en = {
   'onboarding.shopPhoto': 'Business / Shop Photo',
   'onboarding.confirmDetails': 'Confirm Details',
   'onboarding.uploadError': 'Shop photo could not be uploaded. Please try again.',
+  
+  // New Order
+  'newOrder.title': 'New Order',
+  'newOrder.selectCategory': 'Select Category',
+  'newOrder.selectProduct': 'Select Product',
+  'newOrder.quantityUnit': 'Quantity & Unit',
+  'newOrder.weight': 'Weight',
+  'newOrder.addLine': 'ADD LINE',
+  'newOrder.updateItem': 'UPDATE ITEM',
+  'newOrder.saveOrder': 'SAVE ORDER',
+  'newOrder.customerOrder': 'CUSTOMER ORDER',
+  'newOrder.orderItems': 'Order Items',
+  'newOrder.noProducts': 'No products in this category.',
+  'newOrder.validationSelectProduct': 'Please select a product.',
+  'newOrder.validationQuantity': 'Quantity must be greater than zero.',
+  'newOrder.validationEmptyOrder': 'Please add at least one product to the order.',
+  'newOrder.saveFailed': 'Failed to save order'
 };

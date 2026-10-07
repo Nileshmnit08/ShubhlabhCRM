@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { colors, typography } from '../theme/tokens';
@@ -53,6 +53,8 @@ export function QuickRequirementScreen({ navigation, route }) {
   const [activeUnit, setActiveUnit] = useState(initialItem?.unit || 'Bags');
   const [items, setItems] = useState([]);
   const [weight, setWeight] = useState(initialItem?.weight || 50);
+  const [gift, setGift] = useState(initialItem?.gift || null);
+  const [otherGift, setOtherGift] = useState(initialItem?.other_gift || '');
   const [editingItemIndex, setEditingItemIndex] = useState(existingOrder?.requirement_items?.length > 0 ? 0 : null);
   useEffect(() => {
     fetchProducts();
@@ -63,7 +65,9 @@ export function QuickRequirementScreen({ navigation, route }) {
         product_name: item.product_name,
         quantity: item.quantity,
         unit: item.unit,
-        weight: item.weight
+        weight: item.weight,
+        gift: item.gift,
+        other_gift: item.other_gift
       })));
     }
   }, []);
@@ -134,6 +138,8 @@ export function QuickRequirementScreen({ navigation, route }) {
         newItems[editingItemIndex].quantity = qty;
         newItems[editingItemIndex].unit = activeUnit;
         newItems[editingItemIndex].weight = weight;
+        newItems[editingItemIndex].gift = gift;
+        newItems[editingItemIndex].other_gift = otherGift;
         setEditingItemIndex(null); // Clear after updating
     } else {
         // Check for duplicates
@@ -143,19 +149,25 @@ export function QuickRequirementScreen({ navigation, route }) {
            newItems[existingIndex].unit = activeUnit;
            newItems[existingIndex].weight = weight;
            newItems[existingIndex].product_name = pNameWithWeight;
+           newItems[existingIndex].gift = gift;
+           newItems[existingIndex].other_gift = otherGift;
         } else {
            newItems.push({
              category: selectedCategory,
              product_name: pNameWithWeight,
              quantity: qty,
              unit: activeUnit,
-             weight: weight
+             weight: weight,
+             gift: gift,
+             other_gift: otherGift
            });
         }
     }
     
     setItems(newItems);
     setQty(10);
+    setGift(null);
+    setOtherGift('');
   };
   
   const handleRemoveItem = (index) => {
@@ -176,13 +188,17 @@ export function QuickRequirementScreen({ navigation, route }) {
         finalItems[editingItemIndex].quantity = qty;
         finalItems[editingItemIndex].unit = activeUnit;
         finalItems[editingItemIndex].weight = weight;
+        finalItems[editingItemIndex].gift = gift;
+        finalItems[editingItemIndex].other_gift = otherGift;
     } else if (finalItems.length === 0 && selectedProduct) {
          finalItems.push({
              category: selectedCategory,
              product_name: `${selectedProduct} (${weight} kg)`,
              quantity: qty,
              unit: activeUnit,
-             weight: weight
+             weight: weight,
+             gift: gift,
+             other_gift: otherGift
          });
     }
 
@@ -212,7 +228,9 @@ export function QuickRequirementScreen({ navigation, route }) {
             product_name: item.product_name,
             quantity: item.quantity,
             unit: item.unit,
-            weight: item.weight
+            weight: item.weight,
+            gift: item.gift,
+            other_gift: item.other_gift
         }))
       };
 
@@ -308,11 +326,18 @@ export function QuickRequirementScreen({ navigation, route }) {
                       setQty(item.quantity);
                       setActiveUnit(item.unit);
                       if (item.weight) setWeight(item.weight);
+                      setGift(item.gift || null);
+                      setOtherGift(item.other_gift || '');
                   }}>
                     <View style={{flex: 1}}>
                       <Text style={styles.cartItemCategory}>{item.category}</Text>
                       <Text style={styles.cartItemTitle}>{item.product_name}</Text>
                       <Text style={styles.cartItemQty}>{item.quantity} {item.unit}</Text>
+                      {item.gift && (
+                         <Text style={{fontSize: 12, color: colors.onSurfaceVariant, marginTop: 4}}>
+                           Gift: {item.gift === 'Others' ? item.other_gift : item.gift}
+                         </Text>
+                      )}
                     </View>
                     <TouchableOpacity onPress={() => handleRemoveItem(idx)}>
                        <MaterialIcons name="delete-outline" size={24} color={colors.error} />
@@ -367,7 +392,7 @@ export function QuickRequirementScreen({ navigation, route }) {
               </View>
               
               <View style={styles.stepperBox}>
-                <TouchableOpacity style={styles.stepperBtn} onPress={() => setQty(Math.max(1, qty - 5))}>
+                <TouchableOpacity style={styles.stepperBtn} onPress={() => setQty(Math.max(1, qty - 1))}>
                   <MaterialIcons name="remove" size={24} color={colors.onSurface} />
                 </TouchableOpacity>
                 <View style={styles.stepperValueBox}>
@@ -376,7 +401,7 @@ export function QuickRequirementScreen({ navigation, route }) {
                     <Text style={styles.stepperLabel}>{activeUnit}</Text>
                   </View>
                 </View>
-                <TouchableOpacity style={[styles.stepperBtn, {backgroundColor: colors.primary}]} onPress={() => setQty(qty + 5)}>
+                <TouchableOpacity style={[styles.stepperBtn, {backgroundColor: colors.primary}]} onPress={() => setQty(qty + 1)}>
                   <MaterialIcons name="add" size={24} color={colors.onPrimary} />
                 </TouchableOpacity>
               </View>
@@ -384,7 +409,15 @@ export function QuickRequirementScreen({ navigation, route }) {
 
             {/* Weight Selection */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>Weight (kg)</Text>
+              <Text style={styles.sectionLabel}>Weight: {weight} kg</Text>
+              <View style={{flexDirection: 'row', gap: 8}}>
+                <TouchableOpacity onPress={() => setWeight(Math.max(1, weight - 1))} style={{backgroundColor: colors.surfaceContainer, borderRadius: 8, padding: 4}}>
+                   <MaterialIcons name="remove" size={20} color={colors.onSurface} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setWeight(weight + 1)} style={{backgroundColor: colors.primary, borderRadius: 8, padding: 4}}>
+                   <MaterialIcons name="add" size={20} color={colors.onPrimary} />
+                </TouchableOpacity>
+              </View>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 16}}>
               {WEIGHT_OPTIONS.map(w => (
@@ -397,6 +430,33 @@ export function QuickRequirementScreen({ navigation, route }) {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+
+            {/* Gift Selection */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionLabel}>Select Gift (Optional)</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap: 8, paddingBottom: 16}}>
+              {['Oswal Soap', 'Katora', 'Glass', 'Spoon', 'Tea Bag', 'Others'].map(g => (
+                <TouchableOpacity 
+                  key={g} 
+                  style={gift === g ? styles.dateChipActive : styles.dateChipInactive}
+                  onPress={() => setGift(gift === g ? null : g)}
+                >
+                  <Text style={gift === g ? styles.dateTextActive : styles.dateTextInactive}>{g}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            {gift === 'Others' && (
+              <View style={{marginBottom: 16}}>
+                <TextInput
+                  style={{ backgroundColor: colors.surfaceContainerLow, borderRadius: 12, padding: 12, borderWidth: 1, borderColor: colors.outlineVariant, color: colors.onSurface }}
+                  placeholder="Enter gift name"
+                  placeholderTextColor={colors.onSurfaceVariant}
+                  value={otherGift}
+                  onChangeText={setOtherGift}
+                />
+              </View>
+            )}
 
             {/* Action Buttons */}
             <View style={styles.actionBlock}>

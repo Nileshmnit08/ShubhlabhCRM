@@ -1,14 +1,75 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
+import { supabase } from '../../core/api/supabase';
 
 export default function OrderDetailScreen({ route, navigation }) {
-  const { order } = route.params;
+  const initialOrder = route.params?.order || {};
+  const orderId = route.params?.orderId || initialOrder.id;
+  
+  const [order, setOrder] = useState(initialOrder);
+  const [loading, setLoading] = useState(!initialOrder.id);
 
-  const formattedDate = new Date(order.created_at).toLocaleDateString('en-IN', {
-    day: '2-digit', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  });
+  useEffect(() => {
+    if (orderId) {
+      fetchOrderDetails();
+    }
+  }, [orderId]);
+
+  const fetchOrderDetails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('buyer_orders')
+        .select('*, requirement_items:buyer_order_items(*, product:products(name, category))')
+        .eq('id', orderId)
+        .single();
+        
+      if (data) {
+        let extras = {};
+        let parsedAddress = data.delivery_address;
+        try {
+          const parsed = JSON.parse(data.delivery_address);
+          if (parsed && parsed.extras) {
+            extras = parsed.extras;
+            parsedAddress = parsed.address;
+          }
+        } catch(e) {}
+
+        const mappedOrder = {
+          ...data,
+          delivery_address: parsedAddress,
+          requirement_items: data.requirement_items?.map(item => ({
+             ...item,
+             product_name: item.product?.name || 'Unknown Product',
+             category: item.product?.category || 'Unknown',
+             unit: extras[item.product_id]?.unit || 'Bags',
+             weight: extras[item.product_id]?.weight || null,
+             gift: extras[item.product_id]?.gift || null,
+             other_gift: extras[item.product_id]?.other_gift || null
+          }))
+        };
+        setOrder(mappedOrder);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch order details:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  let formattedDate = 'Unknown Date';
+  if (order.created_at) {
+    const d = new Date(order.created_at);
+    // Format: 06 Oct 2026 • 4:18 PM
+    const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    formattedDate = `${datePart} • ${timePart}`;
+  }
+
+  let items = order.requirement_items || order.items || order.order_items || [];
+  if (typeof items === 'string') {
+    try { items = JSON.parse(items); } catch(e){}
+  }
 
   return (
     <View style={styles.container}>
@@ -20,6 +81,11 @@ export default function OrderDetailScreen({ route, navigation }) {
         <View style={{ width: 28 }} />
       </View>
 
+      {loading ? (
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <ActivityIndicator size="large" color="#F28C28" />
+        </View>
+      ) : (
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <View style={styles.row}>
@@ -40,6 +106,23 @@ export default function OrderDetailScreen({ route, navigation }) {
           </View>
         </View>
 
+        {items && items.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Items</Text>
+            {items.map((item, idx) => (
+              <View key={idx} style={styles.itemRow}>
+                <View style={{flex: 1}}>
+                  <Text style={styles.itemTitle}>{item.product_name}</Text>
+                  <Text style={styles.itemSub}>{item.quantity} {item.unit || 'Bags'} {item.weight ? `• ${item.weight} KG` : ''}</Text>
+                  {item.gift && (
+                    <Text style={styles.itemGift}>Gift: {item.gift === 'Others' ? item.other_gift : item.gift}</Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Summary</Text>
           <View style={styles.row}>
@@ -58,6 +141,7 @@ export default function OrderDetailScreen({ route, navigation }) {
           <Text style={styles.value}>{order.delivery_address || 'Saved Address'}</Text>
         </View>
       </ScrollView>
+      )}
     </View>
   );
 }
@@ -83,4 +167,9 @@ const styles = StyleSheet.create({
   statusText: { color: '#D97706', fontSize: 12, fontWeight: 'bold' },
   
   finalAmount: { fontSize: 18, fontWeight: 'bold', color: '#F28C28' },
+  
+  itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  itemTitle: { fontSize: 16, fontWeight: 'bold', color: '#1F2937' },
+  itemSub: { fontSize: 14, color: '#6B7280', marginTop: 2 },
+  itemGift: { fontSize: 13, color: '#4B5563', marginTop: 4, fontStyle: 'italic' }
 });

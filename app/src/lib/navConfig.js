@@ -182,6 +182,15 @@ export const NAV_SECTIONS = [
         permissionKey: 'admin',
         pinEligible: true,
       },
+      {
+        id: 'customer-updates',
+        label: 'Customer Updates',
+        href: '/customer-updates',
+        icon: Send,
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
     ],
   },
 

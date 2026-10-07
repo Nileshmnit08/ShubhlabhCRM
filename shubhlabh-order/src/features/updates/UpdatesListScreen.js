@@ -29,7 +29,7 @@ export default function UpdatesListScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <SLHeader title={t('updates.title')} showBack={false} />
+      <SLHeader title={t('updates.title')} navigation={navigation} />
       
       <View style={styles.tabContainer}>
         <TabButton label={t('updates.all')} value="All" />

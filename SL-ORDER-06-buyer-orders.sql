@@ -33,11 +33,13 @@ ALTER TABLE public.buyer_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.buyer_order_items ENABLE ROW LEVEL SECURITY;
 
 -- Buyers can only see their own orders
+DROP POLICY IF EXISTS "Buyers view own orders" ON public.buyer_orders;
 CREATE POLICY "Buyers view own orders" ON public.buyer_orders 
     FOR SELECT USING (
         customer_id = public.get_auth_crm_party_id()
     );
 
+DROP POLICY IF EXISTS "Buyers view own order items" ON public.buyer_order_items;
 CREATE POLICY "Buyers view own order items" ON public.buyer_order_items 
     FOR SELECT USING (
         buyer_order_id IN (

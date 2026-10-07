@@ -84,6 +84,9 @@ export const hi = {
   'profile.settings': 'सेटिंग्स',
   'profile.changePassword': 'पासवर्ड बदलें',
   'profile.logout': 'लॉगआउट',
+  'profile.noSalesperson': 'कोई सेल्सपर्सन असाइन नहीं किया गया है।',
+  'profile.salespersonCall': 'कॉल करें',
+  'profile.salespersonWhatsApp': 'व्हाट्सएप',
 
   // Onboarding
   'onboarding.shopConfirm': 'क्या यह आपकी दुकान/व्यवसाय है?',
@@ -92,4 +95,21 @@ export const hi = {
   'onboarding.shopPhoto': 'दुकान / व्यवसाय की फोटो',
   'onboarding.confirmDetails': 'विवरण की पुष्टि करें',
   'onboarding.uploadError': 'दुकान की फोटो अपलोड नहीं हो सकी। कृपया पुनः प्रयास करें।',
+  
+  // New Order
+  'newOrder.title': 'नया ऑर्डर',
+  'newOrder.selectCategory': 'श्रेणी चुनें',
+  'newOrder.selectProduct': 'उत्पाद चुनें',
+  'newOrder.quantityUnit': 'मात्रा और इकाई',
+  'newOrder.weight': 'वज़न',
+  'newOrder.addLine': 'लाइन जोड़ें',
+  'newOrder.updateItem': 'आइटम अपडेट करें',
+  'newOrder.saveOrder': 'ऑर्डर सेव करें',
+  'newOrder.customerOrder': 'ग्राहक का ऑर्डर',
+  'newOrder.orderItems': 'ऑर्डर किए गए आइटम',
+  'newOrder.noProducts': 'इस श्रेणी में कोई उत्पाद नहीं है।',
+  'newOrder.validationSelectProduct': 'कृपया एक उत्पाद चुनें।',
+  'newOrder.validationQuantity': 'मात्रा शून्य से अधिक होनी चाहिए।',
+  'newOrder.validationEmptyOrder': 'कृपया कम से कम एक उत्पाद जोड़ें।',
+  'newOrder.saveFailed': 'ऑर्डर सहेजने में विफल'
 };

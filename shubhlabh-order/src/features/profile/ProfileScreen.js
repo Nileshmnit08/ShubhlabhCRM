@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { theme } from '../../shared/theme';
 import { SLHeader } from '../../shared/components/SLHeader';
 import { useTranslation } from '../../shared/localization/i18n';
-import { ChevronRight, MapPin, Globe, HeadphonesIcon, Users, Settings, LogOut, Lock } from 'lucide-react-native';
+import { ChevronRight, MapPin, Globe, HeadphonesIcon, Users, Settings, LogOut, Lock, ClipboardList } from 'lucide-react-native';
 
 export default function ProfileScreen({ navigation }) {
   const { t, language, toggleLanguage } = useTranslation();
@@ -14,10 +14,12 @@ export default function ProfileScreen({ navigation }) {
   const shopName = customerProfile?.shop_name || "Shop Name";
 
   const menuItems = [
+    { title: t('profile.language') === 'Language' ? 'My Orders' : 'मेरे ऑर्डर', icon: ClipboardList, onPress: () => navigation.navigate('OrdersStack', { screen: 'MyOrders' }) },
     { title: t('profile.deliveryAddresses'), icon: MapPin },
+    { title: 'Business Updates', icon: Globe, onPress: () => navigation.navigate('BusinessUpdatesList') },
     { title: t('updates.title'), icon: Globe, onPress: () => navigation.navigate('UpdatesList') },
     { title: t('support.title'), icon: HeadphonesIcon, onPress: () => navigation.navigate('ComplaintCenter') },
-    { title: t('profile.mySalesperson'), icon: Users },
+    { title: t('profile.mySalesperson'), icon: Users, onPress: () => navigation.navigate('MySalesperson') },
     { title: t('profile.settings'), icon: Settings },
     { title: t('profile.changePassword'), icon: Lock },
   ];

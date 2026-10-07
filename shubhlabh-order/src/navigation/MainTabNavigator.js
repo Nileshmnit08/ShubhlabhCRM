@@ -4,10 +4,11 @@ import { Home, Package, ClipboardList, User } from 'lucide-react-native';
 
 import HomeScreen from '../features/home/HomeScreen';
 import ProductsStackNavigator from './ProductsStackNavigator';
-import OrdersStackNavigator from './OrdersStackNavigator';
 import ProfileStackNavigator from './ProfileStackNavigator';
+import NewOrderStackNavigator from './NewOrderStackNavigator';
 import { theme } from '../shared/theme';
 import { useTranslation } from '../shared/localization/i18n';
+import { PlusCircle } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator();
 
@@ -51,11 +52,11 @@ export default function MainTabNavigator() {
         }}
       />
       <Tab.Screen 
-        name="OrdersTab" 
-        component={OrdersStackNavigator} 
+        name="NewOrderTab" 
+        component={NewOrderStackNavigator} 
         options={{
-          tabBarLabel: t('profile.language') === 'Language' ? 'Orders' : 'ऑर्डर',
-          tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={24} />
+          tabBarLabel: t('profile.language') === 'Language' ? 'New Order' : 'नया ऑर्डर',
+          tabBarIcon: ({ color, size }) => <PlusCircle color={color} size={24} />
         }}
       />
       <Tab.Screen 
