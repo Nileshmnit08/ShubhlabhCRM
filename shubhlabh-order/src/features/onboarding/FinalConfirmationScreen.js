@@ -38,7 +38,7 @@ export default function FinalConfirmationScreen() {
           });
 
         if (uploadError) {
-          setErrorMessage(t('onboarding.uploadError'));
+          setErrorMessage("Photo couldn't be uploaded. Please try again.");
           throw uploadError;
         }
         // Save the persistent path
@@ -63,10 +63,6 @@ export default function FinalConfirmationScreen() {
       if (error) {
         throw error;
       }
-
-      Alert.alert('Success', 'Onboarding Complete!', [
-        { text: 'OK' }
-      ]);
     } catch (err) {
       console.error(err);
       setSaveError(true);
@@ -83,10 +79,23 @@ export default function FinalConfirmationScreen() {
       <View style={styles.container}>
         <Text style={styles.errorHeading}>{errorMessage || t('common.error')}</Text>
         <SLButton 
-          title={isSaving ? t('common.loading') : t('common.retry')} 
+          title={isSaving ? t('common.loading') : 'Try Again'} 
           onPress={handleSave} 
           disabled={isSaving} 
         />
+        {onboardingData.shopPhoto && (
+           <SLButton 
+             title="Skip for now" 
+             variant="secondary" 
+             onPress={async () => {
+               // Update onboarding data without photo
+               onboardingData.shopPhoto = null;
+               await handleSave();
+             }} 
+             disabled={isSaving} 
+             style={{ marginTop: 16 }}
+           />
+        )}
       </View>
     );
   }
@@ -114,7 +123,7 @@ export default function FinalConfirmationScreen() {
       </SLCard>
 
       <SLButton 
-        title={isSaving ? t('common.loading') : t('common.confirm')} 
+        title={isSaving ? 'Saving...' : 'Go to Dashboard'} 
         onPress={handleSave} 
         disabled={isSaving} 
       />

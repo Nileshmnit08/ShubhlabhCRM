@@ -68,8 +68,8 @@ export default function ShopPhotoScreen() {
       {photoUri ? (
         <View style={styles.center}>
           <Image source={{ uri: photoUri }} style={styles.imagePreview} />
-          <SLButton title={t('common.confirm')} onPress={handleConfirm} style={{width: '100%', marginBottom: 16}} />
-          <SLButton title="Retake Photo" variant="secondary" onPress={() => setPhotoUri(null)} style={{width: '100%'}} />
+          <SLButton title="Continue" onPress={handleConfirm} style={{width: '100%', marginBottom: 16}} />
+          <SLButton title="Replace Photo" variant="secondary" onPress={() => setPhotoUri(null)} style={{width: '100%'}} />
         </View>
       ) : (
         <View style={styles.center}>
@@ -82,6 +82,16 @@ export default function ShopPhotoScreen() {
             <Text style={styles.optionIcon}>🖼️</Text>
             <Text style={styles.optionText}>Gallery</Text>
           </TouchableOpacity>
+          
+          <SLButton 
+            title="Skip for now" 
+            variant="secondary" 
+            onPress={() => {
+              updateData({ shopPhoto: null });
+              navigation.navigate('FinalConfirmation');
+            }} 
+            style={{width: '100%', marginTop: 8}} 
+          />
         </View>
       )}
 

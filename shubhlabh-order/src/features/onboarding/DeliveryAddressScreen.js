@@ -79,7 +79,7 @@ export default function DeliveryAddressScreen() {
           <Text style={styles.icon}>🏠</Text>
           <Text style={styles.cardText}>{village ? village + ', ' : ''}{address}</Text>
         </SLCard>
-        <SLButton title={t('common.confirm')} onPress={handleConfirm} />
+        <SLButton title="Continue" onPress={handleConfirm} />
         <View style={{ height: 16 }} />
         <SLButton title={t('common.cancel')} variant="secondary" onPress={() => setIsConfirming(false)} />
       </View>
@@ -120,7 +120,7 @@ export default function DeliveryAddressScreen() {
         />
       </View>
 
-      <SLButton title={t('common.confirm')} onPress={handleSubmit} style={{ marginTop: 16 }} />
+      <SLButton title="Continue" onPress={handleSubmit} style={{ marginTop: 16 }} />
       <View style={{ height: 16 }} />
       <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
     </ScrollView>

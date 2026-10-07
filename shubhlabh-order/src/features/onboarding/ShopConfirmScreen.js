@@ -47,7 +47,7 @@ export default function ShopConfirmScreen() {
         <Text style={styles.buyerName}>{userProfile?.display_name || customerProfile?.mobile || 'No Name'}</Text>
       </SLCard>
 
-      <SLButton title={t('common.confirm')} onPress={handleConfirm} />
+      <SLButton title="Confirm & Continue" onPress={handleConfirm} />
       <View style={{ height: 16 }} />
       <SLButton title={t('common.cancel')} variant="secondary" onPress={() => setIsWrongShop(true)} />
     </View>

@@ -9,7 +9,7 @@ import { ArrowLeft, CheckCircle } from 'lucide-react-native';
 export default function OrderReviewScreen({ route, navigation }) {
   const { t } = useTranslation();
   const { customerProfile } = useAuth();
-  const { finalItems } = route.params;
+  const { finalItems, existingOrder } = route.params;
   const [loading, setLoading] = React.useState(false);
 
   const handlePlaceOrder = async () => {
@@ -44,7 +44,9 @@ export default function OrderReviewScreen({ route, navigation }) {
       // Build extras map for weight/gift per product
       const itemExtras = {};
       for (const item of finalItems) {
-        itemExtras[item.product_id] = { 
+        // Use category + product_name to distinguish duplicate names across categories
+        const key = `${item.category}_${item.product_name}`;
+        itemExtras[key] = { 
           gift: item.gift || null, 
           other_gift: item.other_gift || null, 
           weight: item.weight || null, 
@@ -52,36 +54,55 @@ export default function OrderReviewScreen({ route, navigation }) {
         };
       }
 
-      const payload = {
-        client_reference_id: clientRef,
-        delivery_address: JSON.stringify({
+      const reqPayload = {
+        party_id: customerProfile.id,
+        status: 'New', // Must match req_status_check constraint
+        unit: 'Bags',  // Must satisfy NOT NULL constraint on requirements
+        notes: JSON.stringify({
           address: customerProfile?.city || 'Saved Address',
+          client_reference_id: clientRef,
           extras: itemExtras,
-        }),
-        items: finalItems.map(item => ({
-          product_id: item.product_id,
-          quantity: item.quantity,
-        })),
+        })
       };
 
-      console.log('Placing order with payload:', JSON.stringify(payload));
+      console.log('Placing order with payload:', JSON.stringify(reqPayload));
 
-      const { data: rpcData, error: rpcError } = await supabase
-        .rpc('place_buyer_order', { payload });
+      // 1. Insert Header
+      const { data: reqData, error: reqError } = await supabase
+        .from('requirements')
+        .insert(reqPayload)
+        .select()
+        .single();
         
-      if (rpcError) {
-        console.error('RPC error placing order:', rpcError);
-        throw new Error(rpcError.message || 'RPC error');
+      if (reqError) {
+        console.error('Error inserting requirement:', reqError);
+        throw new Error(reqError.message || 'Error inserting order');
       }
-      if (!rpcData || !rpcData.success) {
-        throw new Error('Order placement did not return success');
-      }
+      if (!reqData) throw new Error('Order placement did not return data');
       
+      // 2. Insert Lines
+      const itemsPayload = finalItems.map(item => ({
+        requirement_id: reqData.id,
+        product_name: item.product_name,
+        category: item.category || 'Uncategorized',
+        quantity: item.quantity,
+        unit: item.unit || 'Bags'
+      }));
+      
+      const { error: itemsError } = await supabase
+        .from('requirement_items')
+        .insert(itemsPayload);
+        
+      if (itemsError) {
+         console.error('Error inserting requirement items:', itemsError);
+         throw new Error(itemsError.message || 'Error inserting order items');
+      }
+
       const orderData = {
-        id: rpcData.order_id,
-        order_no: rpcData.order_no,
-        final_amount: rpcData.final_amount,
-        status: 'Order Lag Gaya',
+        id: reqData.id,
+        order_no: reqData.demand_ref || 'PENDING',
+        final_amount: 0,
+        status: reqData.status || 'Order Lag Gaya',
       };
       
       // Navigate to Success

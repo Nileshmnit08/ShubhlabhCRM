@@ -3,7 +3,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Package, ClipboardList, User } from 'lucide-react-native';
 
 import HomeScreen from '../features/home/HomeScreen';
-import ProductsStackNavigator from './ProductsStackNavigator';
 import ProfileStackNavigator from './ProfileStackNavigator';
 import NewOrderStackNavigator from './NewOrderStackNavigator';
 import { theme } from '../shared/theme';
@@ -41,14 +40,6 @@ export default function MainTabNavigator() {
         options={{
           tabBarLabel: t('profile.language') === 'Language' ? 'Home' : 'होम',
           tabBarIcon: ({ color, size }) => <Home color={color} size={24} />
-        }}
-      />
-      <Tab.Screen 
-        name="ProductsTab" 
-        component={ProductsStackNavigator} 
-        options={{
-          tabBarLabel: t('profile.language') === 'Language' ? 'Products' : 'उत्पाद',
-          tabBarIcon: ({ color, size }) => <Package color={color} size={24} />
         }}
       />
       <Tab.Screen 

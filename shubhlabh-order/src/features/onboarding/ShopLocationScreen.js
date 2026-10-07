@@ -79,7 +79,7 @@ export default function ShopLocationScreen() {
           <SLCard style={styles.addressCard}>
             <Text style={styles.addressText}>{locationDetails?.address}</Text>
           </SLCard>
-          <SLButton title={t('common.confirm')} onPress={handleConfirm} style={{width: '100%'}} />
+          <SLButton title="Continue" onPress={handleConfirm} style={{width: '100%'}} />
         </View>
       );
     }

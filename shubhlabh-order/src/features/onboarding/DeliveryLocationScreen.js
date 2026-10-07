@@ -36,7 +36,7 @@ export default function DeliveryLocationScreen() {
         <SLCard style={styles.card}>
           <Text style={styles.cardText}>{onboardingData.shopLocation?.address}</Text>
         </SLCard>
-        <SLButton title={t('common.confirm')} onPress={handleConfirmSame} />
+        <SLButton title="Continue" onPress={handleConfirmSame} />
         <View style={{ height: 16 }} />
         <SLButton title={t('common.cancel')} variant="secondary" onPress={() => setSelectedSame(false)} />
       </View>

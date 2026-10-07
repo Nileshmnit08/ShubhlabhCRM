@@ -22,39 +22,55 @@ export default function MyOrdersScreen({ navigation }) {
   const fetchOrders = async () => {
     setLoading(true);
     setError(false);
+
+    if (!customerProfile?.id) {
+      console.warn('No customer identity found for My Orders');
+      setError(true);
+      setLoading(false);
+      return;
+    }
+
     try {
       // where RLS automatically restricts to own orders, but we also enforce it client-side.
       const { data, error: dbError } = await supabase
-        .from('buyer_orders')
-        .select('*, requirement_items:buyer_order_items(*, product:products(name, category))')
-        .eq('customer_id', customerProfile?.id)
+        .from('requirements')
+        .select('*, requirement_items(*)')
+        .eq('party_id', customerProfile?.id)
         .order('created_at', { ascending: false });
 
       if (dbError) throw dbError;
       
       const mappedData = (data || []).map(order => {
         let extras = {};
-        let parsedAddress = order.delivery_address;
+        let parsedAddress = order.notes || '';
         try {
-          const parsed = JSON.parse(order.delivery_address);
+          const parsed = JSON.parse(order.notes);
           if (parsed && parsed.extras) {
             extras = parsed.extras;
             parsedAddress = parsed.address;
           }
         } catch(e) {}
 
+        const totalBags = order.requirement_items?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0;
+
         return {
           ...order,
+          order_no: order.demand_ref || 'PENDING',
           delivery_address: parsedAddress,
-          requirement_items: order.requirement_items?.map(item => ({
-             ...item,
-             product_name: item.product?.name || 'Unknown Product',
-             category: item.product?.category || 'Unknown',
-             unit: extras[item.product_id]?.unit || 'Bags',
-             weight: extras[item.product_id]?.weight || null,
-             gift: extras[item.product_id]?.gift || null,
-             other_gift: extras[item.product_id]?.other_gift || null
-          }))
+          total_bags: totalBags,
+          final_amount: 0,
+          requirement_items: order.requirement_items?.map(item => {
+             const key = `${item.category}_${item.product_name}`;
+             return {
+               ...item,
+               product_name: item.product_name || 'Unknown Product',
+               category: item.category || 'Unknown',
+               unit: item.unit || extras[key]?.unit || 'Bags',
+               weight: extras[key]?.weight || null,
+               gift: extras[key]?.gift || null,
+               other_gift: extras[key]?.other_gift || null
+             };
+          })
         };
       });
       setOrders(mappedData);
@@ -103,6 +119,8 @@ export default function MyOrdersScreen({ navigation }) {
     );
   };
 
+  const [activeTab, setActiveTab] = useState('ACTIVE');
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -111,6 +129,18 @@ export default function MyOrdersScreen({ navigation }) {
       </View>
     );
   }
+
+  const activeOrders = orders.filter(o => {
+    const status = (o.status || '').toUpperCase();
+    return status !== 'DISPATCHED' && status !== 'DELIVERED' && status !== 'RECEIVED';
+  });
+
+  const receivedOrders = orders.filter(o => {
+    const status = (o.status || '').toUpperCase();
+    return status === 'DISPATCHED' || status === 'DELIVERED' || status === 'RECEIVED';
+  });
+
+  const displayedOrders = activeTab === 'ACTIVE' ? activeOrders : receivedOrders;
 
   return (
     <View style={styles.container}>
@@ -122,8 +152,27 @@ export default function MyOrdersScreen({ navigation }) {
         <View style={{ width: 28 }} />
       </View>
 
+      <View style={styles.tabContainer}>
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'ACTIVE' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('ACTIVE')}
+        >
+          <Text style={[styles.tabText, activeTab === 'ACTIVE' && styles.tabTextActive]}>
+            {t('profile.language') === 'Language' ? 'ACTIVE' : 'सक्रिय'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.tabButton, activeTab === 'RECEIVED' && styles.tabButtonActive]}
+          onPress={() => setActiveTab('RECEIVED')}
+        >
+          <Text style={[styles.tabText, activeTab === 'RECEIVED' && styles.tabTextActive]}>
+            {t('profile.language') === 'Language' ? 'RECEIVED' : 'प्राप्त'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
-        data={orders}
+        data={displayedOrders}
         keyExtractor={item => item.id}
         renderItem={renderOrder}
         contentContainerStyle={styles.listContent}
@@ -140,12 +189,14 @@ export default function MyOrdersScreen({ navigation }) {
             ) : (
               <>
                 <Text style={styles.emptyTitle}>{t('profile.language') === 'Language' ? 'No orders found' : 'कोई ऑर्डर नहीं मिला'}</Text>
-                <TouchableOpacity 
-                  style={styles.primaryCTA} 
-                  onPress={() => navigation.navigate('NewOrderTab')}
-                >
-                  <Text style={styles.primaryCTAText}>{t('profile.language') === 'Language' ? 'PLACE NEW ORDER' : 'नया ऑर्डर करें'}</Text>
-                </TouchableOpacity>
+                {activeTab === 'ACTIVE' && (
+                  <TouchableOpacity 
+                    style={styles.primaryCTA} 
+                    onPress={() => navigation.navigate('NewOrderTab')}
+                  >
+                    <Text style={styles.primaryCTAText}>{t('profile.language') === 'Language' ? 'PLACE NEW ORDER' : 'नया ऑर्डर करें'}</Text>
+                  </TouchableOpacity>
+                )}
               </>
             )}
           </View>
@@ -187,5 +238,11 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 18, color: '#6B7280', marginBottom: 24, textAlign: 'center' },
   
   primaryCTA: { backgroundColor: '#F28C28', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12 },
-  primaryCTAText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }
+  primaryCTAText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  
+  tabContainer: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  tabButton: { flex: 1, paddingVertical: 14, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabButtonActive: { borderBottomColor: '#F28C28' },
+  tabText: { fontSize: 14, fontWeight: 'bold', color: '#6B7280' },
+  tabTextActive: { color: '#F28C28' }
 });

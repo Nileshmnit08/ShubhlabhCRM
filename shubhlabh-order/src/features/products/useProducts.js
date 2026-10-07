@@ -22,8 +22,16 @@ export function useProducts() {
       if (error) {
         setError(error);
         setProducts([]);
+        console.log('USE_PRODUCTS ERROR:', error);
       } else {
         setProducts(data || []);
+        console.log('USE_PRODUCTS FETCHED:', (data || []).length, 'records.');
+        if (data && data.length > 0) {
+           const categories = [...new Set(data.map(p => p.category))];
+           console.log('USE_PRODUCTS CATEGORIES:', categories.join(', '));
+           const makka = data.filter(p => p.name === 'Makka Daliya');
+           console.log('USE_PRODUCTS MAKKA DALIYA COUNT:', makka.length);
+        }
       }
     } catch (e) {
       setError(e);

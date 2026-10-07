@@ -8,7 +8,7 @@ import { ChevronRight, MapPin, Globe, HeadphonesIcon, Users, Settings, LogOut, L
 
 export default function ProfileScreen({ navigation }) {
   const { t, language, toggleLanguage } = useTranslation();
-  const { userProfile, customerProfile, logout } = useAuth();
+  const { session, userProfile, customerProfile, logout } = useAuth();
   
   const buyerName = userProfile?.display_name || customerProfile?.name || "Buyer Name";
   const shopName = customerProfile?.shop_name || "Shop Name";
@@ -20,7 +20,7 @@ export default function ProfileScreen({ navigation }) {
     { title: t('updates.title'), icon: Globe, onPress: () => navigation.navigate('UpdatesList') },
     { title: t('support.title'), icon: HeadphonesIcon, onPress: () => navigation.navigate('ComplaintCenter') },
     { title: t('profile.mySalesperson'), icon: Users, onPress: () => navigation.navigate('MySalesperson') },
-    { title: t('profile.settings'), icon: Settings },
+    { title: t('profile.settings'), icon: Settings, onPress: () => navigation.navigate('Settings') },
     { title: t('profile.changePassword'), icon: Lock },
   ];
 
@@ -38,6 +38,15 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.shop}>{shopName}</Text>
           </View>
         </View>
+
+        {!(session?.user?.user_metadata?.shopPhoto && session?.user?.user_metadata?.shopLocation && session?.user?.user_metadata?.deliveryAddress) && (
+          <View style={{ backgroundColor: '#FFF3E0', padding: theme.spacing.md, borderRadius: theme.radius.md, marginBottom: theme.spacing.xl, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#FFE0B2' }}>
+            <Text style={{ ...theme.typography.bodyMedium, color: '#E65100', flex: 1, fontWeight: 'bold', marginRight: 16 }}>Complete your shop profile</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={{ backgroundColor: '#E65100', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}>
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Complete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.section}>
           <View style={styles.row}>

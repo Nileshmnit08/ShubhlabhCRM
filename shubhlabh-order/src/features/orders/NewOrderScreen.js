@@ -211,7 +211,7 @@ export default function NewOrderScreen({ navigation, route }) {
 
   const processSave = (finalItems) => {
     // Navigate to OrderReview with the assembled finalItems
-    navigation.navigate('OrderReview', { finalItems });
+    navigation.navigate('OrderReview', { finalItems, existingOrder });
   };
 
   const currentCategoryProducts = allProducts.filter(p => p.category === selectedCategory);

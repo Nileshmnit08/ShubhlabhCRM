@@ -140,6 +140,15 @@ export default function OrderDetailScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>Delivery</Text>
           <Text style={styles.value}>{order.delivery_address || 'Saved Address'}</Text>
         </View>
+
+        {order.status !== 'DISPATCHED' && order.status !== 'DELIVERED' && order.status !== 'RECEIVED' && (
+          <TouchableOpacity 
+            style={styles.editBtn} 
+            onPress={() => navigation.navigate('NewOrderTab', { screen: 'NewOrderMain', params: { previousOrder: order } })}
+          >
+            <Text style={styles.editBtnText}>Edit Order</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
       )}
     </View>
@@ -171,5 +180,8 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   itemTitle: { fontSize: 16, fontWeight: 'bold', color: '#1F2937' },
   itemSub: { fontSize: 14, color: '#6B7280', marginTop: 2 },
-  itemGift: { fontSize: 13, color: '#4B5563', marginTop: 4, fontStyle: 'italic' }
+  itemGift: { fontSize: 13, color: '#4B5563', marginTop: 4, fontStyle: 'italic' },
+  
+  editBtn: { backgroundColor: '#F28C28', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 16 },
+  editBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' }
 });

@@ -9,6 +9,8 @@ import MySalespersonScreen from '../features/profile/MySalespersonScreen';
 import BusinessUpdatesListScreen from '../features/businessUpdates/BusinessUpdatesListScreen';
 import BusinessUpdateDetailScreen from '../features/businessUpdates/BusinessUpdateDetailScreen';
 
+import SettingsScreen from '../features/profile/SettingsScreen';
+
 const ProfileStack = createNativeStackNavigator();
 
 export default function ProfileStackNavigator() {
@@ -20,6 +22,7 @@ export default function ProfileStackNavigator() {
       <ProfileStack.Screen name="MySalesperson" component={MySalespersonScreen} />
       <ProfileStack.Screen name="BusinessUpdatesList" component={BusinessUpdatesListScreen} />
       <ProfileStack.Screen name="BusinessUpdateDetail" component={BusinessUpdateDetailScreen} />
+      <ProfileStack.Screen name="Settings" component={SettingsScreen} />
     </ProfileStack.Navigator>
   );
 }
