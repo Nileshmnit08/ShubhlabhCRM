@@ -754,7 +754,10 @@ export default function RequirementList() {
                             const isReqOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && req.is_pending;
                             return (
                               <tr key={req.id} style={{borderBottom: '1px solid #E5E7EB', transition: 'background 0.2s', cursor: 'default'}} onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                                <td style={{padding: '12px'}}><Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>{req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : req.product_type}</Link></td>
+                                <td style={{padding: '12px'}}><Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>
+                                  {req.demand_ref ? <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)'}}>{req.demand_ref}</span> : null}
+                                  {req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : req.product_type}
+                                </Link></td>
                                 <td style={{padding: '12px', fontWeight: 500}}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : req.required_quantity} {req.requirement_items?.length > 0 ? req.requirement_items[0].unit : req.unit}</td>
                                 <td style={{padding: '12px'}}>{formatRate(req.expected_rate)}</td>
                                 <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>{getFriendlyDate(req.expected_date)}</td>
@@ -876,7 +879,10 @@ export default function RequirementList() {
                     <span style={{fontSize: '2rem', fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)'}}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : req.required_quantity}</span>
                     <span className="text-muted" style={{fontSize: '0.9rem'}}>{req.requirement_items?.length > 0 ? req.requirement_items[0].unit : req.unit}</span>
                   </div>
-                  <div style={{fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)'}}>{req.product_type}</div>
+                  <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px'}}>{req.demand_ref || `REQ-${req.id.substring(0, 5).toUpperCase()}`}</div>
+                  <div style={{fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)'}}>
+                    {req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : (req.product_type || 'General')}
+                  </div>
                   <div style={{marginTop: '4px'}}>
                      <span style={{display: 'inline-block', fontSize: '0.75rem', padding: '2px 8px', background: '#F3F4F6', color: '#4B5563', borderRadius: '4px', fontWeight: 500}}>
                        {req.intent_type || 'Product Interest'}

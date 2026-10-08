@@ -14,7 +14,7 @@ export default function OrderSuccessScreen({ route, navigation }) {
       <View style={styles.container}>
         <CheckCircle size={80} color={theme.colors.green} style={styles.icon} />
         
-        <Text style={styles.title}>{t('order.confirmed')}</Text>
+        <Text style={styles.title}>{orderData?.updated ? 'Order Updated' : t('order.confirmed')}</Text>
         <Text style={styles.subtitle}>{t('order.number')}: {orderData?.order_no || 'Pending'}</Text>
         
         <View style={styles.detailsBox}>

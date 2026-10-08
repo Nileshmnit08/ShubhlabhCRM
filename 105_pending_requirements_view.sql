@@ -7,6 +7,8 @@ CREATE OR REPLACE VIEW public.v_board_requirements WITH (security_invoker = true
 SELECT 
     r.id,
     r.party_id,
+    r.demand_ref,
+    r.notes,
     r.product_type,
     r.quantity AS required_quantity,
     r.unit,

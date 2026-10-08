@@ -27,7 +27,7 @@ export default function OrderDetailScreen({ route, navigation }) {
     try {
       const { data, error } = await supabase
         .from('requirements')
-        .select('*, requirement_items(*)')
+        .select('*, requirement_items(*), crm_parties(name)')
         .eq('id', orderId)
         .single();
         
@@ -59,7 +59,8 @@ export default function OrderDetailScreen({ route, navigation }) {
                gift: extras[key]?.gift || null,
                other_gift: extras[key]?.other_gift || null
              };
-          })
+          }),
+          customer_name: data.crm_parties?.name || ''
         };
         setOrder(mappedOrder);
       }
@@ -122,9 +123,7 @@ export default function OrderDetailScreen({ route, navigation }) {
           <ArrowLeft color={theme.colors.textPrimary} size={28} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>
-        <TouchableOpacity style={styles.actionButton}>
-          <MoreVertical color={theme.colors.textPrimary} size={24} />
-        </TouchableOpacity>
+        <View style={{ width: 28 }} />
       </View>
 
       {loading ? (
@@ -145,6 +144,14 @@ export default function OrderDetailScreen({ route, navigation }) {
           </View>
           <Text style={styles.heroStatusDesc}>{getStatusDescription(currentStatus)}</Text>
         </View>
+
+        {/* Customer Info */}
+        {order.customer_name && (
+          <View style={[styles.card, { paddingVertical: 12 }]}>
+            <Text style={styles.sectionTitle}>Customer</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary }}>{order.customer_name}</Text>
+          </View>
+        )}
 
         {/* Order Progress */}
         {currentStatus !== 'CANCELLED' && (
@@ -196,7 +203,7 @@ export default function OrderDetailScreen({ route, navigation }) {
                   </View>
                   <View style={styles.itemRight}>
                     <Text style={styles.itemQuantity}>{item.quantity} {item.unit || 'Bags'}</Text>
-                    {item.weight && <Text style={styles.itemWeight}>{item.weight}</Text>}
+                    {item.weight && <Text style={styles.itemWeight}>{item.weight} kg</Text>}
                   </View>
                 </View>
               ))}
@@ -230,13 +237,18 @@ export default function OrderDetailScreen({ route, navigation }) {
           <Text style={styles.sectionTitle}>ORDER SUMMARY</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Products</Text>
-            <Text style={styles.summaryValue}>{items.length} items</Text>
+            <Text style={styles.summaryValue}>{items.length} Products</Text>
           </View>
-          <View style={styles.divider} />
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Quantity</Text>
             <Text style={styles.summaryValue}>{totalBags} Bags</Text>
           </View>
+          {items.some(i => i.weight) && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Total Weight</Text>
+              <Text style={styles.summaryValue}>{items.reduce((sum, item) => sum + (Number(item.weight) || 0) * (Number(item.quantity) || 0), 0)} kg</Text>
+            </View>
+          )}
         </View>
         
         {/* Delivery / Notes */}
@@ -265,17 +277,17 @@ export default function OrderDetailScreen({ route, navigation }) {
       {/* Sticky Bottom Actions */}
       {!loading && (
         <View style={styles.bottomBar}>
-          {(currentStatus === 'NEW' || currentStatus === 'CONFIRMED' || currentStatus === 'CANCELLED') && (
+          {(currentStatus === 'NEW' || currentStatus === 'CONFIRMED') && (
             <TouchableOpacity 
               style={[styles.primaryActionBtn, { flex: 1, marginRight: 8 }]} 
               onPress={handleEditReorder}
             >
               <Edit3 color={theme.colors.white} size={20} />
-              <Text style={styles.primaryActionBtnText}>{currentStatus === 'CANCELLED' ? 'Place New Order' : 'Edit Order'}</Text>
+              <Text style={styles.primaryActionBtnText}>Edit Order</Text>
             </TouchableOpacity>
           )}
 
-          {(currentStatus === 'DELIVERED' || currentStatus === 'DISPATCHED') && (
+          {(currentStatus === 'DELIVERED') && (
             <TouchableOpacity 
               style={[styles.primaryActionBtn, { flex: 1, marginRight: 8 }]} 
               onPress={handleEditReorder}
@@ -285,7 +297,7 @@ export default function OrderDetailScreen({ route, navigation }) {
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={styles.secondaryActionBtn} onPress={handleContact}>
+          <TouchableOpacity style={[styles.secondaryActionBtn, currentStatus !== 'NEW' && currentStatus !== 'CONFIRMED' && currentStatus !== 'DELIVERED' ? { flex: 1 } : {}]} onPress={handleContact}>
             <MessageCircle color={theme.colors.primary} size={20} />
             <Text style={styles.secondaryActionBtnText}>Contact</Text>
           </TouchableOpacity>

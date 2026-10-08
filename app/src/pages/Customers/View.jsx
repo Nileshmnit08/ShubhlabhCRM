@@ -1807,11 +1807,19 @@ Please contact this customer and update Contact Information in CRM.`;
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.375rem' }}>
-                          <span style={{ fontWeight: 600, fontSize: '1.05rem' }}>{req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : (req.product_type || 'Unknown Product')}</span>
+                          <span style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--primary)' }}>
+                            {req.demand_ref || `REQ-${req.id.substring(0, 5).toUpperCase()}`}
+                          </span>
+                          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                            {new Date(req.created_at).toLocaleDateString()}
+                          </span>
                           <span className={`badge ${req.status === 'Confirmed' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`} style={{ fontSize: '0.7rem' }}>{req.status}</span>
                         </div>
+                        <div style={{ color: 'var(--text-primary)', fontSize: '0.95rem', marginBottom: '0.25rem', fontWeight: 500 }}>
+                          {req.requirement_items?.length > 0 ? req.requirement_items.map(i => `${i.product_name} (${i.quantity} ${i.unit})`).join(' • ') : (req.product_type || 'General')}
+                        </div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                          Volume: <strong style={{ color: 'var(--text-primary)' }}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0) : (req.quantity || 0)} {req.requirement_items?.length > 0 ? req.requirement_items[0].unit : (req.unit || 'units')}</strong> 
+                          Total Quantity: <strong style={{ color: 'var(--text-primary)' }}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0) : (req.quantity || 0)} {req.requirement_items?.length > 0 ? req.requirement_items[0].unit : (req.unit || 'units')}</strong> 
                           {req.expected_rate && <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>|</span>}
                           {req.expected_rate && <span>Target Rate: <strong style={{ color: 'var(--text-primary)' }}>₹{req.expected_rate}</strong></span>}
                         </div>

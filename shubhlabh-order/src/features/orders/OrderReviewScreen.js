@@ -56,7 +56,7 @@ export default function OrderReviewScreen({ route, navigation }) {
 
       const reqPayload = {
         party_id: customerProfile.id,
-        status: 'New', // Must match req_status_check constraint
+        status: existingOrder ? existingOrder.status : 'New', // Preserve existing status
         unit: 'Bags',  // Must satisfy NOT NULL constraint on requirements
         notes: JSON.stringify({
           address: customerProfile?.city || 'Saved Address',
@@ -65,19 +65,49 @@ export default function OrderReviewScreen({ route, navigation }) {
         })
       };
 
-      console.log('Placing order with payload:', JSON.stringify(reqPayload));
+      console.log('Placing/Updating order with payload:', JSON.stringify(reqPayload));
 
-      // 1. Insert Header
-      const { data: reqData, error: reqError } = await supabase
-        .from('requirements')
-        .insert(reqPayload)
-        .select()
-        .single();
+      let reqData;
+      if (existingOrder) {
+        // Update existing requirement
+        const { data: updateData, error: updateError } = await supabase
+          .from('requirements')
+          .update(reqPayload)
+          .eq('id', existingOrder.id)
+          .select()
+          .single();
+          
+        if (updateError) {
+          console.error('Error updating requirement:', updateError);
+          throw new Error(updateError.message || 'Error updating order');
+        }
+        reqData = updateData;
         
-      if (reqError) {
-        console.error('Error inserting requirement:', reqError);
-        throw new Error(reqError.message || 'Error inserting order');
+        // Delete existing items
+        const { error: delError } = await supabase
+          .from('requirement_items')
+          .delete()
+          .eq('requirement_id', existingOrder.id);
+          
+        if (delError) {
+           console.error('Error deleting old requirement items:', delError);
+           throw new Error(delError.message || 'Error updating order items');
+        }
+      } else {
+        // Insert new requirement
+        const { data: insertData, error: insertError } = await supabase
+          .from('requirements')
+          .insert(reqPayload)
+          .select()
+          .single();
+          
+        if (insertError) {
+          console.error('Error inserting requirement:', insertError);
+          throw new Error(insertError.message || 'Error inserting order');
+        }
+        reqData = insertData;
       }
+      
       if (!reqData) throw new Error('Order placement did not return data');
       
       // 2. Insert Lines
@@ -103,6 +133,7 @@ export default function OrderReviewScreen({ route, navigation }) {
         order_no: reqData.demand_ref || 'PENDING',
         final_amount: 0,
         status: reqData.status || 'Order Lag Gaya',
+        updated: !!existingOrder
       };
       
       // Navigate to Success

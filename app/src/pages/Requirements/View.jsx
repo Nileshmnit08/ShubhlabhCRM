@@ -306,7 +306,7 @@ export default function RequirementView() {
           <h3 style={{marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--primary)'}}>
             ORDER SUMMARY
             <span style={{fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'normal'}}>
-              Order #{orderIdShort}
+              Order #{req.demand_ref || orderIdShort}
             </span>
           </h3>
           <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
@@ -333,9 +333,11 @@ export default function RequirementView() {
                       </div>
                     ) : (
                       <div style={{marginTop: '4px', fontSize: '0.9rem', color: 'var(--text-muted)'}}>
-                        {item.quantity} {item.unit}
+                        {item.quantity} {item.unit} {item._parsedWeight ? `(${item._parsedWeight} kg)` : ''}
                       </div>
                     )}
+                    {item.gift && <div style={{fontSize: '0.85rem', color: 'var(--success)', marginTop: '2px'}}>🎁 Gift: {item.gift}</div>}
+                    {item.other_gift && <div style={{fontSize: '0.85rem', color: 'var(--success)', marginTop: '2px'}}>🎁 Additional: {item.other_gift}</div>}
                   </div>
                 ))}
               </div>
@@ -370,8 +372,20 @@ export default function RequirementView() {
 
             {req.notes && (
               <div style={{marginTop: '0.5rem', padding: '0.75rem', background: 'rgba(0,0,0,0.03)', borderRadius: '6px'}}>
-                <label className="text-muted" style={{fontSize: '0.85rem', display: 'block', marginBottom: '0.25rem'}}>Initial Notes</label>
-                <p style={{margin: 0}}>{req.notes}</p>
+                <label className="text-muted" style={{fontSize: '0.85rem', display: 'block', marginBottom: '0.25rem'}}>Delivery Notes / Address</label>
+                {(() => {
+                  try {
+                    const parsed = JSON.parse(req.notes);
+                    return (
+                      <>
+                        {parsed.address && <p style={{margin: '0 0 0.25rem 0', fontWeight: 500}}>{parsed.address === 'Saved Address' ? 'Saved delivery address' : parsed.address}</p>}
+                        {parsed.client_reference_id && <p style={{margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)'}}>Ref: {parsed.client_reference_id}</p>}
+                      </>
+                    );
+                  } catch (e) {
+                    return <p style={{margin: 0}}>{req.notes}</p>;
+                  }
+                })()}
               </div>
             )}
           </div>
