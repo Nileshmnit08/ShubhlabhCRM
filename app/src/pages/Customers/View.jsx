@@ -129,7 +129,7 @@ export default function CustomerView({ isLeadMode = false }) {
       } catch (e) { console.error('Failed to fetch timeline:', e); }
       
       try {
-        const { data: reqData } = await supabase.from('requirements').select('*').eq('party_id', id).order('created_at', { ascending: false });
+        const { data: reqData } = await supabase.from('requirements').select('*, requirement_items(*)').eq('party_id', id).order('created_at', { ascending: false });
         setRequirements(reqData || []);
 
         if (reqData && reqData.length > 0) {
@@ -1249,8 +1249,8 @@ Please contact this customer and update Contact Information in CRM.`;
                  {requirements.filter(r => !['Closed', 'Lost', 'Confirmed'].includes(r.status)).map(req => (
                    <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
                      <div>
-                       <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{req.product_name}</strong>
-                       <span className="text-muted text-sm">{req.intent_type || 'General Demand'} - {req.quantity} {req.unit}</span>
+                       <strong style={{ display: 'block', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : (req.product_name || req.product_type || 'Unknown Product')}</strong>
+                       <span className="text-muted text-sm">{req.intent_type || 'General Demand'} - {req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0) : (req.quantity || 0)} {req.requirement_items?.length > 0 ? req.requirement_items[0].unit : (req.unit || 'units')}</span>
                      </div>
                      <button className="btn btn-secondary" onClick={() => setActiveTab('requirements')}>View Details</button>
                    </div>
@@ -1565,8 +1565,8 @@ Please contact this customer and update Contact Information in CRM.`;
                 {requirements.filter(r => !['Closed', 'Lost', 'Confirmed'].includes(r.status)).slice(0,3).map(req => (
                   <div key={req.id} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
                     <div>
-                      <div style={{ fontWeight: 500 }}>{req.product_type}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{req.quantity} {req.unit}</div>
+                      <div style={{ fontWeight: 500 }}>{req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : (req.product_type || 'Unknown Product')}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0) : (req.quantity || 0)} {req.requirement_items?.length > 0 ? req.requirement_items[0].unit : (req.unit || 'units')}</div>
                     </div>
                     <span className="badge badge-active" style={{ fontSize: '0.7rem', height: 'fit-content' }}>{req.status}</span>
                   </div>
@@ -1807,11 +1807,11 @@ Please contact this customer and update Contact Information in CRM.`;
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.375rem' }}>
-                          <span style={{ fontWeight: 600, fontSize: '1.05rem' }}>{req.product_type}</span>
+                          <span style={{ fontWeight: 600, fontSize: '1.05rem' }}>{req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : (req.product_type || 'Unknown Product')}</span>
                           <span className={`badge ${req.status === 'Confirmed' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`} style={{ fontSize: '0.7rem' }}>{req.status}</span>
                         </div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                          Volume: <strong style={{ color: 'var(--text-primary)' }}>{req.quantity} {req.unit || 'units'}</strong> 
+                          Volume: <strong style={{ color: 'var(--text-primary)' }}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0) : (req.quantity || 0)} {req.requirement_items?.length > 0 ? req.requirement_items[0].unit : (req.unit || 'units')}</strong> 
                           {req.expected_rate && <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>|</span>}
                           {req.expected_rate && <span>Target Rate: <strong style={{ color: 'var(--text-primary)' }}>₹{req.expected_rate}</strong></span>}
                         </div>

@@ -414,10 +414,17 @@ export default function RequirementList() {
   const filteredRequirements = requirements.filter(req => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
+    
+    // Check if any requirement item product name matches
+    const itemsMatch = req.requirement_items?.some(item => 
+      item.product_name?.toLowerCase().includes(q)
+    );
+    
     return (
       req.customer_name?.toLowerCase().includes(q) ||
       req.product_type?.toLowerCase().includes(q) ||
-      req.customer_city?.toLowerCase().includes(q)
+      req.customer_city?.toLowerCase().includes(q) ||
+      itemsMatch
     );
   });
 
