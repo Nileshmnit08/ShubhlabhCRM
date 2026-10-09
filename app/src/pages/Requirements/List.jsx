@@ -214,22 +214,40 @@ export default function RequirementList() {
 
       if (data && data.length > 0) {
         const reqIds = data.map(r => r.id);
-        const { data: itemsData, error: itemsError } = await supabase
-          .from('requirement_items')
-          .select('*')
-          .in('requirement_id', reqIds);
-          
-        if (itemsError) throw itemsError;
         
-        if (itemsData) {
-          const itemsMap = {};
-          itemsData.forEach(item => {
-            if (!itemsMap[item.requirement_id]) itemsMap[item.requirement_id] = [];
-            itemsMap[item.requirement_id].push(item);
-          });
-          data.forEach(req => {
-            req.requirement_items = itemsMap[req.id] || [];
-          });
+        let allItems = [];
+        let itemsFetchFailed = false;
+        const chunkSize = 100;
+        
+        for (let i = 0; i < reqIds.length; i += chunkSize) {
+          const chunk = reqIds.slice(i, i + chunkSize);
+          const { data: chunkData, error: chunkError } = await supabase
+            .from('requirement_items')
+            .select('*')
+            .in('requirement_id', chunk);
+            
+          if (chunkError) {
+            console.error("fetchRequirements: Error fetching requirement_items chunk:", chunkError);
+            itemsFetchFailed = true;
+          }
+          if (chunkData) {
+            allItems.push(...chunkData);
+          }
+        }
+        
+        const itemsMap = {};
+        allItems.forEach(item => {
+          if (!itemsMap[item.requirement_id]) itemsMap[item.requirement_id] = [];
+          itemsMap[item.requirement_id].push(item);
+        });
+        
+        data.forEach(req => {
+          req.requirement_items = itemsMap[req.id] || [];
+          req.items_fetch_failed = itemsFetchFailed && !itemsMap[req.id];
+        });
+        
+        if (itemsFetchFailed) {
+          setError("Failed to load line items for some requirements. Displaying partial data.");
         }
       }
 
@@ -448,6 +466,24 @@ export default function RequirementList() {
     }
   };
 
+  const getProductName = (req) => {
+    if (req.items_fetch_failed) return <span style={{color: 'var(--danger)', fontSize: '0.85rem'}}>Error loading items</span>;
+    if (req.requirement_items?.length > 0) return req.requirement_items.map(i => i.product_name).join(', ');
+    return req.product_type === 'General Requirement' ? '-' : (req.product_type || '-');
+  };
+
+  const getProductQuantity = (req) => {
+    if (req.items_fetch_failed) return '-';
+    if (req.requirement_items?.length > 0) return req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
+    return req.product_type === 'General Requirement' ? '-' : (req.required_quantity || req.quantity || 0);
+  };
+
+  const getProductUnit = (req) => {
+    if (req.items_fetch_failed) return '';
+    if (req.requirement_items?.length > 0) return req.requirement_items[0].unit;
+    return req.product_type === 'General Requirement' ? '' : (req.unit || 'Bags');
+  };
+
   // --- Filtering ---
   const filteredRequirements = requirements.filter(req => {
     if (!searchQuery) return true;
@@ -460,7 +496,7 @@ export default function RequirementList() {
     
     return (
       req.customer_name?.toLowerCase().includes(q) ||
-      req.product_type?.toLowerCase().includes(q) ||
+      (req.product_type && req.product_type !== 'General Requirement' && req.product_type.toLowerCase().includes(q)) ||
       req.customer_city?.toLowerCase().includes(q) ||
       itemsMatch
     );
@@ -492,12 +528,12 @@ export default function RequirementList() {
       group.requirements.push(req);
       if (req.requirement_items && req.requirement_items.length > 0) {
         group.total_qty += req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
-      } else {
+      } else if (req.product_type !== 'General Requirement') {
         group.total_qty += Number(req.required_quantity) || 0;
       }
-            if (req.requirement_items && req.requirement_items.length > 0) {
+      if (req.requirement_items && req.requirement_items.length > 0) {
         req.requirement_items.forEach(item => group.products.add(item.product_name));
-      } else if (req.product_type) {
+      } else if (req.product_type && req.product_type !== 'General Requirement') {
         group.products.add(req.product_type);
       }
       
@@ -809,9 +845,9 @@ export default function RequirementList() {
                               <tr key={req.id} style={{borderBottom: '1px solid #E5E7EB', transition: 'background 0.2s', cursor: 'default'}} onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                                 <td style={{padding: '12px'}}><Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>
                                   {req.demand_ref ? <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)'}}>{req.demand_ref}</span> : null}
-                                  {req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : req.product_type}
+                                  {getProductName(req)}
                                 </Link></td>
-                                <td style={{padding: '12px', fontWeight: 500}}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : req.required_quantity} {req.requirement_items?.length > 0 ? req.requirement_items[0].unit : req.unit}</td>
+                                <td style={{padding: '12px', fontWeight: 500}}>{getProductQuantity(req)} {getProductUnit(req)}</td>
                                 <td style={{padding: '12px'}}>{formatRate(req.expected_rate)}</td>
                                 <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>{getFriendlyDate(req.expected_date)}</td>
                                 <td style={{padding: '12px'}}><span className={getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '2px 6px'}}>{req.status}</span></td>
@@ -930,12 +966,12 @@ export default function RequirementList() {
                 {/* 2. Main requirement summary */}
                 <div style={{display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px'}}>
                   <div style={{display: 'flex', alignItems: 'baseline', gap: '6px'}}>
-                    <span style={{fontSize: '2rem', fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)'}}>{req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : req.required_quantity}</span>
-                    <span className="text-muted" style={{fontSize: '0.9rem'}}>{req.requirement_items?.length > 0 ? req.requirement_items[0].unit : req.unit}</span>
+                    <span style={{fontSize: '2rem', fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)'}}>{getProductQuantity(req)}</span>
+                    <span className="text-muted" style={{fontSize: '0.9rem'}}>{getProductUnit(req)}</span>
                   </div>
                   <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px'}}>{req.demand_ref || `REQ-${req.id.substring(0, 5).toUpperCase()}`}</div>
                   <div style={{fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)'}}>
-                    {req.requirement_items?.length > 0 ? req.requirement_items.map(i => i.product_name).join(', ') : (req.product_type || 'General')}
+                    {getProductName(req)}
                   </div>
                   <div style={{marginTop: '4px'}}>
                      <span style={{display: 'inline-block', fontSize: '0.75rem', padding: '2px 8px', background: '#F3F4F6', color: '#4B5563', borderRadius: '4px', fontWeight: 500}}>
@@ -1004,8 +1040,8 @@ export default function RequirementList() {
             <h3 style={{ margin: '0 0 1rem 0', color: 'var(--text-primary)', fontSize: '1.25rem' }}>Cancel this requirement?</h3>
             <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
               <div><strong>Customer:</strong> {reqToCancel.customer_name}</div>
-              <div><strong>Product:</strong> {reqToCancel.product_type}</div>
-              <div><strong>Quantity:</strong> {reqToCancel.required_quantity} {reqToCancel.unit}</div>
+              <div><strong>Product:</strong> {getProductName(reqToCancel)}</div>
+              <div><strong>Quantity:</strong> {getProductQuantity(reqToCancel)} {getProductUnit(reqToCancel)}</div>
               <div><strong>Required By:</strong> {formatDate(reqToCancel.expected_date)}</div>
             </div>
             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
@@ -1028,8 +1064,8 @@ export default function RequirementList() {
             <h3 style={{ margin: '0 0 1rem 0', color: 'var(--danger)', fontSize: '1.25rem' }}>Delete requirement?</h3>
             <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
               <div><strong>Customer:</strong> {reqToDelete.customer_name}</div>
-              <div><strong>Product:</strong> {reqToDelete.product_type}</div>
-              <div><strong>Quantity:</strong> {reqToDelete.required_quantity} {reqToDelete.unit}</div>
+              <div><strong>Product:</strong> {getProductName(reqToDelete)}</div>
+              <div><strong>Quantity:</strong> {getProductQuantity(reqToDelete)} {getProductUnit(reqToDelete)}</div>
             </div>
             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
               This action cannot be undone.
@@ -1050,8 +1086,8 @@ export default function RequirementList() {
             <h3 style={{ margin: '0 0 1rem 0', color: 'var(--success)', fontSize: '1.25rem' }}>Mark this order as dispatched?</h3>
             <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
               <div><strong>Customer:</strong> {reqToDispatch.customer_name}</div>
-              <div><strong>Product:</strong> {reqToDispatch.product_type}</div>
-              <div><strong>Quantity:</strong> {reqToDispatch.required_quantity} {reqToDispatch.unit}</div>
+              <div><strong>Product:</strong> {getProductName(reqToDispatch)}</div>
+              <div><strong>Quantity:</strong> {getProductQuantity(reqToDispatch)} {getProductUnit(reqToDispatch)}</div>
             </div>
             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
               You can add logistics details later.

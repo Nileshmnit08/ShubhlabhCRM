@@ -345,9 +345,9 @@ export default function RequirementView() {
               // Fallback to legacy single product if no items exist
               <div style={{paddingBottom: '0.5rem'}}>
                 <div style={{fontWeight: 600, fontSize: '0.9rem'}}>General</div>
-                <div style={{fontSize: '1.05rem', marginTop: '2px'}}>{req.product_type || 'N/A'}</div>
+                <div style={{fontSize: '1.05rem', marginTop: '2px'}}>{req.product_type === 'General Requirement' ? '-' : (req.product_type || 'N/A')}</div>
                 <div style={{marginTop: '4px', fontSize: '0.9rem', color: 'var(--text-muted)'}}>
-                  {req.quantity} {req.unit}
+                  {req.product_type === 'General Requirement' ? '-' : req.quantity} {req.product_type === 'General Requirement' ? '' : req.unit}
                 </div>
               </div>
             )}
