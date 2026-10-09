@@ -1,20 +1,26 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking, Modal, TextInput, Alert } from 'react-native';
 import { ArrowLeft, MoreVertical, Package, MapPin, Edit3, MessageCircle, RotateCcw } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../core/api/supabase';
 import { getOrderById } from './OrderService';
 import { theme } from '../../shared/theme';
+import { useAuth } from '../auth/AuthContext';
 
 const STATUS_STAGES = ['NEW', 'CONFIRMED', 'PROCESSING', 'DISPATCHED', 'DELIVERED'];
 
 export default function OrderDetailScreen({ route, navigation }) {
+  const { session } = useAuth();
   const initialOrder = route.params?.order || {};
   const orderId = route.params?.orderId || initialOrder.id;
   
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState(true);
   const [itemsExpanded, setItemsExpanded] = useState(false);
+
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [editAddress, setEditAddress] = useState('');
+  const [savingAddress, setSavingAddress] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -87,6 +93,67 @@ export default function OrderDetailScreen({ route, navigation }) {
     });
   };
 
+  const handleSaveAddress = async () => {
+    if (!editAddress.trim()) {
+      Alert.alert('Error', 'Address cannot be empty.');
+      return;
+    }
+    setSavingAddress(true);
+    try {
+      let rawNotes = {};
+      if (order._raw && order._raw.notes) {
+        try {
+          rawNotes = JSON.parse(order._raw.notes);
+        } catch(e) {}
+      }
+      
+      const oldAddress = rawNotes.address || '';
+      rawNotes.address = editAddress.trim();
+      
+      const newNotesJson = JSON.stringify(rawNotes);
+      
+      const { error } = await supabase
+        .from('requirements')
+        .update({ notes: newNotesJson })
+        .eq('id', orderId);
+        
+      if (error) throw error;
+      
+      // Insert audit log
+      await supabase.from('activity_logs').insert({
+         actor_id: session?.user?.id || null,
+         module: 'Orders',
+         action_type: 'UPDATED',
+         entity_type: 'requirements',
+         entity_id: orderId,
+         summary: 'Buyer updated delivery address',
+         metadata: { 
+           source: 'buyer_app',
+           field: 'delivery_address',
+           old_value: oldAddress,
+           new_value: editAddress.trim()
+         }
+      });
+      
+      // Update local state
+      setOrder(prev => ({
+        ...prev,
+        delivery_address: editAddress.trim(),
+        _raw: {
+          ...prev._raw,
+          notes: newNotesJson
+        }
+      }));
+      setShowAddressModal(false);
+      Alert.alert('Success', 'Delivery address updated.');
+    } catch (err) {
+      console.error('Error saving address:', err);
+      Alert.alert('Error', 'Could not save the address.');
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -115,14 +182,6 @@ export default function OrderDetailScreen({ route, navigation }) {
           </View>
           <Text style={styles.heroStatusDesc}>{getStatusDescription(currentStatus)}</Text>
         </View>
-
-        {/* Customer Info */}
-        {order.customer_name && (
-          <View style={[styles.card, { paddingVertical: 12 }]}>
-            <Text style={styles.sectionTitle}>Customer</Text>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary }}>{order.customer_name}</Text>
-          </View>
-        )}
 
         {/* Order Progress */}
         {currentStatus !== 'CANCELLED' && (
@@ -195,10 +254,10 @@ export default function OrderDetailScreen({ route, navigation }) {
             </View>
 
             {/* Gift Section */}
-            {hasGifts && (
-              <View style={styles.card}>
-                <Text style={styles.sectionTitle}>GIFT / EXTRA</Text>
-                {items.filter(i => i.gift).map((item, idx) => (
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>GIFT / EXTRA</Text>
+              {hasGifts ? (
+                items.filter(i => i.gift).map((item, idx) => (
                   <View key={idx} style={styles.giftRow}>
                     <Text style={styles.giftIcon}>🎁</Text>
                     <View>
@@ -206,9 +265,11 @@ export default function OrderDetailScreen({ route, navigation }) {
                       <Text style={styles.giftSub}>For {item.product_name}</Text>
                     </View>
                   </View>
-                ))}
-              </View>
-            )}
+                ))
+              ) : (
+                <Text style={{ color: theme.colors.textSecondary, fontStyle: 'italic', paddingVertical: 8 }}>No gift added</Text>
+              )}
+            </View>
 
             {/* Order Summary */}
             <View style={styles.card}>
@@ -233,20 +294,32 @@ export default function OrderDetailScreen({ route, navigation }) {
         
         {/* Delivery / Notes */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>DELIVERY</Text>
+          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
+            <Text style={[styles.sectionTitle, {marginBottom: 0}]}>DELIVERY</Text>
+            <TouchableOpacity onPress={() => {
+                setEditAddress(order.delivery_address === 'null' || order.delivery_address === '{}' ? '' : (order.delivery_address || ''));
+                setShowAddressModal(true);
+              }} style={styles.editAddressBtn}>
+              <Edit3 size={16} color={theme.colors.primary} />
+              <Text style={styles.editAddressText}>
+                {(!order.delivery_address || order.delivery_address === 'null' || order.delivery_address === '{}') ? 'Add' : 'Edit'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
           <View style={styles.deliveryRow}>
             <MapPin size={20} color={theme.colors.textSecondary} />
             <Text style={styles.deliveryText}>
               {order.delivery_address && order.delivery_address !== 'null' && order.delivery_address !== '{}' 
                 ? order.delivery_address 
-                : 'Saved Address'}
+                : 'No delivery address saved.'}
             </Text>
           </View>
 
-          {order.original_notes && !order.original_notes.startsWith('{') && (
+          {order._raw && order._raw.original_notes && !order._raw.original_notes.startsWith('{') && (
             <View style={styles.notesContainer}>
               <Text style={styles.notesLabel}>NOTES</Text>
-              <Text style={styles.notesText}>{order.original_notes}</Text>
+              <Text style={styles.notesText}>{order._raw.original_notes}</Text>
             </View>
           )}
         </View>
@@ -283,6 +356,31 @@ export default function OrderDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Address Edit Modal */}
+      <Modal visible={showAddressModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delivery Address</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editAddress}
+              onChangeText={setEditAddress}
+              placeholder="Enter delivery address"
+              placeholderTextColor={theme.colors.textSecondary}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setShowAddressModal(false)} disabled={savingAddress}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSave} onPress={handleSaveAddress} disabled={savingAddress}>
+                {savingAddress ? <ActivityIndicator color={theme.colors.white} size="small" /> : <Text style={styles.modalSaveText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -356,4 +454,17 @@ const styles = StyleSheet.create({
   primaryActionBtnText: { color: theme.colors.white, fontSize: 16, fontWeight: '600', marginLeft: 8 },
   secondaryActionBtn: { backgroundColor: theme.colors.background, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 20, borderRadius: theme.radius.button, borderWidth: 1, borderColor: theme.colors.primary },
   secondaryActionBtnText: { color: theme.colors.primary, fontSize: 16, fontWeight: '600', marginLeft: 8 },
+
+  editAddressBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#EFF6FF', borderRadius: 6 },
+  editAddressText: { color: theme.colors.primary, fontSize: 13, fontWeight: '600' },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { width: '100%', backgroundColor: theme.colors.surface, borderRadius: 16, padding: 24, ...theme.elevation.md },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.textPrimary, marginBottom: 16 },
+  modalInput: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, fontSize: 15, color: theme.colors.textPrimary, minHeight: 80, textAlignVertical: 'top' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 24, gap: 12 },
+  modalCancel: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
+  modalCancelText: { color: theme.colors.textSecondary, fontSize: 15, fontWeight: '600' },
+  modalSave: { backgroundColor: theme.colors.primary, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8, minWidth: 80, alignItems: 'center' },
+  modalSaveText: { color: theme.colors.white, fontSize: 15, fontWeight: '600' },
 });

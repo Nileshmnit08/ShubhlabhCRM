@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { theme } from '../../shared/theme';
@@ -72,6 +72,15 @@ export default function HomeScreen() {
       />
       
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Top Branding Area - Shubh Labh Logo */}
+        <View style={styles.logoSection}>
+          <Image 
+            source={require('../../../assets/icon.png')} 
+            style={styles.logoImage} 
+            resizeMode="contain" 
+          />
+        </View>
+
         {/* Identity Section */}
         <View style={styles.identitySection}>
           <SLText style={styles.customerName}>{displayName}</SLText>
@@ -212,6 +221,15 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 16,
+  },
+  logoSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 12,
+  },
+  logoImage: {
+    width: 140,
+    height: 140,
   },
   identitySection: {
     marginBottom: 20,

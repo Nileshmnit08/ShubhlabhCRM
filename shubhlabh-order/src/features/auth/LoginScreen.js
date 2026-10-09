@@ -101,8 +101,11 @@ export default function LoginScreen() {
       >
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.brandTitle}>Shubh Labh</Text>
-            <Text style={styles.brandSubtitle}>Order App</Text>
+            <Image 
+              source={require('../../../assets/icon.png')} 
+              style={styles.logoImage} 
+              resizeMode="contain" 
+            />
           </View>
 
           <SLCard>
@@ -181,19 +184,11 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: theme.spacing.xl * 1.5,
+    marginBottom: theme.spacing.xl,
   },
-  brandTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: theme.colors.primary,
-    letterSpacing: 1,
-  },
-  brandSubtitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.green,
-    marginTop: theme.spacing.xs,
+  logoImage: {
+    width: 180,
+    height: 180,
   },
   cardTitle: {
     ...theme.typography.h2,

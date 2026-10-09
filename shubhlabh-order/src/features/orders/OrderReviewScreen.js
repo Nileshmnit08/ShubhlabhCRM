@@ -93,6 +93,22 @@ export default function OrderReviewScreen({ route, navigation }) {
            console.error('Error deleting old requirement items:', delError);
            throw new Error(delError.message || 'Error updating order items');
         }
+
+        // Insert audit log
+        await supabase.from('activity_logs').insert({
+           actor_id: session?.user?.id || null,
+           module: 'Orders',
+           action_type: 'UPDATED',
+           entity_type: 'requirements',
+           entity_id: existingOrder.id,
+           summary: 'Buyer updated order items/details',
+           metadata: { 
+             source: 'buyer_app',
+             field: 'order_items',
+             old_items_count: existingOrder.items?.length || 0,
+             new_items_count: finalItems.length
+           }
+        });
       } else {
         // Insert new requirement
         const { data: insertData, error: insertError } = await supabase

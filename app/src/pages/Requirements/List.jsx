@@ -141,7 +141,7 @@ export default function RequirementList() {
         .order('created_at', { ascending: false });
 
       if (!includeCompleted) {
-        query = query.eq('is_pending', true);
+        query = query.not('status', 'in', '("Closed","Fulfilled","Completed","Cancelled","Lost","Won")');
       }
 
       if (statusFilter === 'Overdue') {
@@ -205,7 +205,11 @@ export default function RequirementList() {
       if (data && data.length > 0) {
         const newExpanded = new Set();
         data.forEach(req => {
-          const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && req.is_pending;
+          const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
+          const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
+          const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won'].includes(req.status);
+          
+          const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
           if (isOverdue) {
             newExpanded.add(req.party_id || req.customer_name);
           }
@@ -463,7 +467,10 @@ export default function RequirementList() {
         group.products.add(req.product_type);
       }
       
-      const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && req.is_pending;
+      const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
+      const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
+      const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won'].includes(req.status);
+      const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
       if (isOverdue) group.has_overdue = true;
       if (req.priority === 'High' || req.priority === 'Urgent') group.has_high_priority = true;
       
@@ -663,8 +670,17 @@ export default function RequirementList() {
       ) : filteredRequirements.length === 0 ? (
         <div className="glass-panel" style={{padding: '4rem', textAlign: 'center'}}>
           <ClipboardList size={48} className="text-secondary" style={{margin: '0 auto 1rem', opacity: 0.5}} />
-          <h3 style={{marginBottom: '0.5rem'}}>Pipeline is clear</h3>
-          <p className="text-secondary">No requirements match the selected filters.</p>
+          {ownerFilter === 'My Requirements' ? (
+            <>
+              <h3 style={{marginBottom: '0.5rem'}}>You have no requirements assigned to you.</h3>
+              <p className="text-secondary">Active requirements from other users or channels exist, but none are currently assigned to you.</p>
+            </>
+          ) : (
+            <>
+              <h3 style={{marginBottom: '0.5rem'}}>Pipeline is clear</h3>
+              <p className="text-secondary">No requirements match the selected filters.</p>
+            </>
+          )}
           {activeFilterCount > 0 && <button className="btn btn-secondary" style={{marginTop: '1rem'}} onClick={clearFilters}>Clear Filters</button>}
         </div>
       ) : viewMode === 'customer' ? (
@@ -751,7 +767,10 @@ export default function RequirementList() {
                         </thead>
                         <tbody>
                           {group.requirements.map(req => {
-                            const isReqOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && req.is_pending;
+                            const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
+                            const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
+                            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won'].includes(req.status);
+                            const isReqOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
                             return (
                               <tr key={req.id} style={{borderBottom: '1px solid #E5E7EB', transition: 'background 0.2s', cursor: 'default'}} onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                                 <td style={{padding: '12px'}}><Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>
@@ -821,9 +840,10 @@ export default function RequirementList() {
         // REQUIREMENT VIEW (FLAT LIST) - Keeping the previous layout design for flat view
         <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem'}}>
           {filteredRequirements.map(req => {
-            const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && req.is_pending;
-            const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : req.required_quantity;
+            const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
             const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
+            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won'].includes(req.status);
+            const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
             const isPartiallyDispatched = (req.total_dispatched_quantity > 0 && actualPending > 0);
             
             return (
