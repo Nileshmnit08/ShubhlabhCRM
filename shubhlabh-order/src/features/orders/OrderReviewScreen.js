@@ -41,27 +41,13 @@ export default function OrderReviewScreen({ route, navigation }) {
       // Generate idempotency key
       const clientRef = 'ref-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
       
-      // Build extras map for weight/gift per product
-      const itemExtras = {};
-      for (const item of finalItems) {
-        // Use category + product_name to distinguish duplicate names across categories
-        const key = `${item.category}_${item.product_name}`;
-        itemExtras[key] = { 
-          gift: item.gift || null, 
-          other_gift: item.other_gift || null, 
-          weight: item.weight || null, 
-          unit: item.unit || 'Bags',
-        };
-      }
-
       const reqPayload = {
         party_id: customerProfile.id,
         status: existingOrder ? existingOrder.status : 'New', // Preserve existing status
         unit: 'Bags',  // Must satisfy NOT NULL constraint on requirements
         notes: JSON.stringify({
           address: session?.user?.user_metadata?.deliveryAddress?.address || customerProfile?.city || 'Saved Address',
-          client_reference_id: clientRef,
-          extras: itemExtras,
+          client_reference_id: clientRef
         })
       };
 
@@ -126,13 +112,15 @@ export default function OrderReviewScreen({ route, navigation }) {
       
       if (!reqData) throw new Error('Order placement did not return data');
       
-      // 2. Insert Lines
       const itemsPayload = finalItems.map(item => ({
         requirement_id: reqData.id,
         product_name: item.product_name,
         category: item.category || 'Uncategorized',
         quantity: item.quantity,
-        unit: item.unit || 'Bags'
+        unit: item.unit || 'Bags',
+        weight: item.weight,
+        gift: item.gift,
+        other_gift: item.other_gift
       }));
       
       const { error: itemsError } = await supabase

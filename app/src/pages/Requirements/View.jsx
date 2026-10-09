@@ -245,11 +245,14 @@ export default function RequirementView() {
 
   if (requirementItems.length > 0) {
     requirementItems.forEach(item => {
-      let itemWeight = 0;
-      // Extract weight from product_name (e.g., "8000 (50 kg)")
-      const match = item.product_name?.match(/\((\d+(?:\.\d+)?)\s*kg\)/i);
-      if (match && match[1]) {
-        itemWeight = parseFloat(match[1]);
+      let itemWeight = item.weight ? parseFloat(item.weight) : 0;
+      
+      if (itemWeight === 0) {
+        // Fallback: Extract weight from product_name (e.g., "8000 (50 kg)") for historical records
+        const match = item.product_name?.match(/\((\d+(?:\.\d+)?)\s*kg\)/i);
+        if (match && match[1]) {
+          itemWeight = parseFloat(match[1]);
+        }
       }
 
       if (item.unit === 'Bags' && itemWeight > 0 && item.quantity) {

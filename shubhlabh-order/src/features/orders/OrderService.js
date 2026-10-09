@@ -39,9 +39,9 @@ export function normalizeOrder(data) {
       category: item.category || 'Unknown',
       quantity: item.quantity || 0,
       unit: item.unit || extra.unit || 'Bags',
-      weight: extra.weight || null,
-      gift: extra.gift || null,
-      other_gift: extra.other_gift || null,
+      weight: item.weight || extra.weight || null,
+      gift: item.gift || extra.gift || null,
+      other_gift: item.other_gift || extra.other_gift || null,
     };
   });
 

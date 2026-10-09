@@ -247,7 +247,7 @@ export class SyncService {
           delete safePayload.customerName; // Never sync ephemeral labels
           
           if (pendingOp.table === 'requirement_items') {
-            delete safePayload.weight;
+            // weight, gift, other_gift are now canonical columns in requirement_items, so do not delete them.
           }
 
           // Safe recovery patch for existing queued items failing req_status_check
@@ -267,11 +267,9 @@ export class SyncService {
               delete pendingOp.payload.created_by;
             }
 
-            // Fix for old failed payloads: remove weight from nested requirement_items
+            // Fix for old failed payloads (removed weight stripping since it's now supported natively)
             if (safePayload.requirement_items && Array.isArray(safePayload.requirement_items)) {
-              safePayload.requirement_items.forEach(item => {
-                delete item.weight;
-              });
+              // Intentionally leaving weight intact
             }
           }
           

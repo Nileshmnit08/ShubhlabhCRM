@@ -145,7 +145,7 @@ export function QuickRequirementScreen({ navigation, route }) {
       return;
     }
     
-    const pNameWithWeight = `${selectedProduct} (${weight} kg)`;
+    const pNameWithWeight = selectedProduct;
     const newItems = [...items];
 
     if (editingItemIndex !== null && newItems[editingItemIndex]) {
@@ -199,7 +199,7 @@ export function QuickRequirementScreen({ navigation, route }) {
     // Auto-update the currently editing item if the user didn't explicitly press "UPDATE ITEM"
     // This allows true edit-in-place without requiring the user to tap ADD PRODUCT
     if (editingItemIndex !== null && finalItems[editingItemIndex]) {
-        const pNameWithWeight = `${selectedProduct} (${weight} kg)`;
+        const pNameWithWeight = selectedProduct;
         finalItems[editingItemIndex].category = selectedCategory;
         finalItems[editingItemIndex].product_name = pNameWithWeight;
         finalItems[editingItemIndex].quantity = qty;
@@ -210,7 +210,7 @@ export function QuickRequirementScreen({ navigation, route }) {
     } else if (finalItems.length === 0 && selectedProduct) {
          finalItems.push({
              category: selectedCategory,
-             product_name: `${selectedProduct} (${weight} kg)`,
+             product_name: selectedProduct,
              quantity: qty,
              unit: activeUnit,
              weight: weight,
@@ -233,26 +233,16 @@ export function QuickRequirementScreen({ navigation, route }) {
         return;
       }
       
-      const itemExtras = {};
-      finalItems.forEach(item => {
-        const key = `${item.category}_${item.product_name}`;
-        itemExtras[key] = {
-          gift: item.gift || null,
-          other_gift: item.other_gift || null,
-          weight: item.weight || null,
-          unit: item.unit || 'Bags'
-        };
-      });
-
       const clientRef = 'ref-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
       let newNotesStr = null;
       try {
         const baseNotes = existingOrder?.notes ? JSON.parse(existingOrder.notes) : {};
-        baseNotes.extras = itemExtras;
+        // Removing baseNotes.extras since items natively handle these fields now
+        delete baseNotes.extras;
         baseNotes.client_reference_id = baseNotes.client_reference_id || clientRef;
         newNotesStr = JSON.stringify(baseNotes);
       } catch (e) {
-        newNotesStr = JSON.stringify({ extras: itemExtras, client_reference_id: clientRef });
+        newNotesStr = JSON.stringify({ client_reference_id: clientRef });
       }
 
       const reqPayload = {
@@ -290,13 +280,16 @@ export function QuickRequirementScreen({ navigation, route }) {
             assigned_to: userId
          }, userId, actionType);
          for (const item of reqPayload.requirement_items) {
-            const dbItem = {
+             const dbItem = {
                id: item.id,
                requirement_id: item.requirement_id,
                category: item.category,
                product_name: item.product_name,
                quantity: item.quantity,
-               unit: item.unit
+               unit: item.unit,
+               weight: item.weight,
+               gift: item.gift,
+               other_gift: item.other_gift
             };
             await SyncService.enqueueOperation('requirement_items', dbItem, userId, 'upsert');
          }
