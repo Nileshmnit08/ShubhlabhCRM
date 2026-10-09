@@ -130,3 +130,122 @@ export const generateTravelExpensePDF = (data, periodString, employeeName) => {
   // Return generated doc blob
   return doc.output('blob');
 };
+
+export const generateFieldActivityPDF = (user, periodString, summary, sessions) => {
+  const doc = new jsPDF('l', 'pt', 'a4'); // Landscape for wide tables
+  
+  // 1. Report Header
+  doc.setFontSize(22);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Shubh Labh', 40, 50);
+  
+  doc.setFontSize(16);
+  doc.setTextColor(100, 100, 100);
+  doc.text('Field Activity Report', 40, 75);
+
+  doc.setFontSize(12);
+  doc.setTextColor(40, 40, 40);
+  doc.text(`Staff Name: ${user.name || 'Unknown'}`, 40, 110);
+  doc.text(`Period: ${periodString}`, 40, 130);
+  doc.text(`Generated: ${format(new Date(), 'PP pp')}`, 40, 150);
+
+  // 2. Summary
+  doc.setFont('helvetica', 'normal');
+  doc.autoTable({
+    startY: 170,
+    head: [['Sessions', 'Completed Visits', 'Verified Travel KM', 'Total Travel Expenses']],
+    body: [[
+      summary.sessions.toString(),
+      summary.visits.toString(),
+      `${summary.km} KM`,
+      `INR ${summary.expenseTotal.toLocaleString('en-IN', {minimumFractionDigits: 2})}`
+    ]],
+    theme: 'grid',
+    headStyles: { fillColor: [40, 40, 40], textColor: [255, 255, 255], fontStyle: 'bold' },
+    styles: { halign: 'center', fontSize: 10 },
+  });
+
+  // 3. Detailed Sessions and Visits
+  let nextY = doc.lastAutoTable.finalY + 30;
+
+  if (sessions && sessions.length > 0) {
+    sessions.forEach((session, sIdx) => {
+      // Check page break
+      if (nextY > 450) {
+        doc.addPage();
+        nextY = 50;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(59, 130, 246); // Blue
+      const sStart = session.startEvent?.event_time ? format(parseISO(session.startEvent.event_time), 'MMM d, yyyy h:mm a') : 'Unknown';
+      const sEnd = session.endEvent?.event_time ? format(parseISO(session.endEvent.event_time), 'h:mm a') : 'Ongoing';
+      doc.text(`Session ${sIdx + 1}: ${sStart} - ${sEnd}`, 40, nextY);
+      
+      const visitRows = [];
+      session.events.filter(e => e.event_type === 'VISIT').forEach(v => {
+        const checkIn = v.started_at ? format(parseISO(v.started_at), 'h:mm a') : '-';
+        const checkOut = v.ended_at ? format(parseISO(v.ended_at), 'h:mm a') : '-';
+        let duration = '-';
+        if (v.started_at && v.ended_at) {
+          const diffMins = Math.round((new Date(v.ended_at) - new Date(v.started_at)) / 60000);
+          duration = `${diffMins}m`;
+        }
+
+        const outcomes = v.outcomes ? Object.entries(v.outcomes).filter(([_, val]) => val).map(([k]) => k).join(', ') : '-';
+        const notes = v.notes ? v.notes.substring(0, 50) + (v.notes.length > 50 ? '...' : '') : '-';
+
+        visitRows.push([
+          format(parseISO(v.event_time), 'MMM d'),
+          v.description.replace('Customer Visit: ', ''),
+          `${checkIn} - ${checkOut}`,
+          duration,
+          v.legKm ? `${v.legKm} KM` : '-',
+          v.cumulativeKm ? `${v.cumulativeKm} KM` : '-',
+          outcomes,
+          notes
+        ]);
+      });
+
+      if (visitRows.length > 0) {
+        doc.autoTable({
+          startY: nextY + 10,
+          head: [['Date', 'Customer/Location', 'Check In/Out', 'Duration', 'Leg KM', 'Cum. KM', 'Outcomes', 'Notes']],
+          body: visitRows,
+          theme: 'striped',
+          headStyles: { fillColor: [70, 70, 70] },
+          styles: { fontSize: 9, cellPadding: 4 },
+          columnStyles: { 
+            1: { cellWidth: 150 }, 
+            7: { cellWidth: 150 } 
+          }
+        });
+        nextY = doc.lastAutoTable.finalY + 30;
+      } else {
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text('No visits recorded in this session.', 40, nextY + 15);
+        nextY += 35;
+      }
+    });
+  } else {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text('No activity records found for the selected period.', 40, nextY);
+  }
+
+  // Footer with Page Numbers
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Page ${i} of ${pageCount}`, doc.internal.pageSize.width - 80, doc.internal.pageSize.height - 20);
+  }
+
+  return doc.output('blob');
+};

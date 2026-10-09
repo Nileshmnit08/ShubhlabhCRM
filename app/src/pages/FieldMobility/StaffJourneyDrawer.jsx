@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, PlayCircle, StopCircle, Building2, MapPin, IndianRupee, Truck, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { X, PlayCircle, StopCircle, Building2, MapPin, IndianRupee, Truck, ChevronRight, CheckCircle2, Download } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { format, differenceInMinutes } from 'date-fns';
 import VisitDetailModal from '../Activity/VisitDetailModal';
+import { generateFieldActivityPDF } from '../../utils/pdfGenerator';
 
 export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClose }) {
   const [loading, setLoading] = useState(true);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [unlinkedEvents, setUnlinkedEvents] = useState([]);
   const [selectedVisitId, setSelectedVisitId] = useState(null);
@@ -282,6 +284,30 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
     return `${format(dateRange.start, 'dd MMM')} - ${format(dateRange.end, 'dd MMM yyyy')}`;
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+      setIsGeneratingPDF(true);
+      const periodString = getFilterLabel();
+      
+      const pdfBlob = generateFieldActivityPDF(user, periodString, summary, sessions);
+      
+      const fileName = `Field_Activity_${(user.name || 'Staff').replace(/\s+/g, '_')}_${format(dateRange.start, 'yyyyMMdd')}_${format(dateRange.end, 'yyyyMMdd')}.pdf`;
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to generate PDF:', err);
+      alert('Failed to generate PDF report. Please try again.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   const renderEvent = (evt, idx, arr) => {
     const timeStr = format(new Date(evt.event_time), 'HH:mm');
 
@@ -423,7 +449,18 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
             <div className="text-secondary" style={{fontSize: '0.85rem'}}>{getFilterLabel()} &bull; Field Activity Detail</div>
           </div>
         </div>
-        <button className="btn-icon" onClick={onClose}><X size={24}/></button>
+        <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={handleDownloadPDF}
+            disabled={isGeneratingPDF || loading}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', padding: '0.4rem 0.8rem' }}
+          >
+            <Download size={16} />
+            {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
+          </button>
+          <button className="btn-icon" onClick={onClose}><X size={24}/></button>
+        </div>
       </div>
       
       {/* Summary */}
