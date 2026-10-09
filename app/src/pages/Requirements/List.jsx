@@ -84,6 +84,18 @@ export default function RequirementList() {
 
   useEffect(() => {
     fetchRequirements();
+
+    // Subscribe to real-time changes on requirements table
+    const channel = supabase.channel('requirements_board_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'requirements' }, (payload) => {
+        // Refetch requirements when there is an insert/update/delete
+        fetchRequirements();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [statusFilter, ownerFilter, dateField, dateRange, startDate, endDate, includeCompleted]);
 
   useEffect(() => {

@@ -287,6 +287,7 @@ export function QuickRequirementScreen({ navigation, route }) {
             expected_date: reqPayload.expected_date,
             notes: reqPayload.notes,
             quantity: 1, // Satisfy req_positive_values constraint
+            unit: 'Bags', // Satisfy unit NOT NULL constraint
             product_type: 'General Requirement',
             assigned_to: userId
          }, userId, actionType);
