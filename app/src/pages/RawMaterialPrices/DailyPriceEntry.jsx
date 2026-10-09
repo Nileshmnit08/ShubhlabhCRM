@@ -408,7 +408,7 @@ const DailyPriceEntry = () => {
       <div className="bg-white rounded-xl border border-[#E2E8F0] shadow-sm p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
           <div>
-            <h2 className="text-[17px] font-bold text-[#0F172A]">Customer Price Publishing</h2>
+            <h2 className="text-[17px] font-bold text-[#0F172A]">Daily Price Entry</h2>
             <p className="text-[14px] text-[#64748B] mt-0.5">Select a date and material to begin entering prices</p>
           </div>
           {/* Override mapping toggle */}

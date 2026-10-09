@@ -41,6 +41,7 @@ import Performance from './pages/Performance';
 import Settings from './pages/Settings';
 import FollowUpActivityReport from './pages/Activity/FollowUpActivityReport';
 import RawMaterialPrices from './pages/RawMaterialPrices';
+import CustomerPricePublishing from './pages/CustomerPricePublishing';
 import StaffMessages from './pages/StaffMessages';
 
 import DispatchDashboard from './pages/Dispatches/Dashboard';
@@ -291,6 +292,7 @@ function App() {
                 <Route path="coverage" element={<CoverageIntelligence />} />
                 <Route path="automation-control" element={<AutomationControl />} />
                 <Route path="raw-material-prices/*" element={<RawMaterialPrices />} />
+                <Route path="customer-price-publishing/*" element={<CustomerPricePublishing />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="logistics" element={<Logistics />} />
                 <Route path="travel-expenses" element={<TravelExpenses />} />

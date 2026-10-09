@@ -41,7 +41,7 @@ export default function MarketGraph({ prices = [], materials = [], watchlists = 
     // We want to group prices by material and sort by date ascending for the chart
     // We will find all distinct dates across all prices to form the X axis
     const datesSet = new Set();
-    prices.forEach(p => datesSet.add(p.entry_date));
+    prices.forEach(p => datesSet.add(p.effective_date));
     const sortedDates = Array.from(datesSet).sort();
     
     // To avoid overlapping too many labels on X axis
@@ -60,7 +60,7 @@ export default function MarketGraph({ prices = [], materials = [], watchlists = 
     let colorIdx = 0;
 
     watchlists.forEach(mId => {
-      const materialPrices = prices.filter(p => p.raw_material_id === mId).sort((a,b) => a.entry_date.localeCompare(b.entry_date));
+      const materialPrices = prices.filter(p => p.raw_material_id === mId).sort((a,b) => a.effective_date.localeCompare(b.effective_date));
       if (materialPrices.length === 0) return;
 
       // We need a value for each date in sortedDates. If missing, we can either:
@@ -72,7 +72,7 @@ export default function MarketGraph({ prices = [], materials = [], watchlists = 
       
       let currentVal = Number(materialPrices[0].price);
       const dataPoints = sortedDates.map(date => {
-        const found = materialPrices.find(p => p.entry_date === date);
+        const found = materialPrices.find(p => p.effective_date === date);
         if (found) {
           currentVal = Number(found.price);
         }

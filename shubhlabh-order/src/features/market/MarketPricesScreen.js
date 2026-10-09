@@ -71,13 +71,13 @@ export default function MarketPricesScreen() {
       }
 
       // 3. Get Prices depending on tab/historyRange
-      // We will fetch up to 300 entries for the watchlisted items and sort them by entry_date
+      // We will fetch up to 300 entries for the watchlisted items and sort them by effective_date
       let query = supabase
-        .from('raw_material_price_entries')
-        .select('id, raw_material_id, price, entry_date, created_at, rm_units(unit_name)')
+        .from('customer_published_prices')
+        .select('id, raw_material_id, price, effective_date, unit, created_at')
         .in('raw_material_id', watchlistedIds)
-        .eq('is_deleted', false)
-        .order('entry_date', { ascending: false })
+        .eq('is_published', true)
+        .order('effective_date', { ascending: false })
         .order('created_at', { ascending: false });
 
       // Apply date filter based on historyRange
@@ -91,7 +91,7 @@ export default function MarketPricesScreen() {
       } else if (historyRange === 'year') {
         d.setDate(d.getDate() - 365);
       }
-      query = query.gte('entry_date', d.toISOString().split('T')[0]);
+      query = query.gte('effective_date', d.toISOString().split('T')[0]);
 
       const { data: priceData, error: priceError } = await query.limit(500);
       if (priceError) throw priceError;
@@ -179,10 +179,10 @@ export default function MarketPricesScreen() {
 
           let formattedDate = '';
           try {
-            formattedDate = format(parseISO(item.latest.entry_date), 'dd MMM yyyy');
+            formattedDate = format(parseISO(item.latest.effective_date), 'dd MMM yyyy');
           } catch(e) {}
 
-          const unit = item.latest.rm_units?.unit_name || 'Unit';
+          const unit = item.latest.unit || 'Unit';
           
           let changeVal = 0;
           let changePercent = 0;
@@ -268,9 +268,9 @@ export default function MarketPricesScreen() {
                    <View key={i} style={styles.historyTableRow}>
                      <View>
                        <Text style={styles.historyName}>{language === 'hi' && m?.name_hi ? m.name_hi : m?.name_en}</Text>
-                       <Text style={styles.historyDate}>{p.entry_date}</Text>
+                       <Text style={styles.historyDate}>{p.effective_date}</Text>
                      </View>
-                     <Text style={styles.historyPrice}>₹{Number(p.price).toFixed(2)} / {p.rm_units?.unit_name || ''}</Text>
+                     <Text style={styles.historyPrice}>₹{Number(p.price).toFixed(2)} / {p.unit || ''}</Text>
                    </View>
                  );
                })

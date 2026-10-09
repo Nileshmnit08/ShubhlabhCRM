@@ -7,7 +7,7 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 async function run() {
   console.log("Reading migration file...");
-  const sql = fs.readFileSync('D:/ShubhLabhCRM/231_sprint_MARKET_PRICES.sql', 'utf8');
+  const sql = fs.readFileSync('D:/ShubhLabhCRM/232_sprint_CUSTOMER_PRICES.sql', 'utf8');
   
   console.log("Executing SQL...");
   const { data, error } = await supabase.rpc('execute_sql', { query: sql });

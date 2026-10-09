@@ -449,10 +449,20 @@ export const NAV_SECTIONS = [
     collapsible: true,
     dividerBefore: false,
     items: [
+      // Customer Price Publishing (External/Buyer facing)
+      {
+        id: 'customer-price-publishing',
+        label: 'Customer Price Publishing',
+        href: '/customer-price-publishing',
+        icon: LineChart,
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
       // Raw Material Pricing sub-group
       {
         id: 'raw-material-pricing',
-        label: 'Market Price Management',
+        label: 'Raw Material Pricing',
         href: null,
         icon: LineChart,
         badgeSource: null,
@@ -472,7 +482,7 @@ export const NAV_SECTIONS = [
           },
           {
             id: 'raw-material-prices-daily-entry',
-            label: 'Customer Price Publishing',
+            label: 'Daily Price Entry',
             href: '/raw-material-prices/daily-entry',
             icon: FileText,
             badgeSource: null,

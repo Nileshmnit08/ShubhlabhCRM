@@ -6,7 +6,7 @@ const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
 async function run() {
-  const sql = fs.readFileSync('D:/ShubhLabhCRM/231_sprint_MARKET_PRICES.sql', 'utf8');
+  const sql = fs.readFileSync('D:/ShubhLabhCRM/232_sprint_CUSTOMER_PRICES.sql', 'utf8');
   const { data, error } = await supabase.rpc('exec_sql', { sql: sql });
   if (error) {
     console.error("Error:", error);
