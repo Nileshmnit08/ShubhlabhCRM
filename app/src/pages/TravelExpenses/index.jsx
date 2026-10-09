@@ -144,7 +144,48 @@ export default function TravelExpenses() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setDailyExpenses(data || []);
+      
+      // FIX: Fetch authoritative session distance and current rates to correct stale daily_travel_expenses
+      const { data: recSessions } = await supabase.from('vw_field_session_reconciliation')
+        .select('staff_id, business_date, verified_distance_meters')
+        .gte('business_date', startStr)
+        .lte('business_date', endStr);
+        
+      const { data: rates } = await supabase.from('travel_expense_rates')
+        .select('*')
+        .eq('status', 'ACTIVE')
+        .order('effective_from', { ascending: false });
+        
+      const verifiedKmByStaffDay = {};
+      (recSessions || []).forEach(s => {
+         const key = `${s.staff_id}_${s.business_date}`;
+         if (!verifiedKmByStaffDay[key]) verifiedKmByStaffDay[key] = 0;
+         verifiedKmByStaffDay[key] += (s.verified_distance_meters || 0) / 1000;
+      });
+      
+      const fixedData = (data || []).map(exp => {
+         const key = `${exp.staff_id}_${exp.business_date}`;
+         const verifiedKm = verifiedKmByStaffDay[key];
+         if (verifiedKm !== undefined) {
+            // Apply Fix 1: Use authoritative distance
+            exp.total_distance_km = Number(verifiedKm.toFixed(2));
+            
+            // Apply Fix 2: Recalculate expense
+            const expDate = new Date(exp.business_date);
+            const applicableRate = (rates || []).find(r => new Date(r.effective_from) <= expDate && (!r.effective_to || new Date(r.effective_to) >= expDate));
+            if (applicableRate) {
+               exp.applicable_rate_per_km = applicableRate.rate_per_km;
+               exp.calculated_amount = Number((exp.total_distance_km * applicableRate.rate_per_km).toFixed(2));
+               exp.status = 'CALCULATED';
+            } else {
+               exp.status = 'RATE_UNAVAILABLE';
+               exp.calculated_amount = 0;
+            }
+         }
+         return exp;
+      });
+
+      setDailyExpenses(fixedData);
       setExpandedStaff({});
       setExpandedDay(null);
       setDayDetails(null);

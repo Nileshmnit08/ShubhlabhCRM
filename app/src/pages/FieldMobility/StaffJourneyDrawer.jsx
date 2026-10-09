@@ -66,6 +66,11 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
         .gte('expense_date', dateRange.start.toISOString().split('T')[0])
         .lte('expense_date', dateRange.end.toISOString().split('T')[0]);
 
+      const { data: rates } = await supabase.from('travel_expense_rates')
+        .select('*')
+        .eq('status', 'ACTIVE')
+        .order('effective_from', { ascending: false });
+
       const sum = {
         sessions: recSessions?.length || 0,
         km: recSessions?.reduce((acc, s) => acc + (s.verified_distance_meters / 1000 || 0), 0).toFixed(1) || 0,
@@ -77,7 +82,13 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
             const key = s.business_date;
             if (seen.has(key)) return acc;
             seen.add(key);
-            return acc + (parseFloat(s.expense_total) || 0);
+            
+            const distKm = (s.verified_distance_meters || 0) / 1000;
+            const bDate = new Date(s.business_date);
+            const applicableRate = (rates || []).find(r => new Date(r.effective_from) <= bDate && (!r.effective_to || new Date(r.effective_to) >= bDate));
+            const calcAmount = applicableRate ? (distKm * applicableRate.rate_per_km) : 0;
+            
+            return acc + calcAmount;
           }, 0);
         })()
       };
@@ -95,12 +106,51 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
           .in('id', sessionIds);
         sData?.forEach(s => sessionMap[s.id] = s);
 
-        const { data: locs } = await supabase.from('staff_location_history')
-           .select('session_id, captured_at, segment_distance_m, status')
+        const { data: locs } = await supabase.from('vw_field_session_unified_points')
+           .select('session_id, captured_at, latitude, longitude, accuracy, source')
            .in('session_id', sessionIds)
-           .in('status', ['VALID', 'VALID_START', 'VALID_NEW_PATH'])
            .order('captured_at', { ascending: true });
-        locationHistory = locs || [];
+
+        const calcHaversine = (lat1, lon1, lat2, lon2) => {
+            if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+            const R = 6371e3;
+            const p1 = lat1 * Math.PI/180;
+            const p2 = lat2 * Math.PI/180;
+            const dp = (lat2-lat1) * Math.PI/180;
+            const dl = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(dp/2) * Math.sin(dp/2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl/2) * Math.sin(dl/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        };
+
+        const sessionDistances = {};
+        sessionIds.forEach(sId => {
+           const pts = (locs || []).filter(p => p.session_id === sId);
+           let total = 0;
+           let prev = null;
+           pts.forEach(pt => {
+             let added = 0;
+             if (prev) {
+                const dist = calcHaversine(prev.latitude, prev.longitude, pt.latitude, pt.longitude);
+                const timeDiff = (new Date(pt.captured_at) - new Date(prev.captured_at)) / 1000;
+                let valid = true;
+                if (timeDiff > 7200) valid = false;
+                else if (pt.accuracy > 500) valid = false;
+                else if (timeDiff > 0 && ((dist/1000)/(timeDiff/3600)) > 150) valid = false;
+                
+                if (valid && dist >= 15) {
+                   added = dist;
+                   prev = pt;
+                }
+             } else {
+                if (pt.accuracy <= 500) prev = pt;
+             }
+             total += added;
+             pt.cumulative_m = total;
+           });
+           sessionDistances[sId] = pts;
+        });
+
+        locationHistory = sessionDistances;
       }
 
       const visitMap = {};
@@ -162,27 +212,34 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
           if (currentSession) {
             // Calculate Visit KM metrics
             if (evt.event_type === 'VISIT') {
-              const sessionPoints = locationHistory.filter(p => p.session_id === currentSession.id);
+              const sessionPoints = locationHistory[currentSession.id] || [];
               const visitEndStr = evt.ended_at || evt.started_at;
               const visitEndTime = new Date(visitEndStr).getTime();
               
-              const cumulativePoints = sessionPoints.filter(p => new Date(p.captured_at).getTime() <= visitEndTime);
-              const cumulativeDistanceMeters = cumulativePoints.reduce((acc, p) => acc + (p.segment_distance_m || 0), 0);
+              const ptsUpToVisit = sessionPoints.filter(p => new Date(p.captured_at).getTime() <= visitEndTime);
+              const lastPt = ptsUpToVisit[ptsUpToVisit.length - 1];
+              const cumulativeDistanceMeters = lastPt ? lastPt.cumulative_m : 0;
               
               let legDistanceMeters = 0;
               if (currentSession.lastVisitEndTime) {
-                const legPoints = sessionPoints.filter(p => {
-                  const t = new Date(p.captured_at).getTime();
-                  return t > currentSession.lastVisitEndTime && t <= visitEndTime;
-                });
-                legDistanceMeters = legPoints.reduce((acc, p) => acc + (p.segment_distance_m || 0), 0);
+                const prevPts = sessionPoints.filter(p => new Date(p.captured_at).getTime() <= currentSession.lastVisitEndTime);
+                const prevPt = prevPts[prevPts.length - 1];
+                const prevDist = prevPt ? prevPt.cumulative_m : 0;
+                legDistanceMeters = cumulativeDistanceMeters - prevDist;
               } else {
                 legDistanceMeters = cumulativeDistanceMeters; // First visit leg from start
               }
               
               evt.cumulativeKm = (cumulativeDistanceMeters / 1000).toFixed(2);
               evt.legKm = (legDistanceMeters / 1000).toFixed(2);
-              evt.calcStatus = 'Calculated'; // Could check gaps for "GPS data incomplete"
+              
+              // Only report 'Calculated' if there's sufficient raw data; otherwise warn.
+              if (ptsUpToVisit.length > 0) {
+                 evt.calcStatus = 'Calculated';
+              } else {
+                 evt.calcStatus = 'Incomplete GPS Data';
+              }
+              
               currentSession.lastVisitEndTime = visitEndTime;
               currentSession.lastCumulativeMeters = cumulativeDistanceMeters;
             }
