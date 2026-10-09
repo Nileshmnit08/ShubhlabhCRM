@@ -264,15 +264,23 @@ export const VisitProvider = ({ children }) => {
           quantity: req.quantity || 1,
           expected_date: req.expected_date,
           status: 'New', // Complies with req_status_check
-          assigned_to: userId
+          assigned_to: userId,
+          notes: req.notes
         };
         await SyncService.enqueueOperation('requirements', reqPayload, userId);
         
         // Push items if they exist
         if (req.requirement_items && req.requirement_items.length > 0) {
             for (const item of req.requirement_items) {
-                item.requirement_id = req.id; // GUARANTEE IT MATCHES
-                await SyncService.enqueueOperation('requirement_items', item, userId);
+                const dbItem = {
+                   id: item.id,
+                   requirement_id: req.id,
+                   category: item.category,
+                   product_name: item.product_name,
+                   quantity: item.quantity,
+                   unit: item.unit
+                };
+                await SyncService.enqueueOperation('requirement_items', dbItem, userId);
             }
         }
       }

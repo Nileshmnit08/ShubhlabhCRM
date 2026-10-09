@@ -40,7 +40,16 @@ export function QuickRequirementScreen({ navigation, route }) {
   const customerId = route.params?.customerId || null;
   const existingOrder = route.params?.existingOrder || null;
 
+  let parsedExtras = {};
+  try {
+     if (existingOrder?.notes) {
+         const notesObj = JSON.parse(existingOrder.notes);
+         if (notesObj && notesObj.extras) parsedExtras = notesObj.extras;
+     }
+  } catch(e) {}
+
   const initialItem = existingOrder?.requirement_items?.[0];
+  const initialExtra = initialItem ? (parsedExtras[`${initialItem.category}_${initialItem.product_name}`] || {}) : {};
 
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [allProducts, setAllProducts] = useState(DEFAULT_PRODUCTS);
@@ -52,20 +61,28 @@ export function QuickRequirementScreen({ navigation, route }) {
   const [qty, setQty] = useState(initialItem?.quantity || 10);
   const [activeUnit, setActiveUnit] = useState(initialItem?.unit || 'Bags');
   const [items, setItems] = useState([]);
-  const [weight, setWeight] = useState(initialItem?.weight || 50);
-  const [gift, setGift] = useState(initialItem?.gift || null);
-  const [otherGift, setOtherGift] = useState(initialItem?.other_gift || '');
+  const [weight, setWeight] = useState(initialExtra.weight || initialItem?.weight || 50);
+  const [gift, setGift] = useState(initialExtra.gift || initialItem?.gift || null);
+  const [otherGift, setOtherGift] = useState(initialExtra.other_gift || initialItem?.other_gift || '');
   const [editingItemIndex, setEditingItemIndex] = useState(existingOrder?.requirement_items?.length > 0 ? 0 : null);
   useEffect(() => {
     fetchProducts();
     if (existingOrder && existingOrder.requirement_items) {
-      setItems(existingOrder.requirement_items.map(item => ({
-        id: item.id,
-        category: item.category,
-        product_name: item.product_name,
-        quantity: item.quantity,
-        unit: item.unit,
-        weight: item.weight,
+      setItems(existingOrder.requirement_items.map(item => {
+        const key = `${item.category}_${item.product_name}`;
+        const extra = parsedExtras[key] || {};
+        return {
+          id: item.id,
+          category: item.category,
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit: item.unit,
+          weight: extra.weight || item.weight,
+          gift: extra.gift || item.gift,
+          other_gift: extra.other_gift || item.other_gift
+        };
+      }));
+    }
         gift: item.gift,
         other_gift: item.other_gift
       })));
@@ -216,11 +233,34 @@ export function QuickRequirementScreen({ navigation, route }) {
         return;
       }
       
+      const itemExtras = {};
+      finalItems.forEach(item => {
+        const key = `${item.category}_${item.product_name}`;
+        itemExtras[key] = {
+          gift: item.gift || null,
+          other_gift: item.other_gift || null,
+          weight: item.weight || null,
+          unit: item.unit || 'Bags'
+        };
+      });
+
+      const clientRef = 'ref-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+      let newNotesStr = null;
+      try {
+        const baseNotes = existingOrder?.notes ? JSON.parse(existingOrder.notes) : {};
+        baseNotes.extras = itemExtras;
+        baseNotes.client_reference_id = baseNotes.client_reference_id || clientRef;
+        newNotesStr = JSON.stringify(baseNotes);
+      } catch (e) {
+        newNotesStr = JSON.stringify({ extras: itemExtras, client_reference_id: clientRef });
+      }
+
       const reqPayload = {
         id: headerId,
         party_id: party_id,
         status: 'New',
         expected_date: existingOrder ? existingOrder.expected_date : new Date().toISOString().split('T')[0],
+        notes: newNotesStr,
         requirement_items: finalItems.map(item => ({
             id: item.id || generateId(),
             requirement_id: headerId,
@@ -245,12 +285,21 @@ export function QuickRequirementScreen({ navigation, route }) {
             party_id: reqPayload.party_id,
             status: reqPayload.status,
             expected_date: reqPayload.expected_date,
+            notes: reqPayload.notes,
             quantity: 1, // Satisfy req_positive_values constraint
             product_type: 'General Requirement',
             assigned_to: userId
          }, userId, actionType);
          for (const item of reqPayload.requirement_items) {
-            await SyncService.enqueueOperation('requirement_items', item, userId, 'upsert');
+            const dbItem = {
+               id: item.id,
+               requirement_id: item.requirement_id,
+               category: item.category,
+               product_name: item.product_name,
+               quantity: item.quantity,
+               unit: item.unit
+            };
+            await SyncService.enqueueOperation('requirement_items', dbItem, userId, 'upsert');
          }
          
          if (existingOrder && existingOrder.requirement_items) {
