@@ -7,22 +7,11 @@ const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhY
 const supabase = createClient(urlMatch[1].trim(), SERVICE_ROLE_KEY);
 
 async function check() {
-  const { data, error } = await supabase.rpc('get_tables_list'); // doesn't exist, we can use a raw sql or information_schema if we had postgres access.
-  // Instead, let's just query a potential table name to see if it errors.
-  const checkTable = async (name) => {
-      const { error } = await supabase.from(name).select('*').limit(1);
-      if (error && error.code !== 'PGRST116') {
-          console.log(`Table ${name} check error:`, error.message);
-      } else {
-          console.log(`Table ${name} exists!`);
-      }
-  };
+  const { data: rmData, error: rmError } = await supabase.from('raw_materials').select('*').limit(1);
+  console.log("Raw materials:", rmError || rmData);
   
-  await checkTable('customer_prices');
-  await checkTable('customer_price_entries');
-  await checkTable('market_prices');
-  await checkTable('published_prices');
-  await checkTable('raw_material_price_entries');
+  const { data: userData, error: userError } = await supabase.from('app_users').select('*').limit(1);
+  console.log("App users:", userError || userData);
 }
 
 check();

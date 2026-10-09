@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../core/api/supabase';
-import { useAuth } from '../../AuthContext';
+import { supabase } from '../../lib/supabase';
+import { AuthContext } from '../../AuthContext';
 import {
   Save,
   CheckCircle,
@@ -8,10 +8,8 @@ import {
   Clock,
   ChevronRight,
   TrendingUp,
-  History
 } from 'lucide-react';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
 
 const INITIAL_MATERIALS = [
   'Khal', 'Makka Daliya', 'Jaggery', 'Oil', 'Chana Churi', 
@@ -19,12 +17,18 @@ const INITIAL_MATERIALS = [
 ];
 
 export default function CustomerPricePublishing() {
-  const { userProfile } = useAuth();
+  const { userProfile } = React.useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [materials, setMaterials] = useState([]);
   const [latestPrices, setLatestPrices] = useState({});
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null);
+
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 5000);
+  };
 
   useEffect(() => {
     fetchData();
@@ -90,7 +94,7 @@ export default function CustomerPricePublishing() {
 
     } catch (err) {
       console.error(err);
-      toast.error('Failed to load market data.');
+      showMessage('error', 'Failed to load market data.');
     } finally {
       setLoading(false);
     }
@@ -142,7 +146,7 @@ export default function CustomerPricePublishing() {
       }
 
       if (payload.length === 0 && draftsToUpdate.length === 0) {
-        toast('No changes to save.');
+        showMessage('info', 'No changes to save.');
         setSaving(false);
         return;
       }
@@ -157,12 +161,12 @@ export default function CustomerPricePublishing() {
         if (error) throw error;
       }
 
-      toast.success(isPublish ? 'Prices Published Successfully!' : 'Drafts Saved Successfully!');
+      showMessage('success', isPublish ? 'Prices Published Successfully!' : 'Drafts Saved Successfully!');
       await fetchData();
 
     } catch (err) {
       console.error(err);
-      toast.error('Failed to save prices.');
+      showMessage('error', 'Failed to save prices.');
     } finally {
       setSaving(false);
     }
@@ -171,7 +175,7 @@ export default function CustomerPricePublishing() {
   const handlePublishSelected = () => {
     const selectedIds = materials.filter(m => formData[m.id]?.selected).map(m => m.id);
     if (selectedIds.length === 0) {
-      toast('Please select at least one material.');
+      showMessage('error', 'Please select at least one material.');
       return;
     }
     handleSave(true, selectedIds);
@@ -215,6 +219,25 @@ export default function CustomerPricePublishing() {
           </button>
         </div>
       </div>
+
+      {message && (
+        <div className={`flex items-center gap-3 p-4 mb-8 rounded-xl border text-[15px] font-medium shadow-sm ${
+          message.type === 'success'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+            : message.type === 'info'
+            ? 'bg-blue-50 border-blue-200 text-blue-700'
+            : 'bg-red-50 border-red-200 text-red-700'
+        }`}>
+          {message.type === 'success' ? <CheckCircle size={18} className="shrink-0" /> : <AlertCircle size={18} className="shrink-0" />}
+          <span className="flex-1">{message.text}</span>
+          <button
+            onClick={() => setMessage(null)}
+            className="text-current opacity-50 hover:opacity-100 transition-opacity"
+          >
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
