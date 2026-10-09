@@ -70,18 +70,30 @@ export default function MarketPricesScreen() {
         return;
       }
 
-      // 3. Get Prices
-      // We will fetch up to 500 entries for the watchlisted items and sort them by effective_date
+      // 3. Get Prices depending on tab/historyRange
+      // We will fetch up to 300 entries for the watchlisted items and sort them by effective_date
       let query = supabase
         .from('customer_published_prices')
         .select('id, raw_material_id, price, effective_date, unit, created_at')
         .in('raw_material_id', watchlistedIds)
         .eq('is_published', true)
         .order('effective_date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(500);
+        .order('created_at', { ascending: false });
 
-      const { data: priceData, error: priceError } = await query;
+      // Apply date filter based on historyRange
+      const d = new Date();
+      if (historyRange === 'day') {
+        d.setDate(d.getDate() - 1);
+      } else if (historyRange === 'week') {
+        d.setDate(d.getDate() - 7);
+      } else if (historyRange === 'month') {
+        d.setDate(d.getDate() - 30);
+      } else if (historyRange === 'year') {
+        d.setDate(d.getDate() - 365);
+      }
+      query = query.gte('effective_date', d.toISOString().split('T')[0]);
+
+      const { data: priceData, error: priceError } = await query.limit(500);
       if (priceError) throw priceError;
 
       setPrices(priceData || []);
@@ -227,15 +239,6 @@ export default function MarketPricesScreen() {
       );
     }
 
-    const d = new Date();
-    if (historyRange === 'day') d.setDate(d.getDate() - 1);
-    else if (historyRange === 'week') d.setDate(d.getDate() - 7);
-    else if (historyRange === 'month') d.setDate(d.getDate() - 30);
-    else if (historyRange === 'year') d.setDate(d.getDate() - 365);
-    
-    const cutoffDate = d.toISOString().split('T')[0];
-    const filteredPrices = prices.filter(p => p.effective_date >= cutoffDate);
-
     return (
       <View style={{flex: 1}}>
         <View style={styles.filterRow}>
@@ -252,14 +255,14 @@ export default function MarketPricesScreen() {
           ))}
         </View>
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          <MarketGraph prices={filteredPrices} materials={materials} watchlists={watchlists} range={historyRange} />
+          <MarketGraph prices={prices} materials={materials} watchlists={watchlists} range={historyRange} />
           
           <View style={styles.historyTableBox}>
             <Text style={styles.tableTitle}>{t('profile.language') === 'Language' ? 'Historical Data' : 'ऐतिहासिक डेटा'}</Text>
-            {filteredPrices.length === 0 ? (
+            {prices.length === 0 ? (
                <Text style={styles.noDataText}>No history available for this range.</Text>
             ) : (
-               filteredPrices.slice(0, 50).map((p, i) => {
+               prices.slice(0, 50).map((p, i) => {
                  const m = materials.find(x => x.id === p.raw_material_id);
                  return (
                    <View key={i} style={styles.historyTableRow}>
