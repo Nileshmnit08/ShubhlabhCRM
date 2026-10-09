@@ -10,6 +10,7 @@ import OnboardingNavigator from './src/features/onboarding/OnboardingNavigator';
 
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import OrdersStackNavigator from './src/navigation/OrdersStackNavigator';
+import WeatherDetailsScreen from './src/features/weather/WeatherDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -53,34 +54,47 @@ function MainNavigator() {
   const isOnboarded = session?.user?.user_metadata?.onboarding_completed || customerProfile?.is_onboarded;
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {isOnboarded ? (
-        <>
-          <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-          <Stack.Screen name="OrdersStack" component={OrdersStackNavigator} />
-        </>
-      ) : (
-        <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
-      )}
-    </Stack.Navigator>
+    <View style={{ flex: 1 }}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {isOnboarded ? (
+          <>
+            <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+            <Stack.Screen name="OrdersStack" component={OrdersStackNavigator} />
+            <Stack.Screen name="WeatherDetails" component={WeatherDetailsScreen} />
+          </>
+        ) : (
+          <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
+        )}
+      </Stack.Navigator>
+      {isOnboarded && <GlobalHelpFab />}
+    </View>
   );
 }
 
+import { GlobalHelpFab } from './src/shared/components/GlobalHelpFab';
+
 import { OrderListProvider } from './src/features/orders/OrderListContext';
 import { I18nProvider } from './src/shared/localization/i18n';
+import { ThemeProvider } from './src/shared/theme/ThemeProvider';
+
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function App() {
   return (
-    <I18nProvider>
-      <AuthProvider>
-        <OrderListProvider>
-          <NavigationContainer>
-            <StatusBar style="auto" />
-            <MainNavigator />
-          </NavigationContainer>
-        </OrderListProvider>
-      </AuthProvider>
-    </I18nProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <OrderListProvider>
+              <NavigationContainer>
+                <StatusBar style="auto" />
+                <MainNavigator />
+              </NavigationContainer>
+            </OrderListProvider>
+          </AuthProvider>
+        </I18nProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 

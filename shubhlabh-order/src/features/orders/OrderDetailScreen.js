@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator
 import { ArrowLeft, MoreVertical, Package, MapPin, Edit3, MessageCircle, RotateCcw } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../core/api/supabase';
+import { getOrderById } from './OrderService';
 import { theme } from '../../shared/theme';
 
 const STATUS_STAGES = ['NEW', 'CONFIRMED', 'PROCESSING', 'DISPATCHED', 'DELIVERED'];
@@ -25,44 +26,9 @@ export default function OrderDetailScreen({ route, navigation }) {
 
   const fetchOrderDetails = async () => {
     try {
-      const { data, error } = await supabase
-        .from('requirements')
-        .select('*, requirement_items(*), crm_parties(name)')
-        .eq('id', orderId)
-        .single();
-        
-      if (data) {
-        let extras = {};
-        let parsedAddress = data.notes || '';
-        try {
-          const parsed = JSON.parse(data.notes);
-          if (parsed && parsed.extras) {
-            extras = parsed.extras;
-            parsedAddress = parsed.address;
-          }
-        } catch(e) {}
-
-        const mappedOrder = {
-          ...data,
-          order_no: data.demand_ref || data.id?.substring(0, 6) || 'PENDING',
-          delivery_address: parsedAddress,
-          original_notes: data.notes,
-          requirement_items: data.requirement_items?.map(item => {
-             const key = `${item.category}_${item.product_name}`;
-             return {
-               ...item,
-               product_name: item.product_name || 'Unknown Product',
-               category: item.category || 'Unknown',
-               unit: item.unit || extras[key]?.unit || 'Bags',
-               quantity: item.quantity,
-               weight: extras[key]?.weight || null,
-               gift: extras[key]?.gift || null,
-               other_gift: extras[key]?.other_gift || null
-             };
-          }),
-          customer_name: data.crm_parties?.name || ''
-        };
-        setOrder(mappedOrder);
+      const canonicalOrder = await getOrderById(orderId);
+      if (canonicalOrder) {
+        setOrder(canonicalOrder);
       }
     } catch (err) {
       console.warn('Failed to fetch order details:', err);
@@ -74,9 +40,10 @@ export default function OrderDetailScreen({ route, navigation }) {
   const formattedDate = order.created_at ? new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
   const formattedTime = order.created_at ? new Date(order.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
 
-  let items = order.requirement_items || [];
+  let items = order.items || [];
   
-  const totalBags = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const totalBags = order.totalQuantity || items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+  const totalWeight = order.totalWeight || 0;
   const hasGifts = items.some(item => item.gift);
 
   const currentStatus = (order.status || 'NEW').toUpperCase();
@@ -105,8 +72,12 @@ export default function OrderDetailScreen({ route, navigation }) {
   const displayItems = itemsExpanded ? items : items.slice(0, 3);
   const hiddenItemsCount = items.length - 3;
 
-  const handleEditReorder = () => {
-    navigation.navigate('NewOrderTab', { screen: 'NewOrderMain', params: { previousOrder: order } });
+  const handleEditOrder = () => {
+    navigation.navigate('MainTabs', { screen: 'NewOrderTab', params: { screen: 'NewOrderMain', params: { previousOrder: order, mode: 'edit', ts: Date.now() } } });
+  };
+
+  const handleReorderOrder = () => {
+    navigation.navigate('MainTabs', { screen: 'NewOrderTab', params: { screen: 'NewOrderMain', params: { previousOrder: order, mode: 'reorder', ts: Date.now() } } });
   };
 
   const handleContact = () => {
@@ -190,66 +161,75 @@ export default function OrderDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Items */}
-        {items.length > 0 && (
+        {/* Empty State */}
+        {items.length === 0 ? (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>ITEMS ({items.length})</Text>
-            <View style={styles.itemsWrapper}>
-              {displayItems.map((item, idx) => (
-                <View key={idx} style={styles.itemRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.itemName}>{item.product_name}</Text>
-                    <Text style={styles.itemCategory}>{item.category}</Text>
-                  </View>
-                  <View style={styles.itemRight}>
-                    <Text style={styles.itemQuantity}>{item.quantity} {item.unit || 'Bags'}</Text>
-                    {item.weight && <Text style={styles.itemWeight}>{item.weight} kg</Text>}
-                  </View>
-                </View>
-              ))}
-            </View>
-            {!itemsExpanded && hiddenItemsCount > 0 && (
-              <TouchableOpacity onPress={() => setItemsExpanded(true)} style={styles.expandButton}>
-                <Text style={styles.expandButtonText}>+ {hiddenItemsCount} more items</Text>
-              </TouchableOpacity>
-            )}
+            <Text style={{ textAlign: 'center', padding: 20, color: theme.colors.textSecondary, fontStyle: 'italic' }}>
+              No items found for this order.
+            </Text>
           </View>
-        )}
-
-        {/* Gift Section */}
-        {hasGifts && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>GIFT / EXTRA</Text>
-            {items.filter(i => i.gift).map((item, idx) => (
-              <View key={idx} style={styles.giftRow}>
-                <Text style={styles.giftIcon}>🎁</Text>
-                <View>
-                  <Text style={styles.giftText}>{item.gift === 'Others' ? item.other_gift : item.gift}</Text>
-                  <Text style={styles.giftSub}>For {item.product_name}</Text>
-                </View>
+        ) : (
+          <>
+            {/* Items */}
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>ITEMS ({items.length})</Text>
+              <View style={styles.itemsWrapper}>
+                {displayItems.map((item, idx) => (
+                  <View key={idx} style={styles.itemRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.itemName}>{item.product_name}</Text>
+                      <Text style={styles.itemCategory}>{item.category}</Text>
+                    </View>
+                    <View style={styles.itemRight}>
+                      <Text style={styles.itemQuantity}>{item.quantity} {item.unit || 'Bags'}</Text>
+                      {item.weight && <Text style={styles.itemWeight}>{item.weight} kg</Text>}
+                    </View>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        )}
-
-        {/* Order Summary */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>ORDER SUMMARY</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Products</Text>
-            <Text style={styles.summaryValue}>{items.length} Products</Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Total Quantity</Text>
-            <Text style={styles.summaryValue}>{totalBags} Bags</Text>
-          </View>
-          {items.some(i => i.weight) && (
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Total Weight</Text>
-              <Text style={styles.summaryValue}>{items.reduce((sum, item) => sum + (Number(item.weight) || 0) * (Number(item.quantity) || 0), 0)} kg</Text>
+              {!itemsExpanded && hiddenItemsCount > 0 && (
+                <TouchableOpacity onPress={() => setItemsExpanded(true)} style={styles.expandButton}>
+                  <Text style={styles.expandButtonText}>+ {hiddenItemsCount} more items</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          )}
-        </View>
+
+            {/* Gift Section */}
+            {hasGifts && (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>GIFT / EXTRA</Text>
+                {items.filter(i => i.gift).map((item, idx) => (
+                  <View key={idx} style={styles.giftRow}>
+                    <Text style={styles.giftIcon}>🎁</Text>
+                    <View>
+                      <Text style={styles.giftText}>{item.gift === 'Others' ? item.other_gift : item.gift}</Text>
+                      <Text style={styles.giftSub}>For {item.product_name}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Order Summary */}
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>ORDER SUMMARY</Text>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Products</Text>
+                <Text style={styles.summaryValue}>{items.length} Products</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Total Quantity</Text>
+                <Text style={styles.summaryValue}>{totalBags} Bags</Text>
+              </View>
+              {items.some(i => i.weight) && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Total Weight</Text>
+                  <Text style={styles.summaryValue}>{totalWeight} kg</Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
         
         {/* Delivery / Notes */}
         <View style={styles.card}>
@@ -280,7 +260,7 @@ export default function OrderDetailScreen({ route, navigation }) {
           {(currentStatus === 'NEW' || currentStatus === 'CONFIRMED') && (
             <TouchableOpacity 
               style={[styles.primaryActionBtn, { flex: 1, marginRight: 8 }]} 
-              onPress={handleEditReorder}
+              onPress={handleEditOrder}
             >
               <Edit3 color={theme.colors.white} size={20} />
               <Text style={styles.primaryActionBtnText}>Edit Order</Text>
@@ -290,7 +270,7 @@ export default function OrderDetailScreen({ route, navigation }) {
           {(currentStatus === 'DELIVERED') && (
             <TouchableOpacity 
               style={[styles.primaryActionBtn, { flex: 1, marginRight: 8 }]} 
-              onPress={handleEditReorder}
+              onPress={handleReorderOrder}
             >
               <RotateCcw color={theme.colors.white} size={20} />
               <Text style={styles.primaryActionBtnText}>Reorder</Text>

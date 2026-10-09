@@ -32,8 +32,7 @@ export default function OrderSuccessScreen({ route, navigation }) {
           <SLButton 
             title={t('order.viewOrder')} 
             onPress={() => {
-              navigation.navigate('NewOrderMain');
-              navigation.navigate('OrdersStack', { screen: 'OrderDetail', params: { orderId: orderData?.id, order: orderData } });
+              navigation.navigate('OrdersStack', { screen: 'OrderDetail', params: { orderId: orderData?.id } });
             }} 
             style={styles.btn}
           />
@@ -41,7 +40,6 @@ export default function OrderSuccessScreen({ route, navigation }) {
             title={t('profile.language') === 'Language' ? 'My Orders' : 'मेरे ऑर्डर'} 
             variant="outline" 
             onPress={() => {
-              navigation.navigate('NewOrderMain');
               navigation.navigate('OrdersStack', { screen: 'MyOrders' });
             }} 
             style={styles.btn}
@@ -50,8 +48,7 @@ export default function OrderSuccessScreen({ route, navigation }) {
             title={t('common.backToHome')} 
             variant="secondary" 
             onPress={() => {
-              navigation.navigate('NewOrderMain');
-              navigation.navigate('HomeTab');
+              navigation.navigate('MainTabs', { screen: 'HomeTab' });
             }} 
             style={styles.btn}
           />

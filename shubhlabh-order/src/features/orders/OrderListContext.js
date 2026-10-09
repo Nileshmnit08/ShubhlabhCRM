@@ -8,13 +8,51 @@ export function OrderListProvider({ children }) {
   
   // orderItems structure: array of objects { product: {id, name, ...}, quantity }
   const [orderItems, setOrderItems] = useState([]);
+  const [orderMode, setOrderMode] = useState('create'); // 'create', 'edit', 'reorder'
+  const [existingRequirementId, setExistingRequirementId] = useState(null);
 
   // Clear cart when session changes (e.g., logout)
   useEffect(() => {
     if (!session) {
-      setOrderItems([]);
+      clearOrderList();
     }
   }, [session]);
+
+  const startNewOrder = () => {
+    setOrderMode('create');
+    setExistingRequirementId(null);
+    setOrderItems([]);
+  };
+
+  const _loadItems = (items, allProducts) => {
+    if (!items) {
+      setOrderItems([]);
+      return;
+    }
+    const mapped = items.map(item => {
+      const liveProduct = allProducts.find(p => p.name === item.product_name && p.category === item.category);
+      return {
+        ...item,
+        id: Math.random().toString(36).substr(2, 9), // new line item UI ID
+        product_id: liveProduct?.id || null, // MUST use LIVE catalogue ID
+        product_name: liveProduct?.name || item.product_name,
+        category: liveProduct?.category || item.category,
+      };
+    });
+    setOrderItems(mapped);
+  };
+
+  const loadOrderForEdit = (order, allProducts) => {
+    setOrderMode('edit');
+    setExistingRequirementId(order.id);
+    _loadItems(order.items, allProducts);
+  };
+
+  const loadOrderForReorder = (order, allProducts) => {
+    setOrderMode('reorder');
+    setExistingRequirementId(null); // Because we will save as a NEW order
+    _loadItems(order.items, allProducts);
+  };
 
   const addToOrderList = (product, quantity) => {
     setOrderItems((prev) => {
@@ -56,6 +94,8 @@ export function OrderListProvider({ children }) {
 
   const clearOrderList = () => {
     setOrderItems([]);
+    setOrderMode('create');
+    setExistingRequirementId(null);
   };
 
   const totalBags = orderItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -68,6 +108,11 @@ export function OrderListProvider({ children }) {
     <OrderListContext.Provider value={{
       orderList: orderItems,
       setOrderList: setOrderItems, // Expose setter for NewOrderScreen
+      orderMode,
+      existingRequirementId,
+      startNewOrder,
+      loadOrderForEdit,
+      loadOrderForReorder,
       addToOrderList,
       updateQuantity,
       removeFromOrderList,

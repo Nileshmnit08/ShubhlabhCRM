@@ -10,6 +10,8 @@ import BusinessUpdatesListScreen from '../features/businessUpdates/BusinessUpdat
 import BusinessUpdateDetailScreen from '../features/businessUpdates/BusinessUpdateDetailScreen';
 
 import SettingsScreen from '../features/profile/SettingsScreen';
+import ChangePasswordScreen from '../features/profile/ChangePasswordScreen';
+import DeliveryAddressScreen from '../features/profile/DeliveryAddressScreen';
 
 const ProfileStack = createNativeStackNavigator();
 
@@ -23,6 +25,8 @@ export default function ProfileStackNavigator() {
       <ProfileStack.Screen name="BusinessUpdatesList" component={BusinessUpdatesListScreen} />
       <ProfileStack.Screen name="BusinessUpdateDetail" component={BusinessUpdateDetailScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
+      <ProfileStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <ProfileStack.Screen name="DeliveryAddress" component={DeliveryAddressScreen} />
     </ProfileStack.Navigator>
   );
 }

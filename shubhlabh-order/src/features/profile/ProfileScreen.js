@@ -15,13 +15,13 @@ export default function ProfileScreen({ navigation }) {
 
   const menuItems = [
     { title: t('profile.language') === 'Language' ? 'My Orders' : 'मेरे ऑर्डर', icon: ClipboardList, onPress: () => navigation.navigate('OrdersStack', { screen: 'MyOrders' }) },
-    { title: t('profile.deliveryAddresses'), icon: MapPin },
+    { title: t('profile.deliveryAddresses'), icon: MapPin, onPress: () => navigation.navigate('DeliveryAddress') },
     { title: 'Business Updates', icon: Globe, onPress: () => navigation.navigate('BusinessUpdatesList') },
     { title: t('updates.title'), icon: Globe, onPress: () => navigation.navigate('UpdatesList') },
     { title: t('support.title'), icon: HeadphonesIcon, onPress: () => navigation.navigate('ComplaintCenter') },
     { title: t('profile.mySalesperson'), icon: Users, onPress: () => navigation.navigate('MySalesperson') },
     { title: t('profile.settings'), icon: Settings, onPress: () => navigation.navigate('Settings') },
-    { title: t('profile.changePassword'), icon: Lock },
+    { title: t('profile.changePassword'), icon: Lock, onPress: () => navigation.navigate('ChangePassword') },
   ];
 
   return (

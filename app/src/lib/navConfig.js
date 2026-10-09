@@ -452,7 +452,7 @@ export const NAV_SECTIONS = [
       // Raw Material Pricing sub-group
       {
         id: 'raw-material-pricing',
-        label: 'Raw Material Pricing',
+        label: 'Market Price Management',
         href: null,
         icon: LineChart,
         badgeSource: null,
@@ -472,7 +472,7 @@ export const NAV_SECTIONS = [
           },
           {
             id: 'raw-material-prices-daily-entry',
-            label: 'Daily Price Entry',
+            label: 'Customer Price Publishing',
             href: '/raw-material-prices/daily-entry',
             icon: FileText,
             badgeSource: null,

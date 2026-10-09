@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator }
 import { ClipboardList, ChevronRight, ArrowLeft } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../core/api/supabase';
+import { getOrdersByParty } from './OrderService';
 import { useAuth } from '../auth/AuthContext';
 import { useTranslation } from '../../shared/localization/i18n';
 import { theme } from '../../shared/theme';
@@ -33,44 +34,7 @@ export default function MyOrdersScreen({ navigation }) {
     }
 
     try {
-      const { data, error: dbError } = await supabase
-        .from('requirements')
-        .select('*, requirement_items(*)')
-        .eq('party_id', customerProfile?.id)
-        .order('created_at', { ascending: false });
-
-      if (dbError) throw dbError;
-      
-      const mappedData = (data || []).map(order => {
-        let extras = {};
-        let parsedAddress = order.notes || '';
-        try {
-          const parsed = JSON.parse(order.notes);
-          if (parsed && parsed.extras) {
-            extras = parsed.extras;
-            parsedAddress = parsed.address;
-          }
-        } catch(e) {}
-
-        return {
-          ...order,
-          order_no: order.demand_ref || 'PENDING',
-          delivery_address: parsedAddress,
-          requirement_items: order.requirement_items?.map(item => {
-             const key = `${item.category}_${item.product_name}`;
-             return {
-               ...item,
-               product_name: item.product_name || 'Unknown Product',
-               category: item.category || 'Unknown',
-               unit: item.unit || extras[key]?.unit || 'Bags',
-               quantity: item.quantity,
-               weight: extras[key]?.weight || null,
-               gift: extras[key]?.gift || null,
-               other_gift: extras[key]?.other_gift || null
-             };
-          })
-        };
-      });
+      const mappedData = await getOrdersByParty(customerProfile?.id);
       setOrders(mappedData);
     } catch (err) {
       console.warn('Error fetching orders:', err);
@@ -94,7 +58,7 @@ export default function MyOrdersScreen({ navigation }) {
       day: '2-digit', month: 'short', year: 'numeric'
     });
 
-    const items = item.requirement_items || [];
+    const items = item.items || [];
     const displayItems = items.slice(0, 2);
     const remainingCount = items.length - 2;
 
@@ -218,7 +182,7 @@ export default function MyOrdersScreen({ navigation }) {
                   {activeTab === 'ACTIVE' && (
                     <TouchableOpacity 
                       style={styles.primaryCTA} 
-                      onPress={() => navigation.navigate('NewOrderTab')}
+                      onPress={() => navigation.navigate('MainTabs', { screen: 'NewOrderTab', params: { screen: 'NewOrderMain', params: { mode: 'create', ts: Date.now() } } })}
                     >
                       <Text style={styles.primaryCTAText}>{t('profile.language') === 'Language' ? 'Place New Order' : 'नया ऑर्डर करें'}</Text>
                     </TouchableOpacity>

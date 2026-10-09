@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Linking, Alert } from 'react-native';
 import { theme } from '../../shared/theme';
 import { SLHeader } from '../../shared/components/SLHeader';
 import { useTranslation } from '../../shared/localization/i18n';
@@ -15,6 +15,23 @@ export default function ComplaintCenterScreen({ navigation }) {
     { title: 'Other Support', icon: PhoneCall },
   ];
 
+  const handleSupportRequest = async (category) => {
+    const phoneNumber = '+919461924461';
+    const message = `Hello Shubh Labh Support, I need help with: ${category}.`;
+    const url = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+      if (canOpen) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'WhatsApp is not installed on this device.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Could not open WhatsApp.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <SLHeader title={t('support.title')} navigation={navigation} />
@@ -24,7 +41,7 @@ export default function ComplaintCenterScreen({ navigation }) {
         {categories.map((cat, i) => {
           const Icon = cat.icon;
           return (
-            <TouchableOpacity key={i} style={styles.row}>
+            <TouchableOpacity key={i} style={styles.row} onPress={() => handleSupportRequest(cat.title)}>
               <View style={styles.iconBox}>
                 <Icon size={24} color={theme.colors.primary} />
               </View>

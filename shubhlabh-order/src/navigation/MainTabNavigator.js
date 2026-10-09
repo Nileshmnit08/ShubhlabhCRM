@@ -5,9 +5,10 @@ import { Home, Package, ClipboardList, User } from 'lucide-react-native';
 import HomeScreen from '../features/home/HomeScreen';
 import ProfileStackNavigator from './ProfileStackNavigator';
 import NewOrderStackNavigator from './NewOrderStackNavigator';
+import MarketPricesStackNavigator from './MarketPricesStackNavigator';
 import { theme } from '../shared/theme';
 import { useTranslation } from '../shared/localization/i18n';
-import { PlusCircle } from 'lucide-react-native';
+import { PlusCircle, LineChart } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator();
 
@@ -40,6 +41,14 @@ export default function MainTabNavigator() {
         options={{
           tabBarLabel: t('profile.language') === 'Language' ? 'Home' : 'होम',
           tabBarIcon: ({ color, size }) => <Home color={color} size={24} />
+        }}
+      />
+      <Tab.Screen 
+        name="MarketPricesTab" 
+        component={MarketPricesStackNavigator} 
+        options={{
+          tabBarLabel: t('profile.language') === 'Language' ? 'Market Prices' : 'बाज़ार भाव',
+          tabBarIcon: ({ color, size }) => <LineChart color={color} size={24} />
         }}
       />
       <Tab.Screen 

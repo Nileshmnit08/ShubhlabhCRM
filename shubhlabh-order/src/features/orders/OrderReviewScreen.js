@@ -8,7 +8,7 @@ import { ArrowLeft, CheckCircle } from 'lucide-react-native';
 
 export default function OrderReviewScreen({ route, navigation }) {
   const { t } = useTranslation();
-  const { customerProfile } = useAuth();
+  const { customerProfile, session } = useAuth();
   const { finalItems, existingOrder } = route.params;
   const [loading, setLoading] = React.useState(false);
 
@@ -59,7 +59,7 @@ export default function OrderReviewScreen({ route, navigation }) {
         status: existingOrder ? existingOrder.status : 'New', // Preserve existing status
         unit: 'Bags',  // Must satisfy NOT NULL constraint on requirements
         notes: JSON.stringify({
-          address: customerProfile?.city || 'Saved Address',
+          address: session?.user?.user_metadata?.deliveryAddress?.address || customerProfile?.city || 'Saved Address',
           client_reference_id: clientRef,
           extras: itemExtras,
         })
@@ -138,6 +138,13 @@ export default function OrderReviewScreen({ route, navigation }) {
       
       // Navigate to Success
       navigation.navigate('OrderSuccess', { orderData });
+      
+      // Use setTimeout to clear it after navigation, so the back stack doesn't visually break before transitioning
+      setTimeout(() => {
+        if (route.params?.clearCallback) {
+          route.params.clearCallback();
+        }
+      }, 500);
     } catch (error) {
       console.error('Place order error:', error);
       const msg = error?.message || 'Failed to place order.';

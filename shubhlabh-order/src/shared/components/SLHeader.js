@@ -4,13 +4,19 @@ import { theme } from '../theme';
 import { ChevronLeft } from 'lucide-react-native';
 import SLText from './SLText';
 
-export const SLHeader = ({ title, showBack = true, navigation, rightComponent, style }) => {
+export const SLHeader = ({ title, showBack = true, navigation, onBackPress, rightComponent, style }) => {
   return (
     <View style={[styles.header, style]}>
-      {showBack && navigation ? (
+      {(showBack && (navigation || onBackPress)) ? (
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (onBackPress) {
+              onBackPress();
+            } else if (navigation) {
+              navigation.goBack();
+            }
+          }}
         >
           <ChevronLeft size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>

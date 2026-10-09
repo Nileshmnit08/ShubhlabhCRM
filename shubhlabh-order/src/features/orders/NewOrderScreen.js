@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
 import { theme } from '../../shared/theme';
 import { useTranslation } from '../../shared/localization/i18n';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../../core/api/supabase';
-import { User, Store, Plus, Minus, Trash2, Edit2, ShoppingCart, CheckCircle } from 'lucide-react-native';
+import { User, Store, Plus, Minus, Trash2, Edit2, ShoppingCart, CheckCircle, ArrowLeft } from 'lucide-react-native';
 import SLHeader from '../../shared/components/SLHeader';
 import { useProducts } from '../products/useProducts';
 import { useOrderList } from './OrderListContext';
@@ -29,10 +29,21 @@ export default function NewOrderScreen({ navigation, route }) {
   const buyerName = userProfile?.display_name || customerProfile?.name || "Buyer Name";
   const shopName = customerProfile?.shop_name || "Shop Name";
 
+  const mode = route.params?.mode || 'create';
+  const ts = route.params?.ts;
   const existingOrder = route.params?.previousOrder || null;
 
   const { products: allProducts, loading: productsLoading } = useProducts();
-  const { orderList: items, setOrderList: setItems, removeFromOrderList } = useOrderList();
+  const { 
+    orderList: items, 
+    setOrderList: setItems, 
+    removeFromOrderList,
+    startNewOrder,
+    loadOrderForEdit,
+    loadOrderForReorder,
+    orderMode,
+    existingRequirementId
+  } = useOrderList();
 
   const categories = useMemo(() => {
     return [...new Set(allProducts.map(p => p.category).filter(Boolean))];
@@ -48,6 +59,8 @@ export default function NewOrderScreen({ navigation, route }) {
   const [otherGift, setOtherGift] = useState('');
   const [editingItemIndex, setEditingItemIndex] = useState(null);
 
+  const initRef = useRef(null);
+
   useEffect(() => {
     if (categories.length > 0 && !selectedCategory) {
       setSelectedCategory(categories[0]);
@@ -55,26 +68,19 @@ export default function NewOrderScreen({ navigation, route }) {
   }, [categories]);
 
   useEffect(() => {
-    if (existingOrder && (!items || items.length === 0)) {
-      let prevItems = existingOrder.requirement_items || existingOrder.items || existingOrder.order_items || [];
-      if (typeof prevItems === 'string') {
-        try { prevItems = JSON.parse(prevItems); } catch(e){}
+    if (mode === 'create') {
+      if (initRef.current !== ts) {
+        startNewOrder();
+        initRef.current = ts;
       }
-      if (Array.isArray(prevItems) && prevItems.length > 0) {
-         setItems(prevItems.map(item => ({
-            id: item.id || generateId(),
-            product_id: item.product_id || null,
-            category: item.category || '',
-            product_name: item.product_name,
-            quantity: item.quantity || 10,
-            unit: item.unit || 'Bags',
-            weight: item.weight || 50,
-            gift: item.gift || null,
-            other_gift: item.other_gift || ''
-         })));
+    } else {
+      if (allProducts.length > 0 && initRef.current !== ts) {
+        if (mode === 'edit') loadOrderForEdit(existingOrder, allProducts);
+        if (mode === 'reorder') loadOrderForReorder(existingOrder, allProducts);
+        initRef.current = ts;
       }
     }
-  }, []);
+  }, [mode, ts, existingOrder, allProducts, startNewOrder, loadOrderForEdit, loadOrderForReorder]);
 
   useEffect(() => {
     // Select first product of category automatically if category changes
@@ -185,7 +191,7 @@ export default function NewOrderScreen({ navigation, route }) {
     }
 
     if (existingOrder) {
-       let prevItems = existingOrder.requirement_items || existingOrder.items || existingOrder.order_items || [];
+       let prevItems = existingOrder.items || [];
        if (typeof prevItems === 'string') {
          try { prevItems = JSON.parse(prevItems); } catch(e){}
        }
@@ -211,14 +217,42 @@ export default function NewOrderScreen({ navigation, route }) {
 
   const processSave = (finalItems) => {
     // Navigate to OrderReview with the assembled finalItems
-    navigation.navigate('OrderReview', { finalItems, existingOrder });
+    navigation.navigate('OrderReview', { finalItems, existingOrder, clearCallback: startNewOrder });
   };
 
   const currentCategoryProducts = allProducts.filter(p => p.category === selectedCategory);
 
+  const handleBackPress = () => {
+    if (items.length > 0) {
+      Alert.alert(
+        t('profile.language') === 'Language' ? 'Discard Order?' : 'ऑर्डर रद्द करें?',
+        t('profile.language') === 'Language' ? 'You have items in your new order. Are you sure you want to leave?' : 'आपके नए ऑर्डर में आइटम हैं। क्या आप वाकई बाहर जाना चाहते हैं?',
+        [
+          { text: t('profile.language') === 'Language' ? 'KEEP EDITING' : 'बदलाव जारी रखें', style: 'cancel' },
+          { 
+            text: t('profile.language') === 'Language' ? 'DISCARD' : 'रद्द करें', 
+            style: 'destructive', 
+            onPress: () => {
+              startNewOrder();
+              if (navigation.canGoBack()) navigation.goBack();
+              else navigation.navigate('MainTabs');
+            } 
+          }
+        ]
+      );
+    } else {
+      if (navigation.canGoBack()) navigation.goBack();
+      else navigation.navigate('MainTabs');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
-      <SLHeader title={t('newOrder.title')} showBack={false} />
+      <SLHeader 
+        title={t('newOrder.title')} 
+        showBack={true} 
+        onBackPress={handleBackPress}
+      />
 
       <View style={styles.mainContainer}>
         {/* Context Background */}

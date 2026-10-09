@@ -6,6 +6,7 @@ import { theme } from '../../shared/theme';
 import SLWhatsAppFAB from '../../shared/components/SLWhatsAppFAB';
 import SLHeader from '../../shared/components/SLHeader';
 import { supabase } from '../../core/api/supabase';
+import { getLatestOrder } from '../orders/OrderService';
 import SLCard from '../../shared/components/SLCard';
 import SLButton from '../../shared/components/SLButton';
 import SLText from '../../shared/components/SLText';
@@ -14,6 +15,7 @@ import SLSectionHeader from '../../shared/components/SLSectionHeader';
 import SLStatusBadge from '../../shared/components/SLStatusBadge';
 import { useTranslation } from '../../shared/localization/i18n';
 import { Bell, Check, ArrowRight } from 'lucide-react-native';
+import HomeWeatherWidget from '../weather/HomeWeatherWidget';
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -35,49 +37,11 @@ export default function HomeScreen() {
 
   const fetchLatestOrder = async () => {
     try {
-      const { data, error } = await supabase
-        .from('requirements')
-        .select('*, requirement_items(*)')
-        .eq('party_id', customerProfile.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-        
-      if (data) {
-        let extras = {};
-        let parsedAddress = data.notes || '';
-        try {
-          const parsed = JSON.parse(data.notes);
-          if (parsed && parsed.extras) {
-            extras = parsed.extras;
-            parsedAddress = parsed.address;
-          }
-        } catch(e) {}
-
-        const mappedOrder = {
-          ...data,
-          order_no: data.demand_ref || 'PENDING',
-          delivery_address: parsedAddress,
-          requirement_items: data.requirement_items?.map(item => {
-             const key = `${item.category}_${item.product_name}`;
-             return {
-               ...item,
-               product_name: item.product_name || 'Unknown Product',
-               category: item.category || 'Unknown',
-               unit: item.unit || extras[key]?.unit || 'Bags',
-               quantity: item.quantity,
-               weight: extras[key]?.weight || null,
-               gift: extras[key]?.gift || null,
-               other_gift: extras[key]?.other_gift || null
-             };
-          })
-        };
-        setLatestOrder(mappedOrder);
-      } else {
-        setLatestOrder(null);
-      }
+      const canonicalOrder = await getLatestOrder(customerProfile.id);
+      setLatestOrder(canonicalOrder);
     } catch (e) {
       console.warn('Failed to fetch latest order for home widget', e);
+      setLatestOrder(null);
     }
   };
 
@@ -92,7 +56,7 @@ export default function HomeScreen() {
       // specifying the screen within the nested navigator.
       navigation.navigate('NewOrderTab', {
         screen: 'NewOrderMain',
-        params: { previousOrder: latestOrder },
+        params: { previousOrder: latestOrder, mode: 'reorder', ts: Date.now() },
       });
     } else {
       alert(t('profile.language') === 'Language' ? "No previous order found." : "कोई पिछला ऑर्डर नहीं मिला।");
@@ -120,7 +84,7 @@ export default function HomeScreen() {
         {/* Primary CTA */}
         <TouchableOpacity 
           style={styles.primaryCta}
-          onPress={() => navigation.navigate("NewOrderTab")}
+          onPress={() => navigation.navigate("NewOrderTab", { screen: 'NewOrderMain', params: { mode: 'create', ts: Date.now() }})}
           activeOpacity={0.9}
         >
           <View style={styles.primaryCtaContent}>
@@ -170,14 +134,14 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.orderItems}>
-               {latestOrder.requirement_items?.slice(0, 2).map((item, idx) => (
+               {latestOrder.items?.slice(0, 2).map((item, idx) => (
                  <View key={idx} style={styles.itemRow}>
                    <SLText style={styles.itemName}>{item.product_name}</SLText>
                    <SLText style={styles.itemQuantity}>{item.quantity} {item.unit}</SLText>
                  </View>
                ))}
-               {(latestOrder.requirement_items?.length || 0) > 2 && (
-                 <SLText style={styles.moreItemsText}>+ {(latestOrder.requirement_items?.length || 0) - 2} more items</SLText>
+               {(latestOrder.items?.length || 0) > 2 && (
+                 <SLText style={styles.moreItemsText}>+ {(latestOrder.items?.length || 0) - 2} more items</SLText>
                )}
             </View>
             
@@ -203,12 +167,17 @@ export default function HomeScreen() {
           </SLCard>
         )}
 
+        <HomeWeatherWidget 
+          shopLocation={userProfile?.shopLocation || customerProfile?.shopLocation}
+          deliveryLocation={userProfile?.deliveryAddress}
+        />
+
         {/* Shubh Labh Updates */}
         <SLSectionHeader 
           title={t('home.updates')} 
           actionTitle={t('profile.language') === 'Language' ? 'View All' : 'सभी देखें'} 
           onActionPress={() => {}} 
-          style={{marginTop: 8, marginBottom: 8}}
+          style={{marginBottom: 8}}
         />
         {latestUpdate ? (
           <SLCard style={styles.updateCard}>
