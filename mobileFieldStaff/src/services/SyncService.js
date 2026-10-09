@@ -256,13 +256,9 @@ export class SyncService {
               safePayload.status = 'New';
               pendingOp.payload.status = 'New'; // Persist the patch in memory
             }
-            if (!safePayload.quantity || safePayload.quantity <= 0) {
-              safePayload.quantity = 1;
-              pendingOp.payload.quantity = 1; // Satisfy req_positive_values constraint
-            }
-            if (!safePayload.product_type) {
-              safePayload.product_type = 'General Requirement';
-              pendingOp.payload.product_type = 'General Requirement';
+            if (safePayload.quantity !== undefined && safePayload.quantity <= 0) {
+              delete safePayload.quantity;
+              if (pendingOp.payload) delete pendingOp.payload.quantity;
             }
 
             // Recovery: Remove 'created_by' from old failed queued requirements

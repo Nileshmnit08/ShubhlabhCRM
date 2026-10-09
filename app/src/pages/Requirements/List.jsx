@@ -149,7 +149,7 @@ export default function RequirementList() {
     try {
       let query = supabase
         .from('v_board_requirements')
-        .select('*, requirement_items(*)')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (!includeCompleted) {
@@ -211,6 +211,28 @@ export default function RequirementList() {
 
       const { data, error } = await query;
       if (error) throw error;
+
+      if (data && data.length > 0) {
+        const reqIds = data.map(r => r.id);
+        const { data: itemsData, error: itemsError } = await supabase
+          .from('requirement_items')
+          .select('*')
+          .in('requirement_id', reqIds);
+          
+        if (itemsError) throw itemsError;
+        
+        if (itemsData) {
+          const itemsMap = {};
+          itemsData.forEach(item => {
+            if (!itemsMap[item.requirement_id]) itemsMap[item.requirement_id] = [];
+            itemsMap[item.requirement_id].push(item);
+          });
+          data.forEach(req => {
+            req.requirement_items = itemsMap[req.id] || [];
+          });
+        }
+      }
+
       setRequirements(data || []);
       
       // Auto-expand customers with overdue requirements

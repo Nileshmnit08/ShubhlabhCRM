@@ -260,8 +260,8 @@ export const VisitProvider = ({ children }) => {
         const reqPayload = {
           id: req.id,
           party_id: activeVisit.party_id,
-          product_type: req.product_type || 'General Requirement',
-          quantity: req.quantity || 1,
+          product_type: req.product_type || null,
+          quantity: req.quantity || null,
           expected_date: req.expected_date,
           status: 'New', // Complies with req_status_check
           assigned_to: userId,
