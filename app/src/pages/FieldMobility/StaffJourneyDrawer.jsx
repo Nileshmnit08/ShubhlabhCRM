@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, PlayCircle, StopCircle, Building2, MapPin, IndianRupee, Truck, ChevronRight } from 'lucide-react';
+import { X, PlayCircle, StopCircle, Building2, MapPin, IndianRupee, Truck, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { format, differenceInMinutes } from 'date-fns';
 import VisitDetailModal from '../Activity/VisitDetailModal';
@@ -34,11 +34,10 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
   };
 
   useEffect(() => {
-    fetchTimeline();
-  }, [user.id, dateRange.start, dateRange.end]);
+    let ignore = false;
 
-  const fetchTimeline = async () => {
-    setLoading(true);
+    const fetchTimeline = async () => {
+      setLoading(true);
     try {
       const startStr = dateRange.start.toISOString().split('T')[0] + 'T00:00:00Z';
       const endStr = dateRange.end.toISOString().split('T')[0] + 'T23:59:59Z';
@@ -199,15 +198,26 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       });
       if (currentSession) groupedSessions.push(currentSession);
 
-      setSessions(groupedSessions);
-      setUnlinkedEvents(unlinked);
+      if (!ignore) {
+        setSessions(groupedSessions);
+        setUnlinkedEvents(unlinked);
+      }
 
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (!ignore) {
+        setLoading(false);
+      }
     }
   };
+
+    fetchTimeline();
+
+    return () => {
+      ignore = true;
+    };
+  }, [user.id, dateRange.start, dateRange.end]);
 
   const getFilterLabel = () => {
     if (filterMode === 'Day') return format(dateRange.start, 'dd MMM yyyy');
