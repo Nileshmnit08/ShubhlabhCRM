@@ -6,6 +6,7 @@ import { supabase } from '../../core/api/supabase';
 import { getOrderById } from './OrderService';
 import { theme } from '../../shared/theme';
 import { useAuth } from '../auth/AuthContext';
+import * as Location from 'expo-location';
 
 const STATUS_STAGES = ['NEW', 'CONFIRMED', 'PROCESSING', 'DISPATCHED', 'DELIVERED'];
 
@@ -19,8 +20,20 @@ export default function OrderDetailScreen({ route, navigation }) {
   const [itemsExpanded, setItemsExpanded] = useState(false);
 
   const [showAddressModal, setShowAddressModal] = useState(false);
-  const [editAddress, setEditAddress] = useState('');
+  const [addressDetails, setAddressDetails] = useState({
+    house: '',
+    street: '',
+    landmark: '',
+    city: '',
+    district: '',
+    state: '',
+    pin: '',
+    formatted: '',
+    latitude: null,
+    longitude: null
+  });
   const [savingAddress, setSavingAddress] = useState(false);
+  const [capturingLocation, setCapturingLocation] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,9 +106,73 @@ export default function OrderDetailScreen({ route, navigation }) {
     });
   };
 
+  const handleCaptureLocation = async () => {
+    setCapturingLocation(true);
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Allow location access to use this feature.');
+      setCapturingLocation(false);
+      return;
+    }
+
+    try {
+      let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      let geocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      });
+      
+      let newDetails = { ...addressDetails, latitude: location.coords.latitude, longitude: location.coords.longitude };
+      
+      if (geocode && geocode.length > 0) {
+        const addr = geocode[0];
+        newDetails.house = addr.streetNumber || '';
+        newDetails.street = addr.street || '';
+        newDetails.city = addr.city || addr.subregion || '';
+        newDetails.district = addr.subregion || '';
+        newDetails.state = addr.region || '';
+        newDetails.pin = addr.postalCode || '';
+        
+        const parts = [newDetails.house, newDetails.street, newDetails.city, newDetails.district, newDetails.state, newDetails.pin].filter(Boolean);
+        newDetails.formatted = parts.join(', ');
+      }
+      setAddressDetails(newDetails);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to fetch location.');
+    } finally {
+      setCapturingLocation(false);
+    }
+  };
+
+  const handleEditAddressClick = () => {
+    let rawNotes = {};
+    try {
+      rawNotes = JSON.parse(order._raw?.notes || '{}');
+    } catch (e) {}
+
+    if (rawNotes.structured_address) {
+      setAddressDetails(rawNotes.structured_address);
+    } else {
+      setAddressDetails({
+        house: '',
+        street: '',
+        landmark: '',
+        city: '',
+        district: '',
+        state: '',
+        pin: '',
+        formatted: order.delivery_address || '',
+        latitude: null,
+        longitude: null
+      });
+    }
+    setShowAddressModal(true);
+  };
+
   const handleSaveAddress = async () => {
-    if (!editAddress.trim()) {
-      Alert.alert('Error', 'Address cannot be empty.');
+    if (!addressDetails.formatted?.trim()) {
+      Alert.alert('Error', 'Formatted address cannot be empty.');
       return;
     }
     setSavingAddress(true);
@@ -108,7 +185,8 @@ export default function OrderDetailScreen({ route, navigation }) {
       }
       
       const oldAddress = rawNotes.address || '';
-      rawNotes.address = editAddress.trim();
+      rawNotes.address = addressDetails.formatted.trim();
+      rawNotes.structured_address = addressDetails;
       
       const newNotesJson = JSON.stringify(rawNotes);
       
@@ -131,14 +209,14 @@ export default function OrderDetailScreen({ route, navigation }) {
            source: 'buyer_app',
            field: 'delivery_address',
            old_value: oldAddress,
-           new_value: editAddress.trim()
+           new_value: addressDetails.formatted.trim()
          }
       });
       
       // Update local state
       setOrder(prev => ({
         ...prev,
-        delivery_address: editAddress.trim(),
+        delivery_address: addressDetails.formatted.trim(),
         _raw: {
           ...prev._raw,
           notes: newNotesJson
@@ -296,10 +374,7 @@ export default function OrderDetailScreen({ route, navigation }) {
         <View style={styles.card}>
           <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
             <Text style={[styles.sectionTitle, {marginBottom: 0}]}>DELIVERY</Text>
-            <TouchableOpacity onPress={() => {
-                setEditAddress(order.delivery_address === 'null' || order.delivery_address === '{}' ? '' : (order.delivery_address || ''));
-                setShowAddressModal(true);
-              }} style={styles.editAddressBtn}>
+            <TouchableOpacity onPress={handleEditAddressClick} style={styles.editAddressBtn}>
               <Edit3 size={16} color={theme.colors.primary} />
               <Text style={styles.editAddressText}>
                 {(!order.delivery_address || order.delivery_address === 'null' || order.delivery_address === '{}') ? 'Add' : 'Edit'}
@@ -358,19 +433,51 @@ export default function OrderDetailScreen({ route, navigation }) {
       )}
 
       {/* Address Edit Modal */}
-      <Modal visible={showAddressModal} transparent animationType="fade">
+      <Modal visible={showAddressModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Delivery Address</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={editAddress}
-              onChangeText={setEditAddress}
-              placeholder="Enter delivery address"
-              placeholderTextColor={theme.colors.textSecondary}
-              multiline
-            />
-            <View style={styles.modalActions}>
+          <View style={[styles.modalContent, { maxHeight: '90%', padding: 0 }]}>
+            <View style={{ padding: 20, borderBottomWidth: 1, borderColor: theme.colors.border }}>
+              <Text style={styles.modalTitle}>Delivery Address</Text>
+            </View>
+            
+            <ScrollView style={{ padding: 20 }}>
+              <TouchableOpacity style={styles.gpsBtn} onPress={handleCaptureLocation} disabled={capturingLocation}>
+                {capturingLocation ? <ActivityIndicator size="small" color={theme.colors.primary} /> : <MapPin color={theme.colors.primary} size={20} />}
+                <Text style={styles.gpsBtnText}>Use My Current GPS Location</Text>
+              </TouchableOpacity>
+
+              <Text style={styles.inputLabel}>House / Shop No.</Text>
+              <TextInput style={styles.modalInput} value={addressDetails.house} onChangeText={(t) => setAddressDetails(p => ({...p, house: t, formatted: [t, p.street, p.city, p.district, p.state, p.pin].filter(Boolean).join(', ')}))} placeholder="e.g. 104" />
+              
+              <Text style={styles.inputLabel}>Street / Area</Text>
+              <TextInput style={styles.modalInput} value={addressDetails.street} onChangeText={(t) => setAddressDetails(p => ({...p, street: t, formatted: [p.house, t, p.city, p.district, p.state, p.pin].filter(Boolean).join(', ')}))} placeholder="e.g. Main Market" />
+              
+              <Text style={styles.inputLabel}>Landmark</Text>
+              <TextInput style={styles.modalInput} value={addressDetails.landmark} onChangeText={(t) => setAddressDetails(p => ({...p, landmark: t}))} placeholder="e.g. Near Post Office" />
+              
+              <Text style={styles.inputLabel}>City / Village</Text>
+              <TextInput style={styles.modalInput} value={addressDetails.city} onChangeText={(t) => setAddressDetails(p => ({...p, city: t, formatted: [p.house, p.street, t, p.district, p.state, p.pin].filter(Boolean).join(', ')}))} placeholder="City" />
+              
+              <Text style={styles.inputLabel}>District</Text>
+              <TextInput style={styles.modalInput} value={addressDetails.district} onChangeText={(t) => setAddressDetails(p => ({...p, district: t, formatted: [p.house, p.street, p.city, t, p.state, p.pin].filter(Boolean).join(', ')}))} placeholder="District" />
+              
+              <Text style={styles.inputLabel}>State</Text>
+              <TextInput style={styles.modalInput} value={addressDetails.state} onChangeText={(t) => setAddressDetails(p => ({...p, state: t, formatted: [p.house, p.street, p.city, p.district, t, p.pin].filter(Boolean).join(', ')}))} placeholder="State" />
+              
+              <Text style={styles.inputLabel}>PIN Code</Text>
+              <TextInput style={styles.modalInput} value={addressDetails.pin} onChangeText={(t) => setAddressDetails(p => ({...p, pin: t, formatted: [p.house, p.street, p.city, p.district, p.state, t].filter(Boolean).join(', ')}))} placeholder="PIN" keyboardType="numeric" />
+
+              <Text style={styles.inputLabel}>Full Formatted Address (Required)</Text>
+              <TextInput
+                style={[styles.modalInput, { height: 80 }]}
+                value={addressDetails.formatted}
+                onChangeText={(t) => setAddressDetails(p => ({...p, formatted: t}))}
+                placeholder="Enter full formatted address"
+                multiline
+              />
+            </ScrollView>
+
+            <View style={[styles.modalActions, { padding: 20, borderTopWidth: 1, borderColor: theme.colors.border }]}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setShowAddressModal(false)} disabled={savingAddress}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -460,9 +567,12 @@ const styles = StyleSheet.create({
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   modalContent: { width: '100%', backgroundColor: theme.colors.surface, borderRadius: 16, padding: 24, ...theme.elevation.md },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.textPrimary, marginBottom: 16 },
-  modalInput: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, fontSize: 15, color: theme.colors.textPrimary, minHeight: 80, textAlignVertical: 'top' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 24, gap: 12 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.textPrimary, marginBottom: 0 },
+  modalInput: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, fontSize: 15, color: theme.colors.textPrimary, marginBottom: 12 },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary, marginBottom: 6 },
+  gpsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', paddingVertical: 12, borderRadius: 8, marginBottom: 20, borderWidth: 1, borderColor: theme.colors.primary },
+  gpsBtnText: { color: theme.colors.primary, fontSize: 15, fontWeight: '600', marginLeft: 8 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 0, gap: 12 },
   modalCancel: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
   modalCancelText: { color: theme.colors.textSecondary, fontSize: 15, fontWeight: '600' },
   modalSave: { backgroundColor: theme.colors.primary, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8, minWidth: 80, alignItems: 'center' },
