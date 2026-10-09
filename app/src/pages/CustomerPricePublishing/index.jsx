@@ -13,7 +13,8 @@ import { format } from 'date-fns';
 
 const INITIAL_MATERIALS = [
   'Khal', 'Makka Daliya', 'Jaggery', 'Oil', 'Chana Churi', 
-  'Soya Churi', 'Kakde', 'Kakde Khal', 'Mustard Khal'
+  'Soya Churi', 'Kakde', 'Kakde Khal', 'Mustard Khal',
+  'Chapad', 'Methi', 'Ajwain', 'Chaadi Kakda'
 ];
 
 export default function CustomerPricePublishing() {
