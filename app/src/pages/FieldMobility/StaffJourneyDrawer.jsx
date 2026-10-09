@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, PlayCircle, StopCircle, Building2, MapPin, IndianRupee, Truck, ChevronRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { format } from 'date-fns';
+import { format, differenceInMinutes } from 'date-fns';
 import VisitDetailModal from '../Activity/VisitDetailModal';
 
 export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClose }) {
@@ -70,11 +70,8 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       const sum = {
         sessions: recSessions?.length || 0,
         km: recSessions?.reduce((acc, s) => acc + (s.verified_distance_meters / 1000 || 0), 0).toFixed(1) || 0,
-        // FIX A: linked_visit_count is now a direct crm_visits count (fixed in DB view)
         visits: recSessions?.reduce((acc, s) => acc + (Number(s.linked_visit_count) || 0), 0) || 0,
         expenses: recExpenses?.length || 0,
-        // FIX B: expense_total from session reconciliation view is the daily KM reimbursement
-        // Deduplicate by business_date to avoid double-counting across multiple sessions per day
         expenseTotal: (() => {
           const seen = new Set();
           return (recSessions || []).reduce((acc, s) => {
@@ -92,11 +89,19 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       const visitIds = (events || []).filter(e => e.event_type === 'VISIT').map(e => e.id);
 
       const sessionMap = {};
+      let locationHistory = [];
       if (sessionIds.length > 0) {
         const { data: sData } = await supabase.from('staff_tracking_sessions')
-          .select('id, started_latitude, started_longitude, started_accuracy, ended_latitude, ended_longitude, ended_accuracy')
+          .select('id, started_latitude, started_longitude, started_accuracy, ended_latitude, ended_longitude, ended_accuracy, verified_distance_meters')
           .in('id', sessionIds);
         sData?.forEach(s => sessionMap[s.id] = s);
+
+        const { data: locs } = await supabase.from('staff_location_history')
+           .select('session_id, captured_at, segment_distance_m, status')
+           .in('session_id', sessionIds)
+           .in('status', ['VALID', 'VALID_START', 'VALID_NEW_PATH'])
+           .order('captured_at', { ascending: true });
+        locationHistory = locs || [];
       }
 
       const visitMap = {};
@@ -118,16 +123,17 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
            evt.location = { lat: sessionMap[evt.id]?.started_latitude, lng: sessionMap[evt.id]?.started_longitude, acc: sessionMap[evt.id]?.started_accuracy };
         } else if (evt.event_type === 'SESSION_END') {
            evt.location = { lat: sessionMap[evt.id]?.ended_latitude, lng: sessionMap[evt.id]?.ended_longitude, acc: sessionMap[evt.id]?.ended_accuracy };
+           evt.verified_distance_meters = sessionMap[evt.id]?.verified_distance_meters || 0;
         } else if (evt.event_type === 'VISIT') {
            const v = visitMap[evt.id];
            if (v) {
-             // Fallback to legacy latitude if start_latitude is not yet populated
              evt.location = { lat: v.start_latitude || v.latitude, lng: v.start_longitude || v.longitude, acc: v.start_location_accuracy };
              evt.end_location = { lat: v.ended_latitude, lng: v.ended_longitude, acc: v.ended_location_accuracy };
              evt.notes = v.notes;
              evt.outcomes = v.outcomes;
+             evt.started_at = v.started_at;
+             evt.ended_at = v.ended_at;
              
-             // Calculate 2-hour buffer as done in VisitDetailModal
              const vStart = new Date(v.started_at).getTime() - 7200000;
              const vEnd = new Date(v.ended_at || v.started_at).getTime() + 7200000;
              evt.reqCount = (reqData || []).filter(r => r.party_id === v.party_id && new Date(r.created_at).getTime() >= vStart && new Date(r.created_at).getTime() <= vEnd).length;
@@ -144,7 +150,7 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       (events || []).forEach(evt => {
         if (evt.event_type === 'SESSION_START') {
           if (currentSession) groupedSessions.push(currentSession);
-          currentSession = { id: evt.id, startEvent: evt, endEvent: null, events: [], totalKm: 0 };
+          currentSession = { id: evt.id, startEvent: evt, endEvent: null, events: [], totalKm: 0, lastVisitEndTime: null };
         } else if (evt.event_type === 'SESSION_END') {
           if (currentSession) {
             currentSession.endEvent = evt;
@@ -155,9 +161,36 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
           }
         } else {
           if (currentSession) {
-            currentSession.events.push(evt);
-            if (evt.event_type === 'TRAVEL_SEGMENT' && evt.distance_m) {
-              currentSession.totalKm += (evt.distance_m / 1000);
+            // Calculate Visit KM metrics
+            if (evt.event_type === 'VISIT') {
+              const sessionPoints = locationHistory.filter(p => p.session_id === currentSession.id);
+              const visitEndStr = evt.ended_at || evt.started_at;
+              const visitEndTime = new Date(visitEndStr).getTime();
+              
+              const cumulativePoints = sessionPoints.filter(p => new Date(p.captured_at).getTime() <= visitEndTime);
+              const cumulativeDistanceMeters = cumulativePoints.reduce((acc, p) => acc + (p.segment_distance_m || 0), 0);
+              
+              let legDistanceMeters = 0;
+              if (currentSession.lastVisitEndTime) {
+                const legPoints = sessionPoints.filter(p => {
+                  const t = new Date(p.captured_at).getTime();
+                  return t > currentSession.lastVisitEndTime && t <= visitEndTime;
+                });
+                legDistanceMeters = legPoints.reduce((acc, p) => acc + (p.segment_distance_m || 0), 0);
+              } else {
+                legDistanceMeters = cumulativeDistanceMeters; // First visit leg from start
+              }
+              
+              evt.cumulativeKm = (cumulativeDistanceMeters / 1000).toFixed(2);
+              evt.legKm = (legDistanceMeters / 1000).toFixed(2);
+              evt.calcStatus = 'Calculated'; // Could check gaps for "GPS data incomplete"
+              currentSession.lastVisitEndTime = visitEndTime;
+              currentSession.lastCumulativeMeters = cumulativeDistanceMeters;
+            }
+            
+            if (evt.event_type !== 'TRAVEL_SEGMENT') {
+              // We hide old TRAVEL_SEGMENT blocks to favor visit-by-visit distances
+              currentSession.events.push(evt);
             }
           } else {
             unlinked.push(evt);
@@ -184,31 +217,8 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
 
   const renderEvent = (evt, idx, arr) => {
     const timeStr = format(new Date(evt.event_time), 'HH:mm');
-    
-    if (evt.event_type === 'TRAVEL_SEGMENT') {
-      const isUnlinked = arr && (!arr.find((e, i) => i > idx && e.event_type === 'VISIT') || !arr.find((e, i) => i < idx && e.event_type === 'VISIT'));
-      return (
-        <div key={evt.id} style={{ display: 'flex', marginLeft: '16px', padding: '1rem 0', position: 'relative' }}>
-          <div style={{ position: 'absolute', left: '-17px', top: '50%', transform: 'translateY(-50%)', width: '2px', height: '100%', background: 'var(--border)' }}></div>
-          <div style={{ marginLeft: '2rem', flex: 1, padding: '0.5rem 1rem', background: 'var(--bg-base)', borderRadius: '6px', border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-              <Truck size={14} /> 
-              <span style={{ fontSize: '0.85rem' }}>Travel Segment</span>
-            </div>
-            <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.25rem' }}>
-              {(evt.distance_m / 1000).toFixed(1)} km verified
-            </div>
-            {isUnlinked && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No linked CRM visit</div>}
-          </div>
-        </div>
-      );
-    }
 
     if (evt.event_type === 'VISIT') {
-      // Check next event to see if we have missing travel
-      const nextEvt = arr && arr[idx + 1];
-      const hasMissingTravel = nextEvt && nextEvt.event_type === 'VISIT';
-
       return (
         <React.Fragment key={evt.id}>
           <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
@@ -257,6 +267,23 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
                   {evt.fuCount > 0 && <span><span style={{fontWeight: 600}}>Follow-ups:</span> {evt.fuCount}</span>}
                 </div>
               )}
+
+              {/* Requirement B: Visit-Level Travel KM Summary */}
+              <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Travel Summary</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Cumulative Dist</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{evt.cumulativeKm} KM</span>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Latest Leg</span>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{evt.legKm} KM</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>Status: {evt.calcStatus}</div>
+              </div>
+
               <button 
                 className="btn btn-sm" 
                 style={{ 
@@ -278,23 +305,8 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
                 View Completed Visit Detail
                 <ChevronRight size={14} />
               </button>
-
-              {evt.end_location?.lat && (
-                <div style={{ marginTop: '1rem', borderTop: '1px dashed var(--border)', paddingTop: '0.75rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '2px' }}>End Location:</span>
-                  <LocationLink lat={evt.end_location.lat} lng={evt.end_location.lng} acc={evt.end_location.acc} />
-                </div>
-              )}
             </div>
           </div>
-          {hasMissingTravel && (
-            <div style={{ display: 'flex', marginLeft: '16px', padding: '0.5rem 0', position: 'relative' }}>
-               <div style={{ position: 'absolute', left: '-17px', top: '0', width: '2px', height: '100%', background: 'var(--border)' }}></div>
-               <div style={{ marginLeft: '2rem', flex: 1, padding: '0.5rem 1rem', background: 'var(--bg-base)', borderRadius: '6px', border: '1px dashed var(--border)' }}>
-                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Mobility: No verified mobility link</div>
-               </div>
-            </div>
-          )}
         </React.Fragment>
       );
     }
@@ -324,12 +336,14 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
 
   return (
     <div style={{
-      position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: '700px',
-      background: 'var(--bg-surface)', zIndex: 1000, boxShadow: '-4px 0 15px rgba(0,0,0,0.1)',
-      display: 'flex', flexDirection: 'column', animation: 'slideInRight 0.3s ease-out'
+      background: 'var(--bg-surface)', 
+      borderRadius: '8px', 
+      border: '1px solid var(--border)',
+      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
+      display: 'flex', flexDirection: 'column'
     }}>
       {/* Header */}
-      <div style={{padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+      <div style={{padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: 'var(--bg-surface)', zIndex: 10, borderTopLeftRadius: '8px', borderTopRightRadius: '8px'}}>
         <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
           <div style={{
             width: '44px', height: '44px', borderRadius: '50%', background: 'var(--primary)', color: '#fff',
@@ -346,23 +360,18 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       </div>
       
       {/* Summary */}
-      <div style={{padding: '1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-base)', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '1rem'}}>
+      <div style={{padding: '1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--bg-base)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))', gap: '1rem'}}>
         <div>
           <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600}}>Sessions</div>
           <div style={{fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)'}}>{summary.sessions}</div>
         </div>
         <div>
-          <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600}}>Total Verified KM</div>
+          <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600}}>Verified KM</div>
           <div style={{fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)'}}>{summary.km}</div>
-          <div style={{fontSize: '0.65rem', color: 'var(--text-muted)'}}>Based on recorded GPS journey</div>
         </div>
         <div>
           <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600}}>Visits</div>
           <div style={{fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)'}}>{summary.visits}</div>
-        </div>
-        <div>
-          <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600}}>Expenses</div>
-          <div style={{fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)'}}>{summary.expenses}</div>
         </div>
         <div>
           <div style={{fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600}}>Exp Total</div>
@@ -371,7 +380,7 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
       </div>
 
       {/* Timeline */}
-      <div style={{flex: 1, overflowY: 'auto', padding: '1.5rem'}}>
+      <div style={{flex: 1, padding: '1.5rem'}}>
         {loading ? (
           <div style={{textAlign: 'center', padding: '3rem', color: 'var(--text-muted)'}}>Loading journey...</div>
         ) : sessions.length === 0 && unlinkedEvents.length === 0 ? (
@@ -385,20 +394,20 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
               const startTime = format(new Date(session.startEvent.event_time), 'HH:mm');
               const endTime = session.endEvent ? format(new Date(session.endEvent.event_time), 'HH:mm') : 'Active';
               
+              // Requirement C metrics
+              let finalTotalKm = session.endEvent ? ((session.endEvent.verified_distance_meters || 0) / 1000).toFixed(2) : '--';
+              let postVisitTravelMeters = 0;
+              if (session.endEvent && session.lastCumulativeMeters !== undefined) {
+                 postVisitTravelMeters = (session.endEvent.verified_distance_meters || 0) - session.lastCumulativeMeters;
+              }
+              const postVisitKm = (postVisitTravelMeters / 1000).toFixed(2);
+              
               return (
-                <div key={session.id} className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+                <div key={session.id} className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-base)' }}>
                   <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
                     <h3 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
                       FIELD SESSION — {sessionDate}
                     </h3>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                        {startTime} &rarr; {endTime}
-                      </div>
-                      <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--primary)' }}>
-                        {session.totalKm.toFixed(1)} km verified
-                      </div>
-                    </div>
                   </div>
                   
                   {/* Timeline Render */}
@@ -422,18 +431,61 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
                     
                     {/* End Node */}
                     {session.endEvent && (
-                      <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
-                        <div style={{ width: '40px', textAlign: 'right', paddingTop: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                          {endTime}
+                      <React.Fragment>
+                        <div style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
+                          <div style={{ position: 'absolute', left: '15px', top: '24px', bottom: '-10px', width: '2px', background: 'var(--border)' }}></div>
+                          <div style={{ width: '40px', textAlign: 'right', paddingTop: '4px', fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                            {endTime}
+                          </div>
+                          <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--text-secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, border: '2px solid var(--bg-surface)' }}>
+                            <StopCircle size={16} />
+                          </div>
+                          <div style={{ flex: 1, paddingBottom: '1.5rem' }}>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Session Ended</div>
+                            <LocationLink lat={session.endEvent.location?.lat} lng={session.endEvent.location?.lng} acc={session.endEvent.location?.acc} />
+                          </div>
                         </div>
-                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--text-secondary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1, border: '2px solid var(--bg-surface)' }}>
-                          <StopCircle size={16} />
+
+                        {/* Requirement C: Session End Summary */}
+                        <div style={{ marginLeft: '4rem', marginTop: '0.5rem', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                          <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <CheckCircle2 size={16} className="text-success" />
+                            Final Session Summary
+                          </h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Start Time</div>
+                              <div style={{ fontWeight: 500 }}>{format(new Date(session.startEvent.event_time), 'dd MMM yyyy, HH:mm')}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>End Time</div>
+                              <div style={{ fontWeight: 500 }}>{format(new Date(session.endEvent.event_time), 'dd MMM yyyy, HH:mm')}</div>
+                            </div>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Total Duration</div>
+                              <div style={{ fontWeight: 500 }}>{differenceInMinutes(new Date(session.endEvent.event_time), new Date(session.startEvent.event_time))} mins</div>
+                            </div>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Completed Visits</div>
+                              <div style={{ fontWeight: 500 }}>{session.events.filter(e => e.event_type === 'VISIT').length}</div>
+                            </div>
+                          </div>
+                          
+                          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px dashed #cbd5e1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Travel after last visit</div>
+                              <div style={{ fontWeight: 500 }}>{postVisitKm} KM</div>
+                            </div>
+                            <div>
+                              <div style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Final Total Session KM</div>
+                              <div style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1rem' }}>{finalTotalKm} KM</div>
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.75rem' }}>
+                            Status: Finalized (Authoritative GPS calculation)
+                          </div>
                         </div>
-                        <div style={{ flex: 1, paddingBottom: '0.5rem' }}>
-                          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Session Ended</div>
-                          <LocationLink lat={session.endEvent.location?.lat} lng={session.endEvent.location?.lng} acc={session.endEvent.location?.acc} />
-                        </div>
-                      </div>
+                      </React.Fragment>
                     )}
                   </div>
                 </div>
@@ -441,7 +493,7 @@ export default function StaffJourneyDrawer({ user, dateRange, filterMode, onClos
             })}
             
             {unlinkedEvents.length > 0 && (
-              <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+              <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-base)' }}>
                 <h3 style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>
                   UNLINKED EVENTS
                 </h3>

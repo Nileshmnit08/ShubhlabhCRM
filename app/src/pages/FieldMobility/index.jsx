@@ -34,6 +34,20 @@ export default function FieldMobilityDashboard() {
 
   useEffect(() => {
     fetchData();
+
+    // Supabase Realtime subscription for Requirements E (auto-refresh on visit/session completion)
+    const channel = supabase.channel('field_mobility_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'crm_visits' }, () => {
+        fetchData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'staff_tracking_sessions' }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [dateRange]);
 
   const fetchData = async () => {
@@ -266,9 +280,9 @@ export default function FieldMobilityDashboard() {
             <KpiCard title="Evd. Partial" value={partialEvidenceCount} colorClass="warning" />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: selectedStaff ? '1fr 1fr' : 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', marginBottom: '2rem', alignItems: 'start' }}>
             {/* 4. Staff Summary Table */}
-            <div style={{ flex: 1, minWidth: '0' }}>
+            <div style={{ minWidth: '0', flex: 1, maxHeight: selectedStaff ? '80vh' : 'auto', overflowY: selectedStaff ? 'auto' : 'visible' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Staff Field Summary</h2>
               <div className="glass-panel" style={{ padding: '0' }}>
                 {staffArray.length === 0 ? (
@@ -287,53 +301,55 @@ export default function FieldMobilityDashboard() {
               </div>
             </div>
             
-            {/* 5. Requires Review */}
-            <div style={{ minWidth: '350px', flexShrink: 0 }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Requires Review</h2>
-              <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
-                {requiresReview.length === 0 ? (
-                  <div style={{ padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
-                    <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
-                    <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>All caught up. No missing evidence exceptions.</div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    {requiresReview.slice(0, 10).map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: idx === (Math.min(requiresReview.length, 10) - 1) ? 'none' : '1px solid var(--border)', background: 'var(--bg-base)', borderRadius: '4px', marginBottom: '0.5rem' }}>
-                        <div style={{ flex: '1 1 0', minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                            <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                              {staffUsers[item.staff_id]}
-                            </strong>
-                            <span className="badge badge-danger" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem' }}>{item.evidence_status.replace(/_/g, ' ')}</span>
-                          </div>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                            Expense: <span style={{color: 'var(--danger)', fontWeight: 500}}>₹{Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> - {item.category}
-                            <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>&bull; {item.expense_date}</span>
+            {/* Conditional Panel: Either Selected Staff Journey OR Requires Review */}
+            {selectedStaff ? (
+              <div style={{ minWidth: '0', flex: 1, maxHeight: '80vh', overflowY: 'auto', position: 'sticky', top: '1rem' }}>
+                <StaffJourneyDrawer 
+                  user={selectedStaff} 
+                  dateRange={dateRange} 
+                  filterMode={filterMode} 
+                  onClose={() => setSelectedStaff(null)} 
+                />
+              </div>
+            ) : (
+              <div style={{ minWidth: '350px', flexShrink: 0 }}>
+                <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 1rem 0' }}>Requires Review</h2>
+                <div className="glass-panel" style={{ padding: '1.5rem', background: 'var(--bg-surface)' }}>
+                  {requiresReview.length === 0 ? (
+                    <div style={{ padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 'var(--radius-md)' }}>
+                      <CheckCircle2 size={32} className="text-success" style={{ margin: '0 auto 0.5rem', opacity: 0.5 }} />
+                      <div style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>All caught up. No missing evidence exceptions.</div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {requiresReview.slice(0, 10).map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', borderBottom: idx === (Math.min(requiresReview.length, 10) - 1) ? 'none' : '1px solid var(--border)', background: 'var(--bg-base)', borderRadius: '4px', marginBottom: '0.5rem' }}>
+                          <div style={{ flex: '1 1 0', minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                              <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                                {staffUsers[item.staff_id]}
+                              </strong>
+                              <span className="badge badge-danger" style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem' }}>{item.evidence_status.replace(/_/g, ' ')}</span>
+                            </div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                              Expense: <span style={{color: 'var(--danger)', fontWeight: 500}}>₹{Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> - {item.category}
+                              <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>&bull; {item.expense_date}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                    {requiresReview.length > 10 && (
-                      <div style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                        + {requiresReview.length - 10} more exceptions
-                      </div>
-                    )}
-                  </div>
-                )}
+                      ))}
+                      {requiresReview.length > 10 && (
+                        <div style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                          + {requiresReview.length - 10} more exceptions
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </>
-      )}
-      
-      {selectedStaff && (
-        <StaffJourneyDrawer 
-          user={selectedStaff} 
-          dateRange={dateRange} 
-          filterMode={filterMode} 
-          onClose={() => setSelectedStaff(null)} 
-        />
       )}
     </div>
   );
