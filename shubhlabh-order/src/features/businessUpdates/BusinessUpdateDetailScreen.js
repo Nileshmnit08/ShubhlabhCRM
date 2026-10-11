@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { supabase } from '../../core/api/supabase';
 import { theme } from '../../shared/theme';
 import { SLHeader } from '../../shared/components/SLHeader';
 import { useAuth } from '../auth/AuthContext';
+import { useTranslation } from '../../shared/localization/i18n';
+import { Award, ChevronRight } from 'lucide-react-native';
 
 export default function BusinessUpdateDetailScreen({ route, navigation }) {
   const { updateId } = route.params;
   const [update, setUpdate] = useState(null);
   const [loading, setLoading] = useState(true);
   const { userProfile } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchDetail();
@@ -79,7 +82,8 @@ export default function BusinessUpdateDetailScreen({ route, navigation }) {
 
   const dateStr = new Date(update.published_at).toLocaleDateString();
   const timeStr = new Date(update.published_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const displayType = update.type.replace(/_/g, ' ');
+  const displayType = (update.type || '').replace(/_/g, ' ');
+  const isRewardUpdate = (update.type || '').toUpperCase() === 'REWARD' || (update.type || '').toUpperCase() === 'SCHEME';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -95,6 +99,28 @@ export default function BusinessUpdateDetailScreen({ route, navigation }) {
         <View style={styles.messageBox}>
           <Text style={styles.messageText}>{update.message}</Text>
         </View>
+
+        {isRewardUpdate && (
+          <TouchableOpacity
+            style={styles.rewardNavBtn}
+            onPress={() => {
+              if (update.scheme_id) {
+                navigation.navigate('RewardDetail', { schemeId: update.scheme_id });
+              } else {
+                navigation.navigate('MyRewardSchemes');
+              }
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+              <Award size={20} color={theme.colors.white} style={{ marginRight: 10 }} />
+              <Text style={styles.rewardNavBtnText}>
+                {t('notifications.viewScheme') || 'View Scheme & Rewards'}
+              </Text>
+            </View>
+            <ChevronRight size={20} color={theme.colors.white} />
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -109,6 +135,20 @@ const styles = StyleSheet.create({
   titleText: { ...theme.typography.h1, marginBottom: theme.spacing.sm },
   dateText: { ...theme.typography.bodyLarge, color: theme.colors.textSecondary, marginBottom: 2 },
   timeText: { ...theme.typography.bodyMedium, color: theme.colors.textSecondary },
-  messageBox: { backgroundColor: theme.colors.surface, padding: theme.spacing.lg, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border },
-  messageText: { ...theme.typography.bodyLarge, lineHeight: 24 }
+  messageBox: { backgroundColor: theme.colors.surface, padding: theme.spacing.lg, borderRadius: theme.radius.md, borderWidth: 1, borderColor: theme.colors.border, marginBottom: theme.spacing.lg },
+  messageText: { ...theme.typography.bodyLarge, lineHeight: 24 },
+  rewardNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: theme.radius.md,
+    ...theme.elevation.sm,
+  },
+  rewardNavBtnText: {
+    color: theme.colors.white,
+    fontWeight: '700',
+    fontSize: 15,
+  },
 });

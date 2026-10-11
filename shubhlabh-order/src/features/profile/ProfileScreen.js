@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { theme } from '../../shared/theme';
 import { SLHeader } from '../../shared/components/SLHeader';
 import { useTranslation } from '../../shared/localization/i18n';
-import { ChevronRight, MapPin, Globe, HeadphonesIcon, Users, Settings, LogOut, Lock, ClipboardList } from 'lucide-react-native';
+import { ChevronRight, MapPin, Globe, HeadphonesIcon, Users, Settings, LogOut, Lock, ClipboardList, Award } from 'lucide-react-native';
 
 export default function ProfileScreen({ navigation }) {
   const { t, language, toggleLanguage } = useTranslation();
@@ -15,6 +15,7 @@ export default function ProfileScreen({ navigation }) {
 
   const menuItems = [
     { title: t('profile.language') === 'Language' ? 'My Orders' : 'मेरे ऑर्डर', icon: ClipboardList, onPress: () => navigation.navigate('OrdersStack', { screen: 'MyOrders' }) },
+    { title: t('rewards.title') || (t('profile.language') === 'Language' ? 'My Reward Schemes' : 'मेरी रिवॉर्ड योजनाएं'), icon: Award, onPress: () => navigation.navigate('MyRewardSchemes') },
     { title: t('profile.deliveryAddresses'), icon: MapPin, onPress: () => navigation.navigate('DeliveryAddress') },
     { title: 'Business Updates', icon: Globe, onPress: () => navigation.navigate('BusinessUpdatesList') },
     { title: t('updates.title'), icon: Globe, onPress: () => navigation.navigate('UpdatesList') },

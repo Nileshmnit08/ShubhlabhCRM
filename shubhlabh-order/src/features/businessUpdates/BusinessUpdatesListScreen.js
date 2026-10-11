@@ -3,8 +3,9 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, Activ
 import { supabase } from '../../core/api/supabase';
 import { theme } from '../../shared/theme';
 import { SLHeader } from '../../shared/components/SLHeader';
-import { Filter, Calendar as CalendarIcon, ChevronRight } from 'lucide-react-native';
+import { Filter, Calendar as CalendarIcon, ChevronRight, Award, Gift } from 'lucide-react-native';
 import { useAuth } from '../auth/AuthContext';
+import { useTranslation } from '../../shared/localization/i18n';
 
 const UPDATE_TYPES = [
   'All', 'Price Update', 'Raw Material Update', 'Scheme', 'Reward', 
@@ -16,6 +17,7 @@ const DATE_FILTERS = [
 ];
 
 export default function BusinessUpdatesListScreen({ navigation }) {
+  const { t } = useTranslation();
   const [updates, setUpdates] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -89,7 +91,8 @@ export default function BusinessUpdatesListScreen({ navigation }) {
     const isUnread = !item.business_update_recipients || item.business_update_recipients.length === 0 || !item.business_update_recipients[0].read_at;
     const dateStr = new Date(item.published_at).toLocaleDateString();
     const timeStr = new Date(item.published_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const displayType = item.type.replace(/_/g, ' ');
+    const displayType = (item.type || '').replace(/_/g, ' ');
+    const isReward = (item.type || '').toUpperCase() === 'REWARD' || (item.type || '').toUpperCase() === 'SCHEME';
 
     return (
       <TouchableOpacity 
@@ -99,7 +102,8 @@ export default function BusinessUpdatesListScreen({ navigation }) {
         <View style={styles.cardHeader}>
           <View style={styles.titleRow}>
             {isUnread && <View style={styles.unreadDot} />}
-            <Text style={styles.typeText}>{displayType}</Text>
+            {isReward && <Award size={16} color={theme.colors.primary} style={{ marginRight: 4 }} />}
+            <Text style={[styles.typeText, isReward && { color: theme.colors.primary }]}>{displayType}</Text>
           </View>
           <Text style={styles.dateText}>{dateStr} • {timeStr}</Text>
         </View>
@@ -181,7 +185,11 @@ export default function BusinessUpdatesListScreen({ navigation }) {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No business updates found.</Text>
+              <Text style={styles.emptyText}>
+                {selectedType === 'Reward' 
+                  ? t('notifications.emptyRewards') 
+                  : 'No business updates found.'}
+              </Text>
             </View>
           }
         />

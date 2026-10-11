@@ -12,6 +12,8 @@ import BusinessUpdateDetailScreen from '../features/businessUpdates/BusinessUpda
 import SettingsScreen from '../features/profile/SettingsScreen';
 import ChangePasswordScreen from '../features/profile/ChangePasswordScreen';
 import DeliveryAddressScreen from '../features/profile/DeliveryAddressScreen';
+import MyRewardSchemesScreen from '../features/rewards/MyRewardSchemesScreen';
+import RewardDetailScreen from '../features/rewards/RewardDetailScreen';
 
 const ProfileStack = createNativeStackNavigator();
 
@@ -19,6 +21,8 @@ export default function ProfileStackNavigator() {
   return (
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="MyRewardSchemes" component={MyRewardSchemesScreen} />
+      <ProfileStack.Screen name="RewardDetail" component={RewardDetailScreen} />
       <ProfileStack.Screen name="ComplaintCenter" component={ComplaintCenterScreen} />
       <ProfileStack.Screen name="UpdatesList" component={UpdatesListScreen} />
       <ProfileStack.Screen name="MySalesperson" component={MySalespersonScreen} />
