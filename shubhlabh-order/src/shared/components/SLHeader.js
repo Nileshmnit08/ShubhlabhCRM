@@ -4,19 +4,15 @@ import { theme } from '../theme';
 import { ChevronLeft } from 'lucide-react-native';
 import SLText from './SLText';
 
-export const SLHeader = ({ title, showBack = true, navigation, onBackPress, rightComponent, style }) => {
+export const SLHeader = ({ title, showBack = true, navigation, onBack, onBackPress, rightComponent, style }) => {
+  const handleBack = onBackPress || onBack || (navigation ? () => navigation.goBack() : null);
+
   return (
     <View style={[styles.header, style]}>
-      {(showBack && (navigation || onBackPress)) ? (
+      {(showBack && handleBack) ? (
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => {
-            if (onBackPress) {
-              onBackPress();
-            } else if (navigation) {
-              navigation.goBack();
-            }
-          }}
+          onPress={handleBack}
         >
           <ChevronLeft size={24} color={theme.colors.textPrimary} />
         </TouchableOpacity>
@@ -52,7 +48,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   placeholder: {
-    width: 48,
+    minWidth: 48,
   },
   title: {
     flex: 1,
@@ -60,9 +56,10 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.sm,
   },
   rightContainer: {
-    width: 48,
+    minWidth: 48,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
   },
 });
 

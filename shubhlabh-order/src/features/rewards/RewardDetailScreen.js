@@ -17,8 +17,7 @@ import {
   Gift,
   Clock,
   TrendingUp,
-  AlertCircle,
-  AlertTriangle,
+  CircleAlert,
   CheckCircle2,
   Package,
   RotateCcw,
@@ -239,7 +238,7 @@ export default function RewardDetailScreen({ navigation, route }) {
 
         {isReversed && (
           <View style={styles.statusCalloutAlert}>
-            <AlertCircle size={16} color={theme.colors.error} style={{ marginRight: 6 }} />
+            <CircleAlert size={16} color={theme.colors.error} style={{ marginRight: 6 }} />
             <Text style={styles.statusCalloutTextAlert}>
               {language === 'hi'
                 ? 'यह माइलस्टोन दावा निरस्त कर दिया गया है।'
@@ -373,10 +372,14 @@ export default function RewardDetailScreen({ navigation, route }) {
           onBackPress={() => navigation.goBack()}
         />
         <View style={styles.errorContainer}>
-          <AlertCircle size={56} color={theme.colors.error} style={{ marginBottom: 16 }} />
+          <CircleAlert size={56} color={theme.colors.error} style={{ marginBottom: 16 }} />
           <Text style={styles.errorTitle}>{t('rewards.errorTitle')}</Text>
           <Text style={styles.errorMessage}>
-            {errorInfo.message || t('rewards.schemeNotFound')}
+            {errorInfo.errorCode === REWARD_ERROR_CODES.UNAUTHENTICATED
+              ? (t('rewards.unauthenticated') || errorInfo.message)
+              : errorInfo.errorCode === REWARD_ERROR_CODES.RPC_NOT_DEPLOYED
+              ? (t('rewards.unavailable') || errorInfo.message)
+              : (errorInfo.message || t('rewards.schemeNotFound'))}
           </Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => loadData(false)}>
             <RefreshCw size={16} color={theme.colors.white} style={{ marginRight: 8 }} />

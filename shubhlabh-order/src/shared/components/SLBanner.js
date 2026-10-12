@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { theme } from '../theme';
 import SLText from './SLText';
-import { Info, AlertCircle, CheckCircle, X } from 'lucide-react-native';
+import { Info, CircleAlert, CircleCheck, X } from 'lucide-react-native';
 
 export const SLBanner = ({ 
   title, 
@@ -19,21 +19,21 @@ export const SLBanner = ({
         return {
           bg: '#FEF7E0',
           border: theme.colors.warning,
-          icon: AlertCircle,
+          icon: CircleAlert,
           iconColor: '#B8860B'
         };
       case 'error':
         return {
           bg: '#FCE8E6',
           border: theme.colors.error,
-          icon: AlertCircle,
+          icon: CircleAlert,
           iconColor: theme.colors.error
         };
       case 'success':
         return {
           bg: '#E6F4EA',
           border: theme.colors.success,
-          icon: CheckCircle,
+          icon: CircleCheck,
           iconColor: theme.colors.success
         };
       case 'info':

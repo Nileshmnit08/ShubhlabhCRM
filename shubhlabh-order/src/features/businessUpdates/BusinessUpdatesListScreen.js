@@ -155,7 +155,11 @@ export default function BusinessUpdatesListScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <SLHeader title="Business Updates" onBack={() => navigation.goBack()} />
+      <SLHeader 
+        title={t('updates.title') || 'Shubh Labh Updates'} 
+        navigation={navigation} 
+        onBack={() => navigation.goBack()} 
+      />
       
       <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeScroll}>

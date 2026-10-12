@@ -16,7 +16,7 @@ import {
   Calendar,
   Gift,
   Clock,
-  AlertCircle,
+  CircleAlert,
   RefreshCw,
   CheckCircle2,
   ChevronRight,
@@ -393,9 +393,13 @@ export default function MyRewardSchemesScreen({ navigation }) {
         </View>
       ) : errorInfo && !isDevPreview ? (
         <View style={styles.errorContainer}>
-          <AlertCircle size={56} color={theme.colors.error} style={{ marginBottom: 16 }} />
+          <CircleAlert size={56} color={theme.colors.error} style={{ marginBottom: 16 }} />
           <Text style={styles.errorTitle}>{t('rewards.errorTitle')}</Text>
-          <Text style={styles.errorMessage}>{errorInfo.message}</Text>
+          <Text style={styles.errorMessage}>
+            {errorInfo.errorCode === REWARD_ERROR_CODES.UNAUTHENTICATED
+              ? (t('rewards.unauthenticated') || errorInfo.message)
+              : (t('rewards.unavailable') || errorInfo.message || 'Reward schemes are temporarily unavailable. Please try again later.')}
+          </Text>
 
           <View style={styles.errorActions}>
             <TouchableOpacity style={styles.primaryBtn} onPress={() => loadSchemes(false)}>

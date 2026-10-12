@@ -68,7 +68,7 @@ export const AuthProvider = ({ children }) => {
         .select(`
           *,
           crm_parties:crm_party_id (
-            id, display_name, legal_or_core_name, mobile, city, state, assigned_owner_id, territory_id, crm_status, latitude, longitude
+            id, display_name, legal_or_core_name, mobile, whatsapp, email, city, state, gst_number, customer_type, business_context, notes, assigned_owner_id, owner_name, territory_name, territory_id, crm_status, latitude, longitude
           )
         `)
         .eq('id', userId)
@@ -129,6 +129,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshBuyerData = async () => {
+    try {
+      const { data: { session: curSession } } = await supabase.auth.getSession();
+      const uid = curSession?.user?.id || session?.user?.id;
+      if (uid) {
+        await fetchBuyerData(uid);
+      }
+    } catch (err) {
+      console.error('Failed to refresh buyer data:', err);
+    }
+  };
+
   const logout = async () => {
     setLoading(true);
     await supabase.auth.signOut();
@@ -136,7 +148,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ session, userProfile, customerProfile, loading, authError, logout }}>
+    <AuthContext.Provider value={{ session, userProfile, customerProfile, loading, authError, logout, refreshBuyerData }}>
       {children}
     </AuthContext.Provider>
   );

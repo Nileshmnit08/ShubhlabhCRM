@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { theme } from '../theme';
 import SLText from './SLText';
 import SLButton from './SLButton';
-import { AlertCircle } from 'lucide-react-native';
+import { CircleAlert } from 'lucide-react-native';
 
 export const SLErrorState = ({ 
   title = "Something went wrong", 
@@ -14,7 +14,7 @@ export const SLErrorState = ({
   return (
     <View style={[styles.container, style]}>
       <View style={styles.iconContainer}>
-        <AlertCircle size={48} color={theme.colors.error} />
+        <CircleAlert size={48} color={theme.colors.error} />
       </View>
       
       <SLText variant="sectionTitle" align="center" style={styles.title}>

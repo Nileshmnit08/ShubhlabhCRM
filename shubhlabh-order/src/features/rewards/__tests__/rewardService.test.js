@@ -198,7 +198,7 @@ test('Mock Fallback Removal: Failed live requests must NOT silently return mock 
   const mockFetchMyRewardSchemes = async () => ({
     success: false,
     errorCode: 'RPC_NOT_DEPLOYED',
-    message: 'Backend canonical RPC public.get_buyer_my_schemes() is not deployed on this Supabase project (pending Migration 225).',
+    message: 'Reward schemes are temporarily unavailable. Please try again later.',
     missingDependency: 'public.get_buyer_my_schemes()',
     data: null,
   });
@@ -228,6 +228,15 @@ test('Mock Fallback Removal: Failed live requests must NOT silently return mock 
   assert.strictEqual(res.errorCode, 'RPC_NOT_DEPLOYED');
   assert.strictEqual(res.data, null, 'Must NOT inject mock data');
   assert.strictEqual(res.missingDependency, 'public.get_buyer_my_schemes()');
+  assert.strictEqual(res.message, 'Reward schemes are temporarily unavailable. Please try again later.');
+  assert.ok(!res.message.includes('public.get_buyer_my_schemes'), 'User message must not leak internal SQL function name');
+  assert.ok(!res.message.includes('Migration 225'), 'User message must not leak internal migration numbers');
+});
+
+test('Error Sanitization: Ensures ordinary buyers never see internal RPC names or migration numbers', () => {
+  const userFacingMessage = 'Reward schemes are temporarily unavailable. Please try again later.';
+  assert.ok(!userFacingMessage.includes('public.get_buyer_my_schemes'));
+  assert.ok(!userFacingMessage.includes('Migration 225'));
 });
 
 test('Empty State Truth: Legitimate empty active schemes must not fall back to fixtures', () => {

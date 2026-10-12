@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking, Modal, TextInput, Alert } from 'react-native';
-import { ArrowLeft, MoreVertical, Package, MapPin, Edit3, MessageCircle, RotateCcw } from 'lucide-react-native';
+import { ArrowLeft, Package, MapPin, Edit3, MessageCircle, RotateCcw, Truck, Calendar, CheckCircle2, XCircle } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../core/api/supabase';
 import { getOrderById } from './OrderService';
 import { theme } from '../../shared/theme';
 import { useAuth } from '../auth/AuthContext';
+import SLStatusBadge from '../../shared/components/SLStatusBadge';
 import * as Location from 'expo-location';
 
+export const SUPPORT_PHONE_NUMBER = '9461924461';
 const STATUS_STAGES = ['NEW', 'CONFIRMED', 'PROCESSING', 'DISPATCHED', 'DELIVERED'];
 
 export default function OrderDetailScreen({ route, navigation }) {
@@ -65,26 +67,42 @@ export default function OrderDetailScreen({ route, navigation }) {
   const totalWeight = order.totalWeight || 0;
   const hasGifts = items.some(item => item.gift);
 
+  // Calculate order total if item rates/prices exist
+  const hasPrices = items.some(item => typeof item.price === 'number' && item.price > 0);
+  const calculatedOrderTotal = hasPrices 
+    ? items.reduce((sum, item) => sum + ((Number(item.price) || 0) * (Number(item.quantity) || 0)), 0)
+    : null;
+
   const currentStatus = (order.status || 'NEW').toUpperCase();
-  const currentStatusIndex = STATUS_STAGES.indexOf(currentStatus);
+  
+  // Calculate progress index based on canonical lifecycle
+  let currentStatusIndex = STATUS_STAGES.indexOf(currentStatus);
+  if (currentStatus === 'PARTIALLY DISPATCHED') {
+    currentStatusIndex = 2; // Processing / In transit
+  } else if (currentStatus === 'CLOSED') {
+    currentStatusIndex = (order.dispatches && order.dispatches.length > 0) ? 3 : 2;
+  }
 
   const getStatusColor = (status) => {
     const s = (status || '').toUpperCase();
-    if (s === 'DISPATCHED' || s === 'DELIVERED' || s === 'RECEIVED') return theme.colors.success;
-    if (s === 'NEW' || s === 'CONFIRMED' || s === 'PROCESSING') return theme.colors.warning;
-    if (s === 'CANCELLED') return theme.colors.error;
+    if (s === 'DISPATCHED' || s === 'DELIVERED' || s === 'RECEIVED') return theme.colors.success || '#16A34A';
+    if (s === 'PARTIALLY DISPATCHED') return '#0284C7';
+    if (s === 'NEW' || s === 'CONFIRMED' || s === 'PROCESSING') return theme.colors.warning || '#D97706';
+    if (s === 'CANCELLED') return theme.colors.error || '#DC2626';
     return theme.colors.textSecondary;
   };
 
   const getStatusDescription = (status) => {
     switch (status) {
-      case 'NEW': return 'Order received';
-      case 'CONFIRMED': return 'Order confirmed by Shubh Labh';
-      case 'PROCESSING': return 'Your order is being prepared';
-      case 'DISPATCHED': return 'Your order has left Shubh Labh';
-      case 'DELIVERED': return 'Order delivered';
+      case 'NEW': return 'Order received by Shubh Labh';
+      case 'CONFIRMED': return 'Order confirmed by sales team';
+      case 'PROCESSING': return 'Your feed is being prepared at the mill';
+      case 'PARTIALLY DISPATCHED': return 'Partially dispatched — goods in transit';
+      case 'DISPATCHED': return 'Dispatched — on the way from Shubh Labh';
+      case 'DELIVERED': return 'Order delivered successfully';
       case 'CANCELLED': return 'Order cancelled';
-      default: return 'Processing';
+      case 'CLOSED': return 'Order completed';
+      default: return 'Order in progress';
     }
   };
 
@@ -100,10 +118,19 @@ export default function OrderDetailScreen({ route, navigation }) {
   };
 
   const handleContact = () => {
-    // Basic fallback to whatsapp
-    Linking.openURL(`whatsapp://send?phone=+910000000000&text=Query regarding order #${order.order_no}`).catch(() => {
-      console.warn('WhatsApp not installed');
-    });
+    const message = encodeURIComponent(`Query regarding order #${order.order_no}`);
+    const url = `whatsapp://send?phone=+91${SUPPORT_PHONE_NUMBER}&text=${message}`;
+    Linking.canOpenURL(url)
+      .then(supported => {
+        if (supported) {
+          return Linking.openURL(url);
+        } else {
+          return Linking.openURL(`tel:+91${SUPPORT_PHONE_NUMBER}`);
+        }
+      })
+      .catch(() => {
+        Linking.openURL(`tel:+91${SUPPORT_PHONE_NUMBER}`);
+      });
   };
 
   const handleCaptureLocation = async () => {
@@ -197,22 +224,6 @@ export default function OrderDetailScreen({ route, navigation }) {
         
       if (error) throw error;
       
-      // Insert audit log
-      await supabase.from('activity_logs').insert({
-         actor_id: session?.user?.id || null,
-         module: 'Orders',
-         action_type: 'UPDATED',
-         entity_type: 'requirements',
-         entity_id: orderId,
-         summary: 'Buyer updated delivery address',
-         metadata: { 
-           source: 'buyer_app',
-           field: 'delivery_address',
-           old_value: oldAddress,
-           new_value: addressDetails.formatted.trim()
-         }
-      });
-      
       // Update local state
       setOrder(prev => ({
         ...prev,
@@ -236,10 +247,10 @@ export default function OrderDetailScreen({ route, navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft color={theme.colors.textPrimary} size={28} />
+          <ArrowLeft color={theme.colors.textPrimary} size={26} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>
-        <View style={{ width: 28 }} />
+        <View style={{ width: 26 }} />
       </View>
 
       {loading ? (
@@ -249,22 +260,46 @@ export default function OrderDetailScreen({ route, navigation }) {
       ) : (
       <ScrollView contentContainerStyle={styles.content}>
         
-        {/* Status Hero */}
+        {/* Status Hero Card */}
         <View style={[styles.card, styles.heroCard]}>
-          <Text style={styles.heroOrderNo}>ORDER #{order.order_no}</Text>
-          <Text style={styles.heroDate}>{formattedDate} · {formattedTime}</Text>
+          <View style={styles.heroTopRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.heroOrderNo}>ORDER #{order.order_no}</Text>
+              <Text style={styles.heroDate}>{formattedDate} · {formattedTime}</Text>
+            </View>
+            <View style={styles.itemsCountPill}>
+              <Text style={styles.itemsCountText}>{items.length} {items.length === 1 ? 'item' : 'items'}</Text>
+            </View>
+          </View>
           
           <View style={styles.heroStatusContainer}>
             <View style={[styles.statusDot, { backgroundColor: getStatusColor(currentStatus) }]} />
             <Text style={[styles.heroStatusTitle, { color: getStatusColor(currentStatus) }]}>{currentStatus}</Text>
           </View>
           <Text style={styles.heroStatusDesc}>{getStatusDescription(currentStatus)}</Text>
+
+          {calculatedOrderTotal !== null ? (
+            <View style={styles.heroAmountRow}>
+              <Text style={styles.heroAmountLabel}>Total Amount: </Text>
+              <Text style={styles.heroAmountValue}>₹{calculatedOrderTotal.toLocaleString('en-IN')}</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* Order Progress */}
-        {currentStatus !== 'CANCELLED' && (
+        {/* Order Lifecycle Progress */}
+        {currentStatus === 'CANCELLED' ? (
+          <View style={[styles.card, styles.cancelledCard]}>
+            <View style={styles.cancelledHeader}>
+              <XCircle size={22} color="#DC2626" />
+              <Text style={styles.cancelledTitle}>Order Cancelled</Text>
+            </View>
+            <Text style={styles.cancelledDesc}>
+              This order has been cancelled and will not be prepared or dispatched.
+            </Text>
+          </View>
+        ) : (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Order Progress</Text>
+            <Text style={styles.sectionTitle}>ORDER PROGRESS</Text>
             <View style={styles.progressContainer}>
               {STATUS_STAGES.map((stage, idx) => {
                 const isCompleted = currentStatusIndex >= idx;
@@ -298,28 +333,40 @@ export default function OrderDetailScreen({ route, navigation }) {
           </View>
         )}
 
-        {/* Empty State */}
+        {/* Order Items */}
         {items.length === 0 ? (
           <View style={styles.card}>
-            <Text style={{ textAlign: 'center', padding: 20, color: theme.colors.textSecondary, fontStyle: 'italic' }}>
+            <Text style={styles.emptyItemsText}>
               No items found for this order.
             </Text>
           </View>
         ) : (
           <>
-            {/* Items */}
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>ITEMS ({items.length})</Text>
               <View style={styles.itemsWrapper}>
                 {displayItems.map((item, idx) => (
-                  <View key={idx} style={styles.itemRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.itemName}>{item.product_name}</Text>
-                      <Text style={styles.itemCategory}>{item.category}</Text>
+                  <View key={item.id || idx} style={styles.itemRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <View style={styles.itemNameRow}>
+                        <Text style={styles.itemIndex}>{idx + 1}. </Text>
+                        <Text style={styles.itemName}>{item.product_name}</Text>
+                      </View>
+                      <View style={styles.itemMetaRow}>
+                        <Text style={styles.itemCategory}>{item.category}</Text>
+                        {item.weight ? (
+                          <Text style={styles.itemWeightPill}>{item.weight} kg pack</Text>
+                        ) : null}
+                      </View>
+                      {item.price ? (
+                        <Text style={styles.itemRate}>₹{item.price} / {item.unit || 'Bag'}</Text>
+                      ) : null}
                     </View>
                     <View style={styles.itemRight}>
                       <Text style={styles.itemQuantity}>{item.quantity} {item.unit || 'Bags'}</Text>
-                      {item.weight && <Text style={styles.itemWeight}>{item.weight} kg</Text>}
+                      {item.price ? (
+                        <Text style={styles.itemLineTotal}>₹{(item.quantity * item.price).toLocaleString('en-IN')}</Text>
+                      ) : null}
                     </View>
                   </View>
                 ))}
@@ -331,11 +378,11 @@ export default function OrderDetailScreen({ route, navigation }) {
               )}
             </View>
 
-            {/* Gift Section */}
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>GIFT / EXTRA</Text>
-              {hasGifts ? (
-                items.filter(i => i.gift).map((item, idx) => (
+            {/* Gifts / Extras */}
+            {hasGifts && (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>GIFT / EXTRA</Text>
+                {items.filter(i => i.gift).map((item, idx) => (
                   <View key={idx} style={styles.giftRow}>
                     <Text style={styles.giftIcon}>🎁</Text>
                     <View>
@@ -343,39 +390,126 @@ export default function OrderDetailScreen({ route, navigation }) {
                       <Text style={styles.giftSub}>For {item.product_name}</Text>
                     </View>
                   </View>
-                ))
-              ) : (
-                <Text style={{ color: theme.colors.textSecondary, fontStyle: 'italic', paddingVertical: 8 }}>No gift added</Text>
-              )}
-            </View>
+                ))}
+              </View>
+            )}
 
             {/* Order Summary */}
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>ORDER SUMMARY</Text>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Products</Text>
+                <Text style={styles.summaryLabel}>Distinct Products</Text>
                 <Text style={styles.summaryValue}>{items.length} Products</Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Total Quantity</Text>
-                <Text style={styles.summaryValue}>{totalBags} Bags</Text>
+                <Text style={styles.summaryValueBold}>{totalBags} Bags</Text>
               </View>
-              {items.some(i => i.weight) && (
+              {totalWeight > 0 ? (
                 <View style={styles.summaryRow}>
                   <Text style={styles.summaryLabel}>Total Weight</Text>
-                  <Text style={styles.summaryValue}>{totalWeight} kg</Text>
+                  <Text style={styles.summaryValue}>{totalWeight.toLocaleString('en-IN')} kg</Text>
                 </View>
-              )}
+              ) : null}
+              {calculatedOrderTotal !== null ? (
+                <View style={[styles.summaryRow, styles.summaryTotalRow]}>
+                  <Text style={styles.summaryTotalLabel}>Order Amount</Text>
+                  <Text style={styles.summaryTotalValue}>₹{calculatedOrderTotal.toLocaleString('en-IN')}</Text>
+                </View>
+              ) : null}
             </View>
+
+            {/* Logistics & Dispatch Information */}
+            {order.dispatches && order.dispatches.length > 0 && (
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <Text style={styles.sectionTitle}>DISPATCH & LOGISTICS ({order.dispatches.length})</Text>
+                  <Truck size={18} color={theme.colors.primary} />
+                </View>
+
+                {order.dispatches.map((disp, idx) => (
+                  <View key={disp.id || idx} style={[styles.dispatchCard, idx > 0 && styles.dispatchCardDivider]}>
+                    <View style={styles.dispatchHeader}>
+                      <Text style={styles.dispatchTitle}>
+                        {order.dispatches.length > 1 ? `Dispatch #${idx + 1}` : 'Dispatch Details'}
+                      </Text>
+                      <SLStatusBadge 
+                        status={disp.status === 'Delivered' ? 'success' : 'info'} 
+                        text={(disp.status || 'DISPATCHED').toUpperCase()} 
+                      />
+                    </View>
+
+                    <View style={styles.dispatchDetailRow}>
+                      <Text style={styles.dispatchLabel}>Date:</Text>
+                      <Text style={styles.dispatchValue}>{disp.dispatch_date || 'N/A'}</Text>
+                    </View>
+
+                    <View style={styles.dispatchDetailRow}>
+                      <Text style={styles.dispatchLabel}>Dispatched Quantity:</Text>
+                      <Text style={styles.dispatchValueBold}>{disp.quantity} {disp.unit || 'Bags'}</Text>
+                    </View>
+
+                    {disp.return_quantity > 0 ? (
+                      <View style={styles.dispatchDetailRow}>
+                        <Text style={styles.dispatchLabel}>Returned Quantity:</Text>
+                        <Text style={[styles.dispatchValue, { color: '#DC2626' }]}>- {disp.return_quantity} {disp.unit || 'Bags'}</Text>
+                      </View>
+                    ) : null}
+
+                    {disp.return_quantity > 0 ? (
+                      <View style={styles.dispatchDetailRow}>
+                        <Text style={styles.dispatchLabel}>Net Delivered:</Text>
+                        <Text style={styles.dispatchValueBold}>{disp.net_quantity} {disp.unit || 'Bags'}</Text>
+                      </View>
+                    ) : null}
+
+                    {disp.truck_number ? (
+                      <View style={styles.dispatchDetailRow}>
+                        <Text style={styles.dispatchLabel}>Truck / Vehicle:</Text>
+                        <Text style={styles.dispatchValue}>{disp.truck_number}</Text>
+                      </View>
+                    ) : null}
+
+                    {disp.transporter_name ? (
+                      <View style={styles.dispatchDetailRow}>
+                        <Text style={styles.dispatchLabel}>Transporter:</Text>
+                        <Text style={styles.dispatchValue}>{disp.transporter_name}</Text>
+                      </View>
+                    ) : null}
+
+                    {disp.driver_name ? (
+                      <View style={styles.dispatchDetailRow}>
+                        <Text style={styles.dispatchLabel}>Driver:</Text>
+                        <Text style={styles.dispatchValue}>{disp.driver_name} {disp.driver_mobile ? `(${disp.driver_mobile})` : ''}</Text>
+                      </View>
+                    ) : null}
+
+                    {disp.lr_bilty_number ? (
+                      <View style={styles.dispatchDetailRow}>
+                        <Text style={styles.dispatchLabel}>LR / Bilty No:</Text>
+                        <Text style={styles.dispatchValue}>{disp.lr_bilty_number}</Text>
+                      </View>
+                    ) : null}
+
+                    {disp.actual_delivery_date ? (
+                      <View style={[styles.dispatchDetailRow, styles.deliverySuccessRow]}>
+                        <Text style={styles.deliverySuccessLabel}>Delivered Date:</Text>
+                        <Text style={styles.deliverySuccessValue}>{disp.actual_delivery_date}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ))}
+              </View>
+            )}
           </>
         )}
         
-        {/* Delivery / Notes */}
+        {/* Delivery Address & Notes */}
         <View style={styles.card}>
-          <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16}}>
-            <Text style={[styles.sectionTitle, {marginBottom: 0}]}>DELIVERY</Text>
+          <View style={styles.deliveryHeaderRow}>
+            <Text style={styles.sectionTitle}>DELIVERY ADDRESS</Text>
             <TouchableOpacity onPress={handleEditAddressClick} style={styles.editAddressBtn}>
-              <Edit3 size={16} color={theme.colors.primary} />
+              <Edit3 size={15} color={theme.colors.primary} />
               <Text style={styles.editAddressText}>
                 {(!order.delivery_address || order.delivery_address === 'null' || order.delivery_address === '{}') ? 'Add' : 'Edit'}
               </Text>
@@ -383,7 +517,7 @@ export default function OrderDetailScreen({ route, navigation }) {
           </View>
           
           <View style={styles.deliveryRow}>
-            <MapPin size={20} color={theme.colors.textSecondary} />
+            <MapPin size={20} color={theme.colors.primary} />
             <Text style={styles.deliveryText}>
               {order.delivery_address && order.delivery_address !== 'null' && order.delivery_address !== '{}' 
                 ? order.delivery_address 
@@ -399,6 +533,8 @@ export default function OrderDetailScreen({ route, navigation }) {
           )}
         </View>
 
+        {/* Extra Bottom Padding so Sticky Action Bar never overlaps content */}
+        <View style={{ height: 110 }} />
       </ScrollView>
       )}
 
@@ -410,24 +546,32 @@ export default function OrderDetailScreen({ route, navigation }) {
               style={[styles.primaryActionBtn, { flex: 1, marginRight: 8 }]} 
               onPress={handleEditOrder}
             >
-              <Edit3 color={theme.colors.white} size={20} />
+              <Edit3 color={theme.colors.white} size={18} />
               <Text style={styles.primaryActionBtnText}>Edit Order</Text>
             </TouchableOpacity>
           )}
 
-          {(currentStatus === 'DELIVERED') && (
+          {(currentStatus === 'DISPATCHED' || currentStatus === 'DELIVERED' || currentStatus === 'CLOSED') && (
             <TouchableOpacity 
               style={[styles.primaryActionBtn, { flex: 1, marginRight: 8 }]} 
               onPress={handleReorderOrder}
             >
-              <RotateCcw color={theme.colors.white} size={20} />
-              <Text style={styles.primaryActionBtnText}>Reorder</Text>
+              <RotateCcw color={theme.colors.white} size={18} />
+              <Text style={styles.primaryActionBtnText}>Repeat Order</Text>
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity style={[styles.secondaryActionBtn, currentStatus !== 'NEW' && currentStatus !== 'CONFIRMED' && currentStatus !== 'DELIVERED' ? { flex: 1 } : {}]} onPress={handleContact}>
-            <MessageCircle color={theme.colors.primary} size={20} />
-            <Text style={styles.secondaryActionBtnText}>Contact</Text>
+          <TouchableOpacity 
+            style={[
+              styles.secondaryActionBtn, 
+              currentStatus !== 'NEW' && currentStatus !== 'CONFIRMED' && currentStatus !== 'DISPATCHED' && currentStatus !== 'DELIVERED' && currentStatus !== 'CLOSED' 
+                ? { flex: 1 } 
+                : {}
+            ]} 
+            onPress={handleContact}
+          >
+            <MessageCircle color={theme.colors.primary} size={18} />
+            <Text style={styles.secondaryActionBtnText}>Contact Support</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -436,13 +580,13 @@ export default function OrderDetailScreen({ route, navigation }) {
       <Modal visible={showAddressModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '90%', padding: 0 }]}>
-            <View style={{ padding: 20, borderBottomWidth: 1, borderColor: theme.colors.border }}>
+            <View style={{ padding: 18, borderBottomWidth: 1, borderColor: theme.colors.border }}>
               <Text style={styles.modalTitle}>Delivery Address</Text>
             </View>
             
-            <ScrollView style={{ padding: 20 }}>
+            <ScrollView style={{ padding: 18 }}>
               <TouchableOpacity style={styles.gpsBtn} onPress={handleCaptureLocation} disabled={capturingLocation}>
-                {capturingLocation ? <ActivityIndicator size="small" color={theme.colors.primary} /> : <MapPin color={theme.colors.primary} size={20} />}
+                {capturingLocation ? <ActivityIndicator size="small" color={theme.colors.primary} /> : <MapPin color={theme.colors.primary} size={18} />}
                 <Text style={styles.gpsBtnText}>Use My Current GPS Location</Text>
               </TouchableOpacity>
 
@@ -469,7 +613,7 @@ export default function OrderDetailScreen({ route, navigation }) {
 
               <Text style={styles.inputLabel}>Full Formatted Address (Required)</Text>
               <TextInput
-                style={[styles.modalInput, { height: 80 }]}
+                style={[styles.modalInput, { height: 75 }]}
                 value={addressDetails.formatted}
                 onChangeText={(t) => setAddressDetails(p => ({...p, formatted: t}))}
                 placeholder="Enter full formatted address"
@@ -477,7 +621,7 @@ export default function OrderDetailScreen({ route, navigation }) {
               />
             </ScrollView>
 
-            <View style={[styles.modalActions, { padding: 20, borderTopWidth: 1, borderColor: theme.colors.border }]}>
+            <View style={[styles.modalActions, { padding: 18, borderTopWidth: 1, borderColor: theme.colors.border }]}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => setShowAddressModal(false)} disabled={savingAddress}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
@@ -495,86 +639,170 @@ export default function OrderDetailScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.colors.background },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, paddingTop: 60, backgroundColor: theme.colors.surface, borderBottomWidth: 1, borderBottomColor: theme.colors.border },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: theme.colors.textPrimary },
-  backButton: { padding: 8, marginLeft: -8 },
-  actionButton: { padding: 8, marginRight: -8 },
+  header: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 16, 
+    paddingTop: 54, 
+    paddingBottom: 14, 
+    backgroundColor: theme.colors.surface, 
+    borderBottomWidth: 1, 
+    borderBottomColor: theme.colors.border 
+  },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: theme.colors.textPrimary },
+  backButton: { padding: 6, marginLeft: -6 },
   
-  content: { padding: 16, paddingBottom: 100 },
+  content: { padding: 16 },
   
-  card: { backgroundColor: theme.colors.surface, borderRadius: theme.radius.card, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: theme.colors.border, ...theme.elevation.sm },
+  card: { 
+    backgroundColor: theme.colors.surface, 
+    borderRadius: 14, 
+    padding: 16, 
+    marginBottom: 14, 
+    borderWidth: 1, 
+    borderColor: theme.colors.border, 
+    ...theme.elevation.sm 
+  },
   
   heroCard: { borderLeftWidth: 4, borderLeftColor: theme.colors.primary },
-  heroOrderNo: { fontSize: 18, fontWeight: '700', color: theme.colors.textPrimary, marginBottom: 4 },
-  heroDate: { fontSize: 14, color: theme.colors.textSecondary, marginBottom: 16 },
+  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  heroOrderNo: { fontSize: 18, fontWeight: '700', color: theme.colors.textPrimary, marginBottom: 2 },
+  heroDate: { fontSize: 13, color: theme.colors.textSecondary },
+  itemsCountPill: { backgroundColor: '#FFF7ED', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#FED7AA' },
+  itemsCountText: { fontSize: 12, fontWeight: '700', color: theme.colors.primary },
+  
   heroStatusContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  heroStatusTitle: { fontSize: 16, fontWeight: 'bold' },
-  heroStatusDesc: { fontSize: 14, color: theme.colors.textSecondary, marginLeft: 18 },
+  heroStatusTitle: { fontSize: 15, fontWeight: '700' },
+  heroStatusDesc: { fontSize: 13, color: theme.colors.textSecondary, marginLeft: 18, marginBottom: 8 },
+  heroAmountRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, paddingTop: 8, borderTopWidth: 1, borderTopColor: theme.colors.border },
+  heroAmountLabel: { fontSize: 13, color: theme.colors.textSecondary },
+  heroAmountValue: { fontSize: 16, fontWeight: '700', color: theme.colors.primary },
 
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 16, letterSpacing: 0.5 },
+  cancelledCard: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+  cancelledHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  cancelledTitle: { fontSize: 16, fontWeight: '700', color: '#DC2626' },
+  cancelledDesc: { fontSize: 13, color: '#991B1B', lineHeight: 18 },
+
+  sectionTitle: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 14, letterSpacing: 0.6 },
   
-  progressContainer: { marginLeft: 8 },
+  progressContainer: { marginLeft: 6 },
   progressRow: { flexDirection: 'row', alignItems: 'flex-start' },
   progressTimeline: { alignItems: 'center', width: 20, marginRight: 12 },
   progressNode: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, zIndex: 2, backgroundColor: theme.colors.surface },
   progressNodeCompleted: { borderColor: theme.colors.primary, backgroundColor: theme.colors.primary },
   progressNodePending: { borderColor: theme.colors.border },
   progressNodeCurrent: { width: 16, height: 16, borderRadius: 8, borderWidth: 4, borderColor: theme.colors.primary },
-  progressLine: { width: 2, height: 24, marginVertical: -2, zIndex: 1 },
+  progressLine: { width: 2, height: 22, marginVertical: -2, zIndex: 1 },
   progressLineCompleted: { backgroundColor: theme.colors.primary },
   progressLinePending: { backgroundColor: theme.colors.border },
   
-  progressText: { fontSize: 15, fontWeight: '500', marginTop: -2, paddingBottom: 24 },
+  progressText: { fontSize: 14, fontWeight: '500', marginTop: -2, paddingBottom: 22 },
   progressTextCompleted: { color: theme.colors.textPrimary },
   progressTextPending: { color: theme.colors.textMuted },
-  progressTextCurrent: { color: theme.colors.primary, fontWeight: '700', fontSize: 16 },
+  progressTextCurrent: { color: theme.colors.primary, fontWeight: '700' },
 
-  itemsWrapper: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: theme.radius.md, overflow: 'hidden' },
+  itemsWrapper: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, overflow: 'hidden' },
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border, backgroundColor: theme.colors.background },
-  itemName: { fontSize: 16, fontWeight: '600', color: theme.colors.textPrimary, marginBottom: 2 },
-  itemCategory: { fontSize: 13, color: theme.colors.textSecondary },
-  itemRight: { alignItems: 'flex-end' },
-  itemQuantity: { fontSize: 15, fontWeight: '600', color: theme.colors.textPrimary },
-  itemWeight: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
-  expandButton: { padding: 12, alignItems: 'center', backgroundColor: theme.colors.surface },
-  expandButtonText: { color: theme.colors.primary, fontWeight: '600', fontSize: 14 },
+  itemNameRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  itemIndex: { fontSize: 14, fontWeight: '700', color: theme.colors.textSecondary },
+  itemName: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary, flex: 1 },
+  itemMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  itemCategory: { fontSize: 12, color: theme.colors.textSecondary },
+  itemWeightPill: { fontSize: 11, color: theme.colors.primary, backgroundColor: '#FFF7ED', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 },
+  itemRate: { fontSize: 12, color: theme.colors.textMuted, marginTop: 2 },
+  itemRight: { alignItems: 'flex-end', justifyContent: 'center' },
+  itemQuantity: { fontSize: 14, fontWeight: '700', color: theme.colors.textPrimary },
+  itemLineTotal: { fontSize: 13, fontWeight: '700', color: theme.colors.primary, marginTop: 2 },
+  expandButton: { padding: 10, alignItems: 'center', backgroundColor: theme.colors.surface },
+  expandButtonText: { color: theme.colors.primary, fontWeight: '600', fontSize: 13 },
+  emptyItemsText: { textAlign: 'center', padding: 16, color: theme.colors.textSecondary, fontStyle: 'italic' },
 
-  giftRow: { flexDirection: 'row', alignItems: 'flex-start', padding: 12, backgroundColor: '#FEF3C7', borderRadius: theme.radius.md, marginBottom: 8 },
-  giftIcon: { fontSize: 20, marginRight: 12 },
-  giftText: { fontSize: 15, fontWeight: '600', color: theme.colors.textPrimary },
-  giftSub: { fontSize: 13, color: theme.colors.textSecondary, marginTop: 2 },
+  giftRow: { flexDirection: 'row', alignItems: 'flex-start', padding: 12, backgroundColor: '#FEF3C7', borderRadius: 10, marginBottom: 6 },
+  giftIcon: { fontSize: 18, marginRight: 10 },
+  giftText: { fontSize: 14, fontWeight: '700', color: theme.colors.textPrimary },
+  giftSub: { fontSize: 12, color: theme.colors.textSecondary, marginTop: 1 },
 
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 4 },
-  summaryLabel: { fontSize: 15, color: theme.colors.textSecondary },
-  summaryValue: { fontSize: 16, color: theme.colors.textPrimary, fontWeight: '600' },
-  divider: { height: 1, backgroundColor: theme.colors.border, marginVertical: 12 },
+  summaryLabel: { fontSize: 14, color: theme.colors.textSecondary },
+  summaryValue: { fontSize: 14, color: theme.colors.textPrimary, fontWeight: '600' },
+  summaryValueBold: { fontSize: 15, color: theme.colors.textPrimary, fontWeight: '700' },
+  summaryTotalRow: { borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 10, marginTop: 8 },
+  summaryTotalLabel: { fontSize: 15, fontWeight: '700', color: theme.colors.textPrimary },
+  summaryTotalValue: { fontSize: 17, fontWeight: '700', color: theme.colors.primary },
 
-  deliveryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  deliveryText: { fontSize: 15, color: theme.colors.textPrimary, marginLeft: 12, flex: 1, lineHeight: 22 },
-  notesContainer: { backgroundColor: theme.colors.background, padding: 12, borderRadius: theme.radius.md },
-  notesLabel: { fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 4 },
-  notesText: { fontSize: 14, color: theme.colors.textPrimary, lineHeight: 20 },
+  cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  dispatchCard: { paddingVertical: 6 },
+  dispatchCardDivider: { borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 12, marginTop: 8 },
+  dispatchHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  dispatchTitle: { fontSize: 14, fontWeight: '700', color: theme.colors.textPrimary },
+  dispatchDetailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
+  dispatchLabel: { fontSize: 13, color: theme.colors.textSecondary },
+  dispatchValue: { fontSize: 13, color: theme.colors.textPrimary },
+  dispatchValueBold: { fontSize: 13, fontWeight: '700', color: theme.colors.primary },
+  deliverySuccessRow: { backgroundColor: '#F0FDF4', padding: 8, borderRadius: 6, marginTop: 4 },
+  deliverySuccessLabel: { fontSize: 12, color: '#166534', fontWeight: '600' },
+  deliverySuccessValue: { fontSize: 12, color: '#166534', fontWeight: '700' },
 
-  bottomBar: { flexDirection: 'row', padding: 16, paddingBottom: 32, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border },
-  primaryActionBtn: { backgroundColor: theme.colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: theme.radius.button },
-  primaryActionBtnText: { color: theme.colors.white, fontSize: 16, fontWeight: '600', marginLeft: 8 },
-  secondaryActionBtn: { backgroundColor: theme.colors.background, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, paddingHorizontal: 20, borderRadius: theme.radius.button, borderWidth: 1, borderColor: theme.colors.primary },
-  secondaryActionBtnText: { color: theme.colors.primary, fontSize: 16, fontWeight: '600', marginLeft: 8 },
+  deliveryHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  deliveryRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
+  deliveryText: { fontSize: 14, color: theme.colors.textPrimary, marginLeft: 10, flex: 1, lineHeight: 20 },
+  notesContainer: { backgroundColor: theme.colors.background, padding: 10, borderRadius: 8, marginTop: 8 },
+  notesLabel: { fontSize: 11, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 2 },
+  notesText: { fontSize: 13, color: theme.colors.textPrimary, lineHeight: 18 },
 
-  editAddressBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 10, backgroundColor: '#EFF6FF', borderRadius: 6 },
-  editAddressText: { color: theme.colors.primary, fontSize: 13, fontWeight: '600' },
+  bottomBar: { 
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row', 
+    paddingHorizontal: 16, 
+    paddingTop: 12, 
+    paddingBottom: 28, 
+    backgroundColor: theme.colors.surface, 
+    borderTopWidth: 1, 
+    borderTopColor: theme.colors.border,
+    ...theme.elevation.md
+  },
+  primaryActionBtn: { 
+    backgroundColor: theme.colors.primary, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    paddingVertical: 12, 
+    borderRadius: 10, 
+    gap: 6 
+  },
+  primaryActionBtnText: { color: theme.colors.white, fontSize: 15, fontWeight: '700' },
+  secondaryActionBtn: { 
+    backgroundColor: theme.colors.background, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    paddingVertical: 12, 
+    paddingHorizontal: 16, 
+    borderRadius: 10, 
+    borderWidth: 1, 
+    borderColor: theme.colors.border,
+    gap: 6
+  },
+  secondaryActionBtnText: { color: theme.colors.textPrimary, fontSize: 14, fontWeight: '600' },
+
+  editAddressBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 8, backgroundColor: '#EFF6FF', borderRadius: 6 },
+  editAddressText: { color: theme.colors.primary, fontSize: 12, fontWeight: '600' },
   
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { width: '100%', backgroundColor: theme.colors.surface, borderRadius: 16, padding: 24, ...theme.elevation.md },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: theme.colors.textPrimary, marginBottom: 0 },
-  modalInput: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 12, fontSize: 15, color: theme.colors.textPrimary, marginBottom: 12 },
-  inputLabel: { fontSize: 13, fontWeight: '600', color: theme.colors.textSecondary, marginBottom: 6 },
-  gpsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', paddingVertical: 12, borderRadius: 8, marginBottom: 20, borderWidth: 1, borderColor: theme.colors.primary },
-  gpsBtnText: { color: theme.colors.primary, fontSize: 15, fontWeight: '600', marginLeft: 8 },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 0, gap: 12 },
-  modalCancel: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 8 },
-  modalCancelText: { color: theme.colors.textSecondary, fontSize: 15, fontWeight: '600' },
-  modalSave: { backgroundColor: theme.colors.primary, paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8, minWidth: 80, alignItems: 'center' },
-  modalSaveText: { color: theme.colors.white, fontSize: 15, fontWeight: '600' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
+  modalContent: { width: '100%', backgroundColor: theme.colors.surface, borderRadius: 16, overflow: 'hidden', ...theme.elevation.md },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: theme.colors.textPrimary },
+  modalInput: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 10, fontSize: 14, color: theme.colors.textPrimary, marginBottom: 10 },
+  inputLabel: { fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary, marginBottom: 4 },
+  gpsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFF6FF', paddingVertical: 10, borderRadius: 8, marginBottom: 16, borderWidth: 1, borderColor: theme.colors.primary },
+  gpsBtnText: { color: theme.colors.primary, fontSize: 14, fontWeight: '600', marginLeft: 6 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
+  modalCancel: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
+  modalCancelText: { color: theme.colors.textSecondary, fontSize: 14, fontWeight: '600' },
+  modalSave: { backgroundColor: theme.colors.primary, paddingVertical: 8, paddingHorizontal: 18, borderRadius: 8, minWidth: 70, alignItems: 'center' },
+  modalSaveText: { color: theme.colors.white, fontSize: 14, fontWeight: '700' },
 });

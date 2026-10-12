@@ -17,6 +17,7 @@ export default function MainTabNavigator() {
 
   return (
     <Tab.Navigator
+      initialRouteName="ProfileTab"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,

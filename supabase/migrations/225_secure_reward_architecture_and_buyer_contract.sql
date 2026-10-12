@@ -16,10 +16,15 @@
 -- ────────────────────────────────────────────────────────────────────────────
 
 DROP POLICY IF EXISTS "Allow all on dealer_schemes" ON public.dealer_schemes;
+DROP POLICY IF EXISTS "Authenticated users can view active schemes" ON public.dealer_schemes;
+DROP POLICY IF EXISTS "Admins can manage schemes" ON public.dealer_schemes;
+
 DROP POLICY IF EXISTS "Enable read access for authenticated users on slabs" ON public.dealer_scheme_slabs;
 DROP POLICY IF EXISTS "Enable insert access for authenticated users on slabs" ON public.dealer_scheme_slabs;
 DROP POLICY IF EXISTS "Enable update access for authenticated users on slabs" ON public.dealer_scheme_slabs;
 DROP POLICY IF EXISTS "Enable delete access for authenticated users on slabs" ON public.dealer_scheme_slabs;
+DROP POLICY IF EXISTS "Authenticated users can view scheme slabs" ON public.dealer_scheme_slabs;
+DROP POLICY IF EXISTS "Admins can manage scheme slabs" ON public.dealer_scheme_slabs;
 
 -- Schemes: Active schemes visible to all authenticated users; all schemes to Staff/Admin
 CREATE POLICY "Authenticated users can view active schemes"
@@ -47,6 +52,9 @@ CREATE POLICY "Admins can manage scheme slabs"
 -- ────────────────────────────────────────────────────────────────────────────
 
 DROP POLICY IF EXISTS "Allow all on requirement_dispatches" ON public.requirement_dispatches;
+DROP POLICY IF EXISTS "Staff can manage requirement dispatches" ON public.requirement_dispatches;
+DROP POLICY IF EXISTS "Buyers can view own dispatches" ON public.requirement_dispatches;
+
 REVOKE SELECT ON public.v_requirement_dispatch_summary FROM anon;
 
 -- Staff/Admin: Full operational dispatch management
@@ -78,6 +86,9 @@ ALTER TABLE public.dealer_reward_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dealer_reward_claims ENABLE ROW LEVEL SECURITY;
 
 -- dealer_reward_eligibility
+DROP POLICY IF EXISTS "Staff can manage reward eligibility" ON public.dealer_reward_eligibility;
+DROP POLICY IF EXISTS "Buyers can view own reward eligibility" ON public.dealer_reward_eligibility;
+
 CREATE POLICY "Staff can manage reward eligibility"
   ON public.dealer_reward_eligibility FOR ALL TO authenticated
   USING (public.is_active_user() OR public.is_admin())
@@ -88,11 +99,16 @@ CREATE POLICY "Buyers can view own reward eligibility"
   USING (public.is_buyer() AND customer_id = public.get_auth_crm_party_id());
 
 -- dealer_reward_calculation_audit (Internal audit log; no buyer access)
+DROP POLICY IF EXISTS "Staff can view reward calculation audit" ON public.dealer_reward_calculation_audit;
+
 CREATE POLICY "Staff can view reward calculation audit"
   ON public.dealer_reward_calculation_audit FOR SELECT TO authenticated
   USING (public.is_active_user() OR public.is_admin());
 
 -- dealer_targets
+DROP POLICY IF EXISTS "Staff can manage dealer targets" ON public.dealer_targets;
+DROP POLICY IF EXISTS "Buyers can view own dealer targets" ON public.dealer_targets;
+
 CREATE POLICY "Staff can manage dealer targets"
   ON public.dealer_targets FOR ALL TO authenticated
   USING (public.is_active_user() OR public.is_admin())
@@ -103,6 +119,9 @@ CREATE POLICY "Buyers can view own dealer targets"
   USING (public.is_buyer() AND customer_id = public.get_auth_crm_party_id());
 
 -- dealer_reward_ledger
+DROP POLICY IF EXISTS "Staff can manage reward ledger" ON public.dealer_reward_ledger;
+DROP POLICY IF EXISTS "Buyers can view own reward ledger" ON public.dealer_reward_ledger;
+
 CREATE POLICY "Staff can manage reward ledger"
   ON public.dealer_reward_ledger FOR ALL TO authenticated
   USING (public.is_active_user() OR public.is_admin())
@@ -113,6 +132,9 @@ CREATE POLICY "Buyers can view own reward ledger"
   USING (public.is_buyer() AND customer_id = public.get_auth_crm_party_id());
 
 -- dealer_reward_claims
+DROP POLICY IF EXISTS "Staff can manage reward claims" ON public.dealer_reward_claims;
+DROP POLICY IF EXISTS "Buyers can view own reward claims" ON public.dealer_reward_claims;
+
 CREATE POLICY "Staff can manage reward claims"
   ON public.dealer_reward_claims FOR ALL TO authenticated
   USING (public.is_active_user() OR public.is_admin())
@@ -127,8 +149,7 @@ CREATE POLICY "Buyers can view own reward claims"
 -- STEP 4: RESTRICT GLOBAL PERFORMANCE RPC (WITH SEARCH_PATH HARDENING)
 -- ────────────────────────────────────────────────────────────────────────────
 
-REVOKE EXECUTE ON FUNCTION public.get_customer_scheme_performance() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.get_customer_scheme_performance() FROM anon;
+DROP FUNCTION IF EXISTS public.get_customer_scheme_performance();
 
 CREATE OR REPLACE FUNCTION public.get_customer_scheme_performance()
 RETURNS TABLE (
@@ -265,6 +286,8 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.get_customer_scheme_performance() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_customer_scheme_performance() FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_customer_scheme_performance() TO authenticated;
 
 
@@ -272,8 +295,7 @@ GRANT EXECUTE ON FUNCTION public.get_customer_scheme_performance() TO authentica
 -- STEP 5: SECURE RECALCULATION & PROTECT APPROVED REWARDS
 -- ────────────────────────────────────────────────────────────────────────────
 
-REVOKE EXECUTE ON FUNCTION public.recalculate_dealer_scheme_eligibility(UUID, UUID) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.recalculate_dealer_scheme_eligibility(UUID, UUID) FROM anon;
+DROP FUNCTION IF EXISTS public.recalculate_dealer_scheme_eligibility(UUID, UUID);
 
 CREATE OR REPLACE FUNCTION public.recalculate_dealer_scheme_eligibility(p_customer_id UUID, p_scheme_id UUID)
 RETURNS VOID 
@@ -358,6 +380,8 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.recalculate_dealer_scheme_eligibility(UUID, UUID) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.recalculate_dealer_scheme_eligibility(UUID, UUID) FROM anon;
 GRANT EXECUTE ON FUNCTION public.recalculate_dealer_scheme_eligibility(UUID, UUID) TO authenticated;
 
 -- Ensure dispatch trigger function is hardened as SECURITY DEFINER
@@ -398,24 +422,23 @@ $$;
 -- STEP 6: BUYER READ CONTRACT (CANONICAL MULTI-MILESTONE ELIGIBILITY REUSE)
 -- ────────────────────────────────────────────────────────────────────────────
 
-REVOKE EXECUTE ON FUNCTION public.get_buyer_my_schemes() FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.get_buyer_my_schemes() FROM anon;
+DROP FUNCTION IF EXISTS public.get_buyer_my_schemes();
 
 CREATE OR REPLACE FUNCTION public.get_buyer_my_schemes()
 RETURNS TABLE (
     scheme_id UUID,
-    scheme_name VARCHAR,
+    scheme_name TEXT,
     description TEXT,
     start_date DATE,
     end_date DATE,
     days_remaining INT,
     current_net_bags NUMERIC,
     highest_achieved_slab_id UUID,
-    highest_achieved_slab_name VARCHAR,
+    highest_achieved_slab_name TEXT,
     highest_reward_earned TEXT,
-    highest_milestone_status VARCHAR,
+    highest_milestone_status TEXT,
     next_slab_id UUID,
-    next_slab_name VARCHAR,
+    next_slab_name TEXT,
     potential_next_reward TEXT,
     bags_needed_for_next NUMERIC,
     progress_to_next_percentage NUMERIC,
@@ -470,7 +493,7 @@ BEGIN
             dre.earned_at,
             dre.approved_at,
             dre.fulfilled_at,
-            CASE 
+            (CASE 
                 WHEN dre.status = 'Fulfilled' THEN 'Fulfilled'
                 WHEN dre.status = 'Approved' AND bb.total_bags < dss.min_bags THEN 'Review Required'
                 WHEN dre.status = 'Approved' THEN 'Approved'
@@ -479,7 +502,7 @@ BEGIN
                 WHEN dre.status = 'Reversed' THEN 'Reversed'
                 WHEN bb.total_bags >= dss.min_bags THEN 'Eligible'
                 ELSE 'In Progress'
-            END AS calculated_milestone_status,
+            END)::TEXT AS calculated_milestone_status,
             (bb.total_bags >= dss.min_bags AND (dre.status IS NULL OR dre.status != 'Reversed')) AS is_milestone_achieved,
             GREATEST(0, dss.min_bags - bb.total_bags) AS bags_needed,
             CASE 
@@ -524,9 +547,9 @@ BEGIN
             (SELECT am.reward_description FROM all_milestones am 
              WHERE am.scheme_id = m.scheme_id AND am.is_milestone_achieved = true 
              ORDER BY am.min_bags DESC LIMIT 1) AS hi_reward_desc,
-            (SELECT am.calculated_milestone_status FROM all_milestones am 
+            (SELECT am.calculated_milestone_status::TEXT FROM all_milestones am 
              WHERE am.scheme_id = m.scheme_id AND am.is_milestone_achieved = true 
-             ORDER BY am.min_bags DESC LIMIT 1) AS hi_milestone_status,
+             ORDER BY am.min_bags DESC LIMIT 1)::TEXT AS hi_milestone_status,
             -- Next milestone above current bags
             (SELECT am.slab_id FROM all_milestones am 
              WHERE am.scheme_id = m.scheme_id AND am.is_milestone_achieved = false 
@@ -548,21 +571,21 @@ BEGIN
     )
     SELECT 
         bs.s_id AS scheme_id,
-        bs.s_name AS scheme_name,
-        bs.s_desc AS description,
+        bs.s_name::TEXT AS scheme_name,
+        bs.s_desc::TEXT AS description,
         bs.s_start AS start_date,
         bs.s_end AS end_date,
         bs.s_days_rem AS days_remaining,
-        bb.total_bags AS current_net_bags,
+        bb.total_bags::NUMERIC AS current_net_bags,
         am.hi_slab_id AS highest_achieved_slab_id,
-        am.hi_slab_name AS highest_achieved_slab_name,
-        am.hi_reward_desc AS highest_reward_earned,
-        am.hi_milestone_status AS highest_milestone_status,
+        am.hi_slab_name::TEXT AS highest_achieved_slab_name,
+        am.hi_reward_desc::TEXT AS highest_reward_earned,
+        am.hi_milestone_status::TEXT AS highest_milestone_status,
         am.nxt_slab_id AS next_slab_id,
-        am.nxt_slab_name AS next_slab_name,
-        am.nxt_reward_desc AS potential_next_reward,
-        COALESCE(am.nxt_bags_needed, 0) AS bags_needed_for_next,
-        COALESCE(am.nxt_progress_pct, 100.0) AS progress_to_next_percentage,
+        am.nxt_slab_name::TEXT AS next_slab_name,
+        am.nxt_reward_desc::TEXT AS potential_next_reward,
+        COALESCE(am.nxt_bags_needed, 0)::NUMERIC AS bags_needed_for_next,
+        COALESCE(am.nxt_progress_pct, 100.0)::NUMERIC AS progress_to_next_percentage,
         COALESCE(am.milestones_json, '[]'::jsonb) AS milestones
     FROM buyer_schemes bs
     JOIN buyer_bags bb ON bs.s_id = bb.s_id
@@ -570,4 +593,6 @@ BEGIN
 END;
 $$;
 
+REVOKE EXECUTE ON FUNCTION public.get_buyer_my_schemes() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.get_buyer_my_schemes() FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_buyer_my_schemes() TO authenticated;

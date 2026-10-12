@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/features/auth/AuthContext';
 import LoginScreen from './src/features/auth/LoginScreen';
@@ -11,6 +11,18 @@ import OnboardingNavigator from './src/features/onboarding/OnboardingNavigator';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import OrdersStackNavigator from './src/navigation/OrdersStackNavigator';
 import WeatherDetailsScreen from './src/features/weather/WeatherDetailsScreen';
+import BusinessUpdatesListScreen from './src/features/businessUpdates/BusinessUpdatesListScreen';
+import BusinessUpdateDetailScreen from './src/features/businessUpdates/BusinessUpdateDetailScreen';
+import NotificationInboxScreen from './src/features/notifications/NotificationInboxScreen';
+import InAppNotificationBanner from './src/features/notifications/InAppNotificationBanner';
+import { NotificationProvider } from './src/features/notifications/NotificationContext';
+import { GlobalHelpFab } from './src/shared/components/GlobalHelpFab';
+import { OrderListProvider } from './src/features/orders/OrderListContext';
+import { I18nProvider } from './src/shared/localization/i18n';
+import { ThemeProvider } from './src/shared/theme/ThemeProvider';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+export const navigationRef = createNavigationContainerRef();
 
 const Stack = createNativeStackNavigator();
 
@@ -61,23 +73,27 @@ function MainNavigator() {
             <Stack.Screen name="MainTabs" component={MainTabNavigator} />
             <Stack.Screen name="OrdersStack" component={OrdersStackNavigator} />
             <Stack.Screen name="WeatherDetails" component={WeatherDetailsScreen} />
+            <Stack.Screen name="BusinessUpdatesList" component={BusinessUpdatesListScreen} />
+            <Stack.Screen name="BusinessUpdateDetail" component={BusinessUpdateDetailScreen} />
+            <Stack.Screen name="NotificationInbox" component={NotificationInboxScreen} />
           </>
         ) : (
           <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
         )}
       </Stack.Navigator>
       {isOnboarded && <GlobalHelpFab />}
+      {isOnboarded && (
+        <InAppNotificationBanner
+          onNavigateToNotice={(updateId) => {
+            if (navigationRef.isReady()) {
+              navigationRef.navigate('BusinessUpdateDetail', { updateId });
+            }
+          }}
+        />
+      )}
     </View>
   );
 }
-
-import { GlobalHelpFab } from './src/shared/components/GlobalHelpFab';
-
-import { OrderListProvider } from './src/features/orders/OrderListContext';
-import { I18nProvider } from './src/shared/localization/i18n';
-import { ThemeProvider } from './src/shared/theme/ThemeProvider';
-
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 export default function App() {
   return (
@@ -85,12 +101,14 @@ export default function App() {
       <ThemeProvider>
         <I18nProvider>
           <AuthProvider>
-            <OrderListProvider>
-              <NavigationContainer>
-                <StatusBar style="auto" />
-                <MainNavigator />
-              </NavigationContainer>
-            </OrderListProvider>
+            <NotificationProvider>
+              <OrderListProvider>
+                <NavigationContainer ref={navigationRef}>
+                  <StatusBar style="auto" />
+                  <MainNavigator />
+                </NavigationContainer>
+              </OrderListProvider>
+            </NotificationProvider>
           </AuthProvider>
         </I18nProvider>
       </ThemeProvider>

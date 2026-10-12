@@ -108,7 +108,7 @@ export async function fetchMyRewardSchemes() {
         return {
           success: false,
           errorCode: REWARD_ERROR_CODES.RPC_NOT_DEPLOYED,
-          message: 'Backend canonical RPC public.get_buyer_my_schemes() is not deployed on this Supabase project (pending Migration 225).',
+          message: 'Reward schemes are temporarily unavailable. Please try again later.',
           missingDependency: 'public.get_buyer_my_schemes()',
           data: null,
         };
@@ -117,7 +117,8 @@ export async function fetchMyRewardSchemes() {
       return {
         success: false,
         errorCode: REWARD_ERROR_CODES.UNKNOWN_ERROR,
-        message: error.message || 'Error fetching reward schemes from database.',
+        message: 'Reward schemes are temporarily unavailable. Please try again later.',
+        rawError: error.message,
         data: null,
       };
     }
@@ -134,7 +135,8 @@ export async function fetchMyRewardSchemes() {
     return {
       success: false,
       errorCode: REWARD_ERROR_CODES.NETWORK_ERROR,
-      message: err.message || 'Network error while retrieving reward schemes.',
+      message: 'Network error while retrieving reward schemes. Please check your connection and try again.',
+      rawError: err.message,
       data: null,
     };
   }
@@ -437,7 +439,7 @@ export async function fetchSchemeQualifyingActivity(schemeId) {
     return {
       success: false,
       errorCode: REWARD_ERROR_CODES.ACTIVITY_RPC_NOT_DEPLOYED,
-      message: 'Buyer-safe qualifying activity endpoint is not deployed in current database (pending Migration 225).',
+      message: 'Qualifying activity history is temporarily unavailable. Please try again later.',
       missingDependency: 'public.get_buyer_scheme_activity() or buyer policy on requirement_dispatches',
       data: [],
     };
