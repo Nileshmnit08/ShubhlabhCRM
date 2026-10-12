@@ -59,16 +59,12 @@ export default function MyRewardSchemesScreen({ navigation }) {
     if (result.success && result.data) {
       setSchemeData(result.data);
       setIsDevPreview(false);
+      setErrorInfo(null);
     } else {
-      // Backend returned error (e.g. RPC not deployed or network error)
+      // Backend returned error (e.g. RPC not deployed, unauthenticated, or network error)
       setErrorInfo(result);
-      if (result.errorCode === REWARD_ERROR_CODES.RPC_NOT_DEPLOYED) {
-        // Fallback to dev preview automatically so user can inspect UI layout
-        // while clearly seeing the banner notice
-        const fixtures = getDevLayoutFixtures();
-        setSchemeData(fixtures);
-        setIsDevPreview(true);
-      }
+      setSchemeData({ active: [], upcoming: [], completed: [] });
+      setIsDevPreview(false);
     }
 
     setLoading(false);
@@ -100,7 +96,7 @@ export default function MyRewardSchemesScreen({ navigation }) {
       // Try reloading live service
       setIsDevPreview(false);
       loadSchemes();
-    } else {
+    } else if (__DEV__) {
       const fixtures = getDevLayoutFixtures();
       setSchemeData(fixtures);
       setIsDevPreview(true);
@@ -407,9 +403,11 @@ export default function MyRewardSchemesScreen({ navigation }) {
               <Text style={styles.primaryBtnText}>{t('common.retry') || 'Retry'}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryBtn} onPress={handleTogglePreview}>
-              <Text style={styles.secondaryBtnText}>{t('rewards.viewPreview')}</Text>
-            </TouchableOpacity>
+            {__DEV__ && (
+              <TouchableOpacity style={styles.secondaryBtn} onPress={handleTogglePreview}>
+                <Text style={styles.secondaryBtnText}>{t('rewards.viewPreview')}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       ) : (

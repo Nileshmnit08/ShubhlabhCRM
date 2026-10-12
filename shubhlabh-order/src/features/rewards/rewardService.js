@@ -399,17 +399,11 @@ export async function fetchSchemeDetails(schemeId) {
     if (found) {
       return { success: true, data: found, isDevFixture: false };
     }
-  }
-
-  // Fallback to dev layout fixtures if live is unavailable or not found
-  const devFixtures = getDevLayoutFixtures();
-  const devFound = devFixtures.all?.find((s) => s.scheme_id === schemeId);
-  if (devFound) {
     return {
-      success: true,
-      data: devFound,
-      isDevFixture: true,
-      notice: 'Displaying development layout preview fixture.',
+      success: false,
+      errorCode: REWARD_ERROR_CODES.SCHEME_NOT_FOUND,
+      message: 'Scheme details not found in active schemes.',
+      data: null,
     };
   }
 
@@ -417,6 +411,7 @@ export async function fetchSchemeDetails(schemeId) {
     success: false,
     errorCode: result.errorCode || REWARD_ERROR_CODES.SCHEME_NOT_FOUND,
     message: result.message || 'Scheme details not found.',
+    missingDependency: result.missingDependency,
     data: null,
   };
 }

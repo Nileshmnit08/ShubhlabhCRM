@@ -68,29 +68,22 @@ export default function RewardDetailScreen({ navigation, route }) {
     const detailsRes = await fetchSchemeDetails(schemeId);
     if (detailsRes.success && detailsRes.data) {
       setScheme(detailsRes.data);
-      if (detailsRes.isDevFixture) {
-        setIsDevPreview(true);
-      }
+      setIsDevPreview(Boolean(detailsRes.isDevFixture));
     } else {
       setErrorInfo(detailsRes);
     }
 
     // 2. Load Qualifying Activity History
     const activityRes = await fetchSchemeQualifyingActivity(schemeId);
-    if (activityRes.success && activityRes.data?.length > 0) {
+    if (activityRes.success && Array.isArray(activityRes.data) && activityRes.data.length > 0) {
       setActivityRecords(activityRes.data);
       setActivityMissingDependency(false);
     } else {
+      setActivityRecords([]);
       if (activityRes.errorCode === REWARD_ERROR_CODES.ACTIVITY_RPC_NOT_DEPLOYED) {
         setActivityMissingDependency(true);
-        // In dev preview mode, provide layout demonstration fixtures
-        if (isDevPreview || detailsRes.isDevFixture) {
-          setActivityRecords(getDevActivityFixtures(schemeId));
-        } else {
-          setActivityRecords([]);
-        }
       } else {
-        setActivityRecords([]);
+        setActivityMissingDependency(false);
       }
     }
 

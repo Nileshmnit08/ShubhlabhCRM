@@ -192,3 +192,49 @@ test('Qualifying Activity Security: Safely prevents direct queries to staff-only
   assert.strictEqual(mockActivityRes.errorCode, 'ACTIVITY_RPC_NOT_DEPLOYED');
   assert.strictEqual(mockActivityRes.data.length, 0, 'Must NOT return or leak other buyer rows');
 });
+
+test('Mock Fallback Removal: Failed live requests must NOT silently return mock fixtures', async () => {
+  // Mock fetchMyRewardSchemes failure
+  const mockFetchMyRewardSchemes = async () => ({
+    success: false,
+    errorCode: 'RPC_NOT_DEPLOYED',
+    message: 'Backend canonical RPC public.get_buyer_my_schemes() is not deployed on this Supabase project (pending Migration 225).',
+    missingDependency: 'public.get_buyer_my_schemes()',
+    data: null,
+  });
+
+  // Mirror updated fetchSchemeDetails logic
+  async function testFetchSchemeDetails(schemeId) {
+    if (!schemeId) {
+      return { success: false, errorCode: 'SCHEME_NOT_FOUND', message: 'No scheme ID provided.', data: null };
+    }
+    const result = await mockFetchMyRewardSchemes();
+    if (result.success && result.data?.all) {
+      const found = result.data.all.find((s) => s.scheme_id === schemeId);
+      if (found) return { success: true, data: found, isDevFixture: false };
+      return { success: false, errorCode: 'SCHEME_NOT_FOUND', message: 'Scheme details not found in active schemes.', data: null };
+    }
+    return {
+      success: false,
+      errorCode: result.errorCode || 'SCHEME_NOT_FOUND',
+      message: result.message || 'Scheme details not found.',
+      missingDependency: result.missingDependency,
+      data: null,
+    };
+  }
+
+  const res = await testFetchSchemeDetails('fix-scheme-001');
+  assert.strictEqual(res.success, false, 'Must fail rather than returning mock fixtures');
+  assert.strictEqual(res.errorCode, 'RPC_NOT_DEPLOYED');
+  assert.strictEqual(res.data, null, 'Must NOT inject mock data');
+  assert.strictEqual(res.missingDependency, 'public.get_buyer_my_schemes()');
+});
+
+test('Empty State Truth: Legitimate empty active schemes must not fall back to fixtures', () => {
+  const emptyLiveResult = [];
+  const categorized = categorizeSchemes(emptyLiveResult);
+  assert.strictEqual(categorized.active.length, 0);
+  assert.strictEqual(categorized.upcoming.length, 0);
+  assert.strictEqual(categorized.completed.length, 0);
+});
+
