@@ -6,9 +6,11 @@ import { useTranslation } from '../../../shared/localization/i18n';
 import { 
   prepareChartData, 
   detectScaleCompatibility, 
-  getCommodityColor 
+  getCommodityColor,
+  formatCurrencyINR
 } from '../marketPriceService';
-import { CircleAlert, Eye, Info } from 'lucide-react-native';
+import { CircleAlert, Eye, Info, Calendar, TrendingUp } from 'lucide-react-native';
+import { format, parseISO } from 'date-fns';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -38,55 +40,101 @@ export default function MarketGraph({
     return detectScaleCompatibility(chartPayload.datasets);
   }, [chartPayload, activePlotIds]);
 
+  // Case C: No historical records found
   if (!chartPayload || chartPayload.datasets.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Info size={28} color={theme.colors.textMuted} style={{ marginBottom: 8 }} />
         <Text style={styles.emptyTitle}>
-          {t('profile.language') === 'Language' ? 'Not Enough Price Data' : 'पर्याप्त मूल्य डेटा नहीं है'}
+          {t('market.notEnoughDataTitle')}
         </Text>
         <Text style={styles.emptySubtitle}>
-          {t('profile.language') === 'Language' 
-            ? 'No historical price records found for the selected products and time range.' 
-            : 'चयनित उत्पादों और समय सीमा के लिए कोई ऐतिहासिक मूल्य रिकॉर्ड नहीं मिला।'}
+          {t('market.notEnoughDataDesc')}
         </Text>
       </View>
     );
   }
 
-  // Handle single data point case (chart-kit requires >= 2 points for a line)
+  // Case B: Handle single data point case (chart-kit requires >= 2 points for a line trend)
   const isSinglePoint = chartPayload.sortedDates.length === 1;
 
   if (isSinglePoint) {
     const singleDate = chartPayload.sortedDates[0];
+    let formattedSingleDate = singleDate;
+    try {
+      formattedSingleDate = format(parseISO(singleDate), 'dd MMM yyyy');
+    } catch (e) {}
+
     return (
       <View style={styles.singlePointContainer}>
-        <Text style={styles.singlePointHeader}>
-          {t('profile.language') === 'Language' ? 'Single Price Observation' : 'एकल मूल्य अवलोकन'} ({singleDate})
+        {/* Top: Date and Observation Badge */}
+        <View style={styles.singlePointTopRow}>
+          <View style={styles.singlePointDateBadge}>
+            <Calendar size={13} color={theme.colors.primary} style={{ marginRight: 5 }} />
+            <Text style={styles.singlePointDateText}>{formattedSingleDate}</Text>
+          </View>
+          <View style={styles.recordedPill}>
+            <Text style={styles.recordedPillText}>{t('market.oneDateRecorded')}</Text>
+          </View>
+        </View>
+
+        {/* Informational Callout Banner */}
+        <View style={styles.singlePointNoticeBox}>
+          <TrendingUp size={16} color="#D97706" style={{ marginRight: 8, marginTop: 2 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.singlePointNoticeTitle}>
+              {t('market.historicalTrendPending')}
+            </Text>
+            <Text style={styles.singlePointNoticeDesc}>
+              {t('market.singleObservationDesc')}
+            </Text>
+          </View>
+        </View>
+
+        {/* Selected Commodity Latest Price Summary Cards */}
+        <Text style={styles.singlePointSectionLabel}>
+          {t('market.singleObservationHeader')} ({chartPayload.productsMeta.length})
         </Text>
         <View style={styles.singlePointList}>
-          {chartPayload.productsMeta.map((p, idx) => (
-            <View key={p.id || idx} style={styles.singlePointRow}>
-              <View style={styles.legendColorRow}>
-                <View style={[styles.colorDot, { backgroundColor: p.color }]} />
-                <Text style={styles.singlePointName}>
-                  {language === 'hi' && p.name_hi ? p.name_hi : p.name_en}
+          {chartPayload.productsMeta.map((p, idx) => {
+            const isCurrentFocus = focusedId === p.id;
+            return (
+              <TouchableOpacity
+                key={p.id || idx}
+                style={[
+                  styles.singlePointRow,
+                  { borderLeftColor: p.color },
+                  isCurrentFocus && styles.singlePointRowFocused
+                ]}
+                onPress={() => {
+                  if (focusedId === p.id) {
+                    onSelectFocus(null);
+                  } else {
+                    onSelectFocus(p.id);
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.legendColorRow}>
+                  <View style={[styles.colorDot, { backgroundColor: p.color }]} />
+                  <View>
+                    <Text style={styles.singlePointName}>
+                      {language === 'hi' && p.name_hi ? p.name_hi : p.name_en}
+                    </Text>
+                    <Text style={styles.singlePointDateSub}>{formattedSingleDate}</Text>
+                  </View>
+                </View>
+                <Text style={styles.singlePointPrice}>
+                  ₹{formatCurrencyINR(p.latestPrice, false)} / {p.unit}
                 </Text>
-              </View>
-              <Text style={styles.singlePointPrice}>
-                ₹{Number(p.latestPrice).toLocaleString('en-IN')} / {p.unit}
-              </Text>
-            </View>
-          ))}
+              </TouchableOpacity>
+            );
+          })}
         </View>
-        <Text style={styles.singlePointHint}>
-          {t('profile.language') === 'Language' 
-            ? 'A line chart will appear as additional historical dates are recorded.' 
-            : 'अतिरिक्त ऐतिहासिक तिथियाँ दर्ज होने पर लाइन चार्ट प्रदर्शित होगा।'}
-        </Text>
       </View>
     );
   }
+
 
   const chartConfig = {
     backgroundColor: theme.colors.surface,
@@ -133,7 +181,7 @@ export default function MarketGraph({
       {focusedId && (
         <View style={styles.focusHeaderRow}>
           <Text style={styles.focusTitle}>
-            {t('profile.language') === 'Language' ? 'Focusing on:' : 'फोकस:'}{' '}
+            {t('market.focusingOn')}{' '}
             <Text style={{ fontWeight: '700', color: chartPayload.productsMeta[0]?.color }}>
               {language === 'hi' && chartPayload.productsMeta[0]?.name_hi 
                 ? chartPayload.productsMeta[0]?.name_hi 
@@ -142,7 +190,7 @@ export default function MarketGraph({
           </Text>
           <TouchableOpacity onPress={() => onSelectFocus(null)} style={styles.resetFocusBtn}>
             <Text style={styles.resetFocusText}>
-              {t('profile.language') === 'Language' ? 'View All Selected' : 'सभी देखें'}
+              {t('market.viewAllSelected')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -195,7 +243,7 @@ export default function MarketGraph({
           </View>
           <Text style={styles.tooltipProduct}>{selectedPoint.productName}</Text>
           <Text style={styles.tooltipPrice}>
-            ₹{Number(selectedPoint.price).toLocaleString('en-IN')} / {selectedPoint.unit}
+            ₹{formatCurrencyINR(selectedPoint.price, false)} / {selectedPoint.unit}
           </Text>
         </View>
       )}
@@ -203,7 +251,7 @@ export default function MarketGraph({
       {/* External Responsive Legend & Focus Selector */}
       <View style={styles.legendContainer}>
         <Text style={styles.legendHeader}>
-          {t('profile.language') === 'Language' ? 'COMMODITIES IN CHART' : 'चार्ट में सामग्रियां'} (
+          {t('market.commoditiesInChart')} (
           {chartPayload.productsMeta.length})
         </Text>
         <View style={styles.legendGrid}>
@@ -289,46 +337,108 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     marginBottom: 16,
+    ...theme.elevation.sm,
   },
-  singlePointHeader: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: theme.colors.textPrimary,
+  singlePointTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 12,
+  },
+  singlePointDateBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF7ED',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+  },
+  singlePointDateText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.primary,
+  },
+  recordedPill: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  recordedPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
+  singlePointNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFBEB',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    marginBottom: 14,
+  },
+  singlePointNoticeTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B45309',
+    marginBottom: 3,
+  },
+  singlePointNoticeDesc: {
+    fontSize: 11.5,
+    color: '#92400E',
+    lineHeight: 16,
+  },
+  singlePointSectionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
   singlePointList: {
     gap: 8,
-    marginBottom: 10,
   },
   singlePointRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
     backgroundColor: theme.colors.background,
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderLeftWidth: 4,
+  },
+  singlePointRowFocused: {
+    backgroundColor: '#FFF7ED',
+    borderColor: theme.colors.primary,
   },
   legendColorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    flex: 1,
   },
   singlePointName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 13.5,
+    fontWeight: '700',
     color: theme.colors.textPrimary,
   },
+  singlePointDateSub: {
+    fontSize: 11,
+    color: theme.colors.textMuted,
+    marginTop: 1,
+  },
   singlePointPrice: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '700',
     color: theme.colors.primary,
-  },
-  singlePointHint: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    fontStyle: 'italic',
-    marginTop: 4,
   },
   disparityBanner: {
     flexDirection: 'row',

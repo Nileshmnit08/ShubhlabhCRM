@@ -46,6 +46,7 @@ export default function MarketPricesScreen({ route }) {
   const [activeTab, setActiveTab] = useState(route?.params?.tab || 'today'); // 'today' | 'history'
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const [materials, setMaterials] = useState([]);
   const [watchlists, setWatchlists] = useState([]);
   const [rawPrices, setRawPrices] = useState([]);
@@ -71,6 +72,7 @@ export default function MarketPricesScreen({ route }) {
 
   const fetchData = async (showLoader = true) => {
     if (showLoader) setLoading(true);
+    setFetchError(null);
     try {
       const uid = session?.user?.id;
       if (!uid) return;
@@ -120,6 +122,7 @@ export default function MarketPricesScreen({ route }) {
       
     } catch (err) {
       console.error('Error fetching market prices:', err);
+      setFetchError(err.message || 'Failed to load market prices');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -609,6 +612,16 @@ export default function MarketPricesScreen({ route }) {
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
+      ) : fetchError ? (
+        <View style={styles.errorContainer}>
+          <CircleAlert size={36} color={theme.colors.error} style={{ marginBottom: 12 }} />
+          <Text style={styles.errorTitle}>{t('market.loadErrorTitle')}</Text>
+          <Text style={styles.errorSubtitle}>{t('market.loadErrorDesc')}</Text>
+          <TouchableOpacity onPress={() => fetchData(true)} style={styles.retryButton} activeOpacity={0.8}>
+            <RefreshCw size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.retryButtonText}>{t('market.retry')}</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <View style={{ flex: 1 }}>
           {activeTab === 'today' ? renderTodayPrices() : renderHistory()}
@@ -627,6 +640,41 @@ const styles = StyleSheet.create({
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center' 
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    backgroundColor: theme.colors.background,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  errorSubtitle: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    ...theme.elevation.sm,
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   tabsContainer: {
     flexDirection: 'row',

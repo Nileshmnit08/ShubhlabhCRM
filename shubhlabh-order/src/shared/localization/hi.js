@@ -335,5 +335,19 @@ export const hi = {
   'market.rangeMonth': 'महीना',
   'market.rangeYear': 'वर्ष',
   'market.pricePending': 'मूल्य अपडेट प्रतीक्षित',
-  'market.allCommodities': 'सभी सामग्रियां'
+  'market.allCommodities': 'सभी सामग्रियां',
+  'market.historicalTrendPending': 'अधिक मूल्य तिथियाँ उपलब्ध होने पर ऐतिहासिक रुझान प्रदर्शित होगा।',
+  'market.singleObservationHeader': 'एकल मूल्य अवलोकन',
+  'market.singleObservationDesc': 'मूल्य रुझान रेखा खींचने के लिए कम से कम दो अलग-अलग तिथियों के मूल्यों की आवश्यकता होती है। नीचे चयनित सामग्रियों के लिए एकल दर्ज मूल्य अवलोकन है।',
+  'market.recordedDate': 'दर्ज तिथि',
+  'market.oneDateRecorded': '1 तिथि दर्ज',
+  'market.loadErrorTitle': 'बाजार मूल्य लोड करने में असमर्थ',
+  'market.loadErrorDesc': 'बाजार मूल्य प्राप्त करते समय नेटवर्क त्रुटि हुई। कृपया अपना कनेक्शन जांचें और पुनः प्रयास करें।',
+  'market.retry': 'पुनः प्रयास करें',
+  'market.notEnoughDataTitle': 'पर्याप्त मूल्य डेटा नहीं है',
+  'market.notEnoughDataDesc': 'चयनित सामग्रियों और समय सीमा के लिए कोई ऐतिहासिक मूल्य रिकॉर्ड नहीं मिला।',
+  'market.focusingOn': 'फोकस:',
+  'market.viewAllSelected': 'सभी देखें',
+  'market.commoditiesInChart': 'चार्ट में सामग्रियां'
 };
+

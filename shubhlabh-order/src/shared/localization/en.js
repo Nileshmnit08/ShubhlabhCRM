@@ -335,5 +335,19 @@ export const en = {
   'market.rangeMonth': 'Month',
   'market.rangeYear': 'Year',
   'market.pricePending': 'Price update pending',
-  'market.allCommodities': 'All Commodities'
+  'market.allCommodities': 'All Commodities',
+  'market.historicalTrendPending': 'Historical trend will appear when more price dates are available.',
+  'market.singleObservationHeader': 'Single Price Observation',
+  'market.singleObservationDesc': 'A trend line requires prices from at least two different dates to calculate market direction. Below is the recorded price observation for the selected commodities.',
+  'market.recordedDate': 'Recorded Date',
+  'market.oneDateRecorded': '1 recorded date',
+  'market.loadErrorTitle': 'Unable to Load Market Prices',
+  'market.loadErrorDesc': 'A network error occurred while retrieving market prices. Please check your connection and try again.',
+  'market.retry': 'Retry',
+  'market.notEnoughDataTitle': 'Not Enough Price Data',
+  'market.notEnoughDataDesc': 'No historical price records found for the selected commodities and time range.',
+  'market.focusingOn': 'Focusing on',
+  'market.viewAllSelected': 'View All Selected',
+  'market.commoditiesInChart': 'COMMODITIES IN CHART'
 };
+

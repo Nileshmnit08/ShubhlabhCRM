@@ -148,4 +148,68 @@ test('SL-ORDER-MARKET-PRICE-REDESIGN-01: Market Price Service', async (t) => {
     assert.equal(formatCurrencyINR('invalid'), '0.00');
   });
 
+  await t.test('9. Case B (Single Historical Date): Identifies single-point dataset accurately', () => {
+    const materials = [
+      { id: 'm1', name_en: 'Chaadi Kakda', name_hi: 'छाडी काकड़ा' }
+    ];
+    const prices = [
+      { raw_material_id: 'm1', effective_date: '2026-10-09', price: 5200, unit: 'Quintal' }
+    ];
+
+    const chartConfig = prepareChartData(prices, ['m1'], materials);
+    assert.ok(chartConfig);
+    assert.equal(chartConfig.sortedDates.length, 1);
+    assert.equal(chartConfig.sortedDates[0], '2026-10-09');
+    assert.equal(chartConfig.datasets[0].data.length, 1);
+    assert.equal(chartConfig.datasets[0].data[0], 5200);
+  });
+
+  await t.test('10. Case C (No Historical Records): Returns null cleanly without crashing', () => {
+    const emptyConfig1 = prepareChartData([], ['m1'], [{ id: 'm1', name_en: 'Test' }]);
+    assert.equal(emptyConfig1, null);
+
+    const emptyConfig2 = prepareChartData([{ raw_material_id: 'm2', effective_date: '2026-10-09', price: 100 }], ['m1'], [{ id: 'm1', name_en: 'Test' }]);
+    assert.equal(emptyConfig2, null);
+  });
+
+  await t.test('11. Case A (Multiple Historical Dates): Multi-commodity series carry forward correctly', () => {
+    const materials = [
+      { id: 'm1', name_en: 'Khal' },
+      { id: 'm2', name_en: 'Makka' },
+    ];
+    // m1 has prices for day 1 and day 3; m2 has prices for day 2 and day 3
+    const prices = [
+      { raw_material_id: 'm1', effective_date: '2026-10-01', price: 4400, unit: 'Quintal' },
+      { raw_material_id: 'm2', effective_date: '2026-10-02', price: 2900, unit: 'Quintal' },
+      { raw_material_id: 'm1', effective_date: '2026-10-03', price: 4500, unit: 'Quintal' },
+      { raw_material_id: 'm2', effective_date: '2026-10-03', price: 2950, unit: 'Quintal' },
+    ];
+
+    const chartConfig = prepareChartData(prices, ['m1', 'm2'], materials);
+    assert.ok(chartConfig);
+    assert.equal(chartConfig.sortedDates.length, 3, 'Should have 3 distinct dates');
+    assert.deepEqual(chartConfig.sortedDates, ['2026-10-01', '2026-10-02', '2026-10-03']);
+    
+    // m1 carry forward on day 2
+    assert.deepEqual(chartConfig.datasets[0].data, [4400, 4400, 4500]);
+    // m2 day 1 starts with its earliest price, then updates
+    assert.deepEqual(chartConfig.datasets[1].data, [2900, 2900, 2950]);
+  });
+
+  await t.test('12. Day/Week/Month/Year Cutoff Range Boundaries', () => {
+    const fixedNow = new Date('2026-10-12T12:00:00Z');
+    // A price on 2026-10-09
+    const priceOn09 = [{ raw_material_id: 'm1', effective_date: '2026-10-09', price: 5200 }];
+    
+    const dayFiltered = filterPricesByRange(priceOn09, 'day', fixedNow);
+    assert.equal(dayFiltered.length, 0, '2026-10-09 is older than 1-day cutoff (2026-10-11)');
+
+    const weekFiltered = filterPricesByRange(priceOn09, 'week', fixedNow);
+    assert.equal(weekFiltered.length, 1, '2026-10-09 is within 7-day cutoff (2026-10-05)');
+
+    const monthFiltered = filterPricesByRange(priceOn09, 'month', fixedNow);
+    assert.equal(monthFiltered.length, 1, '2026-10-09 is within 30-day cutoff');
+  });
+
 });
+
