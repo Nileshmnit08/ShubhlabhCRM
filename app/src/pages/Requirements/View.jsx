@@ -280,7 +280,7 @@ export default function RequirementView() {
             <h1 style={{margin: 0}}>{req.crm_parties?.display_name}</h1>
             <div className="text-secondary" style={{marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
               Requirement #{req.id.substring(0,8)} 
-              <span className={`badge ${req.status === 'Won' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`}>
+              <span className={`badge ${req.status === 'Dispatched' ? 'badge-dispatched' : req.status === 'Won' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`}>
                 {req.status}
               </span>
             </div>

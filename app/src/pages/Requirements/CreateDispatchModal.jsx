@@ -77,19 +77,19 @@ export default function CreateDispatchModal({ requirement, onClose, onComplete }
       const { data, error: insertErr } = await supabase.from('requirement_dispatches').insert(payload).select().single();
       if (insertErr) throw insertErr;
 
-      // If fully dispatched, we update the status to Closed
+      // If fully dispatched, we update the status to Dispatched (canonical CRM status)
       const pendingQty = requirement.pending_quantity || requirement.quantity;
       const isFullyDispatched = parseFloat(formData.quantity) >= pendingQty;
 
-      if (isFullyDispatched && requirement.status !== 'Closed') {
-         await supabase.from('requirements').update({ status: 'Closed' }).eq('id', requirement.id);
+      if (isFullyDispatched && requirement.status !== 'Dispatched') {
+         await supabase.from('requirements').update({ status: 'Dispatched' }).eq('id', requirement.id);
          
          // Log history
          await supabase.from('requirement_status_history').insert({
            requirement_id: requirement.id,
            old_status: requirement.status,
-           new_status: 'Closed',
-           note: `Status updated to Closed via full dispatch entry for ${payload.quantity} ${payload.unit}.`,
+           new_status: 'Dispatched',
+           note: `Status updated to Dispatched via full dispatch entry for ${payload.quantity} ${payload.unit}.`,
            changed_by: sessionData?.session?.user?.id || null
          });
       }

@@ -21,7 +21,7 @@ const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal,
       }}>
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ClipboardList size={14} /> View details</button>
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}/edit`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><Edit size={14} /> Edit requirement</button>
-        {actualPending > 0 && req.status !== 'Closed' ? (
+        {actualPending > 0 && req.status !== 'Closed' && req.status !== 'Dispatched' ? (
           <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req.id); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
         ) : (
           <button onClick={() => { setOpenMenuId(null); navigate(`/dispatches/list?requirement_id=${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ListIcon size={14} /> View Dispatches</button>
@@ -152,15 +152,19 @@ export default function RequirementList() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!includeCompleted) {
-        query = query.not('status', 'in', '("Closed","Fulfilled","Completed","Cancelled","Lost","Won")');
-      }
+      if (statusFilter === 'Dispatched') {
+        query = query.eq('status', 'Dispatched');
+      } else {
+        if (!includeCompleted) {
+          query = query.not('status', 'in', '("Closed","Fulfilled","Completed","Cancelled","Lost","Won")');
+        }
 
-      if (statusFilter === 'Overdue') {
-        const today = new Date().toISOString().split('T')[0];
-        query = query.lt('expected_date', today);
-      } else if (statusFilter !== 'All Open' && statusFilter !== 'All') {
-        query = query.eq('status', statusFilter);
+        if (statusFilter === 'Overdue') {
+          const today = new Date().toISOString().split('T')[0];
+          query = query.lt('expected_date', today);
+        } else if (statusFilter !== 'All Open' && statusFilter !== 'All') {
+          query = query.eq('status', statusFilter);
+        }
       }
 
       if (ownerFilter === 'My Requirements' && userProfile?.id) {
@@ -259,7 +263,7 @@ export default function RequirementList() {
         data.forEach(req => {
           const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
           const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
-          const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won'].includes(req.status);
+          const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status);
           
           const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
           if (isOverdue) {
@@ -436,27 +440,23 @@ export default function RequirementList() {
       const { error: dispatchErr } = await supabase.from('requirement_dispatches').insert(dispatchPayload);
       if (dispatchErr) throw dispatchErr;
 
-      // 2. Update requirement status to Closed since it's fully dispatched
-      const { error } = await supabase.from('requirements').update({ status: 'Closed' }).eq('id', reqToDispatch.id);
+      // 2. Update requirement status to Dispatched (canonical CRM status)
+      const { error } = await supabase.from('requirements').update({ status: 'Dispatched' }).eq('id', reqToDispatch.id);
       if (error) throw error;
       
       if (userProfile?.id) {
          await supabase.from('requirement_status_history').insert({
             requirement_id: reqToDispatch.id,
             old_status: reqToDispatch.status,
-            new_status: 'Closed',
-            note: 'Marked as dispatched (closed) from requirements list.',
+            new_status: 'Dispatched',
+            note: 'Marked as dispatched from requirements list.',
             changed_by: userProfile.id
          });
       }
       
       setToast({ type: 'success', message: 'Requirement marked as dispatched.' });
       
-      if (!includeCompleted) {
-        setRequirements(prev => prev.filter(r => r.id !== reqToDispatch.id));
-      } else {
-        fetchRequirements();
-      }
+      fetchRequirements();
       closeDispatchModal();
     } catch (err) {
       console.error("Dispatch Error:", err);
@@ -526,10 +526,18 @@ export default function RequirementList() {
       }
       const group = map.get(pid);
       group.requirements.push(req);
-      if (req.requirement_items && req.requirement_items.length > 0) {
-        group.total_qty += req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
-      } else if (req.product_type !== 'General Requirement') {
-        group.total_qty += Number(req.required_quantity) || 0;
+      if (statusFilter === 'Dispatched') {
+        if (req.requirement_items && req.requirement_items.length > 0) {
+          group.total_qty += req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
+        } else if (req.product_type !== 'General Requirement') {
+          group.total_qty += Number(req.total_dispatched_quantity || req.required_quantity) || 0;
+        }
+      } else if (req.status !== 'Dispatched' && req.status !== 'Closed') {
+        if (req.requirement_items && req.requirement_items.length > 0) {
+          group.total_qty += req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
+        } else if (req.product_type !== 'General Requirement') {
+          group.total_qty += Number(req.required_quantity) || 0;
+        }
       }
       if (req.requirement_items && req.requirement_items.length > 0) {
         req.requirement_items.forEach(item => group.products.add(item.product_name));
@@ -539,7 +547,7 @@ export default function RequirementList() {
       
       const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
       const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
-      const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won'].includes(req.status);
+      const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status);
       const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
       if (isOverdue) group.has_overdue = true;
       if (req.priority === 'High' || req.priority === 'Urgent') group.has_high_priority = true;
@@ -570,10 +578,11 @@ export default function RequirementList() {
 
   // --- Formatting Helpers ---
   const getStatusBadge = (status) => {
+    if (status === 'Dispatched') return 'badge badge-dispatched';
     if (status === 'Identified' || status === 'New') return 'badge badge-dormant';
     if (status === 'Engaged' || status === 'Qualified') return 'badge badge-active';
     if (status === 'Commercial Intent' || status === 'Negotiation') return 'badge badge-warning';
-    if (status === 'Won' || status === 'Dispatched' || status === 'Fulfilled' || status === 'Completed' || status === 'Confirmed' || status === 'Closed') return 'badge badge-success';
+    if (status === 'Won' || status === 'Fulfilled' || status === 'Completed' || status === 'Confirmed' || status === 'Closed') return 'badge badge-success';
     if (status === 'Lost' || status === 'Cancelled') return 'badge badge-danger';
     if (status === 'On Hold') return 'badge badge-neutral';
     return 'badge';
@@ -622,9 +631,9 @@ export default function RequirementList() {
           <h1 style={{margin: 0}}>Requirements Board</h1>
           <p className="text-secondary" style={{marginTop: '0.25rem'}}>
             {viewMode === 'customer' ? (
-              <span>{groupedCustomers.length} customers • {filteredRequirements.length} active requirements</span>
+              <span>{groupedCustomers.length} customers • {filteredRequirements.length} {statusFilter === 'Dispatched' ? 'dispatched' : includeCompleted || statusFilter === 'All' ? 'total' : 'active'} requirements</span>
             ) : (
-              <span>Showing {filteredRequirements.length} {includeCompleted ? 'total' : 'active'} requirements</span>
+              <span>Showing {filteredRequirements.length} {statusFilter === 'Dispatched' ? 'dispatched' : includeCompleted || statusFilter === 'All' ? 'total' : 'active'} requirements</span>
             )}
           </p>
         </div>
@@ -659,6 +668,7 @@ export default function RequirementList() {
       <div style={{display: 'flex', gap: '0.5rem', marginBottom: '1rem', overflowX: 'auto', paddingBottom: '4px'}}>
         <button onClick={() => { clearFilters(); updateFilter('status', 'All Open'); }} className={`badge ${statusFilter === 'All Open' ? 'badge-primary' : 'badge-neutral'}`} style={{cursor: 'pointer'}}>All active</button>
         <button onClick={() => updateFilter('status', 'Overdue')} className={`badge ${statusFilter === 'Overdue' ? 'badge-danger' : 'badge-neutral'}`} style={{cursor: 'pointer'}}>Overdue</button>
+        <button onClick={() => updateFilter('status', 'Dispatched')} className={`badge ${statusFilter === 'Dispatched' ? 'badge-dispatched' : 'badge-neutral'}`} style={{cursor: 'pointer'}}>Dispatched</button>
         <button onClick={() => updateFilter('dateRange', 'Today')} className={`badge ${dateRange === 'Today' ? 'badge-warning' : 'badge-neutral'}`} style={{cursor: 'pointer'}}>Due today</button>
         <button onClick={() => updateFilter('owner', 'My Requirements')} className={`badge ${ownerFilter === 'My Requirements' ? 'badge-primary' : 'badge-neutral'}`} style={{cursor: 'pointer'}}>My requirements</button>
       </div>
@@ -686,6 +696,7 @@ export default function RequirementList() {
             <option value="Engaged">Engaged</option>
             <option value="Qualified">Qualified</option>
             <option value="Commercial Intent">Commercial Intent</option>
+            <option value="Dispatched">Dispatched</option>
             <option value="On Hold">On Hold</option>
             <option value="All">All Statuses</option>
           </select>
@@ -839,18 +850,46 @@ export default function RequirementList() {
                           {group.requirements.map(req => {
                             const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
                             const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
-                            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won'].includes(req.status);
+                            const isDispatched = req.status === 'Dispatched';
+                            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status);
                             const isReqOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
+                            const isPartiallyDispatched = (req.total_dispatched_quantity > 0 && actualPending > 0);
                             return (
-                              <tr key={req.id} style={{borderBottom: '1px solid #E5E7EB', transition: 'background 0.2s', cursor: 'default'}} onMouseEnter={e => e.currentTarget.style.background = '#F3F4F6'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                              <tr 
+                                key={req.id} 
+                                style={{
+                                  borderBottom: '1px solid #E5E7EB', 
+                                  transition: 'background 0.2s', 
+                                  cursor: 'default',
+                                  background: isDispatched ? 'rgba(59, 130, 246, 0.04)' : 'transparent'
+                                }} 
+                                onMouseEnter={e => e.currentTarget.style.background = isDispatched ? 'rgba(59, 130, 246, 0.08)' : '#F3F4F6'} 
+                                onMouseLeave={e => e.currentTarget.style.background = isDispatched ? 'rgba(59, 130, 246, 0.04)' : 'transparent'}
+                              >
                                 <td style={{padding: '12px'}}><Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>
                                   {req.demand_ref ? <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)'}}>{req.demand_ref}</span> : null}
                                   {getProductName(req)}
                                 </Link></td>
-                                <td style={{padding: '12px', fontWeight: 500}}>{getProductQuantity(req)} {getProductUnit(req)}</td>
+                                <td style={{padding: '12px', fontWeight: 500}}>
+                                  {getProductQuantity(req)} {getProductUnit(req)}
+                                  {isPartiallyDispatched && !isDispatched && (
+                                    <div style={{fontSize: '0.72rem', color: '#065F46', marginTop: '2px'}}>
+                                      Disp: {req.total_dispatched_quantity} | Pend: {actualPending}
+                                    </div>
+                                  )}
+                                </td>
                                 <td style={{padding: '12px'}}>{formatRate(req.expected_rate)}</td>
                                 <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>{getFriendlyDate(req.expected_date)}</td>
-                                <td style={{padding: '12px'}}><span className={getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '2px 6px'}}>{req.status}</span></td>
+                                <td style={{padding: '12px'}}>
+                                  <span className={getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '3px 8px'}}>{req.status}</span>
+                                  {isDispatched && (
+                                    <div style={{fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.3}}>
+                                      {req.latest_dispatch_date && <div>📅 {formatDate(req.latest_dispatch_date)}</div>}
+                                      {req.latest_truck_number && <div>🚚 {req.latest_truck_number}</div>}
+                                      {req.total_dispatched_quantity > 0 && <div>📦 {req.total_dispatched_quantity} {getProductUnit(req)}</div>}
+                                    </div>
+                                  )}
+                                </td>
                                 <td style={{padding: '12px'}}>
                                   <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                                     <div style={{width: '8px', height: '8px', borderRadius: '50%', backgroundColor: getPriorityColor(req.priority)}}></div>
@@ -912,7 +951,8 @@ export default function RequirementList() {
           {filteredRequirements.map(req => {
             const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
             const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
-            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won'].includes(req.status);
+            const isDispatched = req.status === 'Dispatched';
+            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status);
             const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
             const isPartiallyDispatched = (req.total_dispatched_quantity > 0 && actualPending > 0);
             
@@ -921,8 +961,12 @@ export default function RequirementList() {
                 key={req.id} 
                 className="glass-panel" 
                 style={{
-                  position: 'relative', display: 'flex', flexDirection: 'column', background: '#ffffff', borderRadius: '12px', padding: '20px', 
-                  border: isOverdue ? '1px solid var(--danger)' : '1px solid #E5E7EB', transition: 'transform 0.2s, box-shadow 0.2s',
+                  position: 'relative', display: 'flex', flexDirection: 'column', 
+                  background: isDispatched ? 'rgba(59, 130, 246, 0.03)' : '#ffffff', 
+                  borderRadius: '12px', padding: '20px', 
+                  border: isDispatched ? '1.5px solid #93C5FD' : isOverdue ? '1px solid var(--danger)' : '1px solid #E5E7EB', 
+                  boxShadow: isDispatched ? '0 4px 12px rgba(59, 130, 246, 0.08)' : undefined,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
                 }}
               >
                 {/* 1. Header */}
@@ -978,7 +1022,20 @@ export default function RequirementList() {
                        {req.intent_type || 'Product Interest'}
                      </span>
                   </div>
-                  {isPartiallyDispatched && (
+                  {isDispatched && (
+                    <div style={{ fontSize: '0.8rem', padding: '10px 12px', background: '#EFF6FF', borderRadius: '6px', border: '1px solid #BFDBFE', color: '#1E40AF', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                        <strong style={{color: '#1D4ED8', letterSpacing: '0.03em', fontSize: '0.75rem'}}>DISPATCH INFORMATION</strong>
+                        <span style={{fontWeight: 600, color: '#1E40AF'}}>{req.total_dispatched_quantity || getProductQuantity(req)} {getProductUnit(req)}</span>
+                      </div>
+                      <div style={{display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.75rem', marginTop: '2px', color: '#2563EB'}}>
+                        {req.latest_dispatch_date && <span>📅 Date: {formatDate(req.latest_dispatch_date)}</span>}
+                        {req.latest_truck_number && <span>🚚 Vehicle: {req.latest_truck_number}</span>}
+                        {req.latest_driver_mobile && <span>📞 Driver: {req.latest_driver_mobile}</span>}
+                      </div>
+                    </div>
+                  )}
+                  {isPartiallyDispatched && !isDispatched && (
                     <div style={{ fontSize: '0.8rem', padding: '6px 10px', background: '#ECFDF5', borderRadius: '4px', border: '1px solid #D1FAE5', color: '#065F46', display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
                       <span>Dispatched: {req.total_dispatched_quantity}</span>
                       <strong style={{color: '#B45309'}}>Pending: {actualPending}</strong>
