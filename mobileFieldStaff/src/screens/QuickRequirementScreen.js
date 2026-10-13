@@ -83,10 +83,6 @@ export function QuickRequirementScreen({ navigation, route }) {
         };
       }));
     }
-        gift: item.gift,
-        other_gift: item.other_gift
-      })));
-    }
   }, []);
 
   useEffect(() => {
