@@ -38,23 +38,44 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async () => {
       return BackgroundFetch.BackgroundFetchResult.NoData;
     }
 
-    // 4. Schedule local notifications for the strictly NEW messages
+    // 4. Group new notifications by conversation so multiple messages from the same conversation
+    // update/replace a single tray notification rather than stacking multiple entries.
+    const convGroups = new Map();
     for (const notif of newNotifs) {
+      const convId = notif.entity_id || notif.id;
+      if (!convGroups.has(convId)) {
+        convGroups.set(convId, []);
+      }
+      convGroups.get(convId).push(notif);
+    }
+
+    for (const [convId, group] of convGroups.entries()) {
+      // Sort to get the latest message
+      group.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const latestNotif = group[0];
+      const count = group.length;
+
+      const title = count > 1 
+        ? `${latestNotif.title || 'Shubh Labh Staff'} (${count} new messages)` 
+        : (latestNotif.title || 'Shubh Labh Staff');
+
       await Notifications.scheduleNotificationAsync({
-        identifier: notif.id,
+        identifier: convId,
         content: {
-          title: notif.title || 'Shubh Labh Staff',
-          body: notif.message || 'New message',
+          title,
+          body: latestNotif.message || 'New message',
           data: {
             type: 'chat_message',
-            conversation_id: notif.entity_id,
-            notification_id: notif.id
+            conversation_id: latestNotif.entity_id,
+            notification_id: latestNotif.id
           },
           sound: true
         },
         trigger: null, // deliver immediately
       });
-      deliveredIds.push(notif.id);
+
+      // Mark all raw IDs in this group as delivered
+      group.forEach(n => deliveredIds.push(n.id));
     }
 
     // 5. Keep the delivered array from growing indefinitely (keep last 200)

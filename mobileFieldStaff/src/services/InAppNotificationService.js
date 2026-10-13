@@ -150,4 +150,39 @@ export class InAppNotificationService {
       await this.saveLocalNotifications(userId, local);
     }
   }
+
+  /**
+   * Marks all notifications as read for the user, both locally and synced to backend.
+   */
+  static async markAllAsRead(userId) {
+    if (!userId) return;
+
+    let local = await this.getLocalNotifications(userId);
+    const unread = local.filter(n => !n.is_read);
+    if (unread.length === 0) return;
+
+    // 1. Mark all read in local cache immediately
+    local = local.map(n => ({ ...n, is_read: true }));
+    await this.saveLocalNotifications(userId, local);
+
+    // 2. Direct backend update if online
+    try {
+      await supabase
+        .from('crm_notifications')
+        .update({ is_read: true })
+        .eq('user_id', userId)
+        .eq('is_read', false);
+    } catch (err) {
+      console.warn('markAllAsRead direct update failed, fallback to sync queue:', err);
+    }
+
+    // 3. Enqueue operations in SyncService for offline resilience
+    for (const notif of unread) {
+      await SyncService.enqueueOperation('crm_notifications', {
+        id: notif.id,
+        is_read: true
+      }, userId, 'update');
+    }
+  }
 }
+

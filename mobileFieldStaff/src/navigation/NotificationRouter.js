@@ -17,6 +17,12 @@
 
 import { supabase } from '../lib/supabase';
 import { navigate } from './RootNavigation';
+import * as Notifications from 'expo-notifications';
+
+function isValidUUID(value) {
+  if (!value) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
 
 /**
  * Fetch the other participant's profile for a given conversation.
@@ -62,19 +68,19 @@ async function resolveOtherUser(conversationId, currentUserId) {
 export async function handleNotificationPress(notification, currentUserId) {
   if (!notification) return;
 
-  const { entity_type, entity_id, link_url, title } = notification;
+  const { entity_type, entity_id, link_url, title, party_id, notification_type } = notification;
 
   // ── CHAT MESSAGE ───────────────────────────────────────────────
-  if (entity_type === 'CHAT_MESSAGE' && entity_id) {
+  if ((entity_type === 'CHAT_MESSAGE' || notification_type === 'CHAT') && entity_id) {
     const conversationId = entity_id;
+
+    // Dismiss tray notification for this conversation immediately upon tapping
+    Notifications.dismissNotificationAsync(conversationId).catch(() => {});
 
     // Resolve other user (may return null if offline — screen will cope)
     const otherUser = await resolveOtherUser(conversationId, currentUserId);
 
     // Navigate directly to the exact conversation.
-    // If another conversation is already mounted, React Navigation will
-    // replace/push the stack to the correct target because we always pass
-    // the canonical conversationId.
     navigate('ChatConversation', {
       conversationId,
       otherUser: otherUser || { full_name: title || 'Staff Member', role: 'Staff' },
@@ -82,28 +88,58 @@ export async function handleNotificationPress(notification, currentUserId) {
     return;
   }
 
+  // ── ORDERS & REQUIREMENTS ──────────────────────────────────────
+  if (
+    entity_type === 'order' || 
+    entity_type === 'orders' || 
+    notification_type === 'ORDER_CREATED' ||
+    (link_url && (link_url.includes('/requirements/') || link_url.includes('/orders/')))
+  ) {
+    let targetOrderId = entity_id;
+    if (!targetOrderId && link_url) {
+      const parts = link_url.split('?')[0].split('/');
+      const lastPart = parts[parts.length - 1];
+      if (isValidUUID(lastPart)) {
+        targetOrderId = lastPart;
+      }
+    }
+
+    if (targetOrderId && isValidUUID(targetOrderId)) {
+      navigate('OrderDetail', { orderId: targetOrderId });
+      return;
+    }
+    navigate('MyOrders');
+    return;
+  }
+
   // ── CUSTOMER PROFILE ───────────────────────────────────────────
   if (link_url && link_url.includes('/customers/')) {
-    const partyId = link_url.split('/customers/').pop().split('/')[0];
-    if (partyId) {
-      navigate('CustomerProfile', { customerId: partyId });
+    const partyIdFromUrl = link_url.split('/customers/').pop().split('/')[0].split('?')[0];
+    if (partyIdFromUrl && isValidUUID(partyIdFromUrl)) {
+      navigate('CustomerProfile', { customerId: partyIdFromUrl });
       return;
     }
   }
 
-  // ── MY WORK ────────────────────────────────────────────────────
-  if (link_url === '/my-work') {
+  // ── MY WORK / TASKS / ASSIGNMENTS / FOLLOW-UPS ─────────────────
+  if (
+    link_url === '/my-work' || 
+    entity_type === 'follow_ups' || 
+    notification_type === 'TASK_ASSIGNED' || 
+    notification_type === 'Reminder' ||
+    notification_type === 'Assignment'
+  ) {
     navigate('MainTabs', { screen: 'My Work' });
     return;
   }
 
-  // ── FOLLOW-UP / REQUIREMENT – entity_id present ────────────────
-  if (entity_type === 'follow_ups' && entity_id) {
-    // Navigate to My Work with a focus hint; the screen can highlight it
-    navigate('MainTabs', { screen: 'My Work' });
+  // ── PARTY_ID FALLBACK ──────────────────────────────────────────
+  if (party_id && isValidUUID(party_id)) {
+    navigate('CustomerProfile', { customerId: party_id });
     return;
   }
 
   // ── DEFAULT: open notifications list ───────────────────────────
   navigate('Notifications');
 }
+

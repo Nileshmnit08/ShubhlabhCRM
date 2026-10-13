@@ -238,9 +238,14 @@ export const NotificationProvider = ({ children }) => {
               // User is actively viewing this conversation in the foreground – silently mark read
               await InAppNotificationService.markAsRead(userId, newNotif.id);
             } else {
-              // Instead of a fake toast, fire a real Android system notification
+              // Smart Chat Notification: Group tray notification by conversation_id (entity_id)
+              // so successive messages update/replace the tray card rather than stacking individual notifications.
+              const trayIdentifier = (newNotif.entity_id && isValidUUID(newNotif.entity_id)) 
+                ? newNotif.entity_id 
+                : newNotif.id;
+
               await Notifications.scheduleNotificationAsync({
-                identifier: newNotif.id,
+                identifier: trayIdentifier,
                 content: {
                   title: newNotif.title || 'Shubh Labh Staff',
                   body: newNotif.message || 'New message',
@@ -289,6 +294,7 @@ export const NotificationProvider = ({ children }) => {
     );
     updateState(updated);
     await InAppNotificationService.markAsRead(userId, notificationId);
+    Notifications.dismissNotificationAsync(notificationId).catch(() => {});
   }, [userId, notifications]);
 
   const markEntityAsRead = useCallback(async (entityId) => {
@@ -298,6 +304,17 @@ export const NotificationProvider = ({ children }) => {
     );
     updateState(updated);
     await InAppNotificationService.markEntityAsRead(userId, entityId);
+    // Dismiss corresponding conversation notification from system tray
+    Notifications.dismissNotificationAsync(entityId).catch(() => {});
+  }, [userId, notifications]);
+
+  const markAllAsRead = useCallback(async () => {
+    if (!userId) return;
+    const updated = notifications.map(n => ({ ...n, is_read: true }));
+    updateState(updated);
+    await InAppNotificationService.markAllAsRead(userId);
+    // Dismiss all system notifications
+    Notifications.dismissAllNotificationsAsync().catch(() => {});
   }, [userId, notifications]);
 
   const updateState = (data) => {
@@ -326,6 +343,7 @@ export const NotificationProvider = ({ children }) => {
         syncNotifications: syncWithBackend,
         markAsRead,
         markEntityAsRead,
+        markAllAsRead,
         setActiveChatId,
         routePendingColdStart,
         setPendingColdStart: (notif) => { pendingColdStartRef.current = notif; },
