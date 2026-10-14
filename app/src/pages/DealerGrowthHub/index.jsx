@@ -160,7 +160,7 @@ export default function DealerGrowthHub() {
   };
 
   if (!isAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/today" replace />;
   }
 
   const handleKpiClick = (viewName) => {

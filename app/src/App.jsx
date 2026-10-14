@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import AppShell from './components/AppShell';
 import { AuthContext } from './AuthContext';
 import { LanguageContext } from './LanguageContext';
@@ -59,6 +59,12 @@ import BusinessUpdateDetail from './pages/BusinessUpdates/Detail';
 import TravelExpenses from './pages/TravelExpenses';
 import FieldMobility from './pages/FieldMobility';
 
+// Public Website, Login & 404
+import PublicWebsite from './pages/PublicWebsite/PublicWebsite';
+import LoginPortal from './pages/Login/LoginPortal';
+import NotFound from './components/NotFound';
+import WebsiteCMS from './pages/WebsiteCMS';
+
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
   <div className="animate-fade-in" style={{padding: '3rem', textAlign: 'center'}}>
@@ -70,7 +76,38 @@ const Placeholder = ({ title }) => (
 const AdminRoute = () => {
   const { userProfile } = React.useContext(AuthContext);
   if (!userProfile) return null;
-  if (userProfile.role !== 'Admin') return <Navigate to="/" replace />;
+  if (userProfile.role !== 'Admin') return <Navigate to="/today" replace />;
+  return <Outlet />;
+};
+
+const ProtectedRoute = () => {
+  const { session, userProfile, loading } = React.useContext(AuthContext);
+  const location = useLocation();
+
+  if (loading) {
+    return (
+      <div style={{padding: '3rem', textAlign: 'center', color: 'var(--text-muted)'}}>
+        Loading secure session...
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Navigate to="/login?destination=crm" state={{ from: location }} replace />;
+  }
+
+  if (userProfile && !userProfile.is_active) {
+    return (
+      <div style={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)'}}>
+        <div className="glass-panel" style={{padding: '3rem', textAlign: 'center', maxWidth: '400px'}}>
+          <h2 className="text-danger">Unauthorized</h2>
+          <p className="text-secondary" style={{marginTop: '1rem'}}>Your account is currently inactive. Please contact your system administrator for access.</p>
+          <button className="btn btn-secondary" style={{marginTop: '2rem'}} onClick={() => supabase.auth.signOut()}>Sign Out</button>
+        </div>
+      </div>
+    );
+  }
+
   return <Outlet />;
 };
 
@@ -122,19 +159,18 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId) => {
+  const fetchUserProfile = async (userId, retries = 3) => {
     try {
       const { data, error } = await supabase.from('app_users').select('*').eq('id', userId).single();
       if (error) {
-        // If row doesn't exist yet (e.g. trigger hasn't finished), retry or handle
-        if (error.code === 'PGRST116') {
-           // Poll briefly for auto-provisioning
-           setTimeout(async () => {
-             const { data: retryData } = await supabase.from('app_users').select('*').eq('id', userId).single();
-             setUserProfile(retryData || { role: 'Staff', is_active: false });
-             setLoading(false);
-           }, 1000);
-           return;
+        // Handle clock skew (PGRST303 / JWT issued at future) or auto-provisioning delay (PGRST116)
+        const isClockSkew = error.code === 'PGRST303' || (error.message && error.message.includes('future'));
+        const isNotReady = error.code === 'PGRST116';
+        if ((isClockSkew || isNotReady) && retries > 0) {
+          setTimeout(() => {
+            fetchUserProfile(userId, retries - 1);
+          }, 1000);
+          return;
         }
         throw error;
       }
@@ -148,9 +184,10 @@ function App() {
       }
       
       setUserProfile(data);
+      setAuthError(null);
     } catch (err) {
-      console.error(err);
-      setAuthError("Failed to fetch user profile.");
+      console.error('fetchUserProfile error:', err);
+      setAuthError("Failed to fetch user profile: " + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -197,110 +234,103 @@ function App() {
     }
   };
 
-  if (loading) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--text-muted)'}}>Loading secure session...</div>;
-
   if (authError) return <div style={{padding: '3rem', textAlign: 'center', color: 'var(--danger)'}}>{authError}</div>;
-
-  if (!session) {
-    return <Auth />;
-  }
-
-  if (userProfile && !userProfile.is_active) {
-    return (
-      <div style={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)'}}>
-        <div className="glass-panel" style={{padding: '3rem', textAlign: 'center', maxWidth: '400px'}}>
-          <h2 className="text-danger">Unauthorized</h2>
-          <p className="text-secondary" style={{marginTop: '1rem'}}>Your account is currently inactive. Please contact your system administrator for access.</p>
-          <button className="btn btn-secondary" style={{marginTop: '2rem'}} onClick={() => supabase.auth.signOut()}>Sign Out</button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <ErrorBoundary>
-      <AuthContext.Provider value={{ session, userProfile, setUserProfile, crmSettings, setCrmSettings }}>
+      <AuthContext.Provider value={{ session, userProfile, setUserProfile, crmSettings, setCrmSettings, loading }}>
         <LanguageContext.Provider value={{ language, setLanguage: handleSetLanguage, t }}>
           <BrowserRouter>
             <Routes>
-            <Route path="/" element={<AppShell />}>
-              <Route index element={<Today />} />
-              
-              {/* Operational Areas (Daily Work) - Available to all Users */}
-              <Route path="customers">
-                <Route index element={<CustomerList />} />
-                <Route path="new" element={<CustomerForm />} />
-                <Route path=":id" element={<CustomerView />} />
-                <Route path=":id/edit" element={<CustomerForm />} />
-              </Route>
-              <Route path="requirements">
-                <Route index element={<RequirementList />} />
-                <Route path="new" element={<RequirementForm />} />
-                <Route path=":id" element={<RequirementView />} />
-                <Route path=":id/edit" element={<RequirementForm />} />
-              </Route>
-              <Route path="follow-ups">
-                <Route index element={<FollowUpList />} />
-                <Route path="new" element={<FollowUpForm />} />
-                <Route path=":id/edit" element={<FollowUpForm />} />
-              </Route>
-              <Route path="payments" element={<PaymentWorkspace />} />
-              <Route path="dispatches">
-                <Route index element={<DispatchDashboard />} />
-                <Route path="list" element={<DispatchList />} />
-                <Route path=":id" element={<DispatchDetail />} />
-              </Route>
+              {/* Public Website */}
+              <Route path="/" element={<PublicWebsite />} />
 
-              {/* Admin-Only Routes */}
-              <Route element={<AdminRoute />}>
-                <Route path="communication" element={<CommunicationDashboard />} />
-                <Route path="customer-updates">
-                  <Route index element={<BusinessUpdatesList />} />
-                  <Route path="new" element={<BusinessUpdateForm />} />
-                  <Route path=":id" element={<BusinessUpdateDetail />} />
+              {/* Workspace Destination Selector & Auth */}
+              <Route path="/login" element={<LoginPortal />} />
+
+              {/* Protected CRM Workspace */}
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppShell />}>
+                  <Route path="today" element={<Today />} />
+                  
+                  {/* Operational Areas (Daily Work) - Available to all Users */}
+                  <Route path="customers">
+                    <Route index element={<CustomerList />} />
+                    <Route path="new" element={<CustomerForm />} />
+                    <Route path=":id" element={<CustomerView />} />
+                    <Route path=":id/edit" element={<CustomerForm />} />
+                  </Route>
+                  <Route path="requirements">
+                    <Route index element={<RequirementList />} />
+                    <Route path="new" element={<RequirementForm />} />
+                    <Route path=":id" element={<RequirementView />} />
+                    <Route path=":id/edit" element={<RequirementForm />} />
+                  </Route>
+                  <Route path="follow-ups">
+                    <Route index element={<FollowUpList />} />
+                    <Route path="new" element={<FollowUpForm />} />
+                    <Route path=":id/edit" element={<FollowUpForm />} />
+                  </Route>
+                  <Route path="payments" element={<PaymentWorkspace />} />
+                  <Route path="dispatches">
+                    <Route index element={<DispatchDashboard />} />
+                    <Route path="list" element={<DispatchList />} />
+                    <Route path=":id" element={<DispatchDetail />} />
+                  </Route>
+
+                  {/* Admin-Only Routes */}
+                  <Route element={<AdminRoute />}>
+                    <Route path="communication" element={<CommunicationDashboard />} />
+                    <Route path="customer-updates">
+                      <Route index element={<BusinessUpdatesList />} />
+                      <Route path="new" element={<BusinessUpdateForm />} />
+                      <Route path=":id" element={<BusinessUpdateDetail />} />
+                    </Route>
+                    <Route path="system-requirements" element={<SystemRequirementsBoard />} />
+                    <Route path="leads">
+                      <Route index element={<CustomerList isLeadMode />} />
+                      <Route path="new" element={<CustomerForm isLeadMode />} />
+                      <Route path=":id" element={<CustomerView isLeadMode />} />
+                      <Route path=":id/edit" element={<CustomerForm isLeadMode />} />
+                    </Route>
+                    <Route path="opportunities" element={<Opportunities />} />
+                    <Route path="dormant" element={<DormantList />} />
+                    <Route path="reactivation" element={<ReactivationQueue />} />
+                    
+                    <Route path="data">
+                      <Route index element={<Navigate to="import" replace />} />
+                      <Route path="import" element={<DataImport />} />
+                      <Route path="review" element={<ReviewQueue />} />
+                      <Route path="quality" element={<DataQuality />} />
+                    </Route>
+                    
+                    <Route path="activity" element={<ActivityTimeline />} />
+                    <Route path="staff-messages" element={<StaffMessages />} />
+                    <Route path="reports/follow-up-activity" element={<FollowUpActivityReport />} />
+                    <Route path="performance" element={<Performance />} />
+                    <Route path="control-room" element={<ControlRoom />} />
+                    <Route path="account-control" element={<AccountControl />} />
+                    <Route path="communication" element={<CommunicationDashboard />} />
+                    <Route path="dealer-control" element={<DealerControlTower />} />
+                    <Route path="demand-signals" element={<DemandSignals />} />
+                    <Route path="product-demand" element={<ProductDemand />} />
+                    <Route path="territory-demand" element={<TerritoryDemand />} />
+                    <Route path="demand-control-tower" element={<DemandControlTower />} />
+                    <Route path="coverage" element={<CoverageIntelligence />} />
+                    <Route path="automation-control" element={<AutomationControl />} />
+                    <Route path="raw-material-prices/*" element={<RawMaterialPrices />} />
+                    <Route path="customer-price-publishing/*" element={<CustomerPricePublishing />} />
+                    <Route path="settings" element={<Settings />} />
+                    <Route path="logistics" element={<Logistics />} />
+                    <Route path="travel-expenses" element={<TravelExpenses />} />
+                    <Route path="field-mobility" element={<FieldMobility />} />
+                    <Route path="website-cms/*" element={<WebsiteCMS />} />
+                  </Route>
                 </Route>
-                <Route path="system-requirements" element={<SystemRequirementsBoard />} />
-                <Route path="leads">
-                  <Route index element={<CustomerList isLeadMode />} />
-                  <Route path="new" element={<CustomerForm isLeadMode />} />
-                  <Route path=":id" element={<CustomerView isLeadMode />} />
-                  <Route path=":id/edit" element={<CustomerForm isLeadMode />} />
-                </Route>
-                <Route path="opportunities" element={<Opportunities />} />
-                <Route path="dormant" element={<DormantList />} />
-                <Route path="reactivation" element={<ReactivationQueue />} />
-                
-                <Route path="data">
-                  <Route index element={<Navigate to="import" replace />} />
-                  <Route path="import" element={<DataImport />} />
-                  <Route path="review" element={<ReviewQueue />} />
-                  <Route path="quality" element={<DataQuality />} />
-                </Route>
-                
-                <Route path="activity" element={<ActivityTimeline />} />
-                <Route path="staff-messages" element={<StaffMessages />} />
-                <Route path="reports/follow-up-activity" element={<FollowUpActivityReport />} />
-                <Route path="performance" element={<Performance />} />
-                <Route path="control-room" element={<ControlRoom />} />
-                <Route path="account-control" element={<AccountControl />} />
-                <Route path="communication" element={<CommunicationDashboard />} />
-                <Route path="dealer-control" element={<DealerControlTower />} />
-                <Route path="demand-signals" element={<DemandSignals />} />
-                <Route path="product-demand" element={<ProductDemand />} />
-                <Route path="territory-demand" element={<TerritoryDemand />} />
-                <Route path="demand-control-tower" element={<DemandControlTower />} />
-                <Route path="coverage" element={<CoverageIntelligence />} />
-                <Route path="automation-control" element={<AutomationControl />} />
-                <Route path="raw-material-prices/*" element={<RawMaterialPrices />} />
-                <Route path="customer-price-publishing/*" element={<CustomerPricePublishing />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="logistics" element={<Logistics />} />
-                <Route path="travel-expenses" element={<TravelExpenses />} />
-                <Route path="field-mobility" element={<FieldMobility />} />
               </Route>
               
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
+              {/* Not Found */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </LanguageContext.Provider>

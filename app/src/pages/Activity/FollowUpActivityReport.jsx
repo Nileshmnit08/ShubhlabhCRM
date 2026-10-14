@@ -128,7 +128,7 @@ export default function FollowUpActivityReport() {
     <div className="animate-fade-in" style={{maxWidth: '1200px', margin: '0 auto'}}>
       <div className="page-header" style={{alignItems: 'flex-start'}}>
         <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
-          <Link to="/" className="btn-icon"><ArrowLeft size={24} /></Link>
+          <Link to="/today" className="btn-icon"><ArrowLeft size={24} /></Link>
           <div>
             <h1 style={{margin: 0}}>Follow-up Activity Report</h1>
             <p className="text-secondary" style={{margin: '0.25rem 0 0 0'}}>Detailed interaction logs and compliance tracking</p>

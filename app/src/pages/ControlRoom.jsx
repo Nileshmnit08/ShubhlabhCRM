@@ -129,7 +129,7 @@ export default function ControlRoom() {
   }
 
   if (userProfile?.role !== 'Admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/today" replace />;
   }
 
   if (loading) return <div style={{padding: '3rem', textAlign: 'center'}}>Loading Management View...</div>;

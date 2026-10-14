@@ -30,7 +30,7 @@ export default function DataQuality() {
   }
 
   if (userProfile?.role !== 'Admin') {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/today" replace />;
   }
 
   // Derived summaries

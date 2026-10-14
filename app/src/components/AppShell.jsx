@@ -9,8 +9,8 @@
  */
 
 import React, { useContext, useState, useRef } from 'react';
-import { Outlet } from 'react-router-dom';
-import { Menu, Globe, LogOut, Bell } from 'lucide-react';
+import { Outlet, useNavigate, Link } from 'react-router-dom';
+import { Menu, Globe, LogOut, Bell, ExternalLink } from 'lucide-react';
 import { AuthContext } from '../AuthContext';
 import { LanguageContext } from '../LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -27,6 +27,7 @@ import IncomingCallModal from '../pages/Calling/IncomingCallModal';
 import ActiveCallUI from '../pages/Calling/ActiveCallUI';
 
 export default function AppShell() {
+  const navigate = useNavigate();
   const { userProfile, crmSettings } = useContext(AuthContext);
   const { language, setLanguage } = useContext(LanguageContext);
 
@@ -54,6 +55,7 @@ export default function AppShell() {
       summary: 'User logged out.',
     });
     await supabase.auth.signOut();
+    navigate('/', { replace: true });
   };
 
   const handleNotifClick = () => {
@@ -87,6 +89,16 @@ export default function AppShell() {
           </button>
 
           <div className="topbar-right">
+            {/* Link to Public Website */}
+            <Link
+              to="/"
+              className="btn-icon topbar-btn"
+              title="Visit Public Website"
+              aria-label="Visit Public Website"
+            >
+              <ExternalLink size={18} />
+            </Link>
+
             {/* Create Requirement */}
             <button
               className="btn-icon topbar-btn"

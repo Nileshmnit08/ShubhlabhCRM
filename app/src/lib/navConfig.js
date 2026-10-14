@@ -61,6 +61,7 @@ import {
   PieChart,
   Send,
   Wrench,
+  Globe,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
@@ -93,7 +94,7 @@ export const NAV_SECTIONS = [
       {
         id: 'today',
         label: 'Today',
-        href: '/',
+        href: '/today',
         icon: LayoutDashboard,
         badgeSource: null,
         permissionKey: 'all',
@@ -571,6 +572,15 @@ export const NAV_SECTIONS = [
         label: 'Settings',
         href: '/settings',
         icon: Settings,
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
+      {
+        id: 'website-cms',
+        label: 'Website CMS',
+        href: '/website-cms',
+        icon: Globe,
         badgeSource: null,
         permissionKey: 'admin',
         pinEligible: true,
