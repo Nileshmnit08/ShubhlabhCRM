@@ -1,0 +1,436 @@
+/* =============================================================================
+   SHUBH LABH WEBSITE LEAD FORMS & MODALS STYLES
+   Design System: Deep Emerald Green, Amber Gold, Clean Slate Glassmorphism
+   ============================================================================= */
+
+/* Form Wrapper & Card */
+.lead-form-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 2.25rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.lead-form-header {
+  margin-bottom: 1.75rem;
+}
+
+.lead-form-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #15803d;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+}
+
+.lead-form-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.4rem;
+}
+
+.lead-form-subtitle {
+  font-size: 0.88rem;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Grid & Field Layout */
+.lead-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.15rem;
+  margin-bottom: 1.25rem;
+}
+
+.lead-form-grid.single-col {
+  grid-template-columns: 1fr;
+}
+
+.lead-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.lead-form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.lead-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.lead-label .optional {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.lead-input,
+.lead-select,
+.lead-textarea {
+  width: 100%;
+  padding: 0.7rem 0.95rem;
+  font-size: 0.92rem;
+  color: #0f172a;
+  background-color: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  outline: none;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.lead-input:focus,
+.lead-select:focus,
+.lead-textarea:focus {
+  background-color: #ffffff;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+}
+
+.lead-input.has-error,
+.lead-select.has-error,
+.lead-textarea.has-error {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.lead-field-error {
+  font-size: 0.78rem;
+  color: #dc2626;
+  font-weight: 500;
+  margin-top: 0.15rem;
+}
+
+/* Checkbox Toggle */
+.lead-checkbox-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lead-checkbox-wrap input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #16a34a;
+  cursor: pointer;
+}
+
+/* Radio Group (Preferred Contact) */
+.lead-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.lead-radio-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #f1f5f9;
+  padding: 0.4rem 0.8rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+}
+
+.lead-radio-pill.active {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.lead-radio-pill input {
+  display: none;
+}
+
+/* Section Divider in Long Forms */
+.lead-section-divider {
+  border-top: 1px dashed #e2e8f0;
+  padding-top: 1.25rem;
+  margin-top: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.lead-section-title-sm {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lead-section-title-sm .step-dot {
+  width: 22px;
+  height: 22px;
+  background-color: #16a34a;
+  color: #ffffff;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+/* Submission Action Button */
+.lead-btn-submit {
+  width: 100%;
+  padding: 0.85rem 1.5rem;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.3);
+  transition: all 0.25s ease;
+  margin-top: 0.75rem;
+}
+
+.lead-btn-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.4);
+}
+
+.lead-btn-submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.lead-btn-submit .spinner-icon {
+  animation: leadSpin 1s infinite linear;
+}
+
+@keyframes leadSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Error Banner */
+.lead-error-banner {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Success Confirmation Card */
+.lead-success-card {
+  text-align: center;
+  padding: 2.5rem 1.5rem;
+  background: #f0fdf4;
+  border: 1.5px solid #86efac;
+  border-radius: 16px;
+  animation: leadFadeIn 0.3s ease-out;
+}
+
+@keyframes leadFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lead-success-icon {
+  width: 60px;
+  height: 60px;
+  background-color: #16a34a;
+  color: #ffffff;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 6px 18px rgba(22, 163, 74, 0.3);
+}
+
+.lead-success-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #14532d;
+  margin-bottom: 0.5rem;
+}
+
+.lead-success-desc {
+  font-size: 0.92rem;
+  color: #166534;
+  max-width: 480px;
+  margin: 0 auto 1.5rem;
+  line-height: 1.6;
+}
+
+.lead-success-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.btn-success-wa {
+  background-color: #25d366;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-success-wa:hover {
+  background-color: #20ba59;
+  transform: translateY(-2px);
+}
+
+.btn-reset-form {
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-form:hover {
+  background-color: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+/* Modal Popup Overlay (Product Quick Enquiry) */
+.lead-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  z-index: 1000;
+  animation: leadFadeIn 0.2s ease;
+}
+
+.lead-modal-box {
+  background: #ffffff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.lead-modal-header {
+  padding: 1.5rem 1.75rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.lead-modal-body {
+  padding: 1.75rem;
+}
+
+.lead-modal-close-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.lead-modal-close-btn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .lead-form-card {
+    padding: 1.5rem 1.15rem;
+    border-radius: 14px;
+  }
+  .lead-form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+  }
+  .lead-form-title {
+    font-size: 1.25rem;
+  }
+  .lead-modal-body {
+    padding: 1.25rem;
+  }
+}
+
+/* Anti-bot Honeypot Trap (Completely hidden from screen and assistive tech) */
+.hp-trap-field {
+  display: none !important;
+  visibility: hidden !important;
+  position: absolute !important;
+  left: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}

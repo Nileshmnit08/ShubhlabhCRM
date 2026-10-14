@@ -12,6 +12,7 @@ import {
   getProductBySlug 
 } from '../../lib/productCatalogueData';
 import { supabase } from '../../lib/supabase';
+import ProductEnquiryModal from './components/ProductEnquiryModal';
 import './publicWebsite.css';
 
 export default function ProductDetailPage() {
@@ -23,6 +24,7 @@ export default function ProductDetailPage() {
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isEnquiryModalOpen, setIsEnquiryModalOpen] = useState(false);
   const [contactSettings, setContactSettings] = useState({
     phone: '',
     whatsapp: '',
@@ -258,7 +260,17 @@ export default function ProductDetailPage() {
                   <ExternalLink size={16} />
                 </a>
 
-                <Link to="/#dealer" className="btn btn-secondary btn-lg">
+                <button 
+                  type="button" 
+                  onClick={() => setIsEnquiryModalOpen(true)}
+                  className="btn btn-secondary btn-lg quick-enquiry-trigger-btn"
+                  id="open-product-enquiry-modal-btn"
+                >
+                  <FileText size={18} />
+                  <span>Enquire Formulation</span>
+                </button>
+
+                <Link to="/#dealer" className="btn btn-outline btn-lg">
                   <span>Apply for Dealership</span>
                 </Link>
 
@@ -382,6 +394,13 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </footer>
+
+      {/* Product Quick Enquiry Modal */}
+      <ProductEnquiryModal
+        product={product}
+        isOpen={isEnquiryModalOpen}
+        onClose={() => setIsEnquiryModalOpen(false)}
+      />
     </div>
   );
 }

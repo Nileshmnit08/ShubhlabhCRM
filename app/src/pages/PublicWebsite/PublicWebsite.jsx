@@ -9,6 +9,8 @@ import {
   AUTHORITATIVE_PRODUCTS 
 } from '../../lib/productCatalogueData';
 import ProductsMegaMenu from './ProductsMegaMenu';
+import ContactForm from './components/ContactForm';
+import BecomeDealerForm from './components/BecomeDealerForm';
 import './publicWebsite.css';
 
 // Canonical 7 navigation items with verified IDs and targets
@@ -1193,8 +1195,8 @@ export default function PublicWebsite() {
                   >
                     Apply for Dealership on WhatsApp ↗
                   </a>
-                  <a className="btn btn-outline" href="#contact">
-                    Submit Dealership Inquiry →
+                  <a className="btn btn-outline" href="#dealer-form-box">
+                    Fill Application Form ↓
                   </a>
                 </div>
               </div>
@@ -1211,6 +1213,11 @@ export default function PublicWebsite() {
                   <div className="orbit-badge">ESTABLISHED QUALITY</div>
                 </div>
               </div>
+            </div>
+
+            {/* Embedded Commercial Dealer Application Form */}
+            <div id="dealer-form-box" className="dealer-form-container-box reveal" style={{ marginTop: '2.5rem' }}>
+              <BecomeDealerForm />
             </div>
           </div>
         </section>
@@ -1235,75 +1242,80 @@ export default function PublicWebsite() {
                   <strong>Operating Hours:</strong>
                   <span>Monday – Saturday: 9:00 AM to 6:30 PM (IST)</span>
                 </div>
+
+                <div className="contact-direct-channels-list" style={{ marginTop: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  {/* Channel 1: WhatsApp */}
+                  <a
+                    className="contact-card whatsapp-channel"
+                    href={contactSettings.whatsapp
+                      ? `https://wa.me/${contactSettings.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello Shubh Labh, I would like to enquire about your cattle feed products and dealership opportunities.')}`
+                      : 'https://wa.me/?text=Hello%20Shubh%20Labh'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div className="channel-icon-box">💬</div>
+                    <div className="channel-details">
+                      <span className="channel-tag">DIRECT MESSAGING</span>
+                      <strong className="channel-title">Chat on WhatsApp</strong>
+                      <span className="channel-info">{contactSettings.whatsapp ? `Message us at ${contactSettings.whatsapp}` : 'Instant response for product & dealer queries'}</span>
+                    </div>
+                    <span className="channel-arrow">↗</span>
+                  </a>
+
+                  {/* Channel 2: Phone */}
+                  {contactSettings.phone && (
+                    <a className="contact-card phone-channel" href={`tel:${contactSettings.phone.replace(/[^0-9+]/g, '')}`}>
+                      <div className="channel-icon-box">☎</div>
+                      <div className="channel-details">
+                        <span className="channel-tag">CUSTOMER HELPLINE</span>
+                        <strong className="channel-title">Call {contactSettings.phone}</strong>
+                        <span className="channel-info">Speak with our regional sales & technical representative</span>
+                      </div>
+                      <span className="channel-arrow">↗</span>
+                    </a>
+                  )}
+
+                  {/* Channel 3: Email */}
+                  {contactSettings.email && (
+                    <a className="contact-card email-channel" href={`mailto:${contactSettings.email}`}>
+                      <div className="channel-icon-box">✉</div>
+                      <div className="channel-details">
+                        <span className="channel-tag">OFFICIAL CORRESPONDENCE</span>
+                        <strong className="channel-title">{contactSettings.email}</strong>
+                        <span className="channel-info">For corporate, institutional, and tender requests</span>
+                      </div>
+                      <span className="channel-arrow">↗</span>
+                    </a>
+                  )}
+
+                  {/* Channel 4: Plant / Office Location */}
+                  {contactSettings.address && (
+                    <div className="contact-card location-channel">
+                      <div className="channel-icon-box">📍</div>
+                      <div className="channel-details">
+                        <span className="channel-tag">MANUFACTURING & OFFICE</span>
+                        <strong className="channel-title">Registered Facility</strong>
+                        <span className="channel-info">{contactSettings.address}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Channel 5: CRM Staff Portal */}
+                  <Link className="contact-card portal-channel" to="/login?destination=crm">
+                    <div className="channel-icon-box">⌘</div>
+                    <div className="channel-details">
+                      <span className="channel-tag">INTERNAL TEAM PORTAL</span>
+                      <strong className="channel-title">Open Shubh Labh CRM</strong>
+                      <span className="channel-info">Secure access for staff, field officers, and administrators</span>
+                    </div>
+                    <span className="channel-arrow">→</span>
+                  </Link>
+                </div>
               </div>
 
-              <div className="contact-cards-column reveal">
-                {/* Channel 1: WhatsApp */}
-                <a
-                  className="contact-card whatsapp-channel"
-                  href={contactSettings.whatsapp
-                    ? `https://wa.me/${contactSettings.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello Shubh Labh, I would like to enquire about your cattle feed products and dealership opportunities.')}`
-                    : 'https://wa.me/?text=Hello%20Shubh%20Labh'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <div className="channel-icon-box">💬</div>
-                  <div className="channel-details">
-                    <span className="channel-tag">DIRECT MESSAGING</span>
-                    <strong className="channel-title">Chat on WhatsApp</strong>
-                    <span className="channel-info">{contactSettings.whatsapp ? `Message us at ${contactSettings.whatsapp}` : 'Instant response for product & dealer queries'}</span>
-                  </div>
-                  <span className="channel-arrow">↗</span>
-                </a>
-
-                {/* Channel 2: Phone */}
-                {contactSettings.phone && (
-                  <a className="contact-card phone-channel" href={`tel:${contactSettings.phone.replace(/[^0-9+]/g, '')}`}>
-                    <div className="channel-icon-box">☎</div>
-                    <div className="channel-details">
-                      <span className="channel-tag">CUSTOMER HELPLINE</span>
-                      <strong className="channel-title">Call {contactSettings.phone}</strong>
-                      <span className="channel-info">Speak with our regional sales & technical representative</span>
-                    </div>
-                    <span className="channel-arrow">↗</span>
-                  </a>
-                )}
-
-                {/* Channel 3: Email */}
-                {contactSettings.email && (
-                  <a className="contact-card email-channel" href={`mailto:${contactSettings.email}`}>
-                    <div className="channel-icon-box">✉</div>
-                    <div className="channel-details">
-                      <span className="channel-tag">OFFICIAL CORRESPONDENCE</span>
-                      <strong className="channel-title">{contactSettings.email}</strong>
-                      <span className="channel-info">For corporate, institutional, and tender requests</span>
-                    </div>
-                    <span className="channel-arrow">↗</span>
-                  </a>
-                )}
-
-                {/* Channel 4: Plant / Office Location */}
-                {contactSettings.address && (
-                  <div className="contact-card location-channel">
-                    <div className="channel-icon-box">📍</div>
-                    <div className="channel-details">
-                      <span className="channel-tag">MANUFACTURING & OFFICE</span>
-                      <strong className="channel-title">Registered Facility</strong>
-                      <span className="channel-info">{contactSettings.address}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Channel 5: CRM Staff Portal */}
-                <Link className="contact-card portal-channel" to="/login?destination=crm">
-                  <div className="channel-icon-box">⌘</div>
-                  <div className="channel-details">
-                    <span className="channel-tag">INTERNAL TEAM PORTAL</span>
-                    <strong className="channel-title">Open Shubh Labh CRM</strong>
-                    <span className="channel-info">Secure access for staff, field officers, and administrators</span>
-                  </div>
-                  <span className="channel-arrow">→</span>
-                </Link>
+              {/* Interactive Contact & Inquiries Form */}
+              <div className="contact-form-column reveal">
+                <ContactForm />
               </div>
             </div>
           </div>
