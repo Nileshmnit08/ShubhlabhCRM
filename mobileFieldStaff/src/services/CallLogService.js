@@ -52,7 +52,7 @@ export class CallLogService {
         PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
         {
           title: 'Call Log Permission',
-          message: 'Shubh Labh Field Assistant needs access to your call logs to capture your field calls into the CRM automatically.',
+          message: 'Shubh Labh SalesTeam needs access to your call logs to capture your field calls into the CRM automatically.',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'OK',

@@ -18,6 +18,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { CallProvider, useCall } from './src/context/CallContext';
 import { CallNotificationService } from './src/services/CallNotificationService';
+import { usePushTokenRegistration } from './src/hooks/usePushTokenRegistration';
 import IncomingCallScreen from './src/screens/IncomingCallScreen';
 import ActiveCallScreen from './src/screens/ActiveCallScreen';
 
@@ -45,7 +46,8 @@ import {
   ExpenseListScreen,
   ReconciliationScreen,
   OrderConfirmationScreen,
-  NewGroupScreen
+  NewGroupScreen,
+  CallHistoryScreen
 } from './src/screens';
 import { NotificationProvider, useNotifications } from './src/context/NotificationContext';
 import { VisitProvider } from './src/context/VisitContext';
@@ -53,9 +55,16 @@ import { VisitProvider } from './src/context/VisitContext';
 // ─── Global Call Overlay ───────────────────────────────────────────────────────
 // Rendered above all navigation so it appears on any screen
 function GlobalCallOverlay() {
-  const { callState } = useCall();
-  if (callState === 'RINGING') return <IncomingCallScreen />;
-  if (callState === 'INITIATING' || callState === 'ACCEPTED' || callState === 'CONNECTING' || callState === 'CONNECTED') {
+  const { callState, isIncoming } = useCall() || {};
+  if (callState === 'RINGING' && isIncoming) return <IncomingCallScreen />;
+  if (
+    callState === 'INITIATING' ||
+    (callState === 'RINGING' && !isIncoming) ||
+    callState === 'ACCEPTED' ||
+    callState === 'CONNECTING' ||
+    callState === 'CONNECTED' ||
+    callState === 'FAILED'
+  ) {
     return <ActiveCallScreen />;
   }
   return null;
@@ -97,6 +106,7 @@ function MainTabs() {
 function RootNavigator() {
   const { session, staffProfile, loading } = useAuth();
   const { routePendingColdStart } = useNotifications();
+  usePushTokenRegistration();
 
   // After successful auth, attempt to route any cold-start pending notification.
   React.useEffect(() => {
@@ -221,6 +231,11 @@ function RootNavigator() {
       <Stack.Screen 
         name="Reconciliation" 
         component={ReconciliationScreen} 
+        options={{ headerShown: false }} 
+      />
+      <Stack.Screen 
+        name="CallHistory" 
+        component={CallHistoryScreen} 
         options={{ headerShown: false }} 
       />
     </Stack.Navigator>

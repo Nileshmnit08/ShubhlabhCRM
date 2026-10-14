@@ -31,6 +31,22 @@ function isValidUUID(value) {
 async function resolveOtherUser(conversationId, currentUserId) {
   if (!conversationId || !currentUserId) return null;
   try {
+    // 1. Check if conversation is a group
+    const { data: convData } = await supabase
+      .from('chat_conversations')
+      .select('id, type, title')
+      .eq('id', conversationId)
+      .single();
+
+    if (convData && (convData.type === 'TEAM_GROUP' || Boolean(convData.title))) {
+      return {
+        id: convData.id,
+        full_name: convData.title || 'Group Chat',
+        isGroup: true,
+      };
+    }
+
+    // 2. Direct 1:1 participant lookup
     const { data, error } = await supabase
       .from('chat_participants')
       .select('user_id')
@@ -44,7 +60,7 @@ async function resolveOtherUser(conversationId, currentUserId) {
     const otherId = data.user_id;
     const { data: userRow, error: userErr } = await supabase
       .from('app_users')
-      .select('id, display_name, role')
+      .select('id, display_name, role, whatsapp')
       .eq('id', otherId)
       .single();
 
@@ -53,7 +69,7 @@ async function resolveOtherUser(conversationId, currentUserId) {
       return { id: otherId, full_name: 'Staff Member', role: 'Staff' };
     }
 
-    return { id: userRow.id, full_name: userRow.display_name, role: userRow.role };
+    return { id: userRow.id, full_name: userRow.display_name, role: userRow.role, whatsapp: userRow.whatsapp };
   } catch {
     return null;
   }

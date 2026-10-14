@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform, ToastAndroid } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { colors, typography } from '../theme/tokens';
@@ -9,11 +9,34 @@ export function AppHeader({ variant = 'A', title, subtitle, rightAction, rightAc
   const navigation = useNavigation();
   const { unreadCount } = useNotifications();
 
+  const handleBrandPress = () => {
+    if (Platform.OS === 'android') {
+      ToastAndroid.show('Shubh Labh SalesTeam', ToastAndroid.SHORT);
+    }
+  };
+
   if (variant === 'A') {
     return (
       <View style={styles.containerA}>
         <View style={styles.row1A}>
-          <Text style={styles.logoText}>SL FIELD</Text>
+          <TouchableOpacity
+            style={styles.brandingContainer}
+            activeOpacity={0.8}
+            onPress={handleBrandPress}
+            onLongPress={handleBrandPress}
+            accessible={true}
+            accessibilityRole="image"
+            accessibilityLabel="Shubh Labh SalesTeam"
+            accessibilityHint="Shubh Labh SalesTeam"
+            {...(Platform.OS === 'web' ? { title: 'Shubh Labh SalesTeam' } : {})}
+          >
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.logoIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.logoText}>Shubh Labh SalesTeam</Text>
+          </TouchableOpacity>
           <View style={styles.rightIconsA}>
             {showBell && (
               <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Notifications')}>
@@ -77,6 +100,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
+  },
+  brandingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
   },
   logoText: {
     ...typography.labelLg,

@@ -249,6 +249,7 @@ export const NotificationProvider = ({ children }) => {
                 content: {
                   title: newNotif.title || 'Shubh Labh Staff',
                   body: newNotif.message || 'New message',
+                  channelId: 'chat_messages',
                   data: {
                     type: 'chat_message',
                     conversation_id: newNotif.entity_id,

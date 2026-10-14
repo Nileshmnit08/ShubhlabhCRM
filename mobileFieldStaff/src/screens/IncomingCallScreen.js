@@ -1,9 +1,17 @@
 /**
  * IncomingCallScreen.js
- * Full-screen incoming call UI shown when callState === 'RINGING'
- * Displayed as a global overlay from App.js so it works on any screen.
+ * Micro-Sprint FA-VIDEO-UI-01: WhatsApp-Inspired Incoming Call UI
+ * 
+ * Features:
+ * - Full-screen immersive incoming call screen with smooth slide & pulse animations.
+ * - Prominent contact avatar, caller name, role badge, and call-type indicator.
+ * - Distinct, large accessible Decline and Answer circular action buttons.
+ * - Duplicate action guard (prevents conflicting signal dispatches).
+ * - Android BackHandler integration (safely rejects on hardware back press).
+ * - Distinct styling for Video vs Audio incoming calls.
  */
-import React, { useEffect, useRef } from 'react';
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,20 +20,23 @@ import {
   Animated,
   Vibration,
   StatusBar,
+  Platform,
+  BackHandler,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useCall } from '../context/CallContext';
-import { colors, typography } from '../theme/tokens';
+import { colors } from '../theme/tokens';
 
 const VIBRATION_PATTERN = [0, 500, 300, 500, 300, 500];
 
 export default function IncomingCallScreen() {
   const { remoteUser, callType, acceptCall, rejectCall } = useCall();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(300)).current;
 
-  // Slide in
+  // Slide-in animation
   useEffect(() => {
     Animated.spring(slideAnim, {
       toValue: 0,
@@ -35,46 +46,84 @@ export default function IncomingCallScreen() {
     }).start();
   }, [slideAnim]);
 
-  // Pulse animation for call icon
+  // Breathing pulse animation for avatar
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.15, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
       ])
     );
     pulse.start();
     return () => pulse.stop();
   }, [pulseAnim]);
 
-  // Vibrate while ringing
+  // Vibration on incoming call
   useEffect(() => {
     Vibration.vibrate(VIBRATION_PATTERN, true);
     return () => Vibration.cancel();
   }, []);
 
+  // Safe Decline Action
+  const handleReject = useCallback(() => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    Vibration.cancel();
+    rejectCall();
+  }, [isProcessing, rejectCall]);
+
+  // Safe Accept Action
+  const handleAccept = useCallback(() => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    Vibration.cancel();
+    acceptCall();
+  }, [isProcessing, acceptCall]);
+
+  // Android Back Button handler
+  useEffect(() => {
+    const onBackPress = () => {
+      handleReject();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [handleReject]);
+
   const getInitials = (name) => {
-    if (!name) return '?';
-    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    if (!name) return 'FA';
+    return name
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const isVideo = callType === 'VIDEO';
 
   return (
     <>
-      <StatusBar backgroundColor="#0a1628" barStyle="light-content" />
+      <StatusBar backgroundColor="#080e18" barStyle="light-content" translucent={Platform.OS === 'android'} />
       <Animated.View
         style={[styles.container, { transform: [{ translateY: slideAnim }] }]}
       >
-        {/* Background overlay */}
+        {/* Background Overlay */}
         <View style={styles.background} />
 
-        {/* Call type label */}
-        <Text style={styles.callTypeLabel}>
-          Incoming {isVideo ? 'Video' : 'Audio'} Call
-        </Text>
+        {/* Header: Field Assist Brand + Call Type */}
+        <View style={styles.header}>
+          <View style={styles.securityBadge}>
+            <MaterialIcons name="lock" size={13} color="rgba(255,255,255,0.7)" />
+            <Text style={styles.securityText}>SHUBH LABH SALESTEAM SECURE CALL</Text>
+          </View>
+          <Text style={styles.callTypeLabel}>
+            Incoming {isVideo ? 'Video Call' : 'Voice Call'}
+          </Text>
+        </View>
 
-        {/* Caller avatar */}
+        {/* Caller Avatar with Concentric Pulse Ring */}
         <View style={styles.avatarWrapper}>
           <Animated.View
             style={[styles.avatarPulse, { transform: [{ scale: pulseAnim }] }]}
@@ -84,50 +133,58 @@ export default function IncomingCallScreen() {
           </View>
         </View>
 
-        {/* Caller info */}
-        <Text style={styles.callerName}>{remoteUser?.name || 'Unknown'}</Text>
-        <Text style={styles.callerRole}>{remoteUser?.role || ''}</Text>
-
-        {/* Call type icon */}
-        <View style={styles.callIconRow}>
-          <MaterialIcons
-            name={isVideo ? 'videocam' : 'mic'}
-            size={28}
-            color="rgba(255,255,255,0.7)"
-          />
-          <Text style={styles.callIconLabel}>{isVideo ? 'Video' : 'Audio'}</Text>
-        </View>
-
-        {/* Action buttons */}
-        <View style={styles.actionRow}>
-          {/* Reject */}
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.rejectBtn]}
-            onPress={rejectCall}
-            activeOpacity={0.85}
-          >
-            <MaterialIcons name="call-end" size={32} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Accept */}
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.acceptBtn]}
-            onPress={acceptCall}
-            activeOpacity={0.85}
-          >
-            <MaterialIcons
-              name={isVideo ? 'videocam' : 'call'}
-              size={32}
-              color="#fff"
-            />
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.actionLabel}>
-          <Text style={{ color: '#ef4444' }}>Decline</Text>
-          {'                        '}
-          <Text style={{ color: '#22c55e' }}>Accept</Text>
+        {/* Caller Info */}
+        <Text style={styles.callerName}>{remoteUser?.name || 'Field Staff'}</Text>
+        <Text style={styles.callerRole}>
+          {remoteUser?.role ? remoteUser.role.toUpperCase() : 'STAFF MEMBER'}
         </Text>
+
+        {/* Call Type Indicator Badge */}
+        <View style={styles.callTypeBadge}>
+          <MaterialIcons
+            name={isVideo ? 'videocam' : 'phone-in-talk'}
+            size={18}
+            color="#ffffff"
+          />
+          <Text style={styles.callTypeBadgeText}>
+            {isVideo ? 'HD Video Call' : 'Voice Call'}
+          </Text>
+        </View>
+
+        {/* Action Buttons: Decline & Accept */}
+        <View style={styles.actionRow}>
+          {/* Decline Button */}
+          <View style={styles.actionBtnContainer}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.rejectBtn, isProcessing && styles.actionBtnDisabled]}
+              onPress={handleReject}
+              activeOpacity={0.8}
+              disabled={isProcessing}
+              accessibilityLabel="Decline incoming call"
+            >
+              <MaterialIcons name="call-end" size={34} color="#ffffff" />
+            </TouchableOpacity>
+            <Text style={styles.declineLabel}>Decline</Text>
+          </View>
+
+          {/* Accept Button */}
+          <View style={styles.actionBtnContainer}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.acceptBtn, isProcessing && styles.actionBtnDisabled]}
+              onPress={handleAccept}
+              activeOpacity={0.8}
+              disabled={isProcessing}
+              accessibilityLabel="Answer incoming call"
+            >
+              <MaterialIcons
+                name={isVideo ? 'videocam' : 'call'}
+                size={34}
+                color="#ffffff"
+              />
+            </TouchableOpacity>
+            <Text style={styles.acceptLabel}>Answer</Text>
+          </View>
+        </View>
       </Animated.View>
     </>
   );
@@ -142,79 +199,116 @@ const styles = StyleSheet.create({
     bottom: 0,
     zIndex: 9999,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'android' ? 56 : 68,
+    paddingBottom: Platform.OS === 'android' ? 56 : 68,
+    paddingHorizontal: 28,
   },
   background: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0a1628',
-    opacity: 0.97,
+    backgroundColor: '#080e18',
+  },
+  header: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  securityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  securityText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 0.8,
   },
   callTypeLabel: {
-    ...typography?.labelMd,
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 15,
-    letterSpacing: 0.5,
-    marginBottom: 40,
-    textTransform: 'uppercase',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '600',
+    letterSpacing: 0.4,
+    marginTop: 4,
   },
   avatarWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 120,
-    height: 120,
-    marginBottom: 24,
+    width: 140,
+    height: 140,
   },
   avatarPulse: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(59,130,246,0.25)',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(23, 107, 77, 0.25)',
   },
   avatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: colors?.primary || '#3B82F6',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: colors?.primary || '#176B4D',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 3,
     borderColor: 'rgba(255,255,255,0.3)',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
   },
   avatarText: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#ffffff',
+    letterSpacing: 1,
   },
   callerName: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '700',
-    color: '#fff',
+    color: '#ffffff',
     textAlign: 'center',
-    marginBottom: 6,
+    marginTop: -8,
   },
   callerRole: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.55)',
-    marginBottom: 32,
-    textTransform: 'capitalize',
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    letterSpacing: 0.8,
+    fontWeight: '600',
+    marginTop: -2,
   },
-  callIconRow: {
+  callTypeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 60,
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  callIconLabel: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 15,
+  callTypeBadgeText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 72,
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingHorizontal: 36,
+  },
+  actionBtnContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    gap: 10,
   },
   actionBtn: {
     width: 72,
@@ -225,8 +319,11 @@ const styles = StyleSheet.create({
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.35,
     shadowRadius: 8,
+  },
+  actionBtnDisabled: {
+    opacity: 0.5,
   },
   rejectBtn: {
     backgroundColor: '#ef4444',
@@ -234,8 +331,16 @@ const styles = StyleSheet.create({
   acceptBtn: {
     backgroundColor: '#22c55e',
   },
-  actionLabel: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+  declineLabel: {
+    color: '#ef4444',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  acceptLabel: {
+    color: '#22c55e',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

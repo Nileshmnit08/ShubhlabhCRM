@@ -8,7 +8,10 @@ import com.facebook.react.uimanager.ViewManager
 class SpeechRecognizerPackage : ReactPackage {
 
     override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> {
-        return listOf(SpeechRecognizerModule(reactContext))
+        return listOf(
+            SpeechRecognizerModule(reactContext),
+            AudioRouteModule(reactContext)
+        )
     }
 
     @Suppress("OVERRIDE_DEPRECATION")

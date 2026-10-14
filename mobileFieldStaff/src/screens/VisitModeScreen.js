@@ -107,7 +107,7 @@ export function VisitModeScreen({ navigation, route }) {
             <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
-            <Text style={styles.headerLogoText}>SL FIELD</Text>
+            <Text style={styles.headerLogoText}>SL SALESTEAM</Text>
             <Text style={styles.headerPageTitle}>Customer Detail</Text>
           </View>
         </View>

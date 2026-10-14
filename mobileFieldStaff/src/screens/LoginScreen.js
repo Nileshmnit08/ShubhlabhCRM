@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TextInput, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TextInput, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image, ToastAndroid } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, rounded, elevation } from '../theme/tokens';
@@ -76,11 +76,33 @@ export function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
-          <View style={styles.header}>
-            <MaterialIcons name="eco" size={64} color={colors.primary} style={{ marginBottom: 16 }} />
+          <TouchableOpacity
+            style={styles.header}
+            activeOpacity={0.85}
+            onPress={() => {
+              if (Platform.OS === 'android') {
+                ToastAndroid.show('Shubh Labh SalesTeam', ToastAndroid.SHORT);
+              }
+            }}
+            onLongPress={() => {
+              if (Platform.OS === 'android') {
+                ToastAndroid.show('Shubh Labh SalesTeam', ToastAndroid.SHORT);
+              }
+            }}
+            accessible={true}
+            accessibilityRole="image"
+            accessibilityLabel="Shubh Labh SalesTeam"
+            accessibilityHint="Shubh Labh SalesTeam"
+            {...(Platform.OS === 'web' ? { title: 'Shubh Labh SalesTeam' } : {})}
+          >
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.brandLogo}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>{t('auth.brand.title')}</Text>
             <Text style={styles.subtitle}>{t('auth.brand.subtitle')}</Text>
-          </View>
+          </TouchableOpacity>
 
           <View style={[styles.card, elevation.level1]}>
             <Text style={styles.cardTitle}>{t('auth.action.signIn')}</Text>
@@ -176,6 +198,14 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 48,
+  },
+  brandLogo: {
+    width: 80,
+    height: 80,
+    borderRadius: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   title: {
     ...typography.headlineLg,

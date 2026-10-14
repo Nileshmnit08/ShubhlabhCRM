@@ -8,8 +8,8 @@ export default {
     empty: 'कोई आइटम नहीं मिला',
   },
   foundation: {
-    title: 'शुभ लाभ फील्ड सहायक',
-    status: 'फील्ड सहायक फाउंडेशन चल रहा है।',
+    title: 'शुभ लाभ सेल्स टीम',
+    status: 'सेल्स टीम फाउंडेशन चल रहा है।',
     testHindi: 'Hindi Render Test (हिंदी रेंडर टेस्ट)',
   },
   components: {
@@ -69,7 +69,7 @@ export default {
     },
     brand: {
       title: "शुभ लाभ",
-      subtitle: "फ़ील्ड असिस्टेंट"
+      subtitle: "सेल्स टीम"
     },
     label: {
       email: "ईमेल पता",

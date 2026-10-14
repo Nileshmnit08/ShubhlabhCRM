@@ -122,7 +122,7 @@ export function AddCustomerScreen({ navigation }) {
             <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
-            <Text style={styles.headerLogoText}>SHUBH LABH FIELD</Text>
+            <Text style={styles.headerLogoText}>SHUBH LABH SALESTEAM</Text>
             <Text style={styles.headerPageTitle}>{t('addCustomer.pageTitle')}</Text>
           </View>
         </View>

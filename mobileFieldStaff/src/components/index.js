@@ -13,3 +13,4 @@ export * from './States';
 export * from './FieldSessionCard';
 export * from './OrderSummaryView';
 export * from './AppHeader';
+export * from './EmojiPicker';

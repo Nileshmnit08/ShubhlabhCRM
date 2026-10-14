@@ -79,6 +79,22 @@ class ChatService {
           });
         }
 
+        // Fetch latest message per conversation
+        const { data: latestMsgs } = await supabase
+          .from('chat_messages')
+          .select('id, conversation_id, message_text, created_at, read_at, sender_id, deleted_at')
+          .in('conversation_id', conversationIds)
+          .order('created_at', { ascending: false });
+
+        const latestMsgMap = {};
+        if (latestMsgs) {
+          latestMsgs.forEach(msg => {
+            if (!latestMsgMap[msg.conversation_id]) {
+              latestMsgMap[msg.conversation_id] = msg;
+            }
+          });
+        }
+
         onlineData = data.map(item => {
           const convData = item.chat_conversations || {};
           const participants = convData.chat_participants || [];
@@ -89,31 +105,41 @@ class ChatService {
           let type = convData.type;
           let finalOtherUser = otherUserObj;
 
-          if (type === 'TEAM_GROUP' && convData.title) {
-             finalOtherUser = { id: convData.id, full_name: convData.title, isGroup: true };
+          if (type === 'TEAM_GROUP' || (convData.title && type !== 'DIRECT_CHAT')) {
+             finalOtherUser = { id: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
              type = 'TEAM';
+          } else if (type === 'ADMIN_STAFF') {
+             type = 'ADMIN_STAFF';
+          } else if (type === 'DIRECT_CHAT') {
+             type = 'DIRECT_CHAT';
           } else {
-             // 1:1 chats are DIRECT_CHAT
              const isGroup = participants.length > 2;
-             if (!isGroup) {
-               type = 'DIRECT_CHAT';
-             } else {
-               const isOwnerAdmin = currentUserObj.role === 'Admin' || currentUserObj.role === 'Owner' || currentUserObj.role === 'Superadmin';
-               const isOtherAdmin = otherUserObj.role === 'Admin' || otherUserObj.role === 'Owner' || otherUserObj.role === 'Superadmin';
-               type = (isOwnerAdmin || isOtherAdmin) ? 'ADMIN_STAFF' : 'TEAM';
-             }
+             const isOwnerAdmin = currentUserObj.role === 'Admin' || currentUserObj.role === 'Owner' || currentUserObj.role === 'Superadmin';
+             const isOtherAdmin = otherUserObj.role === 'Admin' || otherUserObj.role === 'Owner' || otherUserObj.role === 'Superadmin';
              
              if (isGroup) {
-               finalOtherUser = { id: convData.id, full_name: 'Group Chat', isGroup: true };
+               type = 'TEAM';
+               finalOtherUser = { id: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
+             } else if (isOwnerAdmin || isOtherAdmin) {
+               type = 'ADMIN_STAFF';
+             } else {
+               type = 'DIRECT_CHAT';
              }
           }
 
+          const latestMsg = latestMsgMap[item.conversation_id];
+          const latestText = latestMsg 
+            ? (latestMsg.deleted_at ? 'This message was deleted' : latestMsg.message_text)
+            : null;
+          const lastActivityTime = latestMsg?.created_at || convData.updated_at;
+
           return {
             id: item.conversation_id,
-            updated_at: convData.updated_at,
+            updated_at: lastActivityTime,
             otherUser: finalOtherUser,
             type,
             unreadCount: unreadCounts[item.conversation_id] || 0,
+            latest_message: latestText,
             pending: false
           };
         });
@@ -284,15 +310,39 @@ class ChatService {
     
     await SyncService.enqueueOperation('chat_messages', messagePayload, senderId);
 
-    // 2. Enqueue the notification if recipient is known
-    if (recipientId) {
+    // 2. Dispatch notifications
+    let targets = [];
+    if (Array.isArray(options.recipientIds) && options.recipientIds.length > 0) {
+      targets = options.recipientIds.filter(id => id && id !== senderId);
+    } else if (recipientId && recipientId !== senderId && !options.isGroup) {
+      targets = [recipientId];
+    } else if (options.isGroup) {
+      // For group chat, fetch all other group participants
+      try {
+        const { data: parts } = await supabase
+          .from('chat_participants')
+          .select('user_id')
+          .eq('conversation_id', conversationId);
+        if (parts) {
+          targets = parts.map(p => p.user_id).filter(id => id && id !== senderId);
+        }
+      } catch (e) {
+        console.warn('Failed to resolve group notification recipients:', e);
+      }
+    }
+
+    const notificationTitle = options.isGroup && options.groupTitle
+      ? `${senderName} (${options.groupTitle})`
+      : senderName;
+
+    for (const targetId of targets) {
       const notificationPayload = {
         id: generateUUID(),
-        user_id: recipientId,
+        user_id: targetId,
         entity_type: 'CHAT_MESSAGE',
         entity_id: conversationId,
         notification_type: 'CHAT',
-        title: senderName,
+        title: notificationTitle,
         message: text.length > 50 ? text.substring(0, 50) + '...' : text,
         link_url: `/chat/${conversationId}`
       };
@@ -560,61 +610,102 @@ class ChatService {
   }
 
   async createGroupConversation(creatorId, participantIds, title) {
-    console.log(`[DIAGNOSTIC] Creating group conversation offline...`);
     const newConvId = generateUUID();
-    
-    try {
-      // 1. Queue conversation creation with group metadata
-      await SyncService.enqueueOperation('chat_conversations', { 
-        id: newConvId,
-        type: 'TEAM_GROUP',
-        title: title,
-        created_by: creatorId,
-        is_active: true
-      }, creatorId);
-      
-      // 2. Add creator
-      await SyncService.enqueueOperation('chat_participants', { 
-        id: generateUUID(),
-        conversation_id: newConvId, 
-        user_id: creatorId 
-      }, creatorId);
+    const net = await NetInfo.fetch();
+    let onlineCreated = false;
 
-      // 3. Add other members
-      for (const pId of participantIds) {
-        if (pId !== creatorId) {
-          await SyncService.enqueueOperation('chat_participants', { 
-            id: generateUUID(),
-            conversation_id: newConvId, 
-            user_id: pId 
-          }, creatorId);
-        }
-      }
-
-      // 4. Update local cache
+    if (net.isConnected) {
       try {
-        const cacheKey = `@chat_conversations_${creatorId}`;
-        const cachedStr = await AsyncStorage.getItem(cacheKey);
-        let convs = cachedStr ? JSON.parse(cachedStr) : [];
-        
-        convs.unshift({
+        const { data: conv, error: convErr } = await supabase
+          .from('chat_conversations')
+          .insert([{
+            id: newConvId,
+            type: 'TEAM_GROUP',
+            title: title,
+            created_by: creatorId,
+            is_active: true
+          }])
+          .select()
+          .single();
+
+        if (!convErr && conv) {
+          const participantRows = [
+            { conversation_id: newConvId, user_id: creatorId },
+            ...participantIds.filter(id => id !== creatorId).map(id => ({
+              conversation_id: newConvId,
+              user_id: id
+            }))
+          ];
+
+          const { error: partErr } = await supabase
+            .from('chat_participants')
+            .insert(participantRows);
+
+          if (!partErr) {
+            onlineCreated = true;
+          }
+        }
+      } catch (e) {
+        console.warn('Online group creation failed, falling back to sync queue:', e);
+      }
+    }
+
+    if (!onlineCreated) {
+      try {
+        // 1. Queue conversation creation with group metadata
+        await SyncService.enqueueOperation('chat_conversations', { 
           id: newConvId,
           type: 'TEAM_GROUP',
-          updated_at: new Date().toISOString(),
-          otherUser: { id: newConvId, full_name: title, isGroup: true },
-          pending: true
-        });
+          title: title,
+          created_by: creatorId,
+          is_active: true
+        }, creatorId);
         
-        await AsyncStorage.setItem(cacheKey, JSON.stringify(convs));
-      } catch (cacheErr) {
-        console.error(`Failed to update local cache for group:`, cacheErr);
-      }
+        // 2. Add creator
+        await SyncService.enqueueOperation('chat_participants', { 
+          id: generateUUID(),
+          conversation_id: newConvId, 
+          user_id: creatorId 
+        }, creatorId);
 
-      return { data: { id: newConvId }, error: null };
-    } catch (qErr) {
-      console.error(`[DIAGNOSTIC] Failed to enqueue offline group conversation:`, qErr);
-      return { data: null, error: qErr };
+        // 3. Add other members
+        for (const pId of participantIds) {
+          if (pId !== creatorId) {
+            await SyncService.enqueueOperation('chat_participants', { 
+              id: generateUUID(),
+              conversation_id: newConvId, 
+              user_id: pId 
+            }, creatorId);
+          }
+        }
+      } catch (qErr) {
+        console.error('Failed to enqueue offline group conversation:', qErr);
+        return { data: null, error: qErr };
+      }
     }
+
+    // Update local cache so it appears in Inbox immediately
+    try {
+      const cacheKey = `@chat_conversations_${creatorId}`;
+      const cachedStr = await AsyncStorage.getItem(cacheKey);
+      let convs = cachedStr ? JSON.parse(cachedStr) : [];
+      
+      convs.unshift({
+        id: newConvId,
+        type: 'TEAM',
+        updated_at: new Date().toISOString(),
+        otherUser: { id: newConvId, full_name: title, isGroup: true },
+        unreadCount: 0,
+        latest_message: 'Group created',
+        pending: !onlineCreated
+      });
+      
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(convs));
+    } catch (cacheErr) {
+      console.error(`Failed to update local cache for group:`, cacheErr);
+    }
+
+    return { data: { id: newConvId }, error: null };
   }
 }
 

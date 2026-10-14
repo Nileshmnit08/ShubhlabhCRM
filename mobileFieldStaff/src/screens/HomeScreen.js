@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Image, Platform, ToastAndroid } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -107,7 +107,32 @@ export function HomeScreen({ navigation }) {
       <View style={styles.header}>
         {/* ROW 1 */}
         <View style={styles.headerRow1}>
-          <Text style={styles.headerLogoText}>SL FIELD</Text>
+          <TouchableOpacity
+            style={styles.headerBranding}
+            activeOpacity={0.8}
+            onPress={() => {
+              if (Platform.OS === 'android') {
+                ToastAndroid.show('Shubh Labh SalesTeam', ToastAndroid.SHORT);
+              }
+            }}
+            onLongPress={() => {
+              if (Platform.OS === 'android') {
+                ToastAndroid.show('Shubh Labh SalesTeam', ToastAndroid.SHORT);
+              }
+            }}
+            accessible={true}
+            accessibilityRole="image"
+            accessibilityLabel="Shubh Labh SalesTeam"
+            accessibilityHint="Shubh Labh SalesTeam"
+            {...(Platform.OS === 'web' ? { title: 'Shubh Labh SalesTeam' } : {})}
+          >
+            <Image
+              source={require('../../assets/icon.png')}
+              style={styles.headerLogoIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.headerLogoText}>Shubh Labh SalesTeam</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.navigate('Notifications')}>
             <MaterialIcons name="notifications" size={24} color={colors.onSurfaceVariant} />
             {unreadCount > 0 && (
@@ -301,6 +326,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, backgroundColor: colors.background },
   headerRow1: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  headerBranding: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerLogoIcon: { width: 28, height: 28, borderRadius: 6 },
   headerLogoText: { ...typography.labelLg, fontWeight: '900', color: colors.onSurface, letterSpacing: 0.5 },
   headerPageTitle: { ...typography.headlineMd, fontWeight: 'bold', color: colors.primary, letterSpacing: -0.5 },
   headerRow3: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 6 },

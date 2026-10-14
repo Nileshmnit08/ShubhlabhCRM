@@ -324,7 +324,7 @@ export function QuickRequirementScreen({ navigation, route }) {
             <MaterialIcons name="arrow-back" size={24} color={colors.onSurface} />
           </TouchableOpacity>
           <View style={styles.headerTitleBox}>
-            <Text style={styles.headerLogoText}>SHUBH LABH FIELD</Text>
+            <Text style={styles.headerLogoText}>SHUBH LABH SALESTEAM</Text>
             <Text style={styles.headerPageTitle}>New Order</Text>
           </View>
         </View>

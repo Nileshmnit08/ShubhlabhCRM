@@ -64,6 +64,7 @@ TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async () => {
         content: {
           title,
           body: latestNotif.message || 'New message',
+          channelId: 'chat_messages',
           data: {
             type: 'chat_message',
             conversation_id: latestNotif.entity_id,

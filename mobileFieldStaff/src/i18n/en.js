@@ -8,8 +8,8 @@ export default {
     empty: 'No items found',
   },
   foundation: {
-    title: 'Shubh Labh Field Assistant',
-    status: 'Field Assistant foundation is running.',
+    title: 'Shubh Labh SalesTeam',
+    status: 'SalesTeam foundation is running.',
     testHindi: 'Hindi Render Test (हिंदी रेंडर टेस्ट)',
   },
   components: {
@@ -69,7 +69,7 @@ export default {
     },
     brand: {
       title: 'Shubh Labh',
-      subtitle: 'Field Assistant',
+      subtitle: 'SalesTeam',
     },
     label: {
       email: 'Email Address',

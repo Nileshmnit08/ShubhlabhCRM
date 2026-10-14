@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { MessageContextMenu } from '../components/MessageContextMenu';
+import { EmojiPicker } from '../components/EmojiPicker';
 import { useAuth } from '../context/AuthContext';
 import { chatService } from '../services/ChatService';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -211,6 +212,17 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
 
+  // Emoji picker & cursor tracking
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [textSelection, setTextSelection] = useState({ start: 0, end: 0 });
+  const [isSending, setIsSending] = useState(false);
+  const isSendingRef = useRef(false);
+  const inputRef = useRef(null);
+
+  // Group members & sender name cache
+  const [groupMembers, setGroupMembers] = useState([]);
+  const userMapRef = useRef({});
+
   // otherUser can be resolved lazily if the notification only provided conversationId
   const [otherUser, setOtherUser] = useState(paramOtherUser || null);
   const [resolvingUser, setResolvingUser] = useState(!paramOtherUser);
@@ -272,23 +284,66 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   // ─────────────────────────────────────────────────────────────────
   // RESOLVE OTHER USER FROM CONVERSATION (deep-link path)
   // ─────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────
+  // RESOLVE OTHER USER OR GROUP METADATA
+  // ─────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (paramOtherUser && paramOtherUser.id) {
-      // Full user object provided by inbox — no need to fetch
-      setOtherUser(paramOtherUser);
-      setResolvingUser(false);
-      return;
-    }
-
     if (!validConversationId || !currentUserId) {
       setResolvingUser(false);
       return;
     }
 
-    // Resolve from Supabase (notification deep-link path)
     (async () => {
       setResolvingUser(true);
       try {
+        // 1. Check conversation metadata first
+        const { data: convData } = await supabase
+          .from('chat_conversations')
+          .select('id, type, title')
+          .eq('id', validConversationId)
+          .single();
+
+        const isGroupConv = convData?.type === 'TEAM_GROUP' || Boolean(convData?.title) || (paramOtherUser?.isGroup);
+
+        if (isGroupConv) {
+          const groupTitle = convData?.title || paramOtherUser?.full_name || 'Group Chat';
+          setOtherUser({
+            id: validConversationId,
+            full_name: groupTitle,
+            isGroup: true
+          });
+
+          // Fetch group participants
+          const { data: partRows } = await supabase
+            .from('chat_participants')
+            .select(`
+              user_id,
+              app_users (
+                id,
+                display_name,
+                role
+              )
+            `)
+            .eq('conversation_id', validConversationId);
+
+          if (partRows) {
+            setGroupMembers(partRows);
+            partRows.forEach(p => {
+              if (p.app_users?.display_name) {
+                userMapRef.current[p.user_id] = p.app_users.display_name;
+              }
+            });
+          }
+          return;
+        }
+
+        // 2. Direct 1:1 chat resolution
+        if (paramOtherUser && paramOtherUser.id && !paramOtherUser.isGroup) {
+          setOtherUser(paramOtherUser);
+          userMapRef.current[paramOtherUser.id] = paramOtherUser.full_name;
+          return;
+        }
+
         const { data: participantRow, error: pErr } = await supabase
           .from('chat_participants')
           .select('user_id')
@@ -298,7 +353,6 @@ export const ChatConversationScreen = ({ route, navigation }) => {
           .single();
 
         if (pErr || !participantRow) {
-          // Fallback: use whatever the notification title gave us, or generic
           setOtherUser(paramOtherUser || { full_name: 'Staff Member', role: 'Staff' });
           return;
         }
@@ -320,12 +374,14 @@ export const ChatConversationScreen = ({ route, navigation }) => {
           return;
         }
 
-        setOtherUser({
+        const resolved = {
           id: userRow.id,
           full_name: userRow.display_name,
           role: userRow.role,
           whatsapp: userRow.whatsapp,
-        });
+        };
+        setOtherUser(resolved);
+        userMapRef.current[userRow.id] = userRow.display_name;
       } catch {
         setOtherUser(paramOtherUser || { full_name: 'Staff Member', role: 'Staff' });
       } finally {
@@ -338,9 +394,10 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   // KEYBOARD LISTENER
   // ─────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const showSub = Keyboard.addListener('keyboardDidShow', () =>
-      setKeyboardVisible(true)
-    );
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+      setShowEmojiPicker(false);
+    });
     const hideSub = Keyboard.addListener('keyboardDidHide', () =>
       setKeyboardVisible(false)
     );
@@ -387,7 +444,11 @@ export const ChatConversationScreen = ({ route, navigation }) => {
               chatService.markMessagesAsRead(validConversationId, currentUserId);
               markEntityAsRead(validConversationId);
             }
-            return [payload.new, ...current];
+            const incomingMsg = { ...payload.new };
+            if (!incomingMsg.sender_name) {
+              incomingMsg.sender_name = userMapRef.current[incomingMsg.sender_id] || (incomingMsg.sender_id === currentUserId ? senderName : 'Staff');
+            }
+            return [incomingMsg, ...current];
           });
         }
       )
@@ -467,6 +528,11 @@ export const ChatConversationScreen = ({ route, navigation }) => {
       currentUserId
     );
     if (!error && data) {
+      data.forEach(m => {
+        if (m.sender_id && m.sender_name) {
+          userMapRef.current[m.sender_id] = m.sender_name;
+        }
+      });
       setMessages(data);
     }
     setLoading(false);
@@ -475,53 +541,102 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   // ─────────────────────────────────────────────────────────────────
   // SEND MESSAGE
   // ─────────────────────────────────────────────────────────────────
-  const handleSend = async () => {
-    if (!newMessage.trim() || !currentUserId || !validConversationId) return;
-
-    const textToSend = newMessage.trim();
-    setNewMessage('');
-
-    const tempId =
-      'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        const r = (Math.random() * 16) | 0;
-        const v = c === 'x' ? r : (r & 0x3) | 0x8;
-        return v.toString(16);
-      });
-
-    const tempMessage = {
-      id: tempId,
-      conversation_id: validConversationId,
-      sender_id: currentUserId,
-      message_text: textToSend,
-      created_at: new Date().toISOString(),
-      read_at: null,
-      pending: true,
-    };
-
-    setMessages(current => [tempMessage, ...current]);
-
-    await chatService.sendMessage(
-      validConversationId,
-      currentUserId,
-      textToSend,
-      otherUser?.id,
-      senderName,
-      tempId,
-      { reply_to_id: replyingTo?.id }
-    );
-    setReplyingTo(null);
+  // ─────────────────────────────────────────────────────────────────
+  // EMOJI HANDLERS
+  // ─────────────────────────────────────────────────────────────────
+  const handleToggleEmojiPicker = () => {
+    if (showEmojiPicker) {
+      setShowEmojiPicker(false);
+      inputRef.current?.focus();
+    } else {
+      Keyboard.dismiss();
+      setShowEmojiPicker(true);
+    }
   };
 
-  const { initiateCall } = useCall() || {};
+  const handleSelectEmoji = useCallback((emoji) => {
+    const start = textSelection?.start ?? newMessage.length;
+    const end = textSelection?.end ?? newMessage.length;
+    const updated = newMessage.slice(0, start) + emoji + newMessage.slice(end);
+    setNewMessage(updated);
+    const newCursor = start + emoji.length;
+    setTextSelection({ start: newCursor, end: newCursor });
+  }, [newMessage, textSelection]);
+
+  // ─────────────────────────────────────────────────────────────────
+  // SEND MESSAGE (DUPLICATE PROTECTED)
+  // ─────────────────────────────────────────────────────────────────
+  const handleSend = async () => {
+    if (isSendingRef.current || !newMessage.trim() || !currentUserId || !validConversationId) return;
+
+    isSendingRef.current = true;
+    setIsSending(true);
+    const textToSend = newMessage.trim();
+    setNewMessage('');
+    setShowEmojiPicker(false);
+
+    try {
+      const tempId =
+        'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+          const r = (Math.random() * 16) | 0;
+          const v = c === 'x' ? r : (r & 0x3) | 0x8;
+          return v.toString(16);
+        });
+
+      const tempMessage = {
+        id: tempId,
+        conversation_id: validConversationId,
+        sender_id: currentUserId,
+        sender_name: senderName,
+        message_text: textToSend,
+        created_at: new Date().toISOString(),
+        read_at: null,
+        pending: true,
+      };
+
+      setMessages(current => [tempMessage, ...current]);
+
+      const isGroup = otherUser?.isGroup;
+      const recipientIds = isGroup 
+        ? groupMembers.map(m => m.user_id).filter(id => id !== currentUserId)
+        : undefined;
+
+      await chatService.sendMessage(
+        validConversationId,
+        currentUserId,
+        textToSend,
+        isGroup ? null : otherUser?.id,
+        senderName,
+        tempId,
+        {
+          reply_to_id: replyingTo?.id,
+          isGroup: isGroup,
+          groupTitle: otherUser?.full_name,
+          recipientIds: recipientIds
+        }
+      );
+      setReplyingTo(null);
+    } catch (sendErr) {
+      console.error('Failed to send message:', sendErr);
+    } finally {
+      isSendingRef.current = false;
+      setIsSending(false);
+    }
+  };
+
+  const { initiateCall, callState } = useCall() || {};
 
   const handleInitiateCall = (type) => {
+    if (callState && callState !== 'IDLE') {
+      Alert.alert('Call in Progress', 'A call is already active or connecting.');
+      return;
+    }
+    if (!otherUser?.id) {
+      Alert.alert('Unavailable', 'Contact information is not available for calling.');
+      return;
+    }
     if (initiateCall) {
       initiateCall({ id: otherUser.id, name: otherUser.full_name, role: otherUser.role }, type);
-    } else {
-      Alert.alert(
-        'Feature Incomplete',
-        'The mobile calling infrastructure currently only supports receiving calls. Initiating calls is not implemented in CallContext.'
-      );
     }
   };
 
@@ -768,7 +883,10 @@ export const ChatConversationScreen = ({ route, navigation }) => {
   // MAIN RENDER
   // ─────────────────────────────────────────────────────────────────
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       {/* ── Header ── */}
       <View
         style={[styles.topStickyHeader, { paddingTop: Math.max(insets.top, 8) }]}
@@ -788,31 +906,39 @@ export const ChatConversationScreen = ({ route, navigation }) => {
               </TouchableOpacity>
 
               <View style={styles.contactAvatarWrapper}>
-                <View style={styles.contactAvatar}>
+                <View style={[styles.contactAvatar, otherUser?.isGroup && { backgroundColor: colors.primary }]}>
                   {resolvingUser ? (
                     <ActivityIndicator size="small" color={colors.primary} />
+                  ) : otherUser?.isGroup ? (
+                    <MaterialIcons name="groups" size={26} color={colors.onPrimary} />
                   ) : (
                     <Text style={styles.contactAvatarText}>
                       {getInitials(otherUser?.full_name)}
                     </Text>
                   )}
                 </View>
-                <View style={styles.contactOnlineDotWrapper}>
-                  <View style={styles.contactOnlineDot} />
-                </View>
+                {!otherUser?.isGroup && (
+                  <View style={styles.contactOnlineDotWrapper}>
+                    <View style={styles.contactOnlineDot} />
+                  </View>
+                )}
               </View>
 
               <View style={styles.contactInfo}>
                 <View style={styles.contactNameRow}>
                   <Text style={styles.contactName} numberOfLines={1}>
-                    {resolvingUser ? 'Loading…' : otherUser?.full_name || 'Staff'}
+                    {resolvingUser ? 'Loading…' : (otherUser?.full_name || (otherUser?.isGroup ? 'Group Chat' : 'Staff'))}
                   </Text>
-                  <View style={styles.contactTag}>
-                    <Text style={styles.contactTagText}>ASM</Text>
-                  </View>
+                  {!otherUser?.isGroup && (
+                    <View style={styles.contactTag}>
+                      <Text style={styles.contactTagText}>{otherUser?.role || 'Staff'}</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.contactRole} numberOfLines={1}>
-                  {otherUser?.role || 'Staff Member'} • Online
+                  {otherUser?.isGroup 
+                    ? (groupMembers.length > 0 ? `${groupMembers.length} members` : 'Group conversation')
+                    : (otherUser?.role || 'Staff Member')}
                 </Text>
               </View>
             </View>
@@ -878,15 +1004,37 @@ export const ChatConversationScreen = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
       )}
-      <View style={[styles.inputContainer, replyingTo && { borderTopWidth: 0, paddingTop: 4 }]}>
+      <View
+        style={[
+          styles.inputContainer,
+          replyingTo && { borderTopWidth: 0, paddingTop: 4 },
+          { paddingBottom: Math.max(insets.bottom, 12) },
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.emojiToggleBtn}
+          onPress={handleToggleEmojiPicker}
+          activeOpacity={0.7}
+          accessibilityLabel={showEmojiPicker ? "Hide emoji picker" : "Open emoji picker"}
+        >
+          <MaterialIcons
+            name={showEmojiPicker ? "keyboard" : "sentiment-satisfied-alt"}
+            size={24}
+            color={colors.primary}
+          />
+        </TouchableOpacity>
+
         <View style={styles.inputWrapper}>
           <TextInput
+            ref={inputRef}
             style={styles.input}
             placeholder="Type a message... / संदेश लिखें"
             placeholderTextColor={colors.onSurfaceVariant}
             value={newMessage}
+            selection={textSelection}
+            onSelectionChange={(e) => setTextSelection(e.nativeEvent.selection)}
+            onFocus={() => setShowEmojiPicker(false)}
             onChangeText={(text) => {
-              // Keep baseText in sync when user types manually while mic is idle
               if (micState === MicState.IDLE) {
                 baseTextRef.current = '';
               }
@@ -905,10 +1053,10 @@ export const ChatConversationScreen = ({ route, navigation }) => {
             micState === MicState.ERROR     && styles.micBtnError,
           ]}
           onPress={() => {
+            if (showEmojiPicker) setShowEmojiPicker(false);
             if (micState === MicState.LISTENING || micState === MicState.PROCESSING) {
               stopListening();
             } else {
-              // Capture current text as the prefix before mic starts
               baseTextRef.current = newMessage;
               startListening();
             }
@@ -929,13 +1077,28 @@ export const ChatConversationScreen = ({ route, navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.sendBtn}
+          style={[styles.sendBtn, (!newMessage.trim() || isSending) && styles.sendBtnDisabled]}
           onPress={handleSend}
-          disabled={!newMessage.trim()}
+          disabled={!newMessage.trim() || isSending}
         >
-          <MaterialIcons name="send" size={22} color={colors.onPrimary} />
+          {isSending ? (
+            <ActivityIndicator size="small" color={colors.onPrimary} />
+          ) : (
+            <MaterialIcons name="send" size={22} color={colors.onPrimary} />
+          )}
         </TouchableOpacity>
       </View>
+
+      {/* ── Emoji Picker Panel ── */}
+      {showEmojiPicker && (
+        <EmojiPicker
+          onSelectEmoji={handleSelectEmoji}
+          onClose={() => {
+            setShowEmojiPicker(false);
+            inputRef.current?.focus();
+          }}
+        />
+      )}
 
       {/* ── Voice error message ── */}
       {voiceError ? (
@@ -1145,22 +1308,30 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   messageBubbleMe: {
-    backgroundColor: colors.primaryContainer || '#0d5c3a',
+    backgroundColor: colors.primary || '#176B4D',
     borderTopRightRadius: 4,
+    borderBottomRightRadius: 16,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
   },
   messageBubbleOther: {
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 4,
+    borderBottomLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
   },
   messageText: {
     ...typography.bodyMd,
     lineHeight: 20,
   },
   messageTextMe: {
-    color: colors.onPrimaryContainer || '#ffffff',
+    color: '#FFFFFF',
   },
   messageTextOther: {
-    color: colors.onSurface,
+    color: colors.onSurface || '#1A1C19',
   },
   metaRow: {
     flexDirection: 'row',
@@ -1177,8 +1348,7 @@ const styles = StyleSheet.create({
     ...typography.bodySm,
   },
   timeTextMe: {
-    color: colors.onPrimaryContainer || '#ffffff',
-    opacity: 0.8,
+    color: 'rgba(255, 255, 255, 0.75)',
   },
   timeTextOther: {
     color: colors.onSurfaceVariant,
@@ -1290,6 +1460,17 @@ const styles = StyleSheet.create({
     ...typography.bodySm,
     color: colors.onErrorContainer,
     flex: 1,
+  },
+  emojiToggleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  sendBtnDisabled: {
+    opacity: 0.5,
   },
   sendBtn: {
     width: 48,

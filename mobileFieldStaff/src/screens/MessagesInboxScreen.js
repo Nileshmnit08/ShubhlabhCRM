@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -79,11 +79,7 @@ export const MessagesInboxScreen = ({ navigation }) => {
     setLoading(true);
     const { data, error } = await chatService.getConversations(session.user.id);
     if (!error && data) {
-      const mappedData = data.map((conv, idx) => ({
-        ...conv,
-        isOnline: idx < 2
-      }));
-      setConversations(mappedData);
+      setConversations(data);
     }
     setLoading(false);
   };
@@ -114,10 +110,21 @@ export const MessagesInboxScreen = ({ navigation }) => {
     return 'transparent';
   };
 
+  const unreadByTab = useMemo(() => {
+    const counts = { TEAM: 0, ADMIN_STAFF: 0, DIRECT_CHAT: 0 };
+    conversations.forEach(c => {
+      const tab = (c.type === 'TEAM_GROUP' || c.type === 'TEAM') ? 'TEAM' : (c.type === 'ADMIN_STAFF' ? 'ADMIN_STAFF' : 'DIRECT_CHAT');
+      counts[tab] = (counts[tab] || 0) + (c.unreadCount || 0);
+    });
+    return counts;
+  }, [conversations]);
+
   const filteredConversations = conversations.filter(conv => {
-    const nameMatch = (conv.otherUser?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const filterMatch = conv.type === activeFilter;
-    return nameMatch && filterMatch;
+    const q = (searchQuery || '').toLowerCase().trim();
+    const nameMatch = (conv.otherUser?.full_name || '').toLowerCase().includes(q);
+    const msgMatch = (conv.latest_message || '').toLowerCase().includes(q);
+    const filterMatch = conv.type === activeFilter || (activeFilter === 'TEAM' && conv.type === 'TEAM_GROUP');
+    return (nameMatch || msgMatch) && filterMatch;
   });
 
   const renderConversation = ({ item }) => (
@@ -183,7 +190,7 @@ export const MessagesInboxScreen = ({ navigation }) => {
 
           <View style={styles.previewRow}>
             <Text style={[styles.previewText, (item.pending || item.latest_pending) && { fontStyle: 'italic' }]} numberOfLines={1}>
-              {item.latest_message || 'Started a new conversation'}
+              {item.latest_message || 'No messages yet'}
             </Text>
             {item.pending || item.latest_pending ? (
               <MaterialIcons name="schedule" size={16} color={colors.outline} />
@@ -202,7 +209,13 @@ export const MessagesInboxScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <AppHeader variant="A" title="Messages / संदेश" subtitle="Internal Field Network • आंतरिक स्टाफ संवाद" />
+      <AppHeader
+        variant="A"
+        title="Messages / संदेश"
+        subtitle="Internal Field Network • आंतरिक स्टाफ संवाद"
+        rightActionIcon="history"
+        onRightAction={() => navigation.navigate('CallHistory')}
+      />
       <FlatList
         data={filteredConversations}
         keyExtractor={(item) => item.id}
@@ -239,18 +252,33 @@ export const MessagesInboxScreen = ({ navigation }) => {
                 onPress={() => setActiveFilter('TEAM')}
               >
                 <Text style={[styles.filterChipText, activeFilter === 'TEAM' && styles.filterChipTextActive]}>Team Chat</Text>
+                {unreadByTab.TEAM > 0 && (
+                  <View style={[styles.filterBadge, activeFilter === 'TEAM' && styles.filterBadgeActive]}>
+                    <Text style={[styles.filterBadgeText, activeFilter === 'TEAM' && styles.filterBadgeTextActive]}>{unreadByTab.TEAM}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.filterChip, activeFilter === 'ADMIN_STAFF' && styles.filterChipActive]}
                 onPress={() => setActiveFilter('ADMIN_STAFF')}
               >
                 <Text style={[styles.filterChipText, activeFilter === 'ADMIN_STAFF' && styles.filterChipTextActive]}>Admin Chat</Text>
+                {unreadByTab.ADMIN_STAFF > 0 && (
+                  <View style={[styles.filterBadge, activeFilter === 'ADMIN_STAFF' && styles.filterBadgeActive]}>
+                    <Text style={[styles.filterBadgeText, activeFilter === 'ADMIN_STAFF' && styles.filterBadgeTextActive]}>{unreadByTab.ADMIN_STAFF}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.filterChip, activeFilter === 'DIRECT_CHAT' && styles.filterChipActive]}
                 onPress={() => setActiveFilter('DIRECT_CHAT')}
               >
                 <Text style={[styles.filterChipText, activeFilter === 'DIRECT_CHAT' && styles.filterChipTextActive]}>Direct Chat</Text>
+                {unreadByTab.DIRECT_CHAT > 0 && (
+                  <View style={[styles.filterBadge, activeFilter === 'DIRECT_CHAT' && styles.filterBadgeActive]}>
+                    <Text style={[styles.filterBadgeText, activeFilter === 'DIRECT_CHAT' && styles.filterBadgeTextActive]}>{unreadByTab.DIRECT_CHAT}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             </View>
           </>
@@ -334,7 +362,7 @@ const styles = StyleSheet.create({
   },
   listPadding: {
     padding: 16,
-    paddingBottom: 80,
+    paddingBottom: 115,
   },
   headerStrip: {
     flexDirection: 'row',
@@ -443,6 +471,24 @@ const styles = StyleSheet.create({
   },
   filterChipTextActive: {
     color: colors.onPrimary,
+  },
+  filterBadge: {
+    backgroundColor: colors.accent,
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    marginLeft: 6,
+  },
+  filterBadgeActive: {
+    backgroundColor: colors.onPrimary,
+  },
+  filterBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: colors.onAccent,
+  },
+  filterBadgeTextActive: {
+    color: colors.primary,
   },
   chatCard: {
     backgroundColor: colors.surfaceContainerLowest,

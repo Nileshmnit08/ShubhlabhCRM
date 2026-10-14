@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Shubh Labh Field Assistant",
+    "name": "Shubh Labh SalesTeam",
     "slug": "shubh-labh-field-assistant",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,9 +12,8 @@
     "android": {
       "package": "com.shubhlabh.fieldassistant",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#E4E5E9",
         "foregroundImage": "./assets/android-icon-foreground.png",
-
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }

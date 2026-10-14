@@ -22,3 +22,5 @@ export { NewChatScreen } from './NewChatScreen';
 export { ChatConversationScreen } from './ChatConversationScreen';
 export { ReconciliationScreen } from './ReconciliationScreen';
 export { NewGroupScreen } from './NewGroupScreen';
+export { CallHistoryScreen } from './CallHistoryScreen';
+
