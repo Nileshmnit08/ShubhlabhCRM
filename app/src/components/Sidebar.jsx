@@ -113,6 +113,8 @@ function NavItem({
       ? 'red'
       : item.badgeSource === 'notifications'
       ? 'blue'
+      : item.badgeSource === 'website_leads'
+      ? 'green'
       : 'amber';
 
   // Active detection — exact for '/', startsWith otherwise

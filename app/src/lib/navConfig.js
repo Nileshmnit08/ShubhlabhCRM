@@ -206,10 +206,10 @@ export const NAV_SECTIONS = [
     items: [
       {
         id: 'leads',
-        label: 'Leads',
+        label: 'Website Leads',
         href: '/leads',
         icon: Target,
-        badgeSource: null,
+        badgeSource: 'website_leads',
         permissionKey: 'admin',
         pinEligible: true,
       },

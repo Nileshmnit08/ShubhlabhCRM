@@ -114,6 +114,24 @@ export default function useNavBadges() {
       // silent fallback
     }
 
+    // ─── Website Leads: new uncontacted leads ───
+    try {
+      const { count } = await supabase
+        .from('website_leads')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'new');
+      if (typeof count === 'number') results.website_leads = count;
+    } catch (_) {
+      // fallback to offline queue / local store count
+      try {
+        const raw = localStorage.getItem('sl_offline_leads_queue');
+        if (raw) {
+          const q = JSON.parse(raw);
+          results.website_leads = q.filter(item => item.status === 'new' || !item.status).length;
+        }
+      } catch {}
+    }
+
     setBadges(results);
   }, [userProfile]);
 
@@ -122,6 +140,7 @@ export default function useNavBadges() {
     const timer = setInterval(fetchBadges, REFRESH_INTERVAL_MS);
 
     let channel;
+    let leadsChannel;
     if (userProfile?.id) {
       channel = supabase
         .channel(`nav_badges_notifs:${userProfile.id}`)
@@ -138,11 +157,27 @@ export default function useNavBadges() {
           }
         )
         .subscribe();
+
+      leadsChannel = supabase
+        .channel('nav_badges_website_leads')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'website_leads'
+          },
+          () => {
+            fetchBadges();
+          }
+        )
+        .subscribe();
     }
 
     return () => {
       clearInterval(timer);
       if (channel) supabase.removeChannel(channel);
+      if (leadsChannel) supabase.removeChannel(leadsChannel);
     };
   }, [fetchBadges, userProfile?.id]);
 

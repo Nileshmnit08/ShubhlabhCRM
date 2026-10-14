@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   Globe, LayoutDashboard, FileText, Package, Tag, BookOpen, 
   Compass, Settings, Image as ImageIcon, History, ExternalLink, 
   Save, Plus, Trash2, Edit3, CheckCircle, AlertTriangle, RefreshCw, Eye,
   Search, Filter, ArrowUp, ArrowDown, X, Copy, Check, UploadCloud, ShieldCheck, Sparkles, Layers,
-  FlaskConical
+  FlaskConical, Inbox
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { AuthContext } from '../../AuthContext';
@@ -1115,6 +1116,9 @@ export default function WebsiteCMS() {
               <button onClick={() => setActiveTab('settings')} className="btn btn-secondary">
                 <Settings size={15} /> Edit Helpline & WhatsApp
               </button>
+              <Link to="/leads" className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}>
+                <Inbox size={15} /> Open Website Leads Inbox ↗
+              </Link>
             </div>
           </div>
 

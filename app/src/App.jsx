@@ -66,6 +66,7 @@ import LaboratoryPage from './pages/PublicWebsite/LaboratoryPage';
 import LoginPortal from './pages/Login/LoginPortal';
 import NotFound from './components/NotFound';
 import WebsiteCMS from './pages/WebsiteCMS';
+import WebsiteLeads from './pages/WebsiteLeads';
 
 // Placeholders for other routes
 const Placeholder = ({ title }) => (
@@ -292,7 +293,9 @@ function App() {
                       <Route path=":id" element={<BusinessUpdateDetail />} />
                     </Route>
                     <Route path="system-requirements" element={<SystemRequirementsBoard />} />
-                    <Route path="leads">
+                    <Route path="leads" element={<WebsiteLeads />} />
+                    <Route path="website-leads" element={<WebsiteLeads />} />
+                    <Route path="leads/accounts">
                       <Route index element={<CustomerList isLeadMode />} />
                       <Route path="new" element={<CustomerForm isLeadMode />} />
                       <Route path=":id" element={<CustomerView isLeadMode />} />

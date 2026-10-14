@@ -683,6 +683,11 @@ label {
   color: #2563eb;
 }
 
+.nav-badge-green {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
 .nav-item.active .nav-badge {
   background: rgba(255,255,255,0.2);
   color: #fff;
