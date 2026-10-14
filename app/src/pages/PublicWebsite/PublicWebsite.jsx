@@ -1,14 +1,22 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronDown, Search, Sparkles, ArrowRight, Package, Filter, X } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
 import { supabase } from '../../lib/supabase';
+import { 
+  AUTHORITATIVE_CATEGORIES, 
+  AUTHORITATIVE_SUBCATEGORIES, 
+  AUTHORITATIVE_PRODUCTS 
+} from '../../lib/productCatalogueData';
+import ProductsMegaMenu from './ProductsMegaMenu';
 import './publicWebsite.css';
 
-// Canonical 6 navigation items with verified IDs and targets
+// Canonical 7 navigation items with verified IDs and targets
 const CANONICAL_NAV = [
   { id: 'nav-home', label: 'Home', url: '#home', target: '_self' },
   { id: 'nav-products', label: 'Products', url: '#products', target: '_self' },
   { id: 'nav-about', label: 'About', url: '#about', target: '_self' },
+  { id: 'nav-lab', label: 'In-House Lab', url: '/laboratory', target: '_self' },
   { id: 'nav-knowledge', label: 'Knowledge', url: '#knowledge', target: '_self' },
   { id: 'nav-dealer', label: 'Become a Dealer', url: '#dealer', target: '_self' },
   { id: 'nav-contact', label: 'Contact', url: '#contact', target: '_self' },
@@ -32,7 +40,7 @@ function deduplicateNav(rawItems) {
     const cleanLabel = (item.label || '').trim().toLowerCase();
 
     // Map common variations (e.g. 'about us' -> 'about')
-    const key = cleanUrl.replace(/[^a-z0-9#]/g, '');
+    const key = cleanUrl.replace(/[^a-z0-9#/]/g, '');
 
     if (seenUrls.has(key) || seenLabels.has(cleanLabel)) {
       continue;
@@ -41,11 +49,18 @@ function deduplicateNav(rawItems) {
     seenLabels.add(cleanLabel);
 
     deduped.push({
-      id: item.id || `nav-${key}`,
+      id: item.id || `nav-${key.replace(/[^a-z0-9]/g, '')}`,
       label: item.label,
       url: item.url,
       target: item.target || '_self',
     });
+  }
+
+  // Ensure Laboratory is present in the nav
+  if (!deduped.some((i) => i.url === '/laboratory' || i.url === '#laboratory' || i.label?.toLowerCase().includes('lab'))) {
+    const aboutIndex = deduped.findIndex((i) => i.url === '#about');
+    const insertIdx = aboutIndex !== -1 ? aboutIndex + 1 : 3;
+    deduped.splice(insertIdx, 0, { id: 'nav-lab', label: 'In-House Lab', url: '/laboratory', target: '_self' });
   }
 
   return deduped.length > 0 ? deduped : CANONICAL_NAV;
@@ -77,10 +92,18 @@ export default function PublicWebsite() {
     secondaryCtaUrl: '#about',
   });
 
-  const [liveProducts, setLiveProducts] = useState(null);
-  const [liveCategories, setLiveCategories] = useState([]);
+  const [liveProducts, setLiveProducts] = useState(AUTHORITATIVE_PRODUCTS);
+  const [liveCategories, setLiveCategories] = useState(AUTHORITATIVE_CATEGORIES);
+  const [liveSubcategories, setLiveSubcategories] = useState(AUTHORITATIVE_SUBCATEGORIES);
   const [liveArticles, setLiveArticles] = useState(null);
   const [navItems, setNavItems] = useState(CANONICAL_NAV);
+
+  // Mega-Menu & Catalogue Filters State
+  const [megaMenuOpen, setMegaMenuOpen] = useState(false);
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState('all');
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [mobileProductsAccordionOpen, setMobileProductsAccordionOpen] = useState(false);
 
   // Fetch published CMS content from Supabase with safe fallback
   useEffect(() => {
@@ -137,6 +160,20 @@ export default function PublicWebsite() {
           setLiveCategories(catData);
         }
 
+        // 3b. Product Subcategories
+        try {
+          const { data: subcatData } = await supabase
+            .from('website_product_subcategories')
+            .select('*')
+            .eq('is_active', true)
+            .order('display_order', { ascending: true });
+          if (subcatData && subcatData.length > 0) {
+            setLiveSubcategories(subcatData);
+          }
+        } catch (e) {
+          // Subcategory table may be pending migration
+        }
+
         // 4. Published Products
         const { data: pData } = await supabase
           .from('website_products')
@@ -144,7 +181,13 @@ export default function PublicWebsite() {
           .eq('status', 'published')
           .order('display_order', { ascending: true });
         if (pData && pData.length > 0) {
-          setLiveProducts(pData);
+          const merged = [...pData];
+          AUTHORITATIVE_PRODUCTS.forEach((ap) => {
+            if (!merged.some((mp) => mp.slug === ap.slug)) {
+              merged.push(ap);
+            }
+          });
+          setLiveProducts(merged);
         }
 
         // 5. Published Knowledge Articles
@@ -174,6 +217,44 @@ export default function PublicWebsite() {
     }
     fetchPublishedContent();
   }, []);
+
+  // Filtered Products computation
+  const filteredProducts = useMemo(() => {
+    let result = liveProducts || AUTHORITATIVE_PRODUCTS;
+
+    if (selectedCategorySlug !== 'all') {
+      const cat = liveCategories.find((c) => c.slug === selectedCategorySlug);
+      if (cat) {
+        result = result.filter((p) => p.category_id === cat.id);
+      }
+    }
+
+    if (selectedSubcategoryId !== 'all') {
+      result = result.filter((p) => p.subcategory_id === Number(selectedSubcategoryId));
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.short_description?.toLowerCase().includes(q) ||
+          p.packaging_desc?.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [liveProducts, selectedCategorySlug, selectedSubcategoryId, searchQuery, liveCategories]);
+
+  const activeCategoryObj = useMemo(() => {
+    if (selectedCategorySlug === 'all') return null;
+    return liveCategories.find((c) => c.slug === selectedCategorySlug) || null;
+  }, [selectedCategorySlug, liveCategories]);
+
+  const activeSubcategories = useMemo(() => {
+    if (!activeCategoryObj) return [];
+    return liveSubcategories.filter((s) => s.category_id === activeCategoryObj.id);
+  }, [activeCategoryObj, liveSubcategories]);
 
   useEffect(() => {
     // 1. Scroll elevation listener
@@ -236,6 +317,18 @@ export default function PublicWebsite() {
     };
   }, [menuOpen]);
 
+  // Lock body scroll when mobile drawer is open to prevent background scrolling on mobile
+  useEffect(() => {
+    if (menuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [menuOpen]);
+
   const closeMenu = () => {
     setMenuOpen(false);
   };
@@ -279,10 +372,49 @@ export default function PublicWebsite() {
           </a>
 
           {/* Desktop Single-Row Navigation */}
-          <nav className="desktop-nav" aria-label="Primary navigation">
+          <nav className="desktop-nav site-nav" aria-label="Primary navigation">
             {navItems.map((item) => {
               const anchor = (item.url || '').replace('#', '');
               const isActive = activeSection === anchor;
+              const isProducts = item.label?.toLowerCase() === 'products' || item.url === '#products';
+
+              if (isProducts) {
+                return (
+                  <div
+                    key={item.id}
+                    className="nav-item-dropdown"
+                    onMouseEnter={() => setMegaMenuOpen(true)}
+                    onMouseLeave={() => setMegaMenuOpen(false)}
+                  >
+                    <a
+                      id="products-nav-trigger"
+                      className={`nav-link ${isActive || megaMenuOpen ? 'active' : ''}`}
+                      href="#products"
+                      onClick={() => setMegaMenuOpen(!megaMenuOpen)}
+                      aria-expanded={megaMenuOpen}
+                      aria-haspopup="true"
+                    >
+                      <span>{item.label}</span>
+                      <ChevronDown size={13} className={`dropdown-chevron ${megaMenuOpen ? 'open' : ''}`} />
+                    </a>
+                  </div>
+                );
+              }
+
+              if (item.url && item.url.startsWith('/')) {
+                return (
+                  <Link
+                    key={item.id}
+                    className="nav-link"
+                    to={item.url}
+                    target={item.target || '_self'}
+                    onClick={closeMenu}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              }
+
               return (
                 <a
                   key={item.id}
@@ -316,6 +448,7 @@ export default function PublicWebsite() {
             {/* Mobile Hamburger Toggle Button */}
             <button
               type="button"
+              id="mobile-menu-toggle"
               className={`menu-toggle ${menuOpen ? 'open' : ''}`}
               aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
               aria-expanded={menuOpen}
@@ -329,6 +462,24 @@ export default function PublicWebsite() {
           </div>
         </div>
 
+        {/* Desktop Products Mega-Menu Dropdown */}
+        <div 
+          onMouseEnter={() => setMegaMenuOpen(true)}
+          onMouseLeave={() => setMegaMenuOpen(false)}
+        >
+          <ProductsMegaMenu
+            isOpen={megaMenuOpen}
+            onClose={() => setMegaMenuOpen(false)}
+            categories={liveCategories}
+            subcategories={liveSubcategories}
+            products={liveProducts}
+            onSelectCategory={(slug) => {
+              setSelectedCategorySlug(slug);
+              setSelectedSubcategoryId('all');
+            }}
+          />
+        </div>
+
         {/* Mobile Navigation Drawer (Single-Instance, Visible Only <= 991px) */}
         <div
           id="mobile-navigation"
@@ -340,6 +491,71 @@ export default function PublicWebsite() {
               {navItems.map((item) => {
                 const anchor = (item.url || '').replace('#', '');
                 const isActive = activeSection === anchor;
+                const isProducts = item.label?.toLowerCase() === 'products' || item.url === '#products';
+
+                if (isProducts) {
+                  return (
+                    <div key={`mobile-${item.id}`} className="mobile-nav-accordion-item">
+                      <button
+                        type="button"
+                        id="mobile-products-accordion-btn"
+                        className={`mobile-nav-link accordion-toggle ${mobileProductsAccordionOpen ? 'active' : ''}`}
+                        onClick={() => setMobileProductsAccordionOpen(!mobileProductsAccordionOpen)}
+                        aria-expanded={mobileProductsAccordionOpen}
+                      >
+                        <span>{item.label} Catalogue</span>
+                        <ChevronDown size={16} className={`mobile-acc-arrow ${mobileProductsAccordionOpen ? 'open' : ''}`} />
+                      </button>
+                      {mobileProductsAccordionOpen && (
+                        <div className="mobile-accordion-body">
+                          <a
+                            href="#products"
+                            className="mobile-sub-link all-products-link"
+                            onClick={() => {
+                              setSelectedCategorySlug('all');
+                              setSelectedSubcategoryId('all');
+                              closeMenu();
+                            }}
+                          >
+                            <span>All Feed Formulations ({liveProducts.length})</span>
+                            <span aria-hidden="true">→</span>
+                          </a>
+                          {liveCategories.map((cat) => (
+                            <a
+                              key={`mobile-cat-${cat.id}`}
+                              href="#products"
+                              className="mobile-sub-link category-link"
+                              onClick={() => {
+                                setSelectedCategorySlug(cat.slug);
+                                setSelectedSubcategoryId('all');
+                                closeMenu();
+                              }}
+                            >
+                              <span>{cat.name}</span>
+                              <span className="badge-mini">{cat.category_badge}</span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (item.url && item.url.startsWith('/')) {
+                  return (
+                    <Link
+                      key={`mobile-${item.id}`}
+                      className="mobile-nav-link"
+                      to={item.url}
+                      target={item.target || '_self'}
+                      onClick={closeMenu}
+                    >
+                      <span>{item.label}</span>
+                      <span className="mobile-chevron" aria-hidden="true">→</span>
+                    </Link>
+                  );
+                }
+
                 return (
                   <a
                     key={`mobile-${item.id}`}
@@ -371,6 +587,15 @@ export default function PublicWebsite() {
             </div>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer Backdrop */}
+        {menuOpen && (
+          <div
+            className="mobile-nav-backdrop"
+            aria-hidden="true"
+            onClick={closeMenu}
+          />
+        )}
       </header>
 
       {/* Main Website Sections */}
@@ -520,6 +745,9 @@ export default function PublicWebsite() {
                 <a className="btn btn-secondary" href="#products">
                   Explore Products <span>→</span>
                 </a>
+                <Link to="/laboratory" className="btn btn-outline" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  Tour In-House Lab 🔬
+                </Link>
                 <a className="link-subtle" href="#dealer">
                   Become a Distribution Partner ↗
                 </a>
@@ -547,15 +775,109 @@ export default function PublicWebsite() {
               </p>
             </div>
 
+            {/* Catalog Controls: Search, Category & Subcategory Filter Pills */}
+            <div className="catalog-controls-container reveal">
+              <div className="catalog-search-row">
+                <div className="search-input-wrapper">
+                  <Search size={18} className="search-icon" />
+                  <input
+                    id="catalog-live-search"
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search feed formulations, ingredients, or pack sizes..."
+                    aria-label="Search product catalogue"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="btn-icon"
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}
+                      aria-label="Clear search"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Category Pills */}
+                <div className="category-filter-pills" role="tablist">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedCategorySlug === 'all'}
+                    className={`filter-pill cat-pill ${selectedCategorySlug === 'all' ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedCategorySlug('all');
+                      setSelectedSubcategoryId('all');
+                    }}
+                  >
+                    <span>All Formulations</span>
+                    <span className="pill-count">({liveProducts.length})</span>
+                  </button>
+
+                  {liveCategories.map((cat) => {
+                    const isCatActive = selectedCategorySlug === cat.slug;
+                    const catCount = liveProducts.filter((p) => p.category_id === cat.id).length;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isCatActive}
+                        className={`filter-pill cat-pill ${isCatActive ? 'active' : ''}`}
+                        onClick={() => {
+                          setSelectedCategorySlug(cat.slug);
+                          setSelectedSubcategoryId('all');
+                        }}
+                      >
+                        <span>{cat.name}</span>
+                        {catCount > 0 && <span className="pill-count">({catCount})</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Subcategories Row (shown when a specific category is active) */}
+              {activeSubcategories.length > 0 && (
+                <div className="subcategory-filter-row animate-fade-in" aria-label="Subcategory filter">
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--green-primary)', alignSelf: 'center', marginRight: '6px' }}>
+                    Subcategory:
+                  </span>
+                  <button
+                    type="button"
+                    className={`subcat-pill ${selectedSubcategoryId === 'all' ? 'active' : ''}`}
+                    onClick={() => setSelectedSubcategoryId('all')}
+                  >
+                    All {activeCategoryObj?.name}
+                  </button>
+                  {activeSubcategories.map((subcat) => (
+                    <button
+                      key={subcat.id}
+                      type="button"
+                      className={`subcat-pill ${selectedSubcategoryId === String(subcat.id) ? 'active' : ''}`}
+                      onClick={() => setSelectedSubcategoryId(String(subcat.id))}
+                    >
+                      {subcat.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Product Cards Grid */}
             <div className="product-cards-grid">
-              {liveProducts && liveProducts.length > 0 ? (
-                liveProducts.map((prod, index) => {
+              {filteredProducts && filteredProducts.length > 0 ? (
+                filteredProducts.map((prod, index) => {
                   const categoryObj = liveCategories.find((c) => c.id === prod.category_id);
-                  const badgeLabel = categoryObj?.category_badge || categoryObj?.name?.toUpperCase() || (index === 0 ? 'CATTLE FEED' : 'NUTRITION SUPPORT');
-                  const isFeatured = index === 0;
+                  const subcategoryObj = liveSubcategories.find((s) => s.id === prod.subcategory_id);
+                  const badgeLabel = categoryObj?.category_badge || categoryObj?.name?.toUpperCase() || 'CATTLE FEED';
+                  const isFeatured = prod.is_featured || index === 0;
 
                   return (
-                    <article key={prod.id} className={`product-card ${isFeatured ? 'featured' : ''} reveal`}>
+                    <article key={prod.id || prod.slug} className={`product-card ${isFeatured ? 'featured' : ''} reveal`}>
                       <div className="card-visual-wrapper">
                         {prod.image_url ? (
                           <img
@@ -573,7 +895,7 @@ export default function PublicWebsite() {
                             </div>
                             <div className="sack-name">{prod.name.replace(/Shubh Labh /i, '').toUpperCase()}</div>
                             <div className="sack-bottom-strip">
-                              <span>{prod.packaging_desc ? prod.packaging_desc.slice(0, 20) : '50 KG NET'}</span>
+                              <span>{prod.pack_sizes || prod.packaging_desc?.slice(0, 20) || '50 KG NET'}</span>
                               <span>DAIRY FEED</span>
                             </div>
                           </div>
@@ -583,18 +905,34 @@ export default function PublicWebsite() {
 
                       <div className="card-info-wrapper">
                         <div className="card-meta">
-                          <span className="card-index">0{index + 1} / {badgeLabel}</span>
-                          <h3 className="card-title">{prod.name}</h3>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span className="card-index">0{index + 1} / {badgeLabel}</span>
+                            {subcategoryObj && (
+                              <span style={{ fontSize: '10.5px', color: 'var(--gold-accent)', fontWeight: '700' }}>
+                                {subcategoryObj.name}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="card-title product-card-title">{prod.name}</h3>
                           <p className="card-description">{prod.short_description}</p>
-                          {prod.packaging_desc && (
+                          {(prod.packaging_desc || prod.pack_sizes) && (
                             <div className="card-specs">
                               <span className="spec-icon">📦</span>
-                              <span className="spec-text">{prod.packaging_desc}</span>
+                              <span className="spec-text">{prod.packaging_desc || prod.pack_sizes}</span>
                             </div>
                           )}
                         </div>
 
-                        <div className="card-footer-action">
+                        <div className="product-actions-dual">
+                          <Link
+                            to={`/products/${prod.slug}`}
+                            className="btn-specs"
+                            aria-label={`View specifications for ${prod.name}`}
+                          >
+                            <span>View Specs</span>
+                            <ArrowRight size={14} aria-hidden="true" />
+                          </Link>
+
                           <a
                             href={getWhatsAppProductLink(prod.name)}
                             target="_blank"
@@ -602,7 +940,7 @@ export default function PublicWebsite() {
                             className="btn-enquire"
                             aria-label={`Enquire about ${prod.name} on WhatsApp`}
                           >
-                            <span>Enquire on WhatsApp</span>
+                            <span>WhatsApp</span>
                             <span className="btn-arrow" aria-hidden="true">↗</span>
                           </a>
                         </div>
@@ -611,130 +949,25 @@ export default function PublicWebsite() {
                   );
                 })
               ) : (
-                <>
-                  {/* Verified Baseline Fallback 1 */}
-                  <article className="product-card featured reveal">
-                    <div className="card-visual-wrapper">
-                      <div className="feed-sack-mockup">
-                        <div className="sack-pattern"></div>
-                        <div className="sack-seal-box">
-                          <span className="sack-hindi">शुभ लाभ</span>
-                          <strong className="sack-brand">SHUBH LABH</strong>
-                        </div>
-                        <div className="sack-name">DAIRY SPECIAL</div>
-                        <div className="sack-bottom-strip">
-                          <span>50 KG NET</span>
-                          <span>BALANCED RATION</span>
-                        </div>
-                      </div>
-                      <span className="product-category-badge">CATTLE FEED</span>
-                    </div>
-                    <div className="card-info-wrapper">
-                      <div className="card-meta">
-                        <span className="card-index">01 / DAILY NUTRITION</span>
-                        <h3 className="card-title">Shubh Labh Dairy Special</h3>
-                        <p className="card-description">High-energy pelleted cattle feed crafted for daily lactation stability and high fat yield in lactating cows and buffaloes.</p>
-                        <div className="card-specs">
-                          <span className="spec-icon">📦</span>
-                          <span className="spec-text">Standard 50kg HDPE woven moisture-proof bag</span>
-                        </div>
-                      </div>
-                      <div className="card-footer-action">
-                        <a
-                          href={getWhatsAppProductLink('Shubh Labh Dairy Special')}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-enquire"
-                        >
-                          <span>Enquire on WhatsApp</span>
-                          <span className="btn-arrow">↗</span>
-                        </a>
-                      </div>
-                    </div>
-                  </article>
-
-                  {/* Verified Baseline Fallback 2 */}
-                  <article className="product-card reveal">
-                    <div className="card-visual-wrapper">
-                      <div className="feed-sack-mockup">
-                        <div className="sack-pattern"></div>
-                        <div className="sack-seal-box">
-                          <span className="sack-hindi">शुभ लाभ</span>
-                          <strong className="sack-brand">SHUBH LABH</strong>
-                        </div>
-                        <div className="sack-name">PERFORMANCE PREMIX</div>
-                        <div className="sack-bottom-strip">
-                          <span>25 KG PACK</span>
-                          <span>CONCENTRATE</span>
-                        </div>
-                      </div>
-                      <span className="product-category-badge">NUTRITION SUPPORT</span>
-                    </div>
-                    <div className="card-info-wrapper">
-                      <div className="card-meta">
-                        <span className="card-index">02 / PREMIX & MINERALS</span>
-                        <h3 className="card-title">Performance Premix</h3>
-                        <p className="card-description">Specialized nutrition premix with bio-available trace minerals, vitamins, and rumen buffers for peak performance herds.</p>
-                        <div className="card-specs">
-                          <span className="spec-icon">📦</span>
-                          <span className="spec-text">25kg sealed protective packaging</span>
-                        </div>
-                      </div>
-                      <div className="card-footer-action">
-                        <a
-                          href={getWhatsAppProductLink('Performance Premix')}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-enquire"
-                        >
-                          <span>Enquire on WhatsApp</span>
-                          <span className="btn-arrow">↗</span>
-                        </a>
-                      </div>
-                    </div>
-                  </article>
-
-                  {/* Verified Baseline Fallback 3 */}
-                  <article className="product-card reveal">
-                    <div className="card-visual-wrapper">
-                      <div className="feed-sack-mockup">
-                        <div className="sack-pattern"></div>
-                        <div className="sack-seal-box">
-                          <span className="sack-hindi">शुभ लाभ</span>
-                          <strong className="sack-brand">SHUBH LABH</strong>
-                        </div>
-                        <div className="sack-name">DAIRY CARE SPECIAL</div>
-                        <div className="sack-bottom-strip">
-                          <span>TARGETED CARE</span>
-                          <span>MINERAL MIX</span>
-                        </div>
-                      </div>
-                      <span className="product-category-badge">SPECIALISED RANGE</span>
-                    </div>
-                    <div className="card-info-wrapper">
-                      <div className="card-meta">
-                        <span className="card-index">03 / DAIRY CARE</span>
-                        <h3 className="card-title">Specialised Dairy Nutrition</h3>
-                        <p className="card-description">Targeted transition and dry-cow nutrition designed to reduce metabolic disorders and support healthy calving intervals.</p>
-                        <div className="card-specs">
-                          <span className="spec-icon">📦</span>
-                          <span className="spec-text">Available in multiple commercial sizes</span>
-                        </div>
-                      </div>
-                      <div className="card-footer-action">
-                        <a
-                          href={getWhatsAppProductLink('Specialised Dairy Nutrition')}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-enquire"
-                        >
-                          <span>Enquire on WhatsApp</span>
-                          <span className="btn-arrow">↗</span>
-                        </a>
-                      </div>
-                    </div>
-                  </article>
-                </>
+                <div style={{ gridColumn: '1 / -1', padding: '3rem 1rem', textAlign: 'center', background: '#ffffff', borderRadius: 'var(--radius-sm)', border: '1px dashed rgba(18,61,38,0.2)' }}>
+                  <Package size={36} color="var(--green-primary)" style={{ margin: '0 auto 12px' }} />
+                  <h4>No feed formulations match your filter</h4>
+                  <p style={{ color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Try searching with another keyword or clear the active category filters.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ marginTop: '16px' }}
+                    onClick={() => {
+                      setSelectedCategorySlug('all');
+                      setSelectedSubcategoryId('all');
+                      setSearchQuery('');
+                    }}
+                  >
+                    Reset Catalogue Filters
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1104,6 +1337,7 @@ export default function PublicWebsite() {
             <ul className="footer-nav-list">
               <li><a href="#home">Home</a></li>
               <li><a href="#products">Product Catalog</a></li>
+              <li><Link to="/laboratory">In-House Quality Lab ↗</Link></li>
               <li><a href="#about">About Our Story</a></li>
               <li><a href="#knowledge">Dairy Knowledge Hub</a></li>
               <li><a href="#dealer">Dealership Opportunities</a></li>
@@ -1143,6 +1377,8 @@ export default function PublicWebsite() {
           </span>
           <div className="footer-bottom-links">
             <a href="#products">Products</a>
+            <span className="dot-sep">•</span>
+            <Link to="/laboratory">In-House Lab</Link>
             <span className="dot-sep">•</span>
             <a href="#about">About Us</a>
             <span className="dot-sep">•</span>

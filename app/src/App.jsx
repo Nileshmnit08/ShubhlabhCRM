@@ -61,6 +61,8 @@ import FieldMobility from './pages/FieldMobility';
 
 // Public Website, Login & 404
 import PublicWebsite from './pages/PublicWebsite/PublicWebsite';
+import ProductDetailPage from './pages/PublicWebsite/ProductDetailPage';
+import LaboratoryPage from './pages/PublicWebsite/LaboratoryPage';
 import LoginPortal from './pages/Login/LoginPortal';
 import NotFound from './components/NotFound';
 import WebsiteCMS from './pages/WebsiteCMS';
@@ -244,6 +246,9 @@ function App() {
             <Routes>
               {/* Public Website */}
               <Route path="/" element={<PublicWebsite />} />
+              <Route path="products/:slug" element={<ProductDetailPage />} />
+              <Route path="laboratory" element={<LaboratoryPage />} />
+              <Route path="lab" element={<Navigate to="/laboratory" replace />} />
 
               {/* Workspace Destination Selector & Auth */}
               <Route path="/login" element={<LoginPortal />} />

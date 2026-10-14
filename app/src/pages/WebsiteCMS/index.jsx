@@ -3,10 +3,21 @@ import {
   Globe, LayoutDashboard, FileText, Package, Tag, BookOpen, 
   Compass, Settings, Image as ImageIcon, History, ExternalLink, 
   Save, Plus, Trash2, Edit3, CheckCircle, AlertTriangle, RefreshCw, Eye,
-  Search, Filter, ArrowUp, ArrowDown, X, Copy, Check, UploadCloud, ShieldCheck
+  Search, Filter, ArrowUp, ArrowDown, X, Copy, Check, UploadCloud, ShieldCheck, Sparkles, Layers,
+  FlaskConical
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { AuthContext } from '../../AuthContext';
+import { 
+  AUTHORITATIVE_CATEGORIES, 
+  AUTHORITATIVE_SUBCATEGORIES, 
+  AUTHORITATIVE_PRODUCTS 
+} from '../../lib/productCatalogueData';
+import {
+  LAB_TESTING_PARAMETERS,
+  LAB_EQUIPMENT,
+  LAB_WORKFLOW_STEPS
+} from '../../lib/laboratoryData';
 import './websiteCMS.css';
 
 // Default initial baseline data (used when database table is empty or offline)
@@ -63,16 +74,9 @@ const DEFAULT_SECTIONS = [
   }
 ];
 
-const DEFAULT_CATEGORIES = [
-  { id: 1, name: 'Cattle Feed', slug: 'cattle-feed', category_badge: 'CATTLE FEED', display_order: 1 },
-  { id: 2, name: 'Nutrition Support', slug: 'nutrition-support', category_badge: 'NUTRITION SUPPORT', display_order: 2 }
-];
-
-const DEFAULT_PRODUCTS = [
-  { id: 1, category_id: 1, name: 'Shubh Labh Dairy Special', slug: 'dairy-special', short_description: 'Balanced dairy ration crafted to support milk yield, digestion, and daily body condition in milking cows and buffaloes.', packaging_desc: 'Available in 50 kg moisture-resistant woven bags', display_order: 1, status: 'published' },
-  { id: 2, category_id: 2, name: 'Performance Premix', slug: 'performance-premix', short_description: 'Nutritional formulation built for balanced energy, mineral support, and consistent dairy performance.', packaging_desc: 'Available in 25 kg & 50 kg packs', display_order: 2, status: 'published' },
-  { id: 3, category_id: 2, name: 'Specialised Nutrition', slug: 'specialised-nutrition', short_description: 'Targeted feeding solutions for transition phases, dry cows, and growing calves.', packaging_desc: 'Available in 25 kg bags', display_order: 3, status: 'published' }
-];
+const DEFAULT_CATEGORIES = AUTHORITATIVE_CATEGORIES;
+const DEFAULT_SUBCATEGORIES = AUTHORITATIVE_SUBCATEGORIES;
+const DEFAULT_PRODUCTS = AUTHORITATIVE_PRODUCTS;
 
 const DEFAULT_ARTICLES = [
   { id: 1, title: 'Essential Feeding Practices for Peak Milk Production', slug: 'feeding-practices-peak-production', category: 'Dairy Nutrition', summary: 'Practical guidance on dry matter intake, green fodder proportion, and clean drinking water for lactating animals.', content_body: '<p>A balanced ration provides energy, protein, fiber, minerals, and vitamins in correct proportion.</p>', status: 'published', display_order: 1 },
@@ -99,16 +103,22 @@ export default function WebsiteCMS() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [sections, setSections] = useState(DEFAULT_SECTIONS);
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [subcategories, setSubcategories] = useState(DEFAULT_SUBCATEGORIES);
   const [products, setProducts] = useState(DEFAULT_PRODUCTS);
   const [articles, setArticles] = useState(DEFAULT_ARTICLES);
   const [navigation, setNavigation] = useState(DEFAULT_NAV);
   const [mediaAssets, setMediaAssets] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [labCapabilities, setLabCapabilities] = useState(LAB_TESTING_PARAMETERS);
+  const [labEquipment, setLabEquipment] = useState(LAB_EQUIPMENT);
+  const [labWorkflow, setLabWorkflow] = useState(LAB_WORKFLOW_STEPS);
+  const [labSubTab, setLabSubTab] = useState('parameters'); // 'parameters' | 'equipment' | 'workflow'
 
   // Search & Filters
   const [productSearch, setProductSearch] = useState('');
   const [productStatusFilter, setProductStatusFilter] = useState('all');
   const [productCategoryFilter, setProductCategoryFilter] = useState('all');
+  const [productSubcategoryFilter, setProductSubcategoryFilter] = useState('all');
   const [articleSearch, setArticleSearch] = useState('');
   const [auditEntityFilter, setAuditEntityFilter] = useState('all');
 
@@ -162,6 +172,16 @@ export default function WebsiteCMS() {
         setCategories(catData);
       }
 
+      // 3.5 Subcategories
+      try {
+        const { data: subcatData, error: subcatErr } = await supabase.from('website_product_subcategories').select('*').order('display_order');
+        if (!subcatErr && subcatData && subcatData.length > 0) {
+          setSubcategories(subcatData);
+        }
+      } catch (err) {
+        console.warn('Subcategories table query error:', err);
+      }
+
       // 4. Products
       const { data: pData, error: pErr } = await supabase.from('website_products').select('*').order('display_order');
       if (!pErr && pData && pData.length > 0) {
@@ -190,6 +210,36 @@ export default function WebsiteCMS() {
       const { data: logData, error: logErr } = await supabase.from('website_audit_logs').select('*').order('created_at', { ascending: false }).limit(50);
       if (!logErr && logData) {
         setAuditLogs(logData);
+      }
+
+      // 9. Lab Capabilities
+      try {
+        const { data: lcData, error: lcErr } = await supabase.from('website_lab_capabilities').select('*').order('display_order');
+        if (!lcErr && lcData && lcData.length > 0) {
+          setLabCapabilities(lcData);
+        }
+      } catch (err) {
+        console.warn('Lab capabilities query error:', err);
+      }
+
+      // 10. Lab Equipment
+      try {
+        const { data: leData, error: leErr } = await supabase.from('website_lab_equipment').select('*').order('display_order');
+        if (!leErr && leData && leData.length > 0) {
+          setLabEquipment(leData);
+        }
+      } catch (err) {
+        console.warn('Lab equipment query error:', err);
+      }
+
+      // 11. Lab Workflow Steps
+      try {
+        const { data: lwData, error: lwErr } = await supabase.from('website_lab_workflow_steps').select('*').order('display_order');
+        if (!lwErr && lwData && lwData.length > 0) {
+          setLabWorkflow(lwData);
+        }
+      } catch (err) {
+        console.warn('Lab workflow steps query error:', err);
       }
     } catch (err) {
       console.warn('CMS Supabase load error:', err);
@@ -266,13 +316,23 @@ export default function WebsiteCMS() {
     }
     setLoading(true);
     try {
+      const packSizesArray = formData.pack_sizes_text !== undefined
+        ? formData.pack_sizes_text.split(',').map(s => s.trim()).filter(Boolean)
+        : (Array.isArray(formData.pack_sizes) ? formData.pack_sizes : []);
+
       const payload = {
         name: formData.name.trim(),
         slug: formData.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-'),
         category_id: Number(formData.category_id) || 1,
+        subcategory_id: formData.subcategory_id ? Number(formData.subcategory_id) : null,
         short_description: formData.short_description || '',
         full_description: formData.full_description || null,
         packaging_desc: formData.packaging_desc || null,
+        pack_sizes: packSizesArray,
+        is_featured: Boolean(formData.is_featured),
+        seo_title: formData.seo_title || null,
+        seo_description: formData.seo_description || null,
+        brochure_url: formData.brochure_url || null,
         display_order: Number(formData.display_order) || 1,
         status: formData.status || 'published',
         updated_at: new Date().toISOString()
@@ -297,6 +357,72 @@ export default function WebsiteCMS() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // 3.5 Subcategory Save & Delete
+  const handleSaveSubcategoryModal = async (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.slug) {
+      showNotification('error', 'Subcategory name and slug are required.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        slug: formData.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-'),
+        category_id: Number(formData.category_id) || categories[0]?.id || 1,
+        description: formData.description || '',
+        display_order: Number(formData.display_order) || subcategories.length + 1
+      };
+
+      let error;
+      if (formData.id) {
+        const res = await supabase.from('website_product_subcategories').update(payload).eq('id', formData.id);
+        error = res.error;
+      } else {
+        const res = await supabase.from('website_product_subcategories').insert([payload]);
+        error = res.error;
+      }
+
+      if (error) throw error;
+      await logAuditAction(formData.id ? 'UPDATE' : 'CREATE', 'product_subcategories', payload.name, payload);
+      showNotification('success', `Subcategory "${payload.name}" saved!`);
+      setModalType(null);
+      loadCmsData();
+    } catch (err) {
+      showNotification('error', `Failed to save subcategory: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSubcategory = (subcat) => {
+    const linked = products.filter(p => p.subcategory_id === subcat.id);
+    if (linked.length > 0) {
+      showNotification('error', `Cannot delete "${subcat.name}": ${linked.length} products are assigned to this subcategory.`);
+      return;
+    }
+
+    setConfirmDialog({
+      title: 'Delete Subcategory',
+      message: `Delete subcategory "${subcat.name}"? This action cannot be undone.`,
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const { error } = await supabase.from('website_product_subcategories').delete().eq('id', subcat.id);
+          if (error) throw error;
+          await logAuditAction('DELETE', 'product_subcategories', subcat.id, { name: subcat.name });
+          showNotification('success', `Subcategory "${subcat.name}" deleted.`);
+          loadCmsData();
+        } catch (err) {
+          showNotification('error', `Delete subcategory error: ${err.message}`);
+        } finally {
+          setLoading(false);
+          setConfirmDialog(null);
+        }
+      }
+    });
   };
 
   const handleDeleteProduct = (prod) => {
@@ -617,6 +743,162 @@ export default function WebsiteCMS() {
     });
   };
 
+  // 8. Laboratory Capabilities Save, Toggle & Delete
+  const handleSaveLabParamModal = async (e) => {
+    e.preventDefault();
+    if (!formData.parameter_name || !formData.parameter_code) {
+      showNotification('error', 'Parameter name and code are required.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        parameter_name: formData.parameter_name.trim(),
+        parameter_code: formData.parameter_code.trim().toUpperCase(),
+        category: formData.category || 'Nutritional Density',
+        standard_method: formData.standard_method || '',
+        typical_range: formData.typical_range || '',
+        importance: formData.importance || '',
+        significance: formData.significance || '',
+        display_order: Number(formData.display_order) || labCapabilities.length + 1,
+        is_published: formData.is_published ?? true,
+        updated_at: new Date().toISOString()
+      };
+
+      let error;
+      if (formData.id) {
+        const res = await supabase.from('website_lab_capabilities').update(payload).eq('id', formData.id);
+        error = res.error;
+      } else {
+        const res = await supabase.from('website_lab_capabilities').insert([payload]);
+        error = res.error;
+      }
+
+      if (error) throw error;
+      await logAuditAction(formData.id ? 'UPDATE' : 'CREATE', 'lab_capabilities', payload.parameter_code, payload);
+      showNotification('success', `Testing parameter "${payload.parameter_name}" saved!`);
+      setModalType(null);
+      loadCmsData();
+    } catch (err) {
+      showNotification('error', `Failed to save parameter: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleLabParamActive = async (param) => {
+    try {
+      const { error } = await supabase
+        .from('website_lab_capabilities')
+        .update({ is_published: !param.is_published, updated_at: new Date().toISOString() })
+        .eq('id', param.id);
+      if (error) throw error;
+      await logAuditAction('UPDATE_STATUS', 'lab_capabilities', param.id, { is_published: !param.is_published });
+      loadCmsData();
+    } catch (err) {
+      showNotification('error', `Failed to toggle parameter: ${err.message}`);
+    }
+  };
+
+  const handleDeleteLabParam = (param) => {
+    setConfirmDialog({
+      title: 'Delete Lab Parameter',
+      message: `Delete testing parameter "${param.parameter_name}" (${param.parameter_code})?`,
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const { error } = await supabase.from('website_lab_capabilities').delete().eq('id', param.id);
+          if (error) throw error;
+          await logAuditAction('DELETE', 'lab_capabilities', param.id, { parameter_code: param.parameter_code });
+          showNotification('success', `Parameter "${param.parameter_name}" deleted.`);
+          loadCmsData();
+        } catch (err) {
+          showNotification('error', `Failed to delete parameter: ${err.message}`);
+        } finally {
+          setLoading(false);
+          setConfirmDialog(null);
+        }
+      }
+    });
+  };
+
+  // 9. Laboratory Equipment Save, Toggle & Delete
+  const handleSaveLabEquipmentModal = async (e) => {
+    e.preventDefault();
+    if (!formData.name || !formData.purpose) {
+      showNotification('error', 'Equipment name and testing purpose are required.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        model_type: formData.model_type || '',
+        purpose: formData.purpose || '',
+        specs: formData.specs || '',
+        significance: formData.significance || '',
+        display_order: Number(formData.display_order) || labEquipment.length + 1,
+        is_published: formData.is_published ?? true,
+        updated_at: new Date().toISOString()
+      };
+
+      let error;
+      if (formData.id) {
+        const res = await supabase.from('website_lab_equipment').update(payload).eq('id', formData.id);
+        error = res.error;
+      } else {
+        const res = await supabase.from('website_lab_equipment').insert([payload]);
+        error = res.error;
+      }
+
+      if (error) throw error;
+      await logAuditAction(formData.id ? 'UPDATE' : 'CREATE', 'lab_equipment', payload.name, payload);
+      showNotification('success', `Equipment "${payload.name}" saved!`);
+      setModalType(null);
+      loadCmsData();
+    } catch (err) {
+      showNotification('error', `Failed to save equipment: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleLabEquipmentActive = async (item) => {
+    try {
+      const { error } = await supabase
+        .from('website_lab_equipment')
+        .update({ is_published: !item.is_published, updated_at: new Date().toISOString() })
+        .eq('id', item.id);
+      if (error) throw error;
+      await logAuditAction('UPDATE_STATUS', 'lab_equipment', item.id, { is_published: !item.is_published });
+      loadCmsData();
+    } catch (err) {
+      showNotification('error', `Failed to toggle equipment: ${err.message}`);
+    }
+  };
+
+  const handleDeleteLabEquipment = (item) => {
+    setConfirmDialog({
+      title: 'Delete Lab Equipment',
+      message: `Delete analytical instrument "${item.name}"?`,
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const { error } = await supabase.from('website_lab_equipment').delete().eq('id', item.id);
+          if (error) throw error;
+          await logAuditAction('DELETE', 'lab_equipment', item.id, { name: item.name });
+          showNotification('success', `Equipment "${item.name}" deleted.`);
+          loadCmsData();
+        } catch (err) {
+          showNotification('error', `Failed to delete equipment: ${err.message}`);
+        } finally {
+          setLoading(false);
+          setConfirmDialog(null);
+        }
+      }
+    });
+  };
+
   // Filtered products
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
@@ -624,9 +906,10 @@ export default function WebsiteCMS() {
                           (p.slug || '').toLowerCase().includes(productSearch.toLowerCase());
       const matchStatus = productStatusFilter === 'all' || p.status === productStatusFilter;
       const matchCat = productCategoryFilter === 'all' || String(p.category_id) === String(productCategoryFilter);
-      return matchSearch && matchStatus && matchCat;
+      const matchSubcat = productSubcategoryFilter === 'all' || String(p.subcategory_id) === String(productSubcategoryFilter);
+      return matchSearch && matchStatus && matchCat && matchSubcat;
     });
-  }, [products, productSearch, productStatusFilter, productCategoryFilter]);
+  }, [products, productSearch, productStatusFilter, productCategoryFilter, productSubcategoryFilter]);
 
   // Filtered articles
   const filteredArticles = useMemo(() => {
@@ -720,6 +1003,7 @@ export default function WebsiteCMS() {
           { id: 'products', label: 'Products Catalog', icon: Package, count: products.length },
           { id: 'categories', label: 'Categories', icon: Tag, count: categories.length },
           { id: 'knowledge', label: 'Knowledge Hub', icon: BookOpen, count: articles.length },
+          { id: 'laboratory', label: 'Laboratory & QC', icon: FlaskConical, count: labCapabilities.length + labEquipment.length },
           { id: 'navigation', label: 'Navigation Menu', icon: Compass, count: navigation.length },
           { id: 'media', label: 'Media Assets', icon: ImageIcon, count: mediaAssets.length },
           { id: 'settings', label: 'Site Settings & SEO', icon: Settings },
@@ -1021,12 +1305,29 @@ export default function WebsiteCMS() {
                 className="form-control"
                 style={{ width: 'auto' }}
                 value={productCategoryFilter}
-                onChange={(e) => setProductCategoryFilter(e.target.value)}
+                onChange={(e) => {
+                  setProductCategoryFilter(e.target.value);
+                  setProductSubcategoryFilter('all');
+                }}
               >
                 <option value="all">All Categories</option>
                 {categories.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
+              </select>
+
+              <select
+                className="form-control"
+                style={{ width: 'auto' }}
+                value={productSubcategoryFilter}
+                onChange={(e) => setProductSubcategoryFilter(e.target.value)}
+              >
+                <option value="all">All Subcategories</option>
+                {subcategories
+                  .filter(s => productCategoryFilter === 'all' || String(s.category_id) === String(productCategoryFilter))
+                  .map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
               </select>
             </div>
 
@@ -1055,17 +1356,31 @@ export default function WebsiteCMS() {
             ) : (
               filteredProducts.map((prod, idx) => {
                 const categoryObj = categories.find(c => c.id === prod.category_id);
+                const subcategoryObj = subcategories.find(s => s.id === prod.subcategory_id);
                 return (
                   <div key={prod.id} className="cms-item-card">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <h4 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>{prod.name}</h4>
                           <span className="cms-badge cms-badge-primary">
                             {categoryObj?.name || 'General'}
                           </span>
+                          {subcategoryObj && (
+                            <span className="cms-badge" style={{ backgroundColor: 'rgba(217, 119, 6, 0.15)', color: '#d97706', border: '1px solid rgba(217, 119, 6, 0.3)' }}>
+                              {subcategoryObj.name}
+                            </span>
+                          )}
+                          {prod.is_featured && (
+                            <span className="cms-badge" style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)' }}>
+                              ★ Featured
+                            </span>
+                          )}
                         </div>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>slug: /{prod.slug} • Order: {prod.display_order}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          slug: /{prod.slug} • Order: {prod.display_order}
+                          {prod.pack_sizes && Array.isArray(prod.pack_sizes) && prod.pack_sizes.length > 0 && ` • Packs: ${prod.pack_sizes.join(', ')}`}
+                        </span>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1161,41 +1476,111 @@ export default function WebsiteCMS() {
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {categories.map(cat => {
               const count = products.filter(p => p.category_id === cat.id).length;
+              const catSubcats = subcategories.filter(s => s.category_id === cat.id);
               return (
-                <div key={cat.id} className="cms-item-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                      <strong style={{ fontSize: '1rem' }}>{cat.name}</strong>
-                      <span className="cms-badge cms-badge-primary">{cat.category_badge}</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>slug: /{cat.slug}</span>
+                <div key={cat.id} className="cms-item-card">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', borderBottom: catSubcats.length > 0 ? '1px solid var(--border)' : 'none', paddingBottom: catSubcats.length > 0 ? '0.75rem' : '0' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <strong style={{ fontSize: '1.05rem' }}>{cat.name}</strong>
+                        <span className="cms-badge cms-badge-primary">{cat.category_badge}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>slug: /{cat.slug}</span>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Assigned Products: {count} • Subcategories: {catSubcats.length} • Display Order: {cat.display_order}
+                      </span>
                     </div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      Assigned Products: {count} • Display Order: {cat.display_order}
-                    </span>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => {
+                          setFormData({ category_id: cat.id, display_order: catSubcats.length + 1 });
+                          setModalType('subcategory');
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                      >
+                        <Plus size={13} /> Add Subcategory
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFormData({ ...cat });
+                          setModalType('category');
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                      >
+                        <Edit3 size={13} /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteCategory(cat)}
+                        className="btn btn-danger"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <button
-                      onClick={() => {
-                        setFormData({ ...cat });
-                        setModalType('category');
-                      }}
-                      className="btn btn-secondary"
-                      style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
-                    >
-                      <Edit3 size={13} /> Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCategory(cat)}
-                      className="btn btn-danger"
-                      style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
-                    >
-                      <Trash2 size={13} /> Delete
-                    </button>
-                  </div>
+                  {/* Nested Subcategories */}
+                  {catSubcats.length > 0 && (
+                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Subcategories ({catSubcats.length})
+                      </span>
+                      {catSubcats.map(subcat => {
+                        const subcatProductCount = products.filter(p => p.subcategory_id === subcat.id).length;
+                        return (
+                          <div
+                            key={subcat.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.5rem 0.75rem',
+                              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                              borderRadius: '6px',
+                              borderLeft: '3px solid var(--primary)'
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>↳ {subcat.name}</span>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/{subcat.slug}</span>
+                              </div>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                {subcat.description || 'General formulation'} • {subcatProductCount} feeds
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.35rem' }}>
+                              <button
+                                onClick={() => {
+                                  setFormData({ ...subcat });
+                                  setModalType('subcategory');
+                                }}
+                                className="btn btn-secondary"
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                title="Edit Subcategory"
+                              >
+                                <Edit3 size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSubcategory(subcat)}
+                                className="btn btn-danger"
+                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                title="Delete Subcategory"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1277,6 +1662,233 @@ export default function WebsiteCMS() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 5.5: IN-HOUSE LABORATORY & QUALITY ASSURANCE
+      ========================================================================= */}
+      {activeTab === 'laboratory' && (
+        <div className="animate-fade-in">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>In-House Laboratory & Quality Assurance</h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Manage proximate analysis parameters, analytical equipment showcase, and 6-step testing workflow
+              </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <a
+                href="/laboratory"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+              >
+                <Eye size={14} /> Preview Lab Page <ExternalLink size={12} />
+              </a>
+              {labSubTab === 'parameters' && (
+                <button
+                  onClick={() => {
+                    setFormData({
+                      category: 'Nutritional Density',
+                      is_published: true,
+                      display_order: labCapabilities.length + 1
+                    });
+                    setModalType('lab_param');
+                  }}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                >
+                  <Plus size={15} /> Add Parameter
+                </button>
+              )}
+              {labSubTab === 'equipment' && (
+                <button
+                  onClick={() => {
+                    setFormData({
+                      is_published: true,
+                      display_order: labEquipment.length + 1
+                    });
+                    setModalType('lab_equipment');
+                  }}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                >
+                  <Plus size={15} /> Add Equipment
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Sub-Tabs: Parameters vs Equipment vs Workflow */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+            <button
+              onClick={() => setLabSubTab('parameters')}
+              className={`btn ${labSubTab === 'parameters' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.85rem', padding: '0.4rem 0.85rem' }}
+            >
+              Proximate Parameters ({labCapabilities.length})
+            </button>
+            <button
+              onClick={() => setLabSubTab('equipment')}
+              className={`btn ${labSubTab === 'equipment' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.85rem', padding: '0.4rem 0.85rem' }}
+            >
+              Analytical Equipment ({labEquipment.length})
+            </button>
+            <button
+              onClick={() => setLabSubTab('workflow')}
+              className={`btn ${labSubTab === 'workflow' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: '0.85rem', padding: '0.4rem 0.85rem' }}
+            >
+              6-Stage QC Workflow ({labWorkflow.length})
+            </button>
+          </div>
+
+          {/* Sub-Tab 1: Proximate Parameters */}
+          {labSubTab === 'parameters' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {labCapabilities.map(param => (
+                <div key={param.id || param.parameter_code} className="cms-item-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <span className="cms-badge cms-badge-primary" style={{ fontFamily: 'monospace' }}>
+                          {param.parameter_code}
+                        </span>
+                        <strong style={{ fontSize: '1.05rem' }}>{param.parameter_name}</strong>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          ({param.category})
+                        </span>
+                        <span className={`cms-badge ${param.is_published !== false ? 'cms-badge-success' : 'cms-badge-warning'}`}>
+                          {param.is_published !== false ? 'Published' : 'Hidden'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+                        <strong>Method:</strong> {param.standard_method} • <strong>Range:</strong> {param.typical_range}
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.35rem 0 0' }}>
+                        {param.importance || param.significance}
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <button
+                        onClick={() => handleToggleLabParamActive(param)}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                      >
+                        {param.is_published !== false ? 'Hide' : 'Publish'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFormData({ ...param });
+                          setModalType('lab_param');
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                      >
+                        <Edit3 size={13} /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLabParam(param)}
+                        className="btn btn-danger"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Sub-Tab 2: Equipment Showcase */}
+          {labSubTab === 'equipment' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {labEquipment.map(eq => (
+                <div key={eq.id || eq.name} className="cms-item-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <strong style={{ fontSize: '1.05rem' }}>{eq.name}</strong>
+                        <span className="cms-badge cms-badge-primary">{eq.model_type}</span>
+                        <span className={`cms-badge ${eq.is_published !== false ? 'cms-badge-success' : 'cms-badge-warning'}`}>
+                          {eq.is_published !== false ? 'Published' : 'Hidden'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+                        {eq.purpose}
+                      </div>
+                      {eq.specs && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                          <strong>Specs:</strong> {eq.specs}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <button
+                        onClick={() => handleToggleLabEquipmentActive(eq)}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                      >
+                        {eq.is_published !== false ? 'Hide' : 'Publish'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFormData({ ...eq });
+                          setModalType('lab_equipment');
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                      >
+                        <Edit3 size={13} /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLabEquipment(eq)}
+                        className="btn btn-danger"
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem' }}
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Sub-Tab 3: 6-Stage QC Workflow */}
+          {labSubTab === 'workflow' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {labWorkflow.map(step => (
+                <div key={step.id || step.step_number} className="cms-item-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>
+                          Step {step.step_number}
+                        </span>
+                        <strong style={{ fontSize: '1.05rem' }}>{step.title}</strong>
+                        <span className="cms-badge cms-badge-primary">{step.phase}</span>
+                      </div>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.4rem 0 0.2rem' }}>
+                        {step.description}
+                      </p>
+                      {step.quality_check && (
+                        <div style={{ fontSize: '0.8rem', color: '#166534', background: '#f0fdf4', padding: '0.35rem 0.65rem', borderRadius: '4px', borderLeft: '3px solid #16a34a', marginTop: '0.4rem' }}>
+                          <strong>Checkpoint:</strong> {step.quality_check}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1577,16 +2189,29 @@ export default function WebsiteCMS() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <label className="form-label">Category</label>
                   <select
                     className="form-control"
                     value={formData.category_id || 1}
-                    onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, category_id: Number(e.target.value), subcategory_id: null })}
                   >
                     {categories.map(c => (
                       <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Subcategory</label>
+                  <select
+                    className="form-control"
+                    value={formData.subcategory_id || ''}
+                    onChange={(e) => setFormData({ ...formData, subcategory_id: e.target.value ? Number(e.target.value) : null })}
+                  >
+                    <option value="">-- None / Direct Category --</option>
+                    {subcategories.filter(s => String(s.category_id) === String(formData.category_id || categories[0]?.id)).map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
                 </div>
@@ -1613,15 +2238,63 @@ export default function WebsiteCMS() {
                 </div>
               </div>
 
-              <div style={{ marginBottom: '1rem' }}>
-                <label className="form-label">Packaging Specifications</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label className="form-label">Packaging Specifications</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={formData.packaging_desc || ''}
+                    onChange={(e) => setFormData({ ...formData, packaging_desc: e.target.value })}
+                    placeholder="e.g. Available in 50 kg moisture-resistant woven bags"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Pack Sizes (comma-separated)</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={formData.pack_sizes_text !== undefined ? formData.pack_sizes_text : (Array.isArray(formData.pack_sizes) ? formData.pack_sizes.join(', ') : '')}
+                    onChange={(e) => setFormData({ ...formData, pack_sizes_text: e.target.value })}
+                    placeholder="e.g. 50 kg Bag, 25 kg Bag"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label className="form-label">Brochure / PDF URL</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={formData.brochure_url || ''}
+                    onChange={(e) => setFormData({ ...formData, brochure_url: e.target.value })}
+                    placeholder="e.g. https://... or /brochures/spec.pdf"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">SEO Page Title</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={formData.seo_title || ''}
+                    onChange={(e) => setFormData({ ...formData, seo_title: e.target.value })}
+                    placeholder="e.g. Shubh Labh Pallet 8000 | High Yield Cattle Feed"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
                 <input
-                  type="text"
-                  className="form-control"
-                  value={formData.packaging_desc || ''}
-                  onChange={(e) => setFormData({ ...formData, packaging_desc: e.target.value })}
-                  placeholder="e.g. Available in 50 kg moisture-resistant woven bags"
+                  type="checkbox"
+                  id="product_is_featured_toggle"
+                  checked={Boolean(formData.is_featured)}
+                  onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
+                <label htmlFor="product_is_featured_toggle" style={{ fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', margin: 0 }}>
+                  ★ Feature in Mega-Menu & Catalogue Spotlight
+                </label>
               </div>
 
               <div style={{ marginBottom: '1.25rem' }}>
@@ -1642,6 +2315,83 @@ export default function WebsiteCMS() {
                 <button type="submit" disabled={loading} className="btn btn-primary">
                   {loading ? 'Saving...' : 'Save Product'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Subcategory Modal */}
+      {modalType === 'subcategory' && (
+        <div className="cms-modal-overlay">
+          <div className="cms-modal-content">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
+                {formData.id ? 'Edit Subcategory' : 'Add Subcategory'}
+              </h3>
+              <button onClick={() => setModalType(null)} className="btn-icon" style={{ background: 'transparent', border: 'none' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveSubcategoryModal}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Parent Category *</label>
+                <select
+                  className="form-control"
+                  value={formData.category_id || categories[0]?.id || 1}
+                  onChange={(e) => setFormData({ ...formData, category_id: Number(e.target.value) })}
+                >
+                  {categories.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Subcategory Name *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-control"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. High-Yield Lactation Feeds"
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label className="form-label">URL Slug *</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-control"
+                    value={formData.slug || ''}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    placeholder="e.g. high-yield-lactation"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Display Order</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={formData.display_order || 1}
+                    onChange={(e) => setFormData({ ...formData, display_order: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label">Description / Feeding Scope</label>
+                <textarea
+                  className="form-control"
+                  rows={2}
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Short explanation of this feed subcategory..."
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button type="button" onClick={() => setModalType(null)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" disabled={loading} className="btn btn-primary">Save Subcategory</button>
               </div>
             </form>
           </div>
@@ -1952,6 +2702,216 @@ export default function WebsiteCMS() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
                 <button type="button" onClick={() => setModalType(null)} className="btn btn-secondary">Cancel</button>
                 <button type="submit" disabled={loading} className="btn btn-primary">Save Media Asset</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lab Parameter Modal */}
+      {modalType === 'lab_param' && (
+        <div className="cms-modal-overlay">
+          <div className="cms-modal-content">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
+                {formData.id ? 'Edit Testing Parameter' : 'Add Testing Parameter'}
+              </h3>
+              <button onClick={() => setModalType(null)} className="btn-icon" style={{ background: 'transparent', border: 'none' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveLabParamModal}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label className="form-label">Parameter Name *</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-control"
+                    value={formData.parameter_name || ''}
+                    onChange={(e) => setFormData({ ...formData, parameter_name: e.target.value })}
+                    placeholder="e.g. Crude Protein (CP)"
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Code / Symbol *</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-control"
+                    value={formData.parameter_code || ''}
+                    onChange={(e) => setFormData({ ...formData, parameter_code: e.target.value })}
+                    placeholder="e.g. CP"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label className="form-label">Category</label>
+                  <select
+                    className="form-control"
+                    value={formData.category || 'Nutritional Density'}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  >
+                    <option value="Nutritional Density">Nutritional Density</option>
+                    <option value="Digestive Balance">Digestive Balance</option>
+                    <option value="Safety & Storage">Safety & Storage</option>
+                    <option value="Purity & Minerals">Purity & Minerals</option>
+                    <option value="Physical Quality">Physical Quality</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Guaranteed Range / Limit</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={formData.typical_range || ''}
+                    onChange={(e) => setFormData({ ...formData, typical_range: e.target.value })}
+                    placeholder="e.g. 18.0% – 24.0%"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Analytical Method & Standard</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.standard_method || ''}
+                  onChange={(e) => setFormData({ ...formData, standard_method: e.target.value })}
+                  placeholder="e.g. Micro-Kjeldahl Nitrogen Digestion (N × 6.25)"
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Significance / Animal Benefit</label>
+                <textarea
+                  className="form-control"
+                  rows={2}
+                  value={formData.importance || formData.significance || ''}
+                  onChange={(e) => setFormData({ ...formData, importance: e.target.value, significance: e.target.value })}
+                  placeholder="Explains why this parameter matters for herd health and milk yield"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label className="form-label">Display Order</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={formData.display_order || 1}
+                    onChange={(e) => setFormData({ ...formData, display_order: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Status</label>
+                  <select
+                    className="form-control"
+                    value={formData.is_published !== false ? 'true' : 'false'}
+                    onChange={(e) => setFormData({ ...formData, is_published: e.target.value === 'true' })}
+                  >
+                    <option value="true">Published</option>
+                    <option value="false">Hidden</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button type="button" onClick={() => setModalType(null)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" disabled={loading} className="btn btn-primary">Save Parameter</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lab Equipment Modal */}
+      {modalType === 'lab_equipment' && (
+        <div className="cms-modal-overlay">
+          <div className="cms-modal-content">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700 }}>
+                {formData.id ? 'Edit Lab Equipment' : 'Add Lab Equipment'}
+              </h3>
+              <button onClick={() => setModalType(null)} className="btn-icon" style={{ background: 'transparent', border: 'none' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveLabEquipmentModal}>
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Equipment Name *</label>
+                <input
+                  type="text"
+                  required
+                  className="form-control"
+                  value={formData.name || ''}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Near-Infrared (NIR) Feed Analyzer"
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Model / Instrument Type</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.model_type || ''}
+                  onChange={(e) => setFormData({ ...formData, model_type: e.target.value })}
+                  placeholder="e.g. High-Speed Spectrophotometer"
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Analytical Purpose *</label>
+                <textarea
+                  required
+                  className="form-control"
+                  rows={2}
+                  value={formData.purpose || ''}
+                  onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
+                  placeholder="What is this instrument used to analyze and test?"
+                />
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Technical Specifications</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  value={formData.specs || ''}
+                  onChange={(e) => setFormData({ ...formData, specs: e.target.value })}
+                  placeholder="e.g. Wavelength: 1100–2500 nm; Multi-parameter simultaneous scan"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label className="form-label">Display Order</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={formData.display_order || 1}
+                    onChange={(e) => setFormData({ ...formData, display_order: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Status</label>
+                  <select
+                    className="form-control"
+                    value={formData.is_published !== false ? 'true' : 'false'}
+                    onChange={(e) => setFormData({ ...formData, is_published: e.target.value === 'true' })}
+                  >
+                    <option value="true">Published</option>
+                    <option value="false">Hidden</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button type="button" onClick={() => setModalType(null)} className="btn btn-secondary">Cancel</button>
+                <button type="submit" disabled={loading} className="btn btn-primary">Save Equipment</button>
               </div>
             </form>
           </div>
