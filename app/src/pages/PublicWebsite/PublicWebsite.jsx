@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useContext, useMemo } from 'react';
+import React, { useEffect, useState, useContext, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Search, Sparkles, ArrowRight, Package, Filter, X } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
@@ -258,19 +258,21 @@ export default function PublicWebsite() {
     return liveSubcategories.filter((s) => s.category_id === activeCategoryObj.id);
   }, [activeCategoryObj, liveSubcategories]);
 
-  useEffect(() => {
-    // 1. Scroll elevation listener
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
-    };
-    handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
+  const revealObserverRef = useRef(null);
 
-    // 2. IntersectionObserver for reveal animations
-    let revealObserver;
-    const revealElements = document.querySelectorAll('.sl-public-website .reveal');
-    if ('IntersectionObserver' in window && revealElements.length > 0) {
-      revealObserver = new IntersectionObserver(
+  // Dynamic reveal observer that monitors all .reveal elements, including async-loaded cards
+  const observeAllReveals = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const unobserved = document.querySelectorAll('.sl-public-website .reveal:not(.is-visible)');
+    if (unobserved.length === 0) return;
+
+    if (!('IntersectionObserver' in window)) {
+      unobserved.forEach((el) => el.classList.add('is-visible'));
+      return;
+    }
+
+    if (!revealObserverRef.current) {
+      revealObserverRef.current = new IntersectionObserver(
         (entries, obs) => {
           entries.forEach((entry) => {
             if (entry.isIntersecting) {
@@ -279,11 +281,39 @@ export default function PublicWebsite() {
             }
           });
         },
-        { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+        { threshold: 0.05, rootMargin: '0px 0px 50px 0px' }
       );
-      revealElements.forEach((el) => revealObserver.observe(el));
-    } else {
-      revealElements.forEach((el) => el.classList.add('is-visible'));
+    }
+
+    unobserved.forEach((el) => {
+      // If the element is already within the visible viewport window, reveal immediately
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight && rect.bottom > 0) {
+        el.classList.add('is-visible');
+      } else {
+        revealObserverRef.current.observe(el);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    // 1. Scroll elevation listener
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
+    // 2. Initial observer run + MutationObserver for dynamically inserted DOM nodes
+    observeAllReveals();
+
+    let mutationObserver;
+    const rootEl = document.querySelector('.sl-public-website');
+    if ('MutationObserver' in window && rootEl) {
+      mutationObserver = new MutationObserver(() => {
+        observeAllReveals();
+      });
+      mutationObserver.observe(rootEl, { childList: true, subtree: true });
     }
 
     // 3. IntersectionObserver for active section highlighting
@@ -314,10 +344,38 @@ export default function PublicWebsite() {
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('keydown', handleKeyDown);
-      if (revealObserver) revealObserver.disconnect();
+      if (mutationObserver) mutationObserver.disconnect();
+      if (revealObserverRef.current) revealObserverRef.current.disconnect();
       if (activeObserver) activeObserver.disconnect();
     };
-  }, [menuOpen]);
+  }, [menuOpen, observeAllReveals]);
+
+  // Re-run reveal checks whenever live products or articles state resolves
+  useEffect(() => {
+    observeAllReveals();
+  }, [liveArticles, liveProducts, filteredProducts, observeAllReveals]);
+
+  // Deep-link hash navigation and scroll restoration
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash;
+      if (hash) {
+        const targetId = hash.replace('#', '');
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth' });
+          targetEl.querySelectorAll('.reveal').forEach((el) => el.classList.add('is-visible'));
+        }
+      }
+    };
+
+    const timer = setTimeout(handleHash, 120);
+    window.addEventListener('hashchange', handleHash);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('hashchange', handleHash);
+    };
+  }, [liveArticles, liveProducts]);
 
   // Lock body scroll when mobile drawer is open to prevent background scrolling on mobile
   useEffect(() => {
@@ -879,7 +937,7 @@ export default function PublicWebsite() {
                   const isFeatured = prod.is_featured || index === 0;
 
                   return (
-                    <article key={prod.id || prod.slug} className={`product-card ${isFeatured ? 'featured' : ''} reveal`}>
+                    <article key={prod.id || prod.slug} className={`product-card ${isFeatured ? 'featured' : ''} reveal is-visible`}>
                       <div className="card-visual-wrapper">
                         {prod.image_url ? (
                           <img
@@ -1073,7 +1131,7 @@ export default function PublicWebsite() {
             <div className="knowledge-cards-grid">
               {liveArticles && liveArticles.length > 0 ? (
                 liveArticles.map((art, idx) => (
-                  <article key={art.id} className={`knowledge-card ${idx === 0 ? 'prominent' : ''} reveal`}>
+                  <article key={art.id} className={`knowledge-card ${idx === 0 ? 'prominent' : ''} reveal is-visible`}>
                     <div className="knowledge-card-media">
                       <img
                         src={idx === 0
