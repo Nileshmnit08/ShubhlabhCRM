@@ -10,6 +10,7 @@ import { AuthContext } from '../../AuthContext';
 const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, openDispatchModal, menuPosition }) => {
   const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
   const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
+  const isDispatched = req.status === 'Dispatched' || req.dispatch_progress === 'Fully Dispatched' || (Number(req.total_dispatched_quantity) > 0 && actualPending === 0);
   
   if (openMenuId !== req.id) return null;
   return createPortal(
@@ -21,7 +22,7 @@ const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal,
       }}>
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ClipboardList size={14} /> View details</button>
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}/edit`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><Edit size={14} /> Edit requirement</button>
-        {actualPending > 0 && req.status !== 'Closed' && req.status !== 'Dispatched' ? (
+        {actualPending > 0 && req.status !== 'Closed' && !isDispatched ? (
           <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req.id); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
         ) : (
           <button onClick={() => { setOpenMenuId(null); navigate(`/dispatches/list?requirement_id=${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ListIcon size={14} /> View Dispatches</button>
@@ -153,10 +154,10 @@ export default function RequirementList() {
         .order('created_at', { ascending: false });
 
       if (statusFilter === 'Dispatched') {
-        query = query.eq('status', 'Dispatched');
+        query = query.or('dispatch_progress.eq.Fully Dispatched,total_dispatched_quantity.gt.0');
       } else {
         if (!includeCompleted) {
-          query = query.not('status', 'in', '("Closed","Fulfilled","Completed","Cancelled","Lost","Won")');
+          query = query.or('dispatch_progress.eq.Fully Dispatched,status.not.in.(Closed,Fulfilled,Completed,Cancelled,Lost,Won)');
         }
 
         if (statusFilter === 'Overdue') {
@@ -440,15 +441,15 @@ export default function RequirementList() {
       const { error: dispatchErr } = await supabase.from('requirement_dispatches').insert(dispatchPayload);
       if (dispatchErr) throw dispatchErr;
 
-      // 2. Update requirement status to Dispatched (canonical CRM status)
-      const { error } = await supabase.from('requirements').update({ status: 'Dispatched' }).eq('id', reqToDispatch.id);
+      // 2. Update requirement status to Closed (canonical CRM status permitted by req_status_check)
+      const { error } = await supabase.from('requirements').update({ status: 'Closed' }).eq('id', reqToDispatch.id);
       if (error) throw error;
       
       if (userProfile?.id) {
          await supabase.from('requirement_status_history').insert({
             requirement_id: reqToDispatch.id,
             old_status: reqToDispatch.status,
-            new_status: 'Dispatched',
+            new_status: 'Closed',
             note: 'Marked as dispatched from requirements list.',
             changed_by: userProfile.id
          });
@@ -456,8 +457,23 @@ export default function RequirementList() {
       
       setToast({ type: 'success', message: 'Requirement marked as dispatched.' });
       
-      fetchRequirements();
+      // Update local state immediately so UI refreshes without delay
+      setRequirements(prev => prev.map(r => {
+        if (r.id === reqToDispatch.id) {
+          return {
+            ...r,
+            status: 'Closed',
+            dispatch_progress: 'Fully Dispatched',
+            total_dispatched_quantity: reqToDispatch.required_quantity || reqToDispatch.quantity || 0,
+            pending_quantity: 0,
+            latest_dispatch_date: new Date().toISOString().split('T')[0]
+          };
+        }
+        return r;
+      }));
+
       closeDispatchModal();
+      fetchRequirements();
     } catch (err) {
       console.error("Dispatch Error:", err);
       setToast({ type: 'error', message: err.message || 'Could not mark as dispatched. Please try again.' });
@@ -526,13 +542,18 @@ export default function RequirementList() {
       }
       const group = map.get(pid);
       group.requirements.push(req);
+      
+      const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
+      const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
+      const isDispatched = req.status === 'Dispatched' || req.dispatch_progress === 'Fully Dispatched' || (Number(req.total_dispatched_quantity) > 0 && actualPending === 0);
+
       if (statusFilter === 'Dispatched') {
         if (req.requirement_items && req.requirement_items.length > 0) {
           group.total_qty += req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
         } else if (req.product_type !== 'General Requirement') {
           group.total_qty += Number(req.total_dispatched_quantity || req.required_quantity) || 0;
         }
-      } else if (req.status !== 'Dispatched' && req.status !== 'Closed') {
+      } else if (!isDispatched && req.status !== 'Closed') {
         if (req.requirement_items && req.requirement_items.length > 0) {
           group.total_qty += req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
         } else if (req.product_type !== 'General Requirement') {
@@ -545,9 +566,7 @@ export default function RequirementList() {
         group.products.add(req.product_type);
       }
       
-      const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
-      const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
-      const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status);
+      const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status) && !isDispatched;
       const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
       if (isOverdue) group.has_overdue = true;
       if (req.priority === 'High' || req.priority === 'Urgent') group.has_high_priority = true;
@@ -850,10 +869,10 @@ export default function RequirementList() {
                           {group.requirements.map(req => {
                             const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
                             const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
-                            const isDispatched = req.status === 'Dispatched';
-                            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status);
+                            const isDispatched = req.status === 'Dispatched' || req.dispatch_progress === 'Fully Dispatched' || (Number(req.total_dispatched_quantity) > 0 && actualPending === 0);
+                            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status) && !isDispatched;
                             const isReqOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
-                            const isPartiallyDispatched = (req.total_dispatched_quantity > 0 && actualPending > 0);
+                            const isPartiallyDispatched = (Number(req.total_dispatched_quantity) > 0 && actualPending > 0);
                             return (
                               <tr 
                                 key={req.id} 
@@ -881,7 +900,7 @@ export default function RequirementList() {
                                 <td style={{padding: '12px'}}>{formatRate(req.expected_rate)}</td>
                                 <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>{getFriendlyDate(req.expected_date)}</td>
                                 <td style={{padding: '12px'}}>
-                                  <span className={getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '3px 8px'}}>{req.status}</span>
+                                  <span className={isDispatched ? 'badge badge-dispatched' : getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '3px 8px'}}>{isDispatched ? 'Dispatched' : req.status}</span>
                                   {isDispatched && (
                                     <div style={{fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.3}}>
                                       {req.latest_dispatch_date && <div>📅 {formatDate(req.latest_dispatch_date)}</div>}
@@ -951,10 +970,10 @@ export default function RequirementList() {
           {filteredRequirements.map(req => {
             const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
             const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
-            const isDispatched = req.status === 'Dispatched';
-            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status);
+            const isDispatched = req.status === 'Dispatched' || req.dispatch_progress === 'Fully Dispatched' || (Number(req.total_dispatched_quantity) > 0 && actualPending === 0);
+            const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status) && !isDispatched;
             const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
-            const isPartiallyDispatched = (req.total_dispatched_quantity > 0 && actualPending > 0);
+            const isPartiallyDispatched = (Number(req.total_dispatched_quantity) > 0 && actualPending > 0);
             
             return (
               <div 
@@ -976,7 +995,7 @@ export default function RequirementList() {
                     <div className="text-muted" style={{fontSize: '0.8rem'}}>{req.customer_city || 'Location N/A'} • {req.owner_email ? req.owner_email.split('@')[0] : 'Unassigned'}</div>
                   </div>
                   <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                    <span className={getStatusBadge(req.status)} style={{whiteSpace: 'nowrap'}}>{req.status}</span>
+                    <span className={isDispatched ? 'badge badge-dispatched' : getStatusBadge(req.status)} style={{whiteSpace: 'nowrap'}}>{isDispatched ? 'Dispatched' : req.status}</span>
                     <button type="button" onClick={(e) => openDeleteModal(e, req)} className="btn-icon" title="Delete requirement" style={{padding: '4px', color: 'var(--danger)'}}>
                       <Trash2 size={18} />
                     </button>

@@ -157,13 +157,14 @@ export default function RequirementView() {
       const { data: session } = await supabase.auth.getSession();
       
       // 1. Update Requirement
-      await supabase.from('requirements').update({ status: newStatus }).eq('id', id);
+      const dbStatus = newStatus === 'Dispatched' ? 'Closed' : newStatus;
+      await supabase.from('requirements').update({ status: dbStatus }).eq('id', id);
       
       // 2. Log History
       const { data: historyRow } = await supabase.from('requirement_status_history').insert({
         requirement_id: id,
         old_status: req.status,
-        new_status: newStatus,
+        new_status: dbStatus,
         note: statusNote,
         changed_by: session?.session?.user?.id || null
       }).select().single();
@@ -280,8 +281,8 @@ export default function RequirementView() {
             <h1 style={{margin: 0}}>{req.crm_parties?.display_name}</h1>
             <div className="text-secondary" style={{marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
               Requirement #{req.id.substring(0,8)} 
-              <span className={`badge ${req.status === 'Dispatched' ? 'badge-dispatched' : req.status === 'Won' ? 'badge-success' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`}>
-                {req.status}
+              <span className={`badge ${dispatchSummary?.dispatch_progress === 'Fully Dispatched' || req.status === 'Dispatched' || (req.status === 'Closed' && dispatchSummary?.total_dispatched_quantity > 0) ? 'badge-dispatched' : req.status === 'Won' ? 'badge-success' : req.status === 'Closed' ? 'badge-neutral' : req.status === 'Lost' ? 'badge-danger' : 'badge-active'}`}>
+                {dispatchSummary?.dispatch_progress === 'Fully Dispatched' || req.status === 'Dispatched' || (req.status === 'Closed' && dispatchSummary?.total_dispatched_quantity > 0) ? 'Dispatched' : req.status}
               </span>
             </div>
           </div>
@@ -395,7 +396,7 @@ export default function RequirementView() {
         </div>
 
         {/* Dispatch Summary Card */}
-        {(dispatchSummary || req.status === 'Won' || req.status === 'Dispatched') && (
+        {(dispatchSummary || req.status === 'Won' || req.status === 'Dispatched' || req.status === 'Closed') && (
           <div className="glass-panel" style={{padding: '1.5rem', border: '1px solid var(--border)'}}>
             <h3 style={{marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
               Dispatch Summary
