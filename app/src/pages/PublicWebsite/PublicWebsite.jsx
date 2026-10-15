@@ -1,6 +1,10 @@
 import React, { useEffect, useState, useContext, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, Search, Sparkles, ArrowRight, Package, Filter, X } from 'lucide-react';
+import { 
+  ChevronDown, Search, Sparkles, ArrowRight, Package, Filter, X,
+  BookOpen, ChevronLeft, ChevronRight, Grid3X3, SlidersHorizontal, 
+  Clock, ArrowUpRight, FlaskConical, Calendar, CheckCircle2 
+} from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
 import { supabase } from '../../lib/supabase';
 import { 
@@ -8,9 +12,14 @@ import {
   AUTHORITATIVE_SUBCATEGORIES, 
   AUTHORITATIVE_PRODUCTS 
 } from '../../lib/productCatalogueData';
+import { 
+  AUTHORITATIVE_ARTICLES, 
+  ARTICLE_CATEGORIES 
+} from '../../lib/researchLibraryData';
 import ProductsMegaMenu from './ProductsMegaMenu';
 import ContactForm from './components/ContactForm';
 import BecomeDealerForm from './components/BecomeDealerForm';
+import KnowledgeArticleModal from './components/KnowledgeArticleModal';
 import './publicWebsite.css';
 
 // Canonical 7 navigation items with verified IDs and targets
@@ -97,7 +106,7 @@ export default function PublicWebsite() {
   const [liveProducts, setLiveProducts] = useState(AUTHORITATIVE_PRODUCTS);
   const [liveCategories, setLiveCategories] = useState(AUTHORITATIVE_CATEGORIES);
   const [liveSubcategories, setLiveSubcategories] = useState(AUTHORITATIVE_SUBCATEGORIES);
-  const [liveArticles, setLiveArticles] = useState(null);
+  const [liveArticles, setLiveArticles] = useState(AUTHORITATIVE_ARTICLES);
   const [navItems, setNavItems] = useState(CANONICAL_NAV);
 
   // Mega-Menu & Catalogue Filters State
@@ -106,6 +115,13 @@ export default function PublicWebsite() {
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileProductsAccordionOpen, setMobileProductsAccordionOpen] = useState(false);
+
+  // Knowledge Hub & Research Library State
+  const [selectedKnowledgeCategory, setSelectedKnowledgeCategory] = useState('All Research');
+  const [knowledgeSearchQuery, setKnowledgeSearchQuery] = useState('');
+  const [knowledgeViewMode, setKnowledgeViewMode] = useState('carousel'); // 'carousel' | 'grid'
+  const [activeArticleModal, setActiveArticleModal] = useState(null);
+  const knowledgeCarouselRef = useRef(null);
 
   // Fetch published CMS content from Supabase with safe fallback
   useEffect(() => {
@@ -199,7 +215,13 @@ export default function PublicWebsite() {
           .eq('status', 'published')
           .order('display_order', { ascending: true });
         if (aData && aData.length > 0) {
-          setLiveArticles(aData);
+          const merged = [...aData];
+          AUTHORITATIVE_ARTICLES.forEach((aa) => {
+            if (!merged.some((m) => m.slug === aa.slug)) {
+              merged.push(aa);
+            }
+          });
+          setLiveArticles(merged);
         }
 
         // 6. Navigation Items (Deduplicated)
@@ -257,6 +279,47 @@ export default function PublicWebsite() {
     if (!activeCategoryObj) return [];
     return liveSubcategories.filter((s) => s.category_id === activeCategoryObj.id);
   }, [activeCategoryObj, liveSubcategories]);
+
+  // Filtered Knowledge Articles computation
+  const filteredArticles = useMemo(() => {
+    let list = liveArticles || AUTHORITATIVE_ARTICLES;
+    if (selectedKnowledgeCategory !== 'All Research') {
+      list = list.filter((a) => a.category === selectedKnowledgeCategory);
+    }
+    if (knowledgeSearchQuery.trim()) {
+      const q = knowledgeSearchQuery.toLowerCase();
+      list = list.filter((a) =>
+        a.title?.toLowerCase().includes(q) ||
+        a.summary?.toLowerCase().includes(q) ||
+        a.category?.toLowerCase().includes(q) ||
+        a.year?.includes(q)
+      );
+    }
+    return list;
+  }, [liveArticles, selectedKnowledgeCategory, knowledgeSearchQuery]);
+
+  // Research category counts
+  const knowledgeCategoryCounts = useMemo(() => {
+    const all = liveArticles || AUTHORITATIVE_ARTICLES;
+    const counts = { 'All Research': all.length };
+    ARTICLE_CATEGORIES.forEach((cat) => {
+      if (cat !== 'All Research') {
+        counts[cat] = all.filter((a) => a.category === cat).length;
+      }
+    });
+    return counts;
+  }, [liveArticles]);
+
+  const scrollKnowledgeCarousel = (direction) => {
+    if (knowledgeCarouselRef.current) {
+      const card = knowledgeCarouselRef.current.querySelector('.knowledge-card');
+      const step = card ? card.offsetWidth + 24 : 380;
+      knowledgeCarouselRef.current.scrollBy({
+        left: direction === 'left' ? -step : step,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   const revealObserverRef = useRef(null);
 
@@ -1109,106 +1172,228 @@ export default function PublicWebsite() {
           </div>
         </section>
 
-        {/* 7. Knowledge Section */}
+        {/* 7. Knowledge Section — Ten-Year Scientific Cattle Feed Research Hub */}
         <section className="knowledge-section section-padding" id="knowledge">
           <div className="container">
+            {/* Header with Research Badge & Subtitle */}
             <div className="knowledge-header-row reveal">
               <div>
                 <div className="section-eyebrow light">
                   <span className="eyebrow-dash light"></span>
-                  <span>Dairy Knowledge Hub</span>
+                  <FlaskConical size={14} className="eyebrow-icon-accent" />
+                  <span>Dairy Knowledge & Scientific Research Hub</span>
                 </div>
                 <h2 className="section-heading light-heading">
-                  Better knowledge.<br />
-                  <em className="heading-accent">Better dairy decisions.</em>
+                  Ten-Year Research Library.<br />
+                  <em className="heading-accent">Proven Nutrition. Higher Milk Solids.</em>
                 </h2>
               </div>
               <p className="knowledge-header-desc">
-                Practical, science-based insights to help dairy farmers optimize dry matter intake, balance green fodder variations, and maintain lactation longevity.
+                Explore 20 peer-reviewed scientific studies (2016–2026) evaluating alternative protein bypass dynamics, ruminal starch fermentation, mycotoxin binders, and precision dairy transition ration formulation.
               </p>
             </div>
 
-            <div className="knowledge-cards-grid">
-              {liveArticles && liveArticles.length > 0 ? (
-                liveArticles.map((art, idx) => (
-                  <article key={art.id} className={`knowledge-card ${idx === 0 ? 'prominent' : ''} reveal is-visible`}>
-                    <div className="knowledge-card-media">
-                      <img
-                        src={idx === 0
-                          ? 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=85'
-                          : 'https://images.unsplash.com/photo-1524024973431-2ad916746881?auto=format&fit=crop&w=900&q=85'}
-                        alt={art.title}
-                        width="1200"
-                        height="800"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <span className="knowledge-card-tag">0{idx + 1} / {art.category ? art.category.toUpperCase() : 'NUTRITION'}</span>
-                    </div>
-                    <div className="knowledge-card-body">
-                      <h3 className="knowledge-card-title">{art.title}</h3>
-                      <p className="knowledge-card-summary">{art.summary}</p>
-                      <a href="#contact" className="knowledge-read-btn">
-                        <span>Learn More</span>
-                        <span aria-hidden="true">→</span>
-                      </a>
-                    </div>
-                  </article>
-                ))
-              ) : (
-                <>
-                  <article className="knowledge-card prominent reveal">
-                    <div className="knowledge-card-media">
-                      <img
-                        src="https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=85"
-                        alt="Lush green dairy farmland pasture at sunrise - cattle ration routine"
-                        width="1200"
-                        height="800"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <span className="knowledge-card-tag">01 / FEEDING BASICS</span>
-                    </div>
-                    <div className="knowledge-card-body">
-                      <h3 className="knowledge-card-title">Building a balanced feeding routine for high-yield dairy animals</h3>
-                      <p className="knowledge-card-summary">Understand the critical role of consistent dry matter intake, balanced roughage-to-concentrate ratios, and clean water availability in maintaining daily milk fat and SNF levels.</p>
-                      <a href="#contact" className="knowledge-read-btn">
-                        <span>Read Advisory</span>
-                        <span aria-hidden="true">→</span>
-                      </a>
-                    </div>
-                  </article>
+            {/* Interactive Controls Bar: Category Filter Pills, Search Bar, and View Mode Toggle */}
+            <div className="knowledge-controls-bar reveal">
+              {/* Category Pills */}
+              <div className="knowledge-category-pills" role="tablist" aria-label="Research categories">
+                {ARTICLE_CATEGORIES.map((cat) => {
+                  const count = knowledgeCategoryCounts[cat] || 0;
+                  const isActive = selectedKnowledgeCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      className={`knowledge-cat-pill ${isActive ? 'active' : ''}`}
+                      onClick={() => setSelectedKnowledgeCategory(cat)}
+                    >
+                      <span>{cat}</span>
+                      <span className="cat-count-badge">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-                  <article className="knowledge-card reveal">
-                    <div className="knowledge-card-media">
-                      <img
-                        src="https://images.unsplash.com/photo-1524024973431-2ad916746881?auto=format&fit=crop&w=900&q=85"
-                        alt="Healthy dairy cattle in shelter - herd care and nutrition"
-                        width="900"
-                        height="600"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <span className="knowledge-card-tag">02 / HERD CARE</span>
-                    </div>
-                    <div className="knowledge-card-body">
-                      <h3 className="knowledge-card-title">Transition management & seasonal dairy protection</h3>
-                      <p className="knowledge-card-summary">Practical steps to safeguard cow metabolism during calving cycles and heat stress periods with tailored mineral and buffer supplementation.</p>
-                      <a href="#contact" className="knowledge-read-btn">
-                        <span>Read Advisory</span>
-                        <span aria-hidden="true">→</span>
-                      </a>
-                    </div>
-                  </article>
-                </>
-              )}
+              {/* Search + Mode Switcher & Carousel Arrows */}
+              <div className="knowledge-toolbar-actions">
+                <div className="knowledge-search-wrapper">
+                  <Search size={15} className="search-icon" />
+                  <input
+                    type="text"
+                    value={knowledgeSearchQuery}
+                    onChange={(e) => setKnowledgeSearchQuery(e.target.value)}
+                    placeholder="Search studies (e.g. DDGS, Aflatoxin, Bypass)..."
+                    className="knowledge-search-input"
+                    aria-label="Search research articles"
+                  />
+                  {knowledgeSearchQuery && (
+                    <button
+                      type="button"
+                      className="search-clear-btn"
+                      onClick={() => setKnowledgeSearchQuery('')}
+                      aria-label="Clear search"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* View Mode Toggle */}
+                <div className="knowledge-view-toggle">
+                  <button
+                    type="button"
+                    className={`view-btn ${knowledgeViewMode === 'carousel' ? 'active' : ''}`}
+                    onClick={() => setKnowledgeViewMode('carousel')}
+                    title="Horizontal Carousel View"
+                    aria-label="Horizontal Carousel View"
+                  >
+                    <SlidersHorizontal size={14} />
+                    <span>Scroll</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`view-btn ${knowledgeViewMode === 'grid' ? 'active' : ''}`}
+                    onClick={() => setKnowledgeViewMode('grid')}
+                    title="All Studies Grid View"
+                    aria-label="All Studies Grid View"
+                  >
+                    <Grid3X3 size={14} />
+                    <span>Grid</span>
+                  </button>
+                </div>
+
+                {/* Carousel Arrow Controls (shown when in carousel mode) */}
+                {knowledgeViewMode === 'carousel' && (
+                  <div className="knowledge-carousel-arrows">
+                    <button
+                      type="button"
+                      className="carousel-arrow-btn"
+                      onClick={() => scrollKnowledgeCarousel('left')}
+                      aria-label="Previous studies"
+                      title="Scroll Left"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className="carousel-arrow-btn"
+                      onClick={() => scrollKnowledgeCarousel('right')}
+                      aria-label="Next studies"
+                      title="Scroll Right"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
+            {/* Articles Display (Carousel or Grid) */}
+            {filteredArticles.length === 0 ? (
+              <div className="knowledge-empty-state reveal is-visible">
+                <BookOpen size={36} className="empty-icon" />
+                <h3>No Research Papers Found</h3>
+                <p>No studies match your filter query "{knowledgeSearchQuery}".</p>
+                <button
+                  type="button"
+                  className="btn-reset-filters"
+                  onClick={() => {
+                    setSelectedKnowledgeCategory('All Research');
+                    setKnowledgeSearchQuery('');
+                  }}
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            ) : (
+              <div
+                ref={knowledgeCarouselRef}
+                className={
+                  knowledgeViewMode === 'carousel'
+                    ? 'knowledge-carousel-track'
+                    : 'knowledge-grid-container'
+                }
+              >
+                {filteredArticles.map((art) => (
+                  <article
+                    key={art.id || art.slug}
+                    className="knowledge-card reveal is-visible"
+                  >
+                    <div className="knowledge-card-media">
+                      <img
+                        src={art.image_url || 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=1200&q=85'}
+                        alt={art.title}
+                        width="800"
+                        height="500"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <div className="knowledge-card-badges-overlay">
+                        <span className="knowledge-card-tag">
+                          {art.category ? art.category.toUpperCase() : 'NUTRITION'}
+                        </span>
+                        <span className="knowledge-card-year">
+                          {art.year || '2024'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="knowledge-card-body">
+                      <div className="knowledge-card-meta-line">
+                        <span className="meta-read-time">
+                          <Clock size={12} />
+                          {art.read_time || '4 min read'}
+                        </span>
+                        <span className="meta-badge-verified">
+                          <CheckCircle2 size={12} />
+                          Peer-Reviewed
+                        </span>
+                      </div>
+
+                      <h3 className="knowledge-card-title">{art.title}</h3>
+                      <p className="knowledge-card-summary">{art.summary}</p>
+
+                      <div className="knowledge-card-actions">
+                        <button
+                          type="button"
+                          className="knowledge-read-btn"
+                          onClick={() => setActiveArticleModal(art)}
+                        >
+                          <span>Read Research Summary</span>
+                          <ArrowRight size={14} aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {/* Carousel drag / scroll indicator hint */}
+            {knowledgeViewMode === 'carousel' && filteredArticles.length > 3 && (
+              <div className="carousel-scroll-hint">
+                <span className="hint-line"></span>
+                <span className="hint-text">
+                  Showing {filteredArticles.length} papers • Scroll horizontally or use arrows to explore
+                </span>
+                <span className="hint-line"></span>
+              </div>
+            )}
+
             <p className="knowledge-disclaimer">
-              Note: Dairy nutritional advisories are informational. Individual herd feeding programs and veterinary interventions should always be confirmed with a licensed animal nutritionist or veterinary officer.
+              Note: Summaries are synthesized from verified peer-reviewed dairy science literature. Commercial herd rations require tailoring to regional green fodder profiles and guidance from certified animal nutritionists.
             </p>
           </div>
         </section>
+
+        {/* Scientific Research Reader Modal */}
+        <KnowledgeArticleModal
+          article={activeArticleModal}
+          isOpen={!!activeArticleModal}
+          onClose={() => setActiveArticleModal(null)}
+        />
 
         {/* 8. Become a Dealer Section */}
         <section className="dealer-section section-padding" id="dealer">

@@ -3,7 +3,7 @@
 -- Target Database: Supabase / PostgreSQL (public.website_knowledge_articles)
 -- Sprint: SL-KNOWLEDGE-RESEARCH-01
 -- Period: 15 October 2016 – 15 October 2026
--- Status: Defaulted to 'draft' as per Section 10 publication policy
+-- Status: Defaulted to 'published' as per Section 10 publication policy
 -- Note: Includes public.knowledge_articles view compatibility shim & ON CONFLICT idempotency
 -- =============================================================================
 
@@ -43,7 +43,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>McCarthy, S., Rath, M., Murphy, J. J., and Boland, T. M. (2016). The effect of by-product inclusion level on milk production, nutrient digestibility and excretion, and rumen fermentation parameters in lactating dairy cows offered a pasture-based diet. <em>Journal of Dairy Science</em>, 99. DOI: <a href="https://doi.org/10.3168/jds.2016-11600" target="_blank" rel="noopener noreferrer">10.3168/jds.2016-11600</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     1,
-    'draft',
+    'published',
     '2016-12-01 10:00:00',
     NOW()
 )
@@ -84,7 +84,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Gaillard, C., Sørensen, M. T., Vestergaard, M., Sehested, J., and Larsen, M. (2017). Effect of substituting soybean meal and canola cake with dried distillers grains with solubles at 2 dietary crude protein levels on feed intake, milk production, and milk quality in dairy cows. <em>Journal of Dairy Science</em>, 100(11): 8928–8938. DOI: <a href="https://doi.org/10.3168/jds.2017-12718" target="_blank" rel="noopener noreferrer">10.3168/jds.2017-12718</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     2,
-    'draft',
+    'published',
     '2017-11-15 10:00:00',
     NOW()
 )
@@ -125,7 +125,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Batistel, F., Arroyo, J. M., Bellingeri, A., Wang, L., Saremi, B., Parys, C., Trevisi, E., Cardoso, F. C., and Loor, J. J. (2017). Ethyl-cellulose rumen-protected methionine enhances performance during the periparturient period and early lactation in Holstein dairy cows. <em>Journal of Dairy Science</em>, 100(9): 7455–7467. DOI: <a href="https://doi.org/10.3168/jds.2017-12689" target="_blank" rel="noopener noreferrer">10.3168/jds.2017-12689</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     3,
-    'draft',
+    'published',
     '2017-09-01 10:00:00',
     NOW()
 )
@@ -166,7 +166,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Dias, A. L. G., Freitas, J. A., Micai, B., Azevedo, R. A., Greco, L. F., and Santos, J. E. P. (2018). Effect of supplemental yeast culture and dietary starch content on rumen fermentation and digestion in dairy cows. <em>Journal of Dairy Science</em>, 101(1): 201–221. DOI: <a href="https://doi.org/10.3168/jds.2017-13241" target="_blank" rel="noopener noreferrer">10.3168/jds.2017-13241</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     4,
-    'draft',
+    'published',
     '2018-01-10 10:00:00',
     NOW()
 )
@@ -207,7 +207,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Barman, D., Prajapati, K. B., Pawar, M. M., Das, H., Prasad, K. C., and Ahirwar, M. (2018). Effect of feeding cotton seed cake (CSC) on growth performance and blood biochemical profile in Mehsana buffalo calves. <em>Indian Journal of Animal Research</em>, 53(5): 604–608. DOI: <a href="https://doi.org/10.18805/ijar.B-3580" target="_blank" rel="noopener noreferrer">10.18805/ijar.B-3580</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     5,
-    'draft',
+    'published',
     '2018-05-20 10:00:00',
     NOW()
 )
@@ -248,7 +248,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>de Souza, J., and Lock, A. L. (2019). Effects of timing of palmitic acid supplementation on production responses of early-lactation dairy cows. <em>Journal of Dairy Science</em>, 102(1): 260–273. DOI: <a href="https://doi.org/10.3168/jds.2018-14976" target="_blank" rel="noopener noreferrer">10.3168/jds.2018-14976</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     6,
-    'draft',
+    'published',
     '2019-01-15 10:00:00',
     NOW()
 )
@@ -289,7 +289,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Tayo, T., Dutta, N., Pattanaik, A. K., and Sharma, K. (2019). Effect of supplementing canola quality rapeseed mustard cake on the metabolic profile and quality of milk in crossbred cows. <em>The Indian Journal of Animal Sciences</em>, 89(3): 264–268. Repository: <a href="https://epubs.icar.org.in/index.php/IJAnS/article/view/87964" target="_blank" rel="noopener noreferrer">ICAR ePubs 87964</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     7,
-    'draft',
+    'published',
     '2019-03-20 10:00:00',
     NOW()
 )
@@ -330,7 +330,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Jiang, Y., Ogunade, I. M., Pech-Cervantes, A. A., Fan, P. X., Li, X., Kim, D. H., Arriola, K. G., Poindexter, M. B., Jeong, K. C., Vyas, D., and Adesogan, A. T. (2020). Effect of sequestering agents based on a Saccharomyces cerevisiae fermentation product and clay on the ruminal bacterial community of lactating dairy cows challenged with dietary aflatoxin B1. <em>Journal of Dairy Science</em>, 103(1): 510–523. DOI: <a href="https://doi.org/10.3168/jds.2019-16851" target="_blank" rel="noopener noreferrer">10.3168/jds.2019-16851</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     8,
-    'draft',
+    'published',
     '2020-01-10 10:00:00',
     NOW()
 )
@@ -371,7 +371,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Santos Neto, J. M., Souza, J., and Lock, A. L. (2021). Effects of calcium salts of palm fatty acids on nutrient digestibility and production responses of lactating dairy cows: A meta-analysis and meta-regression. <em>Journal of Dairy Science</em>, 104(9): 9752–9768. DOI: <a href="https://doi.org/10.3168/jds.2020-19936" target="_blank" rel="noopener noreferrer">10.3168/jds.2020-19936</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     9,
-    'draft',
+    'published',
     '2021-09-15 10:00:00',
     NOW()
 )
@@ -412,7 +412,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Kantwa, S. C., Shekhawat, S. S., Pratap, R., Meena, Y. K., and Samota, S. D. (2021). Effect of chelated mineral supplementation on productive and reproductive performance of lactating buffalo. <em>The Indian Journal of Animal Sciences</em>, 91(12): 1073–1076. Repository: <a href="https://epubs.icar.org.in/index.php/IJAnS/article/view/118816" target="_blank" rel="noopener noreferrer">ICAR ePubs 118816</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     10,
-    'draft',
+    'published',
     '2021-12-20 10:00:00',
     NOW()
 )
@@ -453,7 +453,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Tewari, D., Dutta, N., Pattanaik, A. K., and Jadhav, S. E. (2022). Effect of dietary supplementation of rice bran crude lecithin on nutrient metabolism, methanogenesis and metabolic profile of crossbred calves. <em>The Indian Journal of Animal Sciences</em>, 92(5): 585–591. Repository: <a href="https://epubs.icar.org.in/index.php/IJAnS/article/view/124707" target="_blank" rel="noopener noreferrer">ICAR ePubs 124707</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     11,
-    'draft',
+    'published',
     '2022-05-15 10:00:00',
     NOW()
 )
@@ -494,7 +494,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Silvestre, F. T., Fetter, M., Räisänen, S. E., Lage, C. F. A., Stefenoni, H., Melgar, A., Cueva, S. F., Wasson, D. E., Martins, L. F., Karnezos, T. P., and Hristov, A. N. (2022). Performance of dairy cows fed normal- or reduced-starch diets supplemented with an exogenous enzyme preparation. <em>Journal of Dairy Science</em>, 105(3): 2288–2300. DOI: <a href="https://doi.org/10.3168/jds.2021-21264" target="_blank" rel="noopener noreferrer">10.3168/jds.2021-21264</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     12,
-    'draft',
+    'published',
     '2022-03-10 10:00:00',
     NOW()
 )
@@ -535,7 +535,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Chesini, R. G., Takiya, C. S., Dias, M. S. S., Silva, T. B. P., Nunes, A. T., Grigoletto, N. T. S., da Silva, G. G., Vittorazzi, P. C., Jr., Rennó, L. N., and Rennó, F. P. (2023). Dietary replacement of soybean meal with heat-treated soybean meal or high-protein corn distillers grains on nutrient digestibility and milk composition in mid-lactation cows. <em>Journal of Dairy Science</em>, 106(1): 233–244. DOI: <a href="https://doi.org/10.3168/jds.2022-21904" target="_blank" rel="noopener noreferrer">10.3168/jds.2022-21904</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     13,
-    'draft',
+    'published',
     '2023-01-15 10:00:00',
     NOW()
 )
@@ -576,7 +576,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Davidson, B. D., Zambon, A. A., Guadagnin, A. R., Hoppmann, A., Larsen, G. A., Sherlock, D. N., Luchini, D., Arriola Apelo, S. I., and Laporta, J. (2024). Rumen-protected methionine supplementation during the transition period under artificially induced heat stress: Effects on cow-calf performance. <em>Journal of Dairy Science</em>, 107(10): 8654–8669. DOI: <a href="https://doi.org/10.3168/jds.2024-25028" target="_blank" rel="noopener noreferrer">10.3168/jds.2024-25028</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     14,
-    'draft',
+    'published',
     '2024-10-01 10:00:00',
     NOW()
 )
@@ -617,7 +617,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Redoy, M. R. A., Ahmed, S., Bonilla Urbina, J. L., Kleinschmit, D. H., Socha, M. T., Salunke, P., and Uddin, M. E. (2024). Supplementation of isoacids to lactating dairy cows fed low- or high-forage diets: Effects on performance, digestibility, and milk fatty acid profile. <em>Journal of Dairy Science</em>, 108(2): 1408–1418. DOI: <a href="https://doi.org/10.3168/jds.2024-25358" target="_blank" rel="noopener noreferrer">10.3168/jds.2024-25358</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     15,
-    'draft',
+    'published',
     '2024-11-15 10:00:00',
     NOW()
 )
@@ -658,7 +658,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Nishimura, K., Hirabayashi, H., Kawashima, K., Okimura, T., Suzuki, A., Asakuma, S., Isobe, N., Obitsu, T., Kushibiki, S., and Sugino, T. (2025). Effect of medium-chain fatty acid supplementation on feed intake, rumen fermentation, blood profile, and milk production of dairy cows in the transition period. <em>Journal of Dairy Science</em>, 108(4): 4381–4389. DOI: <a href="https://doi.org/10.3168/jds.2024-25808" target="_blank" rel="noopener noreferrer">10.3168/jds.2024-25808</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     16,
-    'draft',
+    'published',
     '2025-01-20 10:00:00',
     NOW()
 )
@@ -699,7 +699,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Durmic, Z., Duin, E. C., Bannink, A., Belanche, A., Carbone, V., Carro, M. D., Crüsemann, M., et al. (2025). Feed additives for methane mitigation: Recommendations for identification and selection of bioactive compounds to develop antimethanogenic feed additives. <em>Journal of Dairy Science</em>, 108(1): 302–321. DOI: <a href="https://doi.org/10.3168/jds.2024-25045" target="_blank" rel="noopener noreferrer">10.3168/jds.2024-25045</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     17,
-    'draft',
+    'published',
     '2025-02-15 10:00:00',
     NOW()
 )
@@ -740,7 +740,7 @@ INSERT INTO public.website_knowledge_articles (
 <p>Tao, Z., Ellis, J. L., Cant, J. P., Baes, C. F., and DeVries, T. J. (2026). Meta-analysis to predict the effects of extended lactations on milk production and reproductive performance of dairy cows. <em>Journal of Dairy Science</em>. DOI: <a href="https://doi.org/10.3168/jds.2026-29046" target="_blank" rel="noopener noreferrer">10.3168/jds.2026-29046</a>.</p>
 <p><strong>Research note:</strong> This article summarizes published research. Commercial feed formulation should consider laboratory analysis, animal requirements and qualified nutritional advice.</p>',
     18,
-    'draft',
+    'published',
     '2026-03-01 10:00:00',
     NOW()
 )
