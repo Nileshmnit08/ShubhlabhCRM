@@ -155,6 +155,11 @@ export default function RequirementList() {
 
       if (statusFilter === 'Dispatched') {
         query = query.or('dispatch_progress.eq.Fully Dispatched,total_dispatched_quantity.gt.0');
+      } else if (statusFilter === 'Not Dispatched') {
+        query = query.eq('dispatch_progress', 'Not Dispatched').eq('total_dispatched_quantity', 0).neq('status', 'Dispatched');
+        if (!includeCompleted) {
+          query = query.not('status', 'in', '(Closed,Fulfilled,Completed,Cancelled,Lost,Won)');
+        }
       } else {
         if (!includeCompleted) {
           query = query.or('dispatch_progress.eq.Fully Dispatched,status.not.in.(Closed,Fulfilled,Completed,Cancelled,Lost,Won)');
@@ -650,9 +655,9 @@ export default function RequirementList() {
           <h1 style={{margin: 0}}>Requirements Board</h1>
           <p className="text-secondary" style={{marginTop: '0.25rem'}}>
             {viewMode === 'customer' ? (
-              <span>{groupedCustomers.length} customers • {filteredRequirements.length} {statusFilter === 'Dispatched' ? 'dispatched' : includeCompleted || statusFilter === 'All' ? 'total' : 'active'} requirements</span>
+              <span>{groupedCustomers.length} customers • {filteredRequirements.length} {statusFilter === 'Dispatched' ? 'dispatched' : statusFilter === 'Not Dispatched' ? 'not dispatched' : includeCompleted || statusFilter === 'All' ? 'total' : 'active'} requirements</span>
             ) : (
-              <span>Showing {filteredRequirements.length} {statusFilter === 'Dispatched' ? 'dispatched' : includeCompleted || statusFilter === 'All' ? 'total' : 'active'} requirements</span>
+              <span>Showing {filteredRequirements.length} {statusFilter === 'Dispatched' ? 'dispatched' : statusFilter === 'Not Dispatched' ? 'not dispatched' : includeCompleted || statusFilter === 'All' ? 'total' : 'active'} requirements</span>
             )}
           </p>
         </div>
@@ -716,6 +721,7 @@ export default function RequirementList() {
             <option value="Qualified">Qualified</option>
             <option value="Commercial Intent">Commercial Intent</option>
             <option value="Dispatched">Dispatched</option>
+            <option value="Not Dispatched">Not Dispatched</option>
             <option value="On Hold">On Hold</option>
             <option value="All">All Statuses</option>
           </select>
