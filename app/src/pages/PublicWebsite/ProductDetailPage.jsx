@@ -47,6 +47,7 @@ export default function ProductDetailPage() {
 
         // 2. Fetch live product from Supabase or fallback to verified data
         let currentProd = null;
+        const authoritative = getProductBySlug(slug, AUTHORITATIVE_PRODUCTS);
         try {
           const { data: dbProd, error } = await supabase
             .from('website_products')
@@ -54,14 +55,19 @@ export default function ProductDetailPage() {
             .eq('slug', slug)
             .single();
           if (!error && dbProd) {
-            currentProd = dbProd;
+            const hasDbSpecs = dbProd.specifications && typeof dbProd.specifications === 'object' && Object.keys(dbProd.specifications).length > 0;
+            currentProd = {
+              ...authoritative,
+              ...dbProd,
+              specifications: hasDbSpecs ? dbProd.specifications : (authoritative?.specifications || {})
+            };
           }
         } catch (e) {
           // fallback to baseline
         }
 
         if (!currentProd) {
-          currentProd = getProductBySlug(slug, AUTHORITATIVE_PRODUCTS);
+          currentProd = authoritative;
         }
 
         if (currentProd) {
