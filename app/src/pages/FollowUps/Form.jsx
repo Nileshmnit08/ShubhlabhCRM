@@ -788,7 +788,7 @@ export default function FollowUpForm() {
                         if (mobileValidationError) setMobileValidationError('');
                       }}
                       disabled={mobileStatus === 'viewing' || mobileStatus === 'saving' || !isAdmin}
-                      placeholder="e.g. 9876543210"
+                      placeholder="e.g. 9461924461"
                       style={{ flex: 1, borderColor: mobileValidationError ? 'var(--danger)' : 'var(--border)' }}
                     />
                     

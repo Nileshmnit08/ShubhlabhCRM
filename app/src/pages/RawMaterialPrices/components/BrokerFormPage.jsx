@@ -212,7 +212,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
               <label>Mobile Number</label>
               <input 
                 type="text" 
-                placeholder="e.g. 9876543210"
+                placeholder="e.g. 9461924461"
                 value={formData.mobile}
                 onChange={e => setFormData({...formData, mobile: e.target.value})}
               />
@@ -221,7 +221,7 @@ export default function BrokerFormPage({ materials, onRefresh, showMessage }) {
               <label>WhatsApp Number</label>
               <input 
                 type="text" 
-                placeholder="e.g. 9876543210"
+                placeholder="e.g. 9461924461"
                 value={formData.whatsapp_number}
                 onChange={e => setFormData({...formData, whatsapp_number: e.target.value})}
               />

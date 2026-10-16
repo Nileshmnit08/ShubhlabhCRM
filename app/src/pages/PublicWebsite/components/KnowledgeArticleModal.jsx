@@ -41,7 +41,7 @@ export default function KnowledgeArticleModal({ article, isOpen, onClose }) {
   const whatsappMessage = encodeURIComponent(
     `Hello Shubh Labh Team, I was reading your research paper "${article.title}" in the Dairy Knowledge Hub and would like to discuss nutritional formulation for my herd.`
   );
-  const whatsappUrl = `https://wa.me/919829000000?text=${whatsappMessage}`;
+  const whatsappUrl = `https://wa.me/919461924461?text=${whatsappMessage}`;
 
   return (
     <div className="knowledge-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="modal-article-title">

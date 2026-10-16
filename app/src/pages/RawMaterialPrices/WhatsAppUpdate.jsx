@@ -402,7 +402,7 @@ const WhatsAppUpdate = () => {
                     <input
                       type="tel"
                       className={`flex-1 h-[42px] px-3 border ${phoneError ? 'border-red-400' : 'border-[#E2E8F0]'} rounded-r-lg text-[15px] focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-shadow bg-white text-[#0F172A]`}
-                      placeholder="9876543210"
+                      placeholder="9461924461"
                       value={newRecipientPhone}
                       onChange={e => {
                         setNewRecipientPhone(e.target.value.replace(/\D/g, '').substring(0, 10));

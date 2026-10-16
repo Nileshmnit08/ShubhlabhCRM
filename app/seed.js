@@ -21,7 +21,7 @@ async function seed() {
   if (!parties || parties.length === 0) {
     console.log("No parties found. Creating dummy parties...");
     const { data: newParties, error: newPErr } = await supabase.from('crm_parties').insert([
-      { display_name: 'Shree Ganesh Feeds', mobile: '9876543210', whatsapp: '9876543210', crm_status: 'Active', city: 'Pune' },
+      { display_name: 'Shree Ganesh Feeds', mobile: '9461924461', whatsapp: '9461924461', crm_status: 'Active', city: 'Pune' },
       { display_name: 'AgriTech Farms', mobile: '9123456789', crm_status: 'Active', city: 'Nashik' },
       { display_name: 'Deshmukh Dairy (OLD)', mobile: '9000000000', crm_status: 'Dormant', city: 'Satara' }
     ]).select();

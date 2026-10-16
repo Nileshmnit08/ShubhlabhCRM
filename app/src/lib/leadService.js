@@ -182,10 +182,9 @@ export async function submitWebsiteLead(leadData) {
 
   // 8. Submit to Supabase
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('website_leads')
-      .insert([payload])
-      .select('id, lead_type, full_name, phone, created_at');
+      .insert([payload]);
 
     if (error) {
       console.warn('Supabase lead write failed, attempting fallback store:', error.message);
@@ -206,9 +205,8 @@ export async function submitWebsiteLead(leadData) {
 
     return {
       success: true,
-      leadId: data?.[0]?.id,
       message: 'Thank you! Your inquiry has been registered successfully. Our team will contact you shortly.',
-      data: data?.[0] || payload
+      data: payload
     };
   } catch (err) {
     if (err.message && err.message.includes('recently received')) {
@@ -347,88 +345,115 @@ export async function fetchWebsiteLeads({
   search = '',
   sortBy = 'newest'
 } = {}) {
-  let leads = [];
   let isFallback = false;
 
   try {
-    let query = supabase
+    const { data, error } = await supabase
       .from('website_leads')
       .select('*')
       .order('created_at', { ascending: sortBy === 'oldest' });
 
-    if (status !== 'all') {
-      query = query.eq('status', status);
-    }
-    if (leadType !== 'all') {
-      query = query.eq('lead_type', leadType);
-    }
-    if (district !== 'all') {
-      query = query.eq('district', district);
-    }
-
-    const { data, error } = await query;
     if (error) throw error;
 
-    if (data && data.length > 0) {
-      leads = data;
-    } else {
-      // If table is empty, merge offline queue + default seeds
-      leads = getOfflineAndSeedLeads();
+    let allLeads = data || [];
+
+    // If table is genuinely empty in DB, check offline queue + default seeds
+    if (allLeads.length === 0) {
+      allLeads = getOfflineAndSeedLeads();
       isFallback = true;
     }
-  } catch (err) {
-    console.warn('Unable to query website_leads table directly, using local/seed fallback:', err.message);
-    leads = getOfflineAndSeedLeads();
-    isFallback = true;
-  }
 
-  // Client-side text search across multiple fields
-  if (search && search.trim()) {
-    const q = search.trim().toLowerCase();
-    leads = leads.filter(item => 
-      (item.full_name || '').toLowerCase().includes(q) ||
-      (item.phone || '').includes(q) ||
-      (item.firm_name || '').toLowerCase().includes(q) ||
-      (item.district || '').toLowerCase().includes(q) ||
-      (item.city_tehsil || '').toLowerCase().includes(q) ||
-      (item.subject || '').toLowerCase().includes(q) ||
-      (item.product_name || '').toLowerCase().includes(q) ||
-      (item.message || '').toLowerCase().includes(q)
-    );
-  }
+    // Calculate metrics across all leads
+    const metrics = {
+      total: allLeads.length,
+      new: allLeads.filter(l => l.status === 'new').length,
+      contacted: allLeads.filter(l => l.status === 'contacted').length,
+      converted: allLeads.filter(l => l.status === 'converted').length,
+      rejected: allLeads.filter(l => l.status === 'rejected').length,
+      dealerApps: allLeads.filter(l => l.lead_type === 'dealer_application').length,
+      contactInquiries: allLeads.filter(l => l.lead_type === 'contact_inquiry').length,
+      productEnquiries: allLeads.filter(l => l.lead_type === 'product_enquiry').length,
+    };
 
-  // Filter fallback list by status and type if fallback was used
-  if (isFallback) {
+    // Apply filtering
+    let filtered = allLeads;
     if (status !== 'all') {
-      leads = leads.filter(l => l.status === status);
+      filtered = filtered.filter(l => l.status === status);
     }
     if (leadType !== 'all') {
-      leads = leads.filter(l => l.lead_type === leadType);
+      filtered = filtered.filter(l => l.lead_type === leadType);
     }
     if (district !== 'all') {
-      leads = leads.filter(l => l.district === district);
+      filtered = filtered.filter(l => l.district === district);
     }
+
+    // Client-side text search across multiple fields
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      filtered = filtered.filter(item => 
+        (item.full_name || '').toLowerCase().includes(q) ||
+        (item.phone || '').includes(q) ||
+        (item.firm_name || '').toLowerCase().includes(q) ||
+        (item.district || '').toLowerCase().includes(q) ||
+        (item.city_tehsil || '').toLowerCase().includes(q) ||
+        (item.subject || '').toLowerCase().includes(q) ||
+        (item.product_name || '').toLowerCase().includes(q) ||
+        (item.message || '').toLowerCase().includes(q)
+      );
+    }
+
+    return {
+      leads: filtered,
+      metrics,
+      isFallback,
+      pendingOfflineCount: getPendingOfflineCount()
+    };
+  } catch (err) {
+    console.warn('Unable to query website_leads table directly, using local/seed fallback:', err.message);
+    let allFallbackLeads = getOfflineAndSeedLeads();
+
+    const metrics = {
+      total: allFallbackLeads.length,
+      new: allFallbackLeads.filter(l => l.status === 'new').length,
+      contacted: allFallbackLeads.filter(l => l.status === 'contacted').length,
+      converted: allFallbackLeads.filter(l => l.status === 'converted').length,
+      rejected: allFallbackLeads.filter(l => l.status === 'rejected').length,
+      dealerApps: allFallbackLeads.filter(l => l.lead_type === 'dealer_application').length,
+      contactInquiries: allFallbackLeads.filter(l => l.lead_type === 'contact_inquiry').length,
+      productEnquiries: allFallbackLeads.filter(l => l.lead_type === 'product_enquiry').length,
+    };
+
+    let filtered = allFallbackLeads;
+    if (status !== 'all') {
+      filtered = filtered.filter(l => l.status === status);
+    }
+    if (leadType !== 'all') {
+      filtered = filtered.filter(l => l.lead_type === leadType);
+    }
+    if (district !== 'all') {
+      filtered = filtered.filter(l => l.district === district);
+    }
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      filtered = filtered.filter(item => 
+        (item.full_name || '').toLowerCase().includes(q) ||
+        (item.phone || '').includes(q) ||
+        (item.firm_name || '').toLowerCase().includes(q) ||
+        (item.district || '').toLowerCase().includes(q) ||
+        (item.city_tehsil || '').toLowerCase().includes(q) ||
+        (item.subject || '').toLowerCase().includes(q) ||
+        (item.product_name || '').toLowerCase().includes(q) ||
+        (item.message || '').toLowerCase().includes(q)
+      );
+    }
+
+    return {
+      leads: filtered,
+      metrics,
+      isFallback: true,
+      pendingOfflineCount: getPendingOfflineCount()
+    };
   }
-
-  // Calculate metrics
-  const allLeadsForMetrics = isFallback ? getOfflineAndSeedLeads() : leads;
-  const metrics = {
-    total: allLeadsForMetrics.length,
-    new: allLeadsForMetrics.filter(l => l.status === 'new').length,
-    contacted: allLeadsForMetrics.filter(l => l.status === 'contacted').length,
-    converted: allLeadsForMetrics.filter(l => l.status === 'converted').length,
-    rejected: allLeadsForMetrics.filter(l => l.status === 'rejected').length,
-    dealerApps: allLeadsForMetrics.filter(l => l.lead_type === 'dealer_application').length,
-    contactInquiries: allLeadsForMetrics.filter(l => l.lead_type === 'contact_inquiry').length,
-    productEnquiries: allLeadsForMetrics.filter(l => l.lead_type === 'product_enquiry').length,
-  };
-
-  return {
-    leads,
-    metrics,
-    isFallback,
-    pendingOfflineCount: getPendingOfflineCount()
-  };
 }
 
 /**

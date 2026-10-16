@@ -111,7 +111,7 @@ export default function ProductDetailPage() {
   };
 
   const getWhatsAppLink = (prodName) => {
-    const rawNum = contactSettings.whatsapp || contactSettings.phone || '919829000000';
+    const rawNum = contactSettings.whatsapp || contactSettings.phone || '919461924461';
     const cleanNum = rawNum.replace(/[^0-9]/g, '');
     const msg = encodeURIComponent(
       `Hello Shubh Labh Team, I am interested in ${prodName || product?.name}. Please share technical specifications, bag pricing, and dealer availability.`

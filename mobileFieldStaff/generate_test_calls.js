@@ -5,12 +5,12 @@ const now = Date.now();
 
 // 1. Incoming answered call (type 1)
 const time1 = now - 300000; // 5 mins ago
-execSync(`adb shell content insert --uri content://call_log/calls --bind number:s:+919876543210 --bind type:i:1 --bind date:l:${time1} --bind duration:i:120 --bind new:i:1`);
+execSync(`adb shell content insert --uri content://call_log/calls --bind number:s:+919461924461 --bind type:i:1 --bind date:l:${time1} --bind duration:i:120 --bind new:i:1`);
 console.log('Inserted incoming call');
 
 // 2. Outgoing answered call (type 2)
 const time2 = now - 200000; // 3 mins ago
-execSync(`adb shell content insert --uri content://call_log/calls --bind number:s:+919876543210 --bind type:i:2 --bind date:l:${time2} --bind duration:i:45 --bind new:i:1`);
+execSync(`adb shell content insert --uri content://call_log/calls --bind number:s:+919461924461 --bind type:i:2 --bind date:l:${time2} --bind duration:i:45 --bind new:i:1`);
 console.log('Inserted outgoing call');
 
 // 3. Missed incoming call (type 3)

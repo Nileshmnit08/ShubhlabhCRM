@@ -28,7 +28,7 @@ const OFFICIAL_SOCIAL_LINKS = {
   facebook: 'https://www.facebook.com/shubhlabhcattlefeed',
   youtube: 'https://www.youtube.com/@shubhlabhcattlefeed2654',
   instagram: 'https://www.instagram.com/shubhlabhcattlefeed',
-  whatsappClickToChat: 'https://wa.me/?text=Hello%20Shubh%20Labh%2C%20I%20would%20like%20to%20know%20more.',
+  whatsappClickToChat: 'https://wa.me/919461924461?text=Hello%20Shubh%20Labh%2C%20I%20would%20like%20to%20know%20more.',
 };
 
 const FB_SVG_PATH = 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z';
@@ -101,9 +101,9 @@ export default function PublicWebsite() {
   const [announcementText, setAnnouncementText] = useState('Nutrition made with farmers in mind ✳ Serving dairy ambitions across Rajasthan & North India');
   const [announcementActive, setAnnouncementActive] = useState(true);
   const [contactSettings, setContactSettings] = useState({
-    phone: null,
-    whatsapp: null,
-    email: null,
+    phone: '+91 94619 24461',
+    whatsapp: '+91 94619 24461',
+    email: 'shubhlabhfeedinfo@gmail.com',
     address: null,
   });
 
@@ -482,7 +482,7 @@ export default function PublicWebsite() {
   };
 
   const getWhatsAppProductLink = (productName) => {
-    const rawNum = contactSettings.whatsapp || contactSettings.phone || '919829000000';
+    const rawNum = contactSettings.whatsapp || contactSettings.phone || '919461924461';
     const cleanNum = rawNum.replace(/[^0-9]/g, '');
     const msg = encodeURIComponent(`Hello Shubh Labh Team, I would like to enquire about ${productName}. Please share details and dealership availability.`);
     return `https://wa.me/${cleanNum}?text=${msg}`;

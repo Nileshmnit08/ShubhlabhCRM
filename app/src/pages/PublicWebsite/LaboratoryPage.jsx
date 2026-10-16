@@ -70,8 +70,8 @@ export default function LaboratoryPage() {
   const [parameters, setParameters] = useState(LAB_TESTING_PARAMETERS);
   const [equipment, setEquipment] = useState(LAB_EQUIPMENT);
   const [contactSettings, setContactSettings] = useState({
-    phone: '+91 98765 43210',
-    whatsapp: '919876543210',
+    phone: '+91 94619 24461',
+    whatsapp: '919461924461',
     email: 'contact@shubhlabhfeeds.in'
   });
 
@@ -95,8 +95,8 @@ export default function LaboratoryPage() {
           const whatsapp = sData.find((s) => s.setting_key === 'whatsapp_number')?.setting_value;
           const email = sData.find((s) => s.setting_key === 'public_email')?.setting_value;
           setContactSettings({
-            phone: phone || '+91 98765 43210',
-            whatsapp: (whatsapp || '919876543210').replace(/[^0-9]/g, ''),
+            phone: phone || '+91 94619 24461',
+            whatsapp: (whatsapp || '919461924461').replace(/[^0-9]/g, ''),
             email: email || 'contact@shubhlabhfeeds.in'
           });
         }

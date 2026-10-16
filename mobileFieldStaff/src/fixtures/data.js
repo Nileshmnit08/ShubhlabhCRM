@@ -18,5 +18,5 @@ export const customerProfile = {
   dues: '₹4,500',
   creditLimit: '₹50,000',
   lastOrder: '₹12,400 (3 days ago)',
-  phone: '+91 98765 43210'
+  phone: '+91 94619 24461'
 };

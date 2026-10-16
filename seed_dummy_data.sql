@@ -3,8 +3,8 @@ INSERT INTO public.crm_parties (id, display_name, mobile, whatsapp, crm_status, 
 VALUES (
     uuid_generate_v4(), 
     'AgriTech Farms (Dummy)', 
-    '9876543210', 
-    '9876543210', 
+    '9461924461', 
+    '9461924461', 
     'Active', 
     'Pune'
 ) ON CONFLICT DO NOTHING;

@@ -217,7 +217,7 @@ ON CONFLICT (id) DO NOTHING;
 -- Seed Brokers
 INSERT INTO public.brokers (id, broker_name, firm_name, mobile, market_location, state)
 VALUES
-    ('a97dc6bf-01ab-431f-bc87-d4fc99db4b86', 'Ramesh Agarwal', 'Agarwal Trading Co.', '9876543210', 'Jaipur', 'Rajasthan'),
+    ('a97dc6bf-01ab-431f-bc87-d4fc99db4b86', 'Ramesh Agarwal', 'Agarwal Trading Co.', '9461924461', 'Jaipur', 'Rajasthan'),
     ('f9c4db9a-d345-424d-b94f-a88fc23f4f10', 'Suresh Kumar', 'Kumar & Sons Brokers', '9988776655', 'Indore', 'Madhya Pradesh'),
     ('b3f1c9ad-ea4b-483d-8153-a5c9f9d784bb', 'Vikas Jain', 'Jain Enterprises', '9812345678', 'Delhi', 'Delhi'),
     ('d46a89ef-650a-4933-9428-1b2c3d4e5f60', 'Manoj Sharma', 'Sharma Commodities', '9123456789', 'Kanpur', 'Uttar Pradesh'),
