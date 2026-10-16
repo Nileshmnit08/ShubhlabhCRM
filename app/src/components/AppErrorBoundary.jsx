@@ -38,20 +38,36 @@ class AppErrorBoundary extends React.Component {
           <p style={{ marginBottom: '2rem', maxWidth: '400px', color: '#94a3b8' }}>
             The app could not be initialized. This might be due to an unsupported browser feature or strict privacy settings blocking storage.
           </p>
-          <button 
-            onClick={() => window.location.reload()}
-            style={{ 
-              padding: '0.75rem 1.5rem', 
-              backgroundColor: '#3b82f6', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '8px', 
-              fontSize: '1rem',
-              cursor: 'pointer' 
-            }}
-          >
-            Reload Application
-          </button>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button 
+              onClick={() => window.location.reload()}
+              style={{ 
+                padding: '0.75rem 1.5rem', 
+                backgroundColor: '#3b82f6', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '8px', 
+                fontSize: '1rem',
+                cursor: 'pointer' 
+              }}
+            >
+              Reload Application
+            </button>
+            <a 
+              href="/"
+              style={{ 
+                padding: '0.75rem 1.5rem', 
+                backgroundColor: '#123d26', 
+                color: 'white', 
+                textDecoration: 'none',
+                borderRadius: '8px', 
+                fontSize: '1rem',
+                display: 'inline-block'
+              }}
+            >
+              Return to Website
+            </a>
+          </div>
           
           {this.state.error && (
             <div style={{ marginTop: '3rem', textAlign: 'left', background: 'rgba(0,0,0,0.5)', padding: '1rem', borderRadius: '8px', maxWidth: '800px', overflow: 'auto' }}>

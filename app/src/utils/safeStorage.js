@@ -38,9 +38,31 @@ function createSafeStorage(type) {
 export const safeLocalStorage = createSafeStorage('localStorage');
 export const safeSessionStorage = createSafeStorage('sessionStorage');
 
+const fallbackMemory = new MemoryStorage();
+
 // Default export compatible with Supabase's expected storage interface
 export const safeStorage = {
-  getItem: (key) => safeLocalStorage.getItem(key),
-  setItem: (key, value) => safeLocalStorage.setItem(key, value),
-  removeItem: (key) => safeLocalStorage.removeItem(key),
+  getItem: (key) => {
+    try {
+      return safeLocalStorage.getItem(key);
+    } catch (e) {
+      console.warn('safeStorage.getItem access failed, returning memory fallback:', e);
+      return fallbackMemory.getItem(key);
+    }
+  },
+  setItem: (key, value) => {
+    try {
+      safeLocalStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('safeStorage.setItem access failed, storing in memory fallback:', e);
+      fallbackMemory.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    try {
+      safeLocalStorage.removeItem(key);
+    } catch (e) {
+      fallbackMemory.removeItem(key);
+    }
+  },
 };

@@ -10,9 +10,11 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['lucide-react', 'recharts', 'date-fns'],
+          icons: ['lucide-react'],
+          charts: ['recharts'],
           supabase: ['@supabase/supabase-js'],
-          pdf: ['pdfjs-dist']
+          pdf: ['pdfjs-dist'],
+          geo: ['country-state-city']
         }
       }
     },
