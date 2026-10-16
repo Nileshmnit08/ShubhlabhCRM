@@ -20,7 +20,21 @@ import ProductsMegaMenu from './ProductsMegaMenu';
 import ContactForm from './components/ContactForm';
 import BecomeDealerForm from './components/BecomeDealerForm';
 import KnowledgeArticleModal from './components/KnowledgeArticleModal';
+import FacebookGalleryModal from './components/FacebookGalleryModal';
 import './publicWebsite.css';
+
+// Official verified social channels and SVGs
+const OFFICIAL_SOCIAL_LINKS = {
+  facebook: 'https://www.facebook.com/shubhlabhcattlefeed',
+  youtube: 'https://www.youtube.com/@shubhlabhcattlefeed2654',
+  instagram: 'https://www.instagram.com/shubhlabhcattlefeed',
+  whatsappClickToChat: 'https://wa.me/?text=Hello%20Shubh%20Labh%2C%20I%20would%20like%20to%20know%20more.',
+};
+
+const FB_SVG_PATH = 'M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z';
+const YT_SVG_PATH = 'M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z';
+const IG_SVG_PATH = 'M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z';
+const WA_SVG_PATH = 'M17.472 14.382c-.301-.15-1.78-.879-2.056-.98-.276-.1-.476-.15-.676.15-.2.301-.776.98-.952 1.18-.176.2-.352.226-.653.076-.301-.15-1.272-.469-2.423-1.496-.896-.799-1.501-1.786-1.677-2.087-.176-.301-.019-.464.132-.614.135-.135.301-.352.451-.527.151-.176.201-.301.301-.502.1-.2.05-.376-.025-.526-.075-.15-.676-1.631-.927-2.234-.244-.588-.493-.508-.676-.517-.175-.009-.376-.01-.577-.01-.201 0-.527.075-.803.376-.276.301-1.054 1.03-1.054 2.512 0 1.482 1.079 2.912 1.23 3.113.15.201 2.124 3.243 5.145 4.548.719.311 1.28.497 1.718.636.722.23 1.378.197 1.898.12.579-.087 1.78-.727 2.031-1.43.251-.702.251-1.303.176-1.43-.075-.127-.276-.202-.577-.352zm-5.462 7.618C5.467 22 0 16.533 0 9.809 0 4.388 4.388 0 9.809 0c5.422 0 9.809 4.388 9.809 9.809 0 6.724-5.467 12.191-12.191 12.191z';
 
 // Canonical 7 navigation items with verified IDs and targets
 const CANONICAL_NAV = [
@@ -121,7 +135,18 @@ export default function PublicWebsite() {
   const [knowledgeSearchQuery, setKnowledgeSearchQuery] = useState('');
   const [knowledgeViewMode, setKnowledgeViewMode] = useState('carousel'); // 'carousel' | 'grid'
   const [activeArticleModal, setActiveArticleModal] = useState(null);
+  const [isFacebookModalOpen, setIsFacebookModalOpen] = useState(false);
   const knowledgeCarouselRef = useRef(null);
+
+  const officialWhatsAppUrl = useMemo(() => {
+    if (contactSettings.whatsapp) {
+      const clean = contactSettings.whatsapp.replace(/[^0-9]/g, '');
+      if (clean) {
+        return `https://wa.me/${clean}?text=Hello%20Shubh%20Labh%2C%20I%20would%20like%20to%20know%20more.`;
+      }
+    }
+    return OFFICIAL_SOCIAL_LINKS.whatsappClickToChat;
+  }, [contactSettings.whatsapp]);
 
   // Fetch published CMS content from Supabase with safe fallback
   useEffect(() => {
@@ -554,6 +579,50 @@ export default function PublicWebsite() {
 
           {/* Header Action Buttons */}
           <div className="header-actions">
+            {/* Header Compact Social Media Group */}
+            <div className="header-social" aria-label="Official Social Media Links">
+              <a
+                className="header-social-btn"
+                href={OFFICIAL_SOCIAL_LINKS.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Visit Shubh Labh on Facebook (opens in new tab)"
+                title="Visit Shubh Labh on Facebook"
+              >
+                <svg className="header-social-icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={FB_SVG_PATH} /></svg>
+              </a>
+              <a
+                className="header-social-btn"
+                href={OFFICIAL_SOCIAL_LINKS.youtube}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Visit Shubh Labh on YouTube (opens in new tab)"
+                title="Visit Shubh Labh on YouTube"
+              >
+                <svg className="header-social-icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={YT_SVG_PATH} /></svg>
+              </a>
+              <a
+                className="header-social-btn"
+                href={OFFICIAL_SOCIAL_LINKS.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Visit Shubh Labh on Instagram (opens in new tab)"
+                title="Visit Shubh Labh on Instagram"
+              >
+                <svg className="header-social-icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={IG_SVG_PATH} /></svg>
+              </a>
+              <a
+                className="header-social-btn header-social-wa"
+                href={officialWhatsAppUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Contact Shubh Labh on WhatsApp (opens in new tab)"
+                title="Contact Shubh Labh on WhatsApp"
+              >
+                <svg className="header-social-icon" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={WA_SVG_PATH} /></svg>
+              </a>
+            </div>
+
             <a href="#dealer" className="cta-button">
               Become a Dealer <span aria-hidden="true">↗</span>
             </a>
@@ -707,6 +776,61 @@ export default function PublicWebsite() {
                   Staff & Dealer Login <span aria-hidden="true">↗</span>
                 </Link>
               )}
+            </div>
+
+            {/* Mobile Navigation Drawer Social Group */}
+            <div className="nav-social" aria-label="Social media channels">
+              <span className="nav-social-label">Follow Us</span>
+              <div className="nav-social-links">
+                <a
+                  className="nav-social-btn"
+                  href={OFFICIAL_SOCIAL_LINKS.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visit Shubh Labh on Facebook (opens in new tab)"
+                  title="Visit Shubh Labh on Facebook"
+                  onClick={closeMenu}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={FB_SVG_PATH} /></svg>
+                  <span>Facebook</span>
+                </a>
+                <a
+                  className="nav-social-btn"
+                  href={OFFICIAL_SOCIAL_LINKS.youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visit Shubh Labh on YouTube (opens in new tab)"
+                  title="Visit Shubh Labh on YouTube"
+                  onClick={closeMenu}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={YT_SVG_PATH} /></svg>
+                  <span>YouTube</span>
+                </a>
+                <a
+                  className="nav-social-btn"
+                  href={OFFICIAL_SOCIAL_LINKS.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visit Shubh Labh on Instagram (opens in new tab)"
+                  title="Visit Shubh Labh on Instagram"
+                  onClick={closeMenu}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={IG_SVG_PATH} /></svg>
+                  <span>Instagram</span>
+                </a>
+                <a
+                  className="nav-social-btn nav-social-wa"
+                  href={officialWhatsAppUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Contact Shubh Labh on WhatsApp (opens in new tab)"
+                  title="Contact Shubh Labh on WhatsApp"
+                  onClick={closeMenu}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={WA_SVG_PATH} /></svg>
+                  <span>WhatsApp</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -1626,6 +1750,57 @@ export default function PublicWebsite() {
           </div>
         </div>
 
+        {/* Verified Social Media Channels in Footer */}
+        <div className="container footer-social" aria-label="Official Social Media and Support Channels">
+          <span className="footer-social-label">Connect with Shubh Labh:</span>
+          <div className="footer-social-icons">
+            <a
+              className="footer-social-btn"
+              href={OFFICIAL_SOCIAL_LINKS.facebook}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit Shubh Labh on Facebook (opens in new tab)"
+              title="Visit Shubh Labh on Facebook"
+            >
+              <svg className="footer-social-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={FB_SVG_PATH} /></svg>
+              <span>Facebook</span>
+            </a>
+            <a
+              className="footer-social-btn"
+              href={OFFICIAL_SOCIAL_LINKS.youtube}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit Shubh Labh on YouTube (opens in new tab)"
+              title="Visit Shubh Labh on YouTube"
+            >
+              <svg className="footer-social-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={YT_SVG_PATH} /></svg>
+              <span>YouTube</span>
+            </a>
+            <a
+              className="footer-social-btn"
+              href={OFFICIAL_SOCIAL_LINKS.instagram}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Visit Shubh Labh on Instagram (opens in new tab)"
+              title="Visit Shubh Labh on Instagram"
+            >
+              <svg className="footer-social-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={IG_SVG_PATH} /></svg>
+              <span>Instagram</span>
+            </a>
+            <a
+              className="footer-social-btn footer-social-wa"
+              href={officialWhatsAppUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Contact Shubh Labh on WhatsApp (opens in new tab)"
+              title="Contact Shubh Labh on WhatsApp"
+            >
+              <svg className="footer-social-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={WA_SVG_PATH} /></svg>
+              <span>WhatsApp</span>
+            </a>
+          </div>
+        </div>
+
         <div className="container footer-bottom-bar">
           <span className="copyright-text">
             © {currentYear} Shubh Labh Dairy Nutrition. All rights reserved.
@@ -1646,6 +1821,56 @@ export default function PublicWebsite() {
           </a>
         </div>
       </footer>
+
+      {/* Floating WhatsApp Contact Button (Bottom Right) */}
+      <aside className="wa-float-wrap" aria-label="WhatsApp direct contact">
+        <a
+          className="wa-float-btn"
+          id="wa-float-btn"
+          href={officialWhatsAppUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Chat with Shubh Labh on WhatsApp (opens in new tab)"
+          title="Chat on WhatsApp"
+        >
+          <span className="wa-float-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d={WA_SVG_PATH} />
+            </svg>
+          </span>
+          <span className="wa-float-label">WhatsApp</span>
+          <span className="wa-float-badge" aria-hidden="true">Direct</span>
+        </a>
+      </aside>
+
+      {/* Floating Social Media Button (Bottom Right) */}
+      <aside className="fb-float-wrap" aria-label="Social media quick access">
+        <button
+          type="button"
+          className="fb-float-btn"
+          id="fb-gallery-btn"
+          aria-haspopup="dialog"
+          aria-expanded={isFacebookModalOpen}
+          aria-controls="fb-gallery-modal"
+          aria-label="Facebook Gallery"
+          title="Facebook Gallery"
+          onClick={() => setIsFacebookModalOpen(true)}
+        >
+          <span className="fb-float-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d={FB_SVG_PATH} />
+            </svg>
+          </span>
+          <span className="fb-float-label">Facebook Gallery</span>
+          <span className="fb-float-badge" aria-hidden="true">Official</span>
+        </button>
+      </aside>
+
+      {/* Facebook Gallery Modal */}
+      <FacebookGalleryModal
+        isOpen={isFacebookModalOpen}
+        onClose={() => setIsFacebookModalOpen(false)}
+      />
     </div>
   );
 }
