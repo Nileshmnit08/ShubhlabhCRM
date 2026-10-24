@@ -11,7 +11,10 @@ import {
   LOCATION_STATUS, evaluateFix, captureWithApi, locationFields, pickLocationFields,
   hasCoordinates, isValidCoordinate, locationProblemMessage, interpretLocationColumnsProbe,
 } from '../src/utils/attendanceLocation.js';
-import { buildCheckInPayload, buildCheckOutPayload, mergeAttendanceRecord } from '../src/utils/attendance.js';
+import {
+  buildCheckInPayload, buildCheckOutPayload, mergeAttendanceRecord,
+  ATTENDANCE_READ_COLUMNS, LOCATION_PROBE_COLUMNS,
+} from '../src/utils/attendance.js';
 
 const STAFF = '11111111-1111-4111-8111-111111111111';
 const NOW = Date.parse('2026-10-24T04:00:00Z');
@@ -161,6 +164,38 @@ test('merge: pending local check-out location overlays only when server has no c
   assert.equal(merged.check_in_latitude, 1, 'server check-in location kept');
   const serverOut = { ...server, check_out_at: 'c', check_out_location_status: 'CAPTURED', check_out_latitude: 5, check_out_longitude: 6 };
   assert.equal(mergeAttendanceRecord(serverOut, local).check_out_location_status, 'CAPTURED', 'server check-out wins');
+});
+
+test('employee reads never request GPS coordinates (FA-LOCATION-FINAL-02)', () => {
+  for (const cols of [ATTENDANCE_READ_COLUMNS, LOCATION_PROBE_COLUMNS]) {
+    assert.equal(/latitude|longitude|\*/.test(cols), false, cols);
+  }
+  assert.match(LOCATION_PROBE_COLUMNS, /check_in_location_status/);
+  assert.match(ATTENDANCE_READ_COLUMNS, /check_in_at/);
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(path.join(here, '../src/services/AttendanceService.js'), 'utf8');
+  assert.equal(/\.select\([^)]*(latitude|longitude)/.test(src), false, 'no select names a coordinate column');
+  // The only select('*') left is the leave-request list (staff_leave_requests has no location data).
+  const stars = [...src.matchAll(/\.from\((\w+)\)\s*\.select\('\*'\)/g)].map((m) => m[1]);
+  assert.deepEqual(stars, ['LEAVE_TABLE']);
+});
+
+test('merge keeps the locally captured check-in location when server reads exclude it', () => {
+  const inLoc = evaluateFix(fix(26.9124, 75.7873, 10), NOW);
+  const local = { id: 'l', business_date: '2026-10-24', check_in_at: '2026-10-24T03:30:00.000Z', check_out_at: null, ...locationFields('check_in', inLoc) };
+  const serverWithoutLocation = { id: 's', business_date: '2026-10-24', check_in_at: '2026-10-24T03:30:00.000Z', check_out_at: null, status: 'CHECKED_IN' };
+  const merged = mergeAttendanceRecord(serverWithoutLocation, local);
+  assert.equal(merged.id, 's', 'server identity wins');
+  assert.equal(merged.check_in_location_status, 'CAPTURED');
+  assert.equal(merged.check_in_latitude, 26.9124);
+  // Reading taken at check-out time (fix() is anchored to NOW, so build it explicitly).
+  const outFix = { coords: { latitude: 26.95, longitude: 75.8, accuracy: 15 }, timestamp: NOW + 59000 };
+  const out = buildCheckOutPayload({ id: 'op', staffId: STAFF, record: merged, now: new Date(NOW + 60000), location: evaluateFix(outFix, NOW + 60000) });
+  assert.equal(out.check_in_latitude, 26.9124, 'check-out still carries the original check-in location');
+  // Another device / reinstall: no local capture, so nothing is carried (the server keeps its value).
+  const noLocal = buildCheckOutPayload({ id: 'op', staffId: STAFF, record: serverWithoutLocation, now: new Date(NOW + 60000), location: evaluateFix(outFix, NOW + 60000) });
+  assert.equal('check_in_latitude' in noLocal, false);
+  assert.equal(noLocal.check_out_location_status, 'CAPTURED');
 });
 
 test('location column probe: missing column vs ready vs unknown', () => {

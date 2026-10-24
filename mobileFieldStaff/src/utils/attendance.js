@@ -16,6 +16,14 @@ export const ATTENDANCE_TABLE = 'staff_attendance';
 export const LEAVE_TABLE = 'staff_leave_requests';
 export const ATTENDANCE_CONFLICT_TARGET = 'staff_id,business_date';
 
+// FA-LOCATION-FINAL-02: employees never read GPS coordinates back from the server
+// (proposal 244 revokes that). Reads use explicit non-sensitive column lists.
+export const ATTENDANCE_READ_COLUMNS =
+  'id, staff_id, business_date, check_in_at, check_out_at, status, '
+  + 'check_in_server_received_at, check_out_server_received_at, created_at, updated_at';
+// Schema check for the location columns using non-sensitive status columns only.
+export const LOCATION_PROBE_COLUMNS = 'id, check_in_location_status, check_out_location_status';
+
 // Mirrors CHECK staff_leave_type_check in supabase/proposals/242_sprint_FA_ATTENDANCE_01.sql
 export const LEAVE_TYPES = [
   { code: 'CASUAL', label: 'Casual Leave' },
@@ -221,12 +229,18 @@ export function mergeAttendanceRecord(serverRow, localRecord) {
   if (!serverRow && !localRecord) return null;
   if (!serverRow) return { ...localRecord };
   if (!localRecord) return { ...serverRow };
+  // Server reads exclude location data, so keep the locally captured check-in
+  // location; the check-out upsert carries it and the server keeps the first value.
+  const localCheckIn = serverRow.check_in_location_status === undefined
+    ? pickLocationFields(localRecord, 'check_in')
+    : {};
   // A local check-out (and its location) not yet on the server is overlaid as a unit.
   const localCheckOut = !serverRow.check_out_at && localRecord.check_out_at
     ? { ...pickLocationFields(localRecord, 'check_out'), check_out_at: localRecord.check_out_at }
     : {};
   return {
     ...serverRow,
+    ...localCheckIn,
     ...localCheckOut,
     check_out_at: serverRow.check_out_at || localRecord.check_out_at || null,
     status: serverRow.check_out_at || localRecord.check_out_at ? 'CHECKED_OUT' : 'CHECKED_IN',

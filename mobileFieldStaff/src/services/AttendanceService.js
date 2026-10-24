@@ -7,6 +7,8 @@ import {
   ATTENDANCE_TABLE,
   LEAVE_TABLE,
   ATTENDANCE_CONFLICT_TARGET,
+  ATTENDANCE_READ_COLUMNS,
+  LOCATION_PROBE_COLUMNS,
   istBusinessDate,
   addDaysYmd,
   buildCheckInPayload,
@@ -32,7 +34,6 @@ import { interpretLocationColumnsProbe, pickLocationFields } from '../utils/atte
 const getStateKey = (userId) => `@attendance_state_${userId}`;
 const getBackendKey = (userId) => `@attendance_backend_ready_${userId}`;
 const getLocationKey = (userId) => `@attendance_location_ready_${userId}`;
-const LOCATION_PROBE_COLUMNS = 'id, check_in_latitude, check_in_location_status, check_out_latitude, check_out_location_status';
 const LOCAL_RETENTION_DAYS = 7;
 const CONFIRM_TIMEOUT_MS = 20000;
 const CONFIRM_POLL_MS = 500;
@@ -121,7 +122,7 @@ export class AttendanceService {
   static async fetchServerDay(userId, businessDate) {
     const { data, error } = await supabase
       .from(ATTENDANCE_TABLE)
-      .select('*')
+      .select(ATTENDANCE_READ_COLUMNS)
       .eq('staff_id', userId)
       .eq('business_date', businessDate)
       .maybeSingle();
@@ -141,7 +142,7 @@ export class AttendanceService {
   static async fetchHistory(userId, limit = 60) {
     const { data, error } = await supabase
       .from(ATTENDANCE_TABLE)
-      .select('*')
+      .select(ATTENDANCE_READ_COLUMNS)
       .eq('staff_id', userId)
       .order('business_date', { ascending: false })
       .limit(limit);
