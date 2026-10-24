@@ -8,7 +8,12 @@ import {
   istDate, istTime, formatBusinessDate, durationSeconds, formatDuration,
   deriveStatus, buildRows, filterRows, computeTodaySummary, classifyError,
   isAttendanceStaff, employeeLabel, isValidYmd,
+  LOCATION_RPC, LOCATION_MAX_RANGE_DAYS, daysBetween, locationRangeAllowed,
+  buildLocationEvent, googleMapsUrl, indexLocationsByAttendance, classifyLocationError,
 } from '../attendanceRegister.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 const TODAY = '2026-10-24';
 
@@ -96,6 +101,84 @@ test('today summary: real records only; missing record is not a confirmed absenc
 
   assert.equal(isAttendanceStaff({ role: 'Staff', is_active: true }), true);
   assert.equal(isAttendanceStaff({ role: 'Buyer', is_active: true }), false);
+});
+
+// ─── Location (FA-LOCATION-FINAL-02) ─────────────────────────────────────────
+
+test('location window matches the server rule p_to - p_from <= 92', () => {
+  assert.equal(LOCATION_MAX_RANGE_DAYS, 92);
+  assert.equal(daysBetween('2026-10-01', '2026-10-24'), 23);
+  assert.equal(locationRangeAllowed('2026-07-24', '2026-10-24'), true, '92 days');
+  assert.equal(locationRangeAllowed('2026-07-23', '2026-10-24'), false, '93 days');
+  assert.equal(locationRangeAllowed('2026-10-25', '2026-10-24'), false, 'reversed');
+  assert.equal(locationRangeAllowed('bad', '2026-10-24'), false);
+});
+
+test('captured location: exact coordinates, accuracy, IST capture time and maps link', () => {
+  const row = {
+    attendance_id: 'a1',
+    check_in_latitude: 26.912434567891, check_in_longitude: 75.787270123456, check_in_accuracy_m: 12.4,
+    check_in_location_at: '2026-10-24T03:35:00Z', check_in_location_status: 'CAPTURED',
+  };
+  const ev = buildLocationEvent(row, 'check_in');
+  assert.equal(ev.recorded, true);
+  assert.equal(ev.latitude, 26.912434567891);
+  assert.equal(ev.accuracyLabel, '±12 m');
+  assert.equal(ev.capturedAtLabel, '24 Oct 2026, 09:05 AM');
+  assert.equal(ev.summary, 'Captured · ±12 m');
+  assert.equal(ev.mapsUrl, googleMapsUrl(26.912434567891, 75.787270123456));
+  assert.ok(decodeURIComponent(ev.mapsUrl).endsWith('query=26.912434567891,75.787270123456'), 'no rounding in the link');
+});
+
+test('low accuracy is shown as such, never as captured', () => {
+  const ev = buildLocationEvent({ check_out_latitude: 26.9, check_out_longitude: 75.7, check_out_accuracy_m: 180, check_out_location_status: 'LOW_ACCURACY' }, 'check_out');
+  assert.equal(ev.recorded, true);
+  assert.equal(ev.summary, 'Low accuracy · ±180 m');
+});
+
+test('legacy, failed and invalid locations show "Location not recorded" with no link', () => {
+  const legacy = buildLocationEvent(undefined, 'check_in');
+  assert.deepEqual([legacy.recorded, legacy.summary, legacy.mapsUrl], [false, 'Location not recorded', null]);
+
+  const denied = buildLocationEvent({ check_in_location_status: 'PERMISSION_DENIED', check_in_latitude: null, check_in_longitude: null }, 'check_in');
+  assert.equal(denied.summary, 'Location not recorded (Permission denied)');
+  assert.equal(denied.mapsUrl, null);
+
+  const zeroIsland = buildLocationEvent({ check_in_location_status: 'CAPTURED', check_in_latitude: 0, check_in_longitude: 0 }, 'check_in');
+  assert.equal(zeroIsland.recorded, false, '0,0 is never plotted');
+  const outOfRange = buildLocationEvent({ check_in_location_status: 'CAPTURED', check_in_latitude: 123, check_in_longitude: 75 }, 'check_in');
+  assert.equal(outOfRange.mapsUrl, null);
+  const statusMismatch = buildLocationEvent({ check_in_location_status: 'TIMEOUT', check_in_latitude: 26.9, check_in_longitude: 75.7 }, 'check_in');
+  assert.equal(statusMismatch.recorded, false, 'coordinates without a capture status are not shown');
+});
+
+test('locations are matched to their attendance record by id', () => {
+  const idx = indexLocationsByAttendance([{ attendance_id: 'a1', check_in_location_status: 'CAPTURED' }, { attendance_id: 'a2' }, null]);
+  assert.deepEqual(Object.keys(idx).sort(), ['a1', 'a2']);
+  assert.equal(buildLocationEvent(idx.a3, 'check_in').summary, 'Location not recorded');
+});
+
+test('location error states: not deployed, permission, expired session, range, network', () => {
+  assert.equal(classifyLocationError({ code: 'PGRST202', message: 'Could not find the function public.admin_attendance_locations' }).kind, 'NOT_DEPLOYED');
+  assert.equal(classifyLocationError({ code: '42501', message: 'Not authorised to read attendance locations' }).kind, 'PERMISSION');
+  assert.equal(classifyLocationError({ code: 'PGRST301', message: 'JWT expired' }).kind, 'SESSION');
+  assert.equal(classifyLocationError({ code: '22023', message: 'Date range must be 0-92 days' }).kind, 'RANGE');
+  assert.equal(classifyLocationError({ message: 'TypeError: Failed to fetch' }).kind, 'NETWORK');
+  assert.equal(classifyError({ code: 'PGRST301', message: 'JWT expired' }).kind, 'SESSION');
+  for (const e of [{ code: 'XX', message: 'lat 26.91 lng 75.78 failed' }]) {
+    assert.equal(/\d+\.\d+/.test(classifyLocationError(e).message), false, 'messages never echo coordinates');
+  }
+});
+
+test('portal reads coordinates only via the admin RPC, never via direct table queries', () => {
+  assert.equal(LOCATION_RPC, 'admin_attendance_locations');
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const page = readFileSync(path.join(here, '../../pages/AttendanceRegister.jsx'), 'utf8');
+  const lib = readFileSync(path.join(here, '../attendanceRegister.js'), 'utf8');
+  assert.equal(/\.select\([^)]*(latitude|longitude)/.test(page + lib), false, 'no select names a coordinate column');
+  assert.equal(/from\('staff_attendance'\)\s*\.select\('\*'\)/.test(page), false, 'no select(*) on attendance');
+  assert.match(page, /supabase\.rpc\(LOCATION_RPC/);
+  assert.equal(/console\.(log|info|debug)\([^)]*(latitude|longitude|locRow|locationsById)/.test(page), false, 'no coordinate logging');
 });
 
 test('error classification never claims success and maps RLS/schema problems', () => {

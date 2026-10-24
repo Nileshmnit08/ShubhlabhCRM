@@ -2,18 +2,24 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import DataTable from '../components/DataTable';
 import {
-  CalendarCheck, UserCheck, UserX, Clock, ListChecks, RefreshCw, AlertCircle,
+  CalendarCheck, UserCheck, UserX, Clock, ListChecks, RefreshCw, AlertCircle, MapPin, X, ExternalLink,
 } from 'lucide-react';
 import {
   ATTENDANCE_COLUMNS,
   MAX_ROWS,
   STATUS_META,
+  LOCATION_RPC,
+  LOCATION_MAX_RANGE_DAYS,
   istDate,
   isValidYmd,
   buildRows,
   filterRows,
   computeTodaySummary,
   classifyError,
+  classifyLocationError,
+  locationRangeAllowed,
+  buildLocationEvent,
+  indexLocationsByAttendance,
 } from '../lib/attendanceRegister';
 
 /**
@@ -56,6 +62,10 @@ export default function AttendanceRegister() {
   const [error, setError] = useState(null);
   const [summaryError, setSummaryError] = useState(null);
   const [lastLoadedAt, setLastLoadedAt] = useState(null);
+  // Location details come only from the admin RPC (server checks is_admin and the 92-day window).
+  const [locationsById, setLocationsById] = useState({});
+  const [locationError, setLocationError] = useState(null);
+  const [detailRow, setDetailRow] = useState(null);
 
   const rangeInvalid = !isValidYmd(fromDate) || !isValidYmd(toDate) || fromDate > toDate;
 
@@ -77,7 +87,12 @@ export default function AttendanceRegister() {
         .limit(MAX_ROWS);
       if (employeeId !== 'ALL') periodQuery = periodQuery.eq('staff_id', employeeId);
 
-      const [usersRes, periodRes, todayRes, leaveRes] = await Promise.all([
+      const locationAllowed = locationRangeAllowed(fromDate, toDate);
+      const locationQuery = locationAllowed
+        ? supabase.rpc(LOCATION_RPC, { p_from: fromDate, p_to: toDate, p_staff: employeeId === 'ALL' ? null : employeeId })
+        : Promise.resolve({ data: null, error: null });
+
+      const [usersRes, periodRes, todayRes, leaveRes, locationRes] = await Promise.all([
         supabase.from('app_users').select('id, display_name, email, role, is_active'),
         periodQuery,
         supabase.from('staff_attendance').select(ATTENDANCE_COLUMNS).eq('business_date', todayYmd),
@@ -87,7 +102,19 @@ export default function AttendanceRegister() {
           .eq('status', 'Approved')
           .lte('start_date', todayYmd)
           .gte('end_date', todayYmd),
+        locationQuery,
       ]);
+
+      if (!locationAllowed) {
+        setLocationsById({});
+        setLocationError({ kind: 'RANGE', message: `Location details are shown for date ranges of up to ${LOCATION_MAX_RANGE_DAYS + 1} days. Narrow the range to see them.` });
+      } else if (locationRes.error) {
+        setLocationsById({});
+        setLocationError(classifyLocationError(locationRes.error));
+      } else {
+        setLocationsById(indexLocationsByAttendance(locationRes.data));
+        setLocationError(null);
+      }
 
       if (periodRes.error) {
         setError(classifyError(periodRes.error));
@@ -156,6 +183,28 @@ export default function AttendanceRegister() {
       ),
     },
     { id: 'status', header: 'Status', renderCell: (r) => <span className={`badge ${STATUS_META[r.status].badge}`}>{STATUS_META[r.status].label}</span> },
+    {
+      id: 'location', header: 'Location', renderCell: (r) => {
+        if (locationError) return <span className="text-muted">—</span>;
+        const loc = locationsById[r.id];
+        const inEv = buildLocationEvent(loc, 'check_in');
+        const outEv = r.checkOutLabel === '—' ? null : buildLocationEvent(loc, 'check_out');
+        return (
+          <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>
+            <div className={inEv.recorded ? '' : 'text-muted'}>In: {inEv.summary}</div>
+            <div className={outEv && outEv.recorded ? '' : 'text-muted'}>Out: {outEv ? outEv.summary : '—'}</div>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setDetailRow(r)}
+              style={{ marginTop: '0.35rem', padding: '0.15rem 0.6rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              <MapPin size={12} /> Details
+            </button>
+          </div>
+        );
+      },
+    },
   ];
 
   const cap = periodCount !== null && periodCount > records.length;
@@ -249,6 +298,12 @@ export default function AttendanceRegister() {
         <div style={{ textAlign: 'center', padding: '4rem 2rem' }} className="text-muted">Loading attendance records...</div>
       ) : (
         <div className="glass-panel" style={{ padding: 0 }}>
+          {locationError && (
+            <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border)', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }} className="text-secondary">
+              <MapPin size={16} className={locationError.kind === 'RANGE' ? 'text-warning' : 'text-danger'} />
+              <span>Locations unavailable: {locationError.message}</span>
+            </div>
+          )}
           {cap && (
             <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }} className="text-secondary">
               Showing the latest {records.length} of {periodCount} records. Narrow the date range or select an employee to see the rest.
@@ -269,6 +324,84 @@ export default function AttendanceRegister() {
           )}
         </div>
       )}
+
+      {detailRow && (
+        <LocationDetailPanel
+          row={detailRow}
+          locRow={locationsById[detailRow.id]}
+          onClose={() => setDetailRow(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function LocationEventBlock({ title, timeLabel, ev }) {
+  const line = (label, value) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', padding: '0.35rem 0', borderBottom: '1px solid var(--border)', fontSize: '0.85rem' }}>
+      <span className="text-secondary">{label}</span>
+      <span style={{ color: 'var(--text-primary)', textAlign: 'right' }}>{value}</span>
+    </div>
+  );
+  return (
+    <div style={{ marginBottom: '1.25rem' }}>
+      <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>{title}</h3>
+      {line('Event time (IST)', timeLabel)}
+      {line('Location status', ev.statusLabel)}
+      {ev.recorded ? (
+        <>
+          {line('Accuracy', ev.accuracyLabel || 'Unknown')}
+          {line('Captured at (IST)', ev.capturedAtLabel || '—')}
+          {line('Coordinates (GPS)', `${ev.latitude}, ${ev.longitude}`)}
+          <a
+            href={ev.mapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary"
+            style={{ marginTop: '0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', textDecoration: 'none' }}
+          >
+            <ExternalLink size={14} /> Open in Google Maps
+          </a>
+        </>
+      ) : (
+        <div className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
+          Location not recorded{ev.status ? ` (${ev.statusLabel}).` : '.'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LocationDetailPanel({ row, locRow, onClose }) {
+  const checkedOut = row.checkOutLabel !== '—';
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Attendance location details"
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}
+    >
+      <div
+        className="glass-panel"
+        onClick={(e) => e.stopPropagation()}
+        style={{ background: 'var(--bg-surface)', padding: '1.5rem', width: '100%', maxWidth: '460px', maxHeight: '90vh', overflowY: 'auto' }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>{row.employee}</h2>
+            <div className="text-secondary" style={{ fontSize: '0.85rem' }}>{row.dateLabel}</div>
+          </div>
+          <button type="button" className="btn-icon" onClick={onClose} aria-label="Close location details"><X size={18} /></button>
+        </div>
+        <LocationEventBlock title="Check-in" timeLabel={row.checkInLabel} ev={buildLocationEvent(locRow, 'check_in')} />
+        {checkedOut
+          ? <LocationEventBlock title="Check-out" timeLabel={row.checkOutLabel} ev={buildLocationEvent(locRow, 'check_out')} />
+          : <div className="text-muted" style={{ fontSize: '0.85rem' }}>Not checked out yet.</div>}
+        <p className="text-muted" style={{ fontSize: '0.75rem', marginTop: '1rem', marginBottom: 0 }}>
+          Coordinates are the GPS reading recorded by Field Assist at the moment of check-in/check-out. No address lookup is performed.
+        </p>
+      </div>
     </div>
   );
 }

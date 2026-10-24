@@ -155,11 +155,119 @@ export function computeTodaySummary({ todayRecords, staff, approvedLeaveStaffIds
   };
 }
 
+// ─── Attendance location (FA-LOCATION-FINAL-02) ─────────────────────────────
+// Precise coordinates are read ONLY through the admin RPC from proposal 244,
+// which checks is_admin() server-side and limits each call to a 92-day window.
+
+export const LOCATION_RPC = 'admin_attendance_locations';
+export const LOCATION_MAX_RANGE_DAYS = 92; // server rule: p_to - p_from <= 92
+
+const DAY_MS = 86400000;
+export function daysBetween(fromYmd, toYmd) {
+  if (!isValidYmd(fromYmd) || !isValidYmd(toYmd)) return null;
+  return Math.round((new Date(`${toYmd}T00:00:00Z`) - new Date(`${fromYmd}T00:00:00Z`)) / DAY_MS);
+}
+
+export const locationRangeAllowed = (fromYmd, toYmd) => {
+  const d = daysBetween(fromYmd, toYmd);
+  return d !== null && d >= 0 && d <= LOCATION_MAX_RANGE_DAYS;
+};
+
+export const LOCATION_STATUS_LABELS = {
+  CAPTURED: 'Captured',
+  LOW_ACCURACY: 'Low accuracy',
+  PERMISSION_DENIED: 'Permission denied',
+  PERMISSION_BLOCKED: 'Permission blocked',
+  SERVICES_DISABLED: 'GPS switched off',
+  TIMEOUT: 'Timed out',
+  STALE: 'Stale reading rejected',
+  UNAVAILABLE: 'Unavailable',
+};
+
+export function isValidCoordinate(lat, lng) {
+  const ok = (n) => typeof n === 'number' && Number.isFinite(n);
+  if (!ok(lat) || !ok(lng)) return false;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return false;
+  return !(lat === 0 && lng === 0);
+}
+
+/** Google Maps link for the exact saved coordinates (no rounding). */
+export const googleMapsUrl = (lat, lng) =>
+  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`;
+
+/**
+ * Display model for one event's location. `locRow` is a row from the admin RPC
+ * (or undefined). Coordinates are exposed only when the status says a fix was
+ * taken AND the values are valid; otherwise "Location not recorded".
+ */
+export function buildLocationEvent(locRow, prefix) {
+  const status = locRow ? locRow[`${prefix}_location_status`] ?? null : null;
+  const lat = locRow ? locRow[`${prefix}_latitude`] : null;
+  const lng = locRow ? locRow[`${prefix}_longitude`] : null;
+  const accuracy = locRow ? locRow[`${prefix}_accuracy_m`] : null;
+  const hasCoords = (status === 'CAPTURED' || status === 'LOW_ACCURACY') && isValidCoordinate(lat, lng);
+  const statusLabel = status ? (LOCATION_STATUS_LABELS[status] || status) : null;
+  const accuracyLabel = hasCoords && typeof accuracy === 'number' && Number.isFinite(accuracy) && accuracy >= 0
+    ? `±${Math.round(accuracy)} m`
+    : null;
+  const capturedAt = locRow ? locRow[`${prefix}_location_at`] : null;
+  let summary;
+  if (hasCoords) summary = accuracyLabel ? `${statusLabel} · ${accuracyLabel}` : statusLabel;
+  else if (status) summary = `Location not recorded (${statusLabel})`;
+  else summary = 'Location not recorded';
+  return {
+    recorded: hasCoords,
+    status,
+    statusLabel: statusLabel || 'Not recorded',
+    accuracyLabel,
+    capturedAtLabel: capturedAt ? `${formatBusinessDate(istDate(capturedAt))}, ${istTime(capturedAt)}` : null,
+    latitude: hasCoords ? lat : null,
+    longitude: hasCoords ? lng : null,
+    mapsUrl: hasCoords ? googleMapsUrl(lat, lng) : null,
+    summary,
+  };
+}
+
+export function indexLocationsByAttendance(rows) {
+  const out = {};
+  (rows || []).forEach((r) => { if (r && r.attendance_id) out[r.attendance_id] = r; });
+  return out;
+}
+
+const isSessionError = (code, msg) =>
+  code === 'PGRST301' || code === 'PGRST303' || /jwt expired|invalid jwt|session.*expired/i.test(msg);
+
+/** Errors from the admin location RPC. Messages never include coordinates. */
+export function classifyLocationError(error) {
+  if (!error) return null;
+  const code = String(error.code || '');
+  const msg = String(error.message || '');
+  if (code === 'PGRST202' || code === '42883' || /could not find the function/i.test(msg)) {
+    return { kind: 'NOT_DEPLOYED', message: 'Location details are not enabled on the server yet.' };
+  }
+  if (isSessionError(code, msg)) {
+    return { kind: 'SESSION', message: 'Your session has expired. Sign in again to view attendance locations.' };
+  }
+  if (code === '42501' || /not authori[sz]ed|permission denied/i.test(msg)) {
+    return { kind: 'PERMISSION', message: 'You are not authorised to view attendance locations.' };
+  }
+  if (code === '22023') {
+    return { kind: 'RANGE', message: `Location details are limited to date ranges of up to ${LOCATION_MAX_RANGE_DAYS + 1} days.` };
+  }
+  if (/failed to fetch|network/i.test(msg)) {
+    return { kind: 'NETWORK', message: 'Could not reach the server to load locations. Retry.' };
+  }
+  return { kind: 'OTHER', message: 'Could not load attendance locations.' };
+}
+
 /** Maps Supabase/PostgREST errors to a register-specific state. */
 export function classifyError(error) {
   if (!error) return null;
   const code = String(error.code || '');
   const msg = String(error.message || '');
+  if (isSessionError(code, msg)) {
+    return { kind: 'SESSION', message: 'Your session has expired. Sign in again.' };
+  }
   if (code === 'PGRST205' || code === '42P01' || /could not find the table/i.test(msg)) {
     return { kind: 'MISSING_TABLE', message: 'Attendance records are not available in the database yet.' };
   }
