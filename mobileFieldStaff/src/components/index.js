@@ -15,3 +15,4 @@ export * from './OrderSummaryView';
 export * from './AppHeader';
 export * from './EmojiPicker';
 export * from './SyncDetailsModal';
+export * from './AttendanceCard';

@@ -47,7 +47,11 @@ import {
   ReconciliationScreen,
   OrderConfirmationScreen,
   NewGroupScreen,
-  CallHistoryScreen
+  CallHistoryScreen,
+  AttendanceScreen,
+  AttendanceHistoryScreen,
+  LeaveRequestsScreen,
+  LeaveApplicationScreen
 } from './src/screens';
 import { NotificationProvider, useNotifications } from './src/context/NotificationContext';
 import { VisitProvider } from './src/context/VisitContext';
@@ -235,8 +239,28 @@ function RootNavigator() {
       />
       <Stack.Screen 
         name="CallHistory" 
-        component={CallHistoryScreen} 
-        options={{ headerShown: false }} 
+        component={CallHistoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Attendance"
+        component={AttendanceScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AttendanceHistory"
+        component={AttendanceHistoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="LeaveRequests"
+        component={LeaveRequestsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="LeaveApplication"
+        component={LeaveApplicationScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

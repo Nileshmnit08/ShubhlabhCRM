@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, typography, elevation, rounded } from '../theme/tokens';
-import { EmptyState, FieldSessionCard } from '../components';
+import { EmptyState, FieldSessionCard, AttendanceCard } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -169,6 +169,9 @@ export function HomeScreen({ navigation }) {
             <Text style={styles.zoneText}>{staffProfile?.role || 'Field Assistant'}</Text>
           </View>
         </View>
+
+        {/* FA-ATTENDANCE-01: attendance is separate from the field session below */}
+        <AttendanceCard />
 
         <FieldSessionCard />
 
