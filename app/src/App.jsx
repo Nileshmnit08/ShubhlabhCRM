@@ -66,6 +66,7 @@ const BusinessUpdateDetail = lazy(() => import('./pages/BusinessUpdates/Detail')
 
 const TravelExpenses = lazy(() => import('./pages/TravelExpenses'));
 const FieldMobility = lazy(() => import('./pages/FieldMobility'));
+const AttendanceRegister = lazy(() => import('./pages/AttendanceRegister'));
 
 const WebsiteCMS = lazy(() => import('./pages/WebsiteCMS'));
 const WebsiteLeads = lazy(() => import('./pages/WebsiteLeads'));
@@ -377,6 +378,7 @@ function App() {
                     <Route path="logistics" element={<Logistics />} />
                     <Route path="travel-expenses" element={<TravelExpenses />} />
                     <Route path="field-mobility" element={<FieldMobility />} />
+                    <Route path="attendance" element={<AttendanceRegister />} />
                     <Route path="website-cms/*" element={<WebsiteCMS />} />
                   </Route>
                 </Route>

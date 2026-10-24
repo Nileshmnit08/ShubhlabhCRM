@@ -62,6 +62,7 @@ import {
   Send,
   Wrench,
   Globe,
+  CalendarCheck,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
@@ -407,6 +408,15 @@ export const NAV_SECTIONS = [
         label: 'Staff Messages',
         href: '/staff-messages',
         icon: MessageCircle,
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
+      {
+        id: 'attendance',
+        label: 'Attendance Register',
+        href: '/attendance',
+        icon: CalendarCheck,
         badgeSource: null,
         permissionKey: 'admin',
         pinEligible: true,
