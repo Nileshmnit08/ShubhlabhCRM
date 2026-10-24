@@ -81,6 +81,18 @@ export function periodRange(period, now = new Date()) {
   return { fromMs: p.days ? end - p.days * DAY_MS : null, toMs: end, days: p.days };
 }
 
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * Explicit date range (YYYY-MM-DD, inclusive, Asia/Kolkata day boundaries).
+ * Returns null when neither bound is set (= all time).
+ */
+export function dateRangeBounds(dateFrom, dateTo, now = new Date()) {
+  const from = YMD.test(dateFrom || '') ? Date.parse(`${dateFrom}T00:00:00.000+05:30`) : null;
+  const to = YMD.test(dateTo || '') ? Date.parse(`${dateTo}T23:59:59.999+05:30`) : null;
+  if (from === null && to === null) return null;
+  return { fromMs: from ?? -8.64e15, toMs: to ?? now.getTime(), days: null };
+}
+
 export function inPeriod(s, range) {
   if (!range || range.fromMs === null) return true;
   if (!hasRealDate(s)) return false;
@@ -92,8 +104,9 @@ export function inPeriod(s, range) {
  * Shared page filters. Territory, signal type and search keep the exact semantics of
  * the original ProductDemand filter; category and period are additive (default 'All').
  */
-export function applyFilters(signals, { territory = 'All', signalType = 'All', category = 'All', search = '', period = 'ALL', now = new Date() } = {}) {
-  const range = periodRange(period, now);
+export function applyFilters(signals, { territory = 'All', signalType = 'All', category = 'All', search = '', period = 'ALL', dateFrom = '', dateTo = '', now = new Date() } = {}) {
+  // An explicit date range takes precedence over a relative period.
+  const range = dateRangeBounds(dateFrom, dateTo, now) || periodRange(period, now);
   const sq = (search || '').toLowerCase();
   return dedupeSignals(signals).filter((s) => {
     if (territory !== 'All' && territoryOf(s) !== territory) return false;

@@ -181,18 +181,33 @@ test('insights: unresolved requirements, unconverted intents, rising demand — 
   assert.equal(buildInsights({ filtered: applyFilters(thin, { ...tf, now: NOW }), all: thin, filters: tf, now: NOW }).some((i) => i.kind === 'INCREASING_DEMAND'), false);
 });
 
+test('explicit date range filter (IST day bounds) overrides period and excludes synthetic dates', async () => {
+  const { dateRangeBounds } = await import('../territoryDemand.js');
+  const data = dataset();
+  const from = new Date(NOW.getTime() - 10 * 86400000).toISOString().slice(0, 10);
+  const to = NOW.toISOString().slice(0, 10);
+  const inRange = applyFilters(data, { dateFrom: from, dateTo: to, period: 'D365', now: NOW });
+  assert.equal(inRange.some((s) => s.signal_type === SIGNAL.REPEAT), false);
+  assert.equal(inRange.some((s) => s.territory_name === 'Ajmer'), false, '40 days ago is outside the range');
+  assert.equal(dateRangeBounds('', '', NOW), null, 'empty range = all time');
+  assert.equal(applyFilters(data, { dateFrom: '', dateTo: '', now: NOW }).length, data.length);
+});
+
 test('truncation hint at the API row limit', () => {
   assert.equal(mayBeTruncated(999), false);
   assert.equal(mayBeTruncated(1000), true);
 });
 
-test('page wiring: one shared filter state, section placed before the product table, friendly permission error', () => {
+test('page wiring (PDM-UI-REFERENCE-MATCH-01): paged loading, shared applied filters, dashboard never queries', () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const page = readFileSync(path.join(here, '../../pages/ProductDemand.jsx'), 'utf8');
-  assert.match(page, /applyFilters\(signals, sharedFilters\)/);
-  assert.match(page, /filters=\{sharedFilters\}/);
-  assert.ok(page.indexOf('<TerritoryDemandIntelligence') < page.indexOf('groupedByCategory.length === 0'), 'section precedes product table');
+  assert.match(page, /\.range\(from, from \+ PAGE_SIZE - 1\)/, 'signals are paginated (no silent 1,000-row cap)');
+  assert.match(page, /\.order\('source_id'/, 'deterministic paging order');
+  assert.match(page, /applyFilters\(signals, applied\)/, 'product table uses the applied filters');
+  assert.match(page, /filters=\{applied\}/, 'dashboard uses the same applied filters');
   assert.match(page, /42501/);
-  const comp = readFileSync(path.join(here, '../../components/TerritoryDemandIntelligence.jsx'), 'utf8');
-  assert.equal(/supabase/.test(comp), false, 'section never queries on its own');
+  for (const f of ['ProductDemandDashboard.jsx', 'DemandPanels.jsx', 'CustomerDemandTable.jsx']) {
+    const src = readFileSync(path.join(here, `../../components/productDemand/${f}`), 'utf8');
+    assert.equal(/supabase/.test(src), false, `${f} never queries on its own`);
+  }
 });
