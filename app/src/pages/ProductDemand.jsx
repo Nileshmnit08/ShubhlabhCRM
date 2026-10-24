@@ -1,9 +1,11 @@
-import React, { useEffect, useState, useContext, useMemo } from 'react';
+import React, { useEffect, useState, useContext, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { AuthContext } from '../AuthContext';
 import { Link } from 'react-router-dom';
 import { Search, Filter, Layers, Package, Map, ChevronDown, ChevronRight, Activity, TrendingUp, DollarSign, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import TerritoryDemandIntelligence from '../components/TerritoryDemandIntelligence';
+import { PERIODS, applyFilters, mayBeTruncated } from '../lib/territoryDemand';
 
 export default function ProductDemand() {
   const { userProfile } = useContext(AuthContext);
@@ -16,6 +18,11 @@ export default function ProductDemand() {
   const [filterType, setFilterType] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [territories, setTerritories] = useState([]);
+  // PDM-TERRITORY-INTELLIGENCE-01: additive shared filters (default = previous behaviour)
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [filterPeriod, setFilterPeriod] = useState('ALL');
+  const [rawCount, setRawCount] = useState(0);
+  const tableRef = useRef(null);
 
   // Expanded product state
   const [expandedProducts, setExpandedProducts] = useState(new Set());
@@ -43,6 +50,7 @@ export default function ProductDemand() {
       if (fetchErr) throw fetchErr;
       
       const rawSignals = Array.isArray(dsData) ? dsData : [];
+      setRawCount(rawSignals.length);
 
       // 2. Fetch products to get categories
       const { data: productsData } = await supabase.from('products').select('name, category');
@@ -94,7 +102,9 @@ export default function ProductDemand() {
 
     } catch (err) {
       console.error("Product demand data load error:", err);
-      setError(err?.message || "Failed to load product demand data.");
+      setError(err?.code === '42501'
+        ? "You don't have permission to view product demand data."
+        : (err?.message || "Failed to load product demand data."));
     } finally {
       setLoading(false);
     }
@@ -109,15 +119,27 @@ export default function ProductDemand() {
     });
   };
 
-  const filteredSignals = useMemo(() => signals.filter(s => {
-    if (filterTerritory !== 'All' && (s.territory_name || 'Unassigned') !== filterTerritory) return false;
-    if (filterType !== 'All' && s.signal_type !== filterType) return false;
-    if (searchQuery) {
-      const sq = searchQuery.toLowerCase();
-      if (!s.party_name?.toLowerCase().includes(sq) && !s.standardized_product_name?.toLowerCase().includes(sq)) return false;
-    }
-    return true;
-  }), [signals, filterTerritory, filterType, searchQuery]);
+  // One shared filter state for the product table and the territory section.
+  const sharedFilters = useMemo(() => ({
+    territory: filterTerritory,
+    signalType: filterType,
+    category: filterCategory,
+    search: searchQuery,
+    period: filterPeriod,
+  }), [filterTerritory, filterType, filterCategory, searchQuery, filterPeriod]);
+
+  const filteredSignals = useMemo(() => applyFilters(signals, sharedFilters), [signals, sharedFilters]);
+
+  const categories = useMemo(
+    () => [...new Set(signals.map(s => s.product_category || 'Uncategorized'))].sort(),
+    [signals]
+  );
+
+  const focusProduct = (productName, territory) => {
+    setSearchQuery(productName);
+    if (territory) setFilterTerritory(territory);
+    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const groupedByCategory = useMemo(() => {
     const groups = {};
@@ -207,11 +229,26 @@ export default function ProductDemand() {
               <option value="Commercial Intent">Commercial Intents</option>
               <option value="Tally Transaction">Recent Transactions</option>
             </select>
+            <select className="input" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ padding: '0.5rem' }} aria-label="Product category">
+              <option value="All">All Categories</option>
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select className="input" value={filterPeriod} onChange={e => setFilterPeriod(e.target.value)} style={{ padding: '0.5rem' }} aria-label="Date range">
+              {PERIODS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <TerritoryDemandIntelligence
+        signals={filteredSignals}
+        allSignals={signals}
+        filters={sharedFilters}
+        truncated={mayBeTruncated(rawCount)}
+        onFocusProduct={focusProduct}
+      />
+
+      <div ref={tableRef} style={{ display: 'flex', flexDirection: 'column', gap: '2rem', scrollMarginTop: '1rem' }}>
         {groupedByCategory.length === 0 ? (
           <div className="glass-panel" style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
             No product demand signals found.
