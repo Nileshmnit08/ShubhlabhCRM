@@ -18,7 +18,7 @@ const DetailRow = ({ icon, label, value, muted }) => (
 );
 
 export function AttendanceScreen({ navigation }) {
-  const { loading, processing, message, view, record, workedSeconds, today, refresh, checkIn, checkOut } = useAttendance();
+  const { loading, processing, message, view, record, workedSeconds, today, locationEnabled, refresh, checkIn, checkOut } = useAttendance();
   const [refreshing, setRefreshing] = React.useState(false);
 
   const onRefresh = async () => {
@@ -90,6 +90,12 @@ export function AttendanceScreen({ navigation }) {
 
             <AttendanceMessage message={message} />
 
+            {locationEnabled && (view.canCheckIn || view.canCheckOut) && (
+              <Text style={styles.noticeText}>
+                Your location is recorded once when you check in and once when you check out. Authorized managers can see it.
+              </Text>
+            )}
+
             {(view.canCheckIn || view.canCheckOut) && (
               <TouchableOpacity
                 style={[styles.primaryBtn, processing && styles.btnDisabled]}
@@ -139,6 +145,7 @@ const styles = StyleSheet.create({
   statusText: { ...typography.headlineSm },
   infoText: { ...typography.bodyMd, color: colors.onSurfaceVariant, marginBottom: 12 },
   warnText: { ...typography.bodySm, color: colors.status.pending.text, marginTop: 8 },
+  noticeText: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 12 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.surfaceContainer },
   detailLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   detailLabel: { ...typography.bodyLg, color: colors.onSurfaceVariant },

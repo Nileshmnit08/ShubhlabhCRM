@@ -19,6 +19,7 @@ import {
   interpretBackendProbe,
   validateLeaveInput,
 } from '../utils/attendance';
+import { interpretLocationColumnsProbe, pickLocationFields } from '../utils/attendanceLocation';
 
 /**
  * FA-ATTENDANCE-01: Attendance & leave persistence.
@@ -30,6 +31,8 @@ import {
 
 const getStateKey = (userId) => `@attendance_state_${userId}`;
 const getBackendKey = (userId) => `@attendance_backend_ready_${userId}`;
+const getLocationKey = (userId) => `@attendance_location_ready_${userId}`;
+const LOCATION_PROBE_COLUMNS = 'id, check_in_latitude, check_in_location_status, check_out_latitude, check_out_location_status';
 const LOCAL_RETENTION_DAYS = 7;
 const CONFIRM_TIMEOUT_MS = 20000;
 const CONFIRM_POLL_MS = 500;
@@ -90,6 +93,28 @@ export class AttendanceService {
       return { ready: false, verifiedNow: true };
     }
     // Other errors (network, auth) do not change the cached answer.
+    return { ready: cached, verifiedNow: false };
+  }
+
+  /**
+   * FA-ATTENDANCE-LOCATION-01: whether the live table has the location columns.
+   * Location is captured and sent only when this is true; otherwise payloads stay
+   * exactly as before (unknown columns would make every check-in fail).
+   * Cached for offline use. Returns { ready, verifiedNow }.
+   */
+  static async probeLocationSupport(userId) {
+    const cached = (await AsyncStorage.getItem(getLocationKey(userId))) === 'true';
+    if (!(await isOnline())) return { ready: cached, verifiedNow: false };
+    const result = await supabase
+      .from(ATTENDANCE_TABLE)
+      .select(LOCATION_PROBE_COLUMNS)
+      .eq('staff_id', userId)
+      .limit(1);
+    const outcome = interpretLocationColumnsProbe(result);
+    if (outcome === 'READY' || outcome === 'MISSING') {
+      await AsyncStorage.setItem(getLocationKey(userId), outcome === 'READY' ? 'true' : 'false');
+      return { ready: outcome === 'READY', verifiedNow: true };
+    }
     return { ready: cached, verifiedNow: false };
   }
 
@@ -212,7 +237,7 @@ export class AttendanceService {
     return { state: 'PENDING', error: null };
   }
 
-  static async checkIn(userId) {
+  static async checkIn(userId, { location = null } = {}) {
     const { ready } = await this.probeBackend(userId);
     if (!ready) throw new Error('Attendance is not yet enabled on the server. Please contact your administrator.');
 
@@ -224,7 +249,9 @@ export class AttendanceService {
       throw new Error('You have approved leave today. Check-in is not allowed.');
     }
 
-    const payload = buildCheckInPayload({ id: uuidv4(), staffId: userId });
+    // Never send location columns unless the live schema is confirmed to have them.
+    const sendLocation = location && (await this.probeLocationSupport(userId)).ready;
+    const payload = buildCheckInPayload({ id: uuidv4(), staffId: userId, location: sendLocation ? location : null });
     // Persist locally first so a crash between enqueue and save cannot lose the action.
     await writeLocalDay(userId, payload.business_date, {
       record: { ...payload },
@@ -251,17 +278,25 @@ export class AttendanceService {
     return { ...result, record: payload };
   }
 
-  static async checkOut(userId) {
+  static async checkOut(userId, { location = null } = {}) {
     const { ready } = await this.probeBackend(userId);
     if (!ready) throw new Error('Attendance is not yet enabled on the server. Please contact your administrator.');
 
     const today = await this.loadToday(userId);
     const local = (await readLocalState(userId))[today.businessDate] || {};
-    const payload = buildCheckOutPayload({ id: uuidv4(), staffId: userId, record: today.record });
+    const sendLocation = location && (await this.probeLocationSupport(userId)).ready;
+    const payload = buildCheckOutPayload({
+      id: uuidv4(), staffId: userId, record: today.record, location: sendLocation ? location : null,
+    });
 
     await writeLocalDay(userId, payload.business_date, {
       ...local,
-      record: { ...today.record, check_out_at: payload.check_out_at, status: 'CHECKED_OUT' },
+      record: {
+        ...today.record,
+        ...pickLocationFields(payload, 'check_out'),
+        check_out_at: payload.check_out_at,
+        status: 'CHECKED_OUT',
+      },
       checkOutOpId: payload.id,
     });
     await SyncService.enqueueOperation(ATTENDANCE_TABLE, payload, userId, 'upsert', ATTENDANCE_CONFLICT_TARGET);

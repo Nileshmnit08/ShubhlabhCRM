@@ -215,7 +215,9 @@ test('history rows flag missing or incomplete timestamps', () => {
   assert.equal(working.incomplete, false);
 });
 
-test('staff-facing attendance UI contains no location, map or GPS code', () => {
+// FA-ATTENDANCE-LOCATION-01 approved one-shot capture at check-in/out (service, hook,
+// utils). Rendering files must still never display coordinates, accuracy, maps or GPS calls.
+test('staff-facing attendance screens never display coordinates, maps or GPS data', () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const files = [
     '../src/components/AttendanceCard.js',
@@ -223,9 +225,6 @@ test('staff-facing attendance UI contains no location, map or GPS code', () => {
     '../src/screens/AttendanceHistoryScreen.js',
     '../src/screens/LeaveRequestsScreen.js',
     '../src/screens/LeaveApplicationScreen.js',
-    '../src/hooks/useAttendance.js',
-    '../src/services/AttendanceService.js',
-    '../src/utils/attendance.js',
   ];
   const forbidden = /expo-location|react-native-maps|MapView|latitude|longitude|coords|getCurrentPosition|accuracy|BackgroundLocationService|gps/i;
   for (const f of files) {

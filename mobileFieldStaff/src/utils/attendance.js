@@ -8,6 +8,8 @@
  * offset is used instead of Intl time-zone support (not reliable on Hermes).
  */
 
+import { locationFields, pickLocationFields } from './attendanceLocation.js';
+
 export const IST_OFFSET_MS = 330 * 60 * 1000;
 
 export const ATTENDANCE_TABLE = 'staff_attendance';
@@ -166,7 +168,12 @@ export function buildLeavePayload({ id, staffId, leaveType, startDate, endDate, 
 
 // ─── Attendance records ─────────────────────────────────────────────────────
 
-export function buildCheckInPayload({ id, staffId, now = new Date() }) {
+/**
+ * `location` is a capture result from utils/attendanceLocation. Pass it only
+ * when the live schema has the location columns; otherwise the payload is
+ * unchanged from FA-ATTENDANCE-01 (unknown columns would fail the upsert).
+ */
+export function buildCheckInPayload({ id, staffId, now = new Date(), location = null }) {
   if (!id || !staffId) throw new Error('Check-in requires an id and the signed-in staff id.');
   const nowIso = toValidDate(now).toISOString();
   return {
@@ -175,6 +182,7 @@ export function buildCheckInPayload({ id, staffId, now = new Date() }) {
     business_date: istBusinessDate(nowIso),
     check_in_at: nowIso,
     status: 'CHECKED_IN',
+    ...(location ? locationFields('check_in', location) : {}),
   };
 }
 
@@ -183,7 +191,7 @@ export function buildCheckInPayload({ id, staffId, now = new Date() }) {
  * completes the record even if the check-in operation never reached the
  * server. `id` is a fresh operation key; the server keeps the original row id.
  */
-export function buildCheckOutPayload({ id, staffId, record, now = new Date() }) {
+export function buildCheckOutPayload({ id, staffId, record, now = new Date(), location = null }) {
   if (!id || !staffId) throw new Error('Check-out requires an id and the signed-in staff id.');
   if (!record || !record.check_in_at) throw new Error('You have not checked in today.');
   if (record.check_out_at) throw new Error('You have already checked out today.');
@@ -198,6 +206,9 @@ export function buildCheckOutPayload({ id, staffId, record, now = new Date() }) 
     check_in_at: record.check_in_at,
     check_out_at: nowIso,
     status: 'CHECKED_OUT',
+    // Like check_in_at, the check-in location is carried so the row is complete even if
+    // the check-in upload never reached the server; the server keeps the first values.
+    ...(location ? { ...pickLocationFields(record, 'check_in'), ...locationFields('check_out', location) } : {}),
   };
 }
 
@@ -210,8 +221,13 @@ export function mergeAttendanceRecord(serverRow, localRecord) {
   if (!serverRow && !localRecord) return null;
   if (!serverRow) return { ...localRecord };
   if (!localRecord) return { ...serverRow };
+  // A local check-out (and its location) not yet on the server is overlaid as a unit.
+  const localCheckOut = !serverRow.check_out_at && localRecord.check_out_at
+    ? { ...pickLocationFields(localRecord, 'check_out'), check_out_at: localRecord.check_out_at }
+    : {};
   return {
     ...serverRow,
+    ...localCheckOut,
     check_out_at: serverRow.check_out_at || localRecord.check_out_at || null,
     status: serverRow.check_out_at || localRecord.check_out_at ? 'CHECKED_OUT' : 'CHECKED_IN',
   };
