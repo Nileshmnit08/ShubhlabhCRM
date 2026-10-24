@@ -8,7 +8,7 @@ const anonMatch = envStr.match(/EXPO_PUBLIC_SUPABASE_ANON_KEY=(.*)/);
 const supabaseClient = createClient(urlMatch[1].trim(), anonMatch[1].trim());
 
 async function checkRLS() {
-  const { error: loginError } = await supabaseClient.auth.signInWithPassword({ email: 'babulal@shubhlabh.com', password: 'password123' });
+  const { error: loginError } = await supabaseClient.auth.signInWithPassword({ email: 'babulal@shubhlabh.com', password: process.env.CRM_TEST_PASSWORD });
   if (loginError) { console.error("Login failed", loginError); return; }
 
   const { data: { session } } = await supabaseClient.auth.getSession();

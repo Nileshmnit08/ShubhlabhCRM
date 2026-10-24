@@ -4,7 +4,7 @@ const fs = require('fs');
 const envStr = fs.readFileSync('D:/ShubhLabhCRM/shubhlabh-order/.env', 'utf-8');
 const urlMatch = envStr.match(/EXPO_PUBLIC_SUPABASE_URL=(.*)/);
 const anonMatch = envStr.match(/EXPO_PUBLIC_SUPABASE_ANON_KEY=(.*)/);
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3a2pkZGZscHprb3dsYXdrbWthIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Njk1NDg2OSwiZXhwIjoyMTAyNTMwODY5fQ.FYHMjv5x4X3uxV0A6n5N2dqoYB1pNkK72Zn881f13iw';
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabaseAdmin = createClient(urlMatch[1].trim(), SERVICE_ROLE_KEY);
 
@@ -17,11 +17,11 @@ async function testBuyer() {
   const buyer = buyers[0];
   console.log("Found buyer:", buyer.email);
 
-  const { data: updateData, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(buyer.id, { password: 'password123' });
+  const { data: updateData, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(buyer.id, { password: process.env.BUYER_TEST_PASSWORD });
   if (updateError) { console.error(updateError); return; }
 
   const supabaseClient = createClient(urlMatch[1].trim(), anonMatch[1].trim());
-  const { error: loginError } = await supabaseClient.auth.signInWithPassword({ email: buyer.email, password: 'password123' });
+  const { error: loginError } = await supabaseClient.auth.signInWithPassword({ email: buyer.email, password: process.env.BUYER_TEST_PASSWORD });
   if (loginError) { console.error(loginError); return; }
 
   const { data: wlData, error: wlError } = await supabaseClient

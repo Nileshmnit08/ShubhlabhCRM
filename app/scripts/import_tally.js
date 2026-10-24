@@ -218,7 +218,7 @@ async function main() {
   try {
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
       email: 'admin@shubhlabh.local',
-      password: 'password123'
+      password: process.env.CRM_TEST_PASSWORD
     });
     if (authErr) throw authErr;
     console.log(`Authenticated as: ${authData.user.email}`);

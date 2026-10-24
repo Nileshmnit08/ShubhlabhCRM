@@ -9,7 +9,7 @@ async function testLogin() {
   console.log('Attempting login...');
   const { data, error } = await supabase.auth.signInWithPassword({
     email: 'pradeep@shubhlabh.com',
-    password: 'password'
+    password: process.env.FIELD_STAFF_TEST_PASSWORD
   });
   
   if (error) {

@@ -55,7 +55,7 @@ console.log('\n--- TEST: Does ANY login work on this Supabase project? ---');
 const testResp = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', apikey: supabaseKey },
-  body: JSON.stringify({ email: 'test_nonexistent_check@nowhere.invalid', password: 'wrongpassword' })
+  body: JSON.stringify({ email: 'test_nonexistent_check@nowhere.invalid', password: process.env.CRM_TEST_PASSWORD })
 });
 const testBody = await testResp.json();
 console.log('Nonexistent user status:', testResp.status);

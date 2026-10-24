@@ -5,7 +5,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function validate() {
-  await supabase.auth.signInWithPassword({email: 'vishnu@shubhlabh.com', password: 'password'});
+  await supabase.auth.signInWithPassword({email: 'vishnu@shubhlabh.com', password: process.env.FIELD_STAFF_TEST_PASSWORD});
   let { data: allCalls, error } = await supabase.from('crm_call_events')
       .select('*')
       .order('created_at', { ascending: false })

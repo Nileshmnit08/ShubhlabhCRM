@@ -68,7 +68,7 @@ async function runAudit() {
   console.log('\n--- 2. Authenticated Admin Access Check (admin@shubhlabh.com) ---');
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: 'admin@shubhlabh.com',
-    password: 'password'
+    password: process.env.CRM_TEST_PASSWORD
   });
 
   if (authError) {

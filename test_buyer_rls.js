@@ -13,7 +13,7 @@ async function runSecurityTests() {
   const BUYER_A_EMAIL = 'buyer_a@test.com';
   const BUYER_B_EMAIL = 'buyer_b@test.com';
   const STAFF_EMAIL = 'staff@test.com';
-  const PASSWORD = 'testpassword123';
+  const PASSWORD = process.env.BUYER_TEST_PASSWORD;
   
   const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'http://127.0.0.1:54321';
   const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'public-anon-key';

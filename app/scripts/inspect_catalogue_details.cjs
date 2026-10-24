@@ -33,7 +33,7 @@ async function inspectCatalogueAndNotifications() {
   console.log('\n--- 4. Authenticating as Admin to inspect crm_notifications columns and crm_parties RLS ---');
   const { data: authData } = await supabase.auth.signInWithPassword({
     email: 'admin@shubhlabh.com',
-    password: 'password'
+    password: process.env.CRM_TEST_PASSWORD
   });
 
   const { data: notifData, error: notifErr } = await supabase.from('crm_notifications').select('*').limit(1);

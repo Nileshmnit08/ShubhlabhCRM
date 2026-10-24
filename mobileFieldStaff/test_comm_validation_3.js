@@ -5,7 +5,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function validate() {
-  await supabase.auth.signInWithPassword({email: 'vishnu@shubhlabh.com', password: 'password'});
+  await supabase.auth.signInWithPassword({email: 'vishnu@shubhlabh.com', password: process.env.FIELD_STAFF_TEST_PASSWORD});
   let { data: allCalls } = await supabase.from('v_crm_call_events_enriched').select('direction, call_type');
   
   let inc = allCalls.filter(c => c.direction === 'INCOMING').length;

@@ -8,7 +8,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function test() {
   const { data, error } = await supabase.auth.signInWithPassword({
     email: 'test@shubhlabh.com ',
-    password: 'password',
+    password: process.env.BUYER_TEST_PASSWORD,
   });
   console.log('Result with space:', error);
 }

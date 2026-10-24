@@ -11,7 +11,7 @@ async function checkUser() {
 
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: 'test@shubhlabh.com',
-    password: 'password'
+    password: process.env.BUYER_TEST_PASSWORD
   });
   
   if (authError) {

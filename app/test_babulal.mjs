@@ -11,7 +11,7 @@ async function test() {
   // Test signInWithPassword
   const { data, error } = await supabase.auth.signInWithPassword({
     email: 'babulal@shubhlabh.com',
-    password: 'password'
+    password: process.env.CRM_TEST_PASSWORD
   });
 
   if (error) {

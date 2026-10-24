@@ -18,7 +18,7 @@ async function checkColumns(view, columns) {
 async function runTests() {
   const { data: authData } = await supabase.auth.signInWithPassword({
     email: 'nitesh@shubhlabh.com',
-    password: 'password'
+    password: process.env.FIELD_STAFF_TEST_PASSWORD
   });
   
   console.log('\n--- VERIFY SCHEMA AND COLUMN CONTRACT ---');

@@ -8,7 +8,7 @@ const supCr = createClient('https://fwkjddflpzkowlawkmka.supabase.co', keyWithCr
 
 async function test(sup, name) {
   console.log(`\nTesting ${name}...`);
-  const { error } = await sup.auth.signInWithPassword({ email: 'fakeuser12345@shubhlabh.com', password: 'password123' });
+  const { error } = await sup.auth.signInWithPassword({ email: 'fakeuser12345@shubhlabh.com', password: process.env.CRM_TEST_PASSWORD });
   if (error) {
     console.log(`[${name}] error: ${error.status} - ${error.message}`);
   } else {

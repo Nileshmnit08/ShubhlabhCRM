@@ -7,7 +7,7 @@ const key = env.match(/EXPO_PUBLIC_SUPABASE_ANON_KEY=(.*)/)[1];
 const supabase = createClient(supabaseUrl, key);
 
 async function validate() {
-  await supabase.auth.signInWithPassword({email: 'nilesh@shubhlabh.com', password: 'password'});
+  await supabase.auth.signInWithPassword({email: 'nilesh@shubhlabh.com', password: process.env.FIELD_STAFF_TEST_PASSWORD});
   let { data: allCalls, error } = await supabase.from('v_crm_call_events_enriched').select('*').order('created_at', { ascending: false }).limit(5);
   
   if (error) console.error(error);

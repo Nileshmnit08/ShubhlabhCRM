@@ -22,7 +22,7 @@ console.log('=== Testing with fresh .com email ===');
 const signupResp = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-  body: JSON.stringify({ email: 'sl_diagnose_xyz_99@gmail.com', password: 'Diagnose123Test!' })
+  body: JSON.stringify({ email: 'sl_diagnose_xyz_99@gmail.com', password: process.env.CRM_TEST_PASSWORD })
 });
 const signupBody = await signupResp.json();
 console.log('Signup status:', signupResp.status);
@@ -35,7 +35,7 @@ if (signupBody.id) {
   const loginResp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-    body: JSON.stringify({ email: 'sl_diagnose_xyz_99@gmail.com', password: 'Diagnose123Test!' })
+    body: JSON.stringify({ email: 'sl_diagnose_xyz_99@gmail.com', password: process.env.CRM_TEST_PASSWORD })
   });
   const loginBody = await loginResp.json();
   console.log('\nLogin status:', loginResp.status);

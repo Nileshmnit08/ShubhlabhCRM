@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 
 async function runAudit() {
-  const connectionString = 'postgresql://postgres.fwkjddflpzkowlawkmka:C5lDLeWilx9oCJiZND2vZwDcgSMXI13Aexkaab3WE2Q@aws-0-ap-south-1.pooler.supabase.com:5432/postgres';
+  const connectionString = process.env.DATABASE_URL;
   const client = new Client({ connectionString });
   
   try {

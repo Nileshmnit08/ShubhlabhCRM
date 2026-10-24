@@ -7,7 +7,7 @@ const supabase = createClient('https://fwkjddflpzkowlawkmka.supabase.co', anonKe
 
 async function run() {
   console.log("Testing with \\r in anon key...");
-  const { data, error } = await supabase.auth.signInWithPassword({ email: 'test@shubhlabh.com', password: 'password' });
+  const { data, error } = await supabase.auth.signInWithPassword({ email: 'test@shubhlabh.com', password: process.env.CRM_TEST_PASSWORD });
   if (error) {
     console.log(`status: ${error.status}`);
     console.log(`code: ${error.code}`);

@@ -20,7 +20,7 @@ const { chromium } = require('playwright');
 
   if (hasEmail > 0) {
     await page.fill('input[type="email"]', 'admin@shubhlabh.com');
-    await page.fill('input[type="password"]', 'password');
+    await page.fill('input[type="password"]', process.env.CRM_TEST_PASSWORD);
     console.log('Filled credentials. Submitting form...');
     await page.click('button[type="submit"]');
 

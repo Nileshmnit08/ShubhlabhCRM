@@ -8,7 +8,7 @@ const supabase = createClient(urlMatch[1].trim().replace(/['"]/g, ''), keyMatch[
 async function test() {
   // We need to login to test RLS
   const email = `test_staff_${Date.now()}@example.com`;
-  const password = 'Password123!';
+  const password = process.env.FIELD_STAFF_TEST_PASSWORD;
   const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
   
   if (authErr) {

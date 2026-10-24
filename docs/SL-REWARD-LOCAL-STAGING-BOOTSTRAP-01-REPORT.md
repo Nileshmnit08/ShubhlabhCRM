@@ -124,7 +124,7 @@ To guarantee that local testing tools can never redirect commands, migrations, o
    - The production `.env` files in `mobile/`, `mobileFieldStaff/`, `shubhlabh-order/`, and `app/` are ignored by local testing scripts.
    - When local Supabase runs, all client connections must connect strictly to:
      - **REST API:** `http://127.0.0.1:54321`
-     - **PostgreSQL Direct Connection:** `postgresql://postgres:postgres@127.0.0.1:54322/postgres`
+     - **PostgreSQL Direct Connection:** `postgresql://postgres:<DB_PASSWORD>@127.0.0.1:54322/postgres`
 3. **Database Pre-Execution Identity Guard:**
    Before executing any SQL, the test runner must run the following verification query:
    ```sql

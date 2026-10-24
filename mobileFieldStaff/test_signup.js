@@ -9,7 +9,7 @@ async function testSignUp() {
   console.log('Attempting sign up...');
   const { data, error } = await supabase.auth.signUp({
     email: 'pradeep@shubhlabh.com',
-    password: 'password',
+    password: process.env.FIELD_STAFF_TEST_PASSWORD,
     options: {
       data: {
         full_name: 'Pradeep Kumar'

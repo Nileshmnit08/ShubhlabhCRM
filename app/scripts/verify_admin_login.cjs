@@ -35,7 +35,7 @@ const path = require('path');
   await page.goto('http://localhost:4173/login?destination=crm', { waitUntil: 'networkidle' });
 
   await page.fill('input[type="email"]', 'admin@shubhlabh.com');
-  await page.fill('input[type="password"]', 'password');
+  await page.fill('input[type="password"]', process.env.CRM_TEST_PASSWORD);
   console.log('Submitting login form with admin@shubhlabh.com / password...');
   await page.click('button[type="submit"]');
 

@@ -28,7 +28,7 @@ const productsToInsert = [
 
 async function insertProducts() {
   console.log('Logging in as test user...');
-  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: 'test@shubhlabh.com', password: 'password' });
+  const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: 'test@shubhlabh.com', password: process.env.BUYER_TEST_PASSWORD });
   if (authError) {
     console.error('Login failed:', authError);
     return;

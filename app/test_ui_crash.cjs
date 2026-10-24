@@ -23,7 +23,7 @@ const { chromium } = require('playwright');
     const emailInput = await page.$('input[type="email"]');
     if (emailInput) {
       await emailInput.fill('test@shubhlabh.com');
-      await page.fill('input[type="password"]', 'Test!1234');
+      await page.fill('input[type="password"]', process.env.CRM_TEST_PASSWORD);
       await page.click('button[type="submit"]');
       await page.waitForURL('**/field-mobility', { waitUntil: 'networkidle' });
     }

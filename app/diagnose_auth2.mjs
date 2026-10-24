@@ -21,7 +21,7 @@ console.log('\n=== TEST: Signup endpoint response structure ===');
 const signupResp = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-  body: JSON.stringify({ email: 'diagnosetest_xyz_delete@shubhlabh.local', password: 'Diagnose123!' })
+  body: JSON.stringify({ email: 'diagnosetest_xyz_delete@shubhlabh.local', password: process.env.CRM_TEST_PASSWORD })
 });
 const signupBody = await signupResp.json();
 console.log('Signup status:', signupResp.status);
@@ -36,7 +36,7 @@ if (signupBody.id) {
   const loginResp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: 'POST', 
     headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-    body: JSON.stringify({ email: 'diagnosetest_xyz_delete@shubhlabh.local', password: 'Diagnose123!' })
+    body: JSON.stringify({ email: 'diagnosetest_xyz_delete@shubhlabh.local', password: process.env.CRM_TEST_PASSWORD })
   });
   const loginBody = await loginResp.json();
   console.log('Login status:', loginResp.status);
@@ -55,7 +55,7 @@ console.log('\n=== Babulal login attempt (for error ID) ===');
 const babResp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-  body: JSON.stringify({ email: 'babulal@shubhlabh.com', password: 'password' })
+  body: JSON.stringify({ email: 'babulal@shubhlabh.com', password: process.env.CRM_TEST_PASSWORD })
 });
 const babBody = await babResp.json();
 console.log('Babulal login status:', babResp.status);

@@ -18,7 +18,7 @@ async function diagnose() {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ email: 'babulal@shubhlabh.com', password: 'password' })
+      body: JSON.stringify({ email: 'babulal@shubhlabh.com', password: process.env.CRM_TEST_PASSWORD })
     });
     const body = await resp.json();
     console.log('HTTP Status:', resp.status);
@@ -80,7 +80,7 @@ async function diagnose() {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
       },
-      body: JSON.stringify({ email: 'nonexistent_xyz_999@shubhlabh.com', password: 'wrongpassword' })
+      body: JSON.stringify({ email: 'nonexistent_xyz_999@shubhlabh.com', password: process.env.CRM_TEST_PASSWORD })
     });
     const body = await resp.json();
     console.log('HTTP Status for NONEXISTENT user:', resp.status);

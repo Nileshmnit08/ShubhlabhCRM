@@ -61,7 +61,7 @@ async function runCrmLeadsInboxVerification() {
     console.log('\n[Step 1] Authenticating as Admin at /login?destination=crm...');
     await page.goto(`${BASE_URL}/login?destination=crm`, { waitUntil: 'networkidle' });
     await page.fill('input[type="email"]', 'admin@shubhlabh.com');
-    await page.fill('input[type="password"]', 'password');
+    await page.fill('input[type="password"]', process.env.CRM_TEST_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForTimeout(3000);
 

@@ -8,7 +8,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function test() {
   const { data, error } = await supabase.auth.signInWithPassword({
     email: 'test@shubhlabh.com',
-    password: 'wrongpassword',
+    password: process.env.BUYER_TEST_PASSWORD,
   });
   console.log('Result wrong pass:', data, error);
 }

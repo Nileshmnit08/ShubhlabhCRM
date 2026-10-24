@@ -131,7 +131,7 @@ async function runTestSuite() {
 
     // Test Admin Login into CRM
     await page.fill('input[type="email"]', 'admin@shubhlabh.com');
-    await page.fill('input[type="password"]', 'password');
+    await page.fill('input[type="password"]', process.env.CRM_TEST_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForURL('**/today', { timeout: 15000 }).catch(() => {});
 

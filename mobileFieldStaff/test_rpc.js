@@ -7,7 +7,7 @@ async function testRpc() {
   // 1. Login
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
     email: 'vishnu@shubhlabh.com',
-    password: 'password'
+    password: process.env.FIELD_STAFF_TEST_PASSWORD
   });
 
   if (authError) {
