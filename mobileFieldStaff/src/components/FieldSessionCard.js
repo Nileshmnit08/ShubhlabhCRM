@@ -5,7 +5,7 @@ import * as Location from 'expo-location';
 import { colors, typography, rounded, elevation } from '../theme/tokens';
 import { supabase } from '../lib/supabase';
 import { SyncService } from '../services/SyncService';
-import { startBackgroundLocationTracking, stopBackgroundLocationTracking } from '../services/BackgroundLocationService';
+import { startBackgroundLocationTracking, stopBackgroundLocationTracking, getDestinationStateKey } from '../services/BackgroundLocationService';
 import { useAuth } from '../context/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -126,6 +126,15 @@ export function FieldSessionCard() {
 
       await SyncService.enqueueOperation('staff_tracking_sessions', newSession, session.user.id, 'insert');
       await AsyncStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(newSession));
+      await AsyncStorage.setItem(getDestinationStateKey(session.user.id), JSON.stringify({
+        type: 'DAY_START',
+        referenceId: sessionId,
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        timestamp: nowIso,
+        distanceAtDestination: 0,
+        tracking_session_id: sessionId
+      }));
       setActiveSession(newSession);
 
       // Start background tracking for GPS points (FM-02)
@@ -166,6 +175,7 @@ export function FieldSessionCard() {
 
       await SyncService.enqueueOperation('staff_tracking_sessions', updatedSession, session.user.id, 'update');
       await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+      await AsyncStorage.removeItem(getDestinationStateKey(session.user.id));
       setActiveSession(null);
 
       // Stop background tracking (FM-02)

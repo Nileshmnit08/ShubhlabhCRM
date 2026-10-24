@@ -23,15 +23,20 @@ export function MyWorkScreen({ navigation }) {
       const today = new Date();
       today.setHours(0,0,0,0);
       const todayIso = today.toISOString();
+      const todayDateStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
       const [visitsRes, ordersRes, followupsRes, sessionsRes] = await Promise.all([
         supabase.from('crm_visits').select('id', { count: 'exact' }).eq('staff_id', session.user.id).gte('created_at', todayIso),
         supabase.from('requirements').select('id', { count: 'exact' }).eq('assigned_to', session.user.id).gte('created_at', todayIso),
         supabase.from('follow_ups').select('id', { count: 'exact' }).eq('assigned_to', session.user.id).eq('status', 'Completed').gte('updated_at', todayIso),
-        supabase.from('staff_tracking_sessions').select('verified_distance_meters').eq('staff_id', session.user.id).gte('created_at', todayIso)
+        supabase.from('staff_tracking_sessions').select('verified_distance_meters, total_distance_km').eq('staff_id', session.user.id).or(`business_date.eq.${todayDateStr},created_at.gte.${todayIso}`)
       ]);
 
-      const km = sessionsRes.data?.reduce((acc, s) => acc + (s.verified_distance_meters || 0), 0) / 1000 || 0;
+      const km = sessionsRes.data?.reduce((acc, s) => {
+        if (s.verified_distance_meters) return acc + (s.verified_distance_meters / 1000);
+        if (s.total_distance_km) return acc + Number(s.total_distance_km);
+        return acc;
+      }, 0) || 0;
 
       const newStats = {
         visits: visitsRes.count || 0,

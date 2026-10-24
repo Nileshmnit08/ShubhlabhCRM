@@ -77,7 +77,7 @@ export const NewGroupScreen = ({ navigation }) => {
       if (data && data.id) {
         navigation.replace('ChatConversation', {
           conversationId: data.id,
-          otherUser: { id: data.id, full_name: groupTitle.trim(), isGroup: true }
+          otherUser: { id: null, conversationId: data.id, full_name: groupTitle.trim(), isGroup: true }
         });
       }
     } catch (ex) {

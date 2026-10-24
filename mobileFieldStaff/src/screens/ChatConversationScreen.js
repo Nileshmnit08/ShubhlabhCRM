@@ -308,7 +308,8 @@ export const ChatConversationScreen = ({ route, navigation }) => {
         if (isGroupConv) {
           const groupTitle = convData?.title || paramOtherUser?.full_name || 'Group Chat';
           setOtherUser({
-            id: validConversationId,
+            id: null,
+            conversationId: validConversationId,
             full_name: groupTitle,
             isGroup: true
           });
@@ -596,16 +597,20 @@ export const ChatConversationScreen = ({ route, navigation }) => {
 
       setMessages(current => [tempMessage, ...current]);
 
-      const isGroup = otherUser?.isGroup;
+      const isGroup = Boolean(otherUser?.isGroup);
       const recipientIds = isGroup 
-        ? groupMembers.map(m => m.user_id).filter(id => id !== currentUserId)
+        ? groupMembers.map(m => m.user_id).filter(id => id && id !== currentUserId && id !== validConversationId)
         : undefined;
+
+      const directRecipientId = (!isGroup && otherUser?.id && otherUser.id !== validConversationId)
+        ? otherUser.id
+        : null;
 
       await chatService.sendMessage(
         validConversationId,
         currentUserId,
         textToSend,
-        isGroup ? null : otherUser?.id,
+        directRecipientId,
         senderName,
         tempId,
         {

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, Alert, ScrollView, TouchableOpaci
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, rounded, elevation } from '../theme/tokens';
-import { Button } from '../components';
+import { Button, SyncDetailsModal } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useSync } from '../context/SyncContext';
 import { 
@@ -32,8 +32,9 @@ const ShortcutRow = ({ icon, title, onPress }) => (
 export function ProfileScreen({ navigation }) {
   const { t, i18n } = useTranslation();
   const { staffProfile, logout } = useAuth();
-  const { isOnline, isSyncing, pendingCount, failedCount, lastError, triggerSync } = useSync();
+  const { isOnline, isSyncing, pendingCount, failedCount, retryingCount, lastError, triggerSync, queueVersion } = useSync();
   const [isTracking, setIsTracking] = useState(false);
+  const [syncDetailsVisible, setSyncDetailsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [geofencesCount, setGeofencesCount] = useState(0);
 
@@ -139,21 +140,64 @@ export function ProfileScreen({ navigation }) {
               {isSyncing ? 'SYNCING...' : 'IDLE'}
             </Text>
           </View>
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Pending Sync Items</Text>
-            <Text style={[
-              styles.statValue, 
-              { color: pendingCount === 'Unavailable' ? colors.error : colors.onSurface, 
-                fontSize: pendingCount === 'Unavailable' ? 14 : styles.statValue.fontSize }
-            ]}>
-              {pendingCount} {failedCount > 0 && `(${failedCount} Failed)`}
-            </Text>
-          </View>
-          {failedCount > 0 && lastError && (
-            <View style={{ marginTop: 8, padding: 8, backgroundColor: '#ffebee', borderRadius: 8 }}>
-              <Text style={{ fontSize: 12, color: colors.error, fontWeight: 'bold' }}>Last Sync Error:</Text>
-              <Text style={{ fontSize: 12, color: colors.error }}>{lastError}</Text>
+          <TouchableOpacity 
+            style={[styles.statRow, styles.interactiveStatRow]}
+            onPress={() => setSyncDetailsVisible(true)}
+            activeOpacity={0.7}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="View unsynced items"
+            accessibilityHint="Opens sync details popup showing pending and failed records"
+          >
+            <View style={styles.statLabelContainer}>
+              <Text style={styles.statLabel}>Pending Sync Items</Text>
+              {((typeof pendingCount === 'number' && pendingCount > 0) || failedCount > 0) && (
+                <MaterialIcons 
+                  name="info-outline" 
+                  size={16} 
+                  color={failedCount > 0 ? colors.error : colors.primary} 
+                  style={{ marginLeft: 6 }} 
+                />
+              )}
             </View>
+            <View style={styles.statValueContainer}>
+              <Text style={[
+                styles.statValue, 
+                { color: pendingCount === 'Unavailable' ? colors.error : (failedCount > 0 ? colors.error : colors.onSurface), 
+                  fontSize: pendingCount === 'Unavailable' ? 14 : styles.statValue.fontSize }
+              ]}>
+                {pendingCount} {failedCount > 0 ? `(${failedCount} Failed)` : (retryingCount > 0 ? `(${retryingCount} Retrying)` : '')}
+              </Text>
+              {((typeof pendingCount === 'number' && pendingCount > 0) || failedCount > 0) && (
+                <MaterialIcons 
+                  name="chevron-right" 
+                  size={18} 
+                  color={colors.onSurfaceVariant} 
+                  style={{ marginLeft: 4 }} 
+                />
+              )}
+            </View>
+          </TouchableOpacity>
+          {(failedCount > 0 || (retryingCount > 0 && lastError)) && lastError && (
+            <TouchableOpacity 
+              style={[styles.lastErrorBox, failedCount === 0 && { borderColor: '#FFE082', backgroundColor: '#FFF8E1' }]}
+              onPress={() => setSyncDetailsVisible(true)}
+              activeOpacity={0.7}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="View failure details"
+            >
+              <View style={styles.lastErrorHeader}>
+                <Text style={[styles.lastErrorTitle, failedCount === 0 && { color: '#E65100' }]}>
+                  {failedCount > 0 ? 'Last Sync Error:' : 'Sync Retry Note:'}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={[styles.lastErrorActionText, failedCount === 0 && { color: '#E65100' }]}>View Details</Text>
+                  <MaterialIcons name="chevron-right" size={14} color={failedCount > 0 ? colors.error : '#E65100'} />
+                </View>
+              </View>
+              <Text style={[styles.lastErrorMsg, failedCount === 0 && { color: '#BF360C' }]} numberOfLines={2}>{lastError}</Text>
+            </TouchableOpacity>
           )}
           <View style={{ marginTop: 16 }}>
             <Button 
@@ -259,6 +303,13 @@ export function ProfileScreen({ navigation }) {
           <Button title={t('auth.action.logout')} variant="secondary" onPress={logout} />
         </View>
       </ScrollView>
+
+      <SyncDetailsModal
+        visible={syncDetailsVisible}
+        onClose={() => setSyncDetailsVisible(false)}
+        userId={staffProfile?.id || session?.user?.id}
+        queueVersion={queueVersion}
+      />
     </SafeAreaView>
   );
 }
@@ -372,5 +423,45 @@ const styles = StyleSheet.create({
   actionContainer: {
     marginTop: 16,
     width: '100%',
+  },
+  interactiveStatRow: {
+    minHeight: 48,
+  },
+  statLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lastErrorBox: {
+    marginTop: 8,
+    padding: 10,
+    backgroundColor: '#FFEBEE',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  lastErrorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  lastErrorTitle: {
+    fontSize: 12,
+    color: colors.error,
+    fontWeight: 'bold',
+  },
+  lastErrorActionText: {
+    fontSize: 11,
+    color: colors.error,
+    fontWeight: '600',
+  },
+  lastErrorMsg: {
+    fontSize: 12,
+    color: '#9E1C1C',
+    lineHeight: 16,
   }
 });

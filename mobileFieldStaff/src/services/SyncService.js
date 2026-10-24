@@ -11,10 +11,124 @@ const generateId = () => {
   });
 };
 
+const withTimeout = (promiseOrThenable, ms = 15000, errorMsg = 'Network request timed out after 15 seconds') => {
+  let timer = null;
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(errorMsg);
+      err.code = 'ETIMEDOUT';
+      reject(err);
+    }, ms);
+  });
+  const wrappedPromise = Promise.resolve(promiseOrThenable).then(
+    (res) => {
+      if (timer) clearTimeout(timer);
+      return res;
+    },
+    (err) => {
+      if (timer) clearTimeout(timer);
+      throw err;
+    }
+  );
+  return Promise.race([wrappedPromise, timeoutPromise]);
+};
+
+const sanitizeError = (err) => {
+  if (!err) return 'Unknown error';
+  let msg = typeof err === 'string' ? err : (err.message || JSON.stringify(err));
+  return msg
+    .replace(/Bearer\s+[A-Za-z0-9._-]+/gi, 'Bearer [REDACTED]')
+    .replace(/apikey\s+[A-Za-z0-9._-]+/gi, 'apikey [REDACTED]')
+    .replace(/password\s*[:=]\s*\S+/gi, 'password=[REDACTED]')
+    .replace(/"access_token"\s*:\s*"[^"]+"/gi, '"access_token":"[REDACTED]"');
+};
+
+const isPermanentError = (error, table) => {
+  if (!error) return false;
+  const code = error.code ? String(error.code) : '';
+  const msg = (error.message || '').toLowerCase();
+
+  // 23505: Unique violation (idempotent success - handled separately)
+  if (code === '23505' || msg.includes('duplicate key') || msg.includes('unique constraint')) {
+    return false;
+  }
+
+  // 42501: Row-level security / permission denied
+  if (code === '42501' || msg.includes('permission denied') || msg.includes('violates row-level security')) {
+    return true;
+  }
+
+  // 23514: Check constraint violation
+  if (code === '23514' || msg.includes('check constraint')) {
+    return true;
+  }
+
+  // 23503: Foreign key violation
+  if (code === '23503' || msg.includes('foreign key constraint')) {
+    return true;
+  }
+
+  // 22P02: Invalid syntax / UUID format error
+  if (code === '22P02' || msg.includes('invalid input syntax')) {
+    return true;
+  }
+
+  // Auth / session expired
+  if (msg.includes('jwt expired') || msg.includes('invalid claim') || msg.includes('invalid refresh token')) {
+    return true;
+  }
+
+  return false;
+};
+
 export class SyncService {
   static onQueueChange = null;
   static _queueLock = Promise.resolve();
   static _isProcessing = false;
+
+  /**
+   * Recovers any items stranded in 'SYNCING' state due to app termination,
+   * background worker interruption, or unhandled exceptions.
+   * Also recovers items that failed due to the internal 'undefined is not a function'
+   * client-side runtime bug in withTimeout.
+   * Items with < 3 attempts are restored to 'PENDING' for safe retry.
+   * Items with >= 3 attempts are marked 'FAILED'.
+   */
+  static async recoverStaleSyncingItems(userId) {
+    if (!userId) return;
+    let recoveredCount = 0;
+    await this._atomicQueueUpdate(userId, queue => {
+      let modified = false;
+      const now = new Date().toISOString();
+      for (const item of queue) {
+        if (item.status === 'SYNCING') {
+          modified = true;
+          recoveredCount++;
+          const currentAttempts = item.attempts || 0;
+          if (currentAttempts >= 3) {
+            item.status = 'FAILED';
+            item.last_error = item.last_error || 'Previous sync attempt timed out or was interrupted. Maximum attempts reached.';
+          } else {
+            item.status = 'PENDING';
+            item.last_error = item.last_error || 'Previous sync attempt timed out or was interrupted. Ready to retry.';
+          }
+          item.last_attempted_at = item.last_attempted_at || now;
+        } else if (item.status === 'FAILED' && item.last_error && item.last_error.includes('undefined is not a function')) {
+          // Automatic recovery for items that failed purely due to the client-side withTimeout runtime bug
+          modified = true;
+          recoveredCount++;
+          item.status = 'PENDING';
+          item.last_error = 'Recovered from client runtime error. Ready to retry.';
+          item.attempts = 0; // Reset artificially inflated attempts
+          item.last_attempted_at = now;
+        }
+      }
+      return modified ? queue : null;
+    });
+    if (recoveredCount > 0) {
+      console.log(`[SyncService] Recovered ${recoveredCount} stale/errored items for user ${userId}`);
+    }
+  }
 
   static async getQueue(userId) {
     if (!userId) return [];
@@ -100,13 +214,24 @@ export class SyncService {
 
   static async processQueue(userId, isManualRetry = false) {
     if (!userId) return;
-    const net = await NetInfo.fetch();
-    if (!net.isConnected) return;
 
-    if (this._isProcessing) return;
+    // Synchronous concurrency guard: prevent race conditions from rapid concurrent calls
+    if (this._isProcessing) {
+      console.log('[SyncService] Already processing queue; skipping concurrent call.');
+      return;
+    }
     this._isProcessing = true;
 
     try {
+      const net = await NetInfo.fetch();
+      if (!net.isConnected) {
+        console.log('[SyncService] Network disconnected; aborting sync run.');
+        return;
+      }
+
+      // Recover any stale SYNCING items stranded by previous app termination or network disconnect
+      await this.recoverStaleSyncingItems(userId);
+
       const attemptedIds = new Set();
       while (true) {
         let pendingOp = null;
@@ -166,14 +291,20 @@ export class SyncService {
 
            const activeQueue = hasChanges ? normalizedQueue : queue;
 
-           // 2. Sort the queue to enforce Chat Dependencies
+           // 2. Sort the queue to enforce Chat and Entity Dependencies
            const priorityMap = {
              'crm_parties': 1,
              'requirements': 2,
              'requirement_items': 3,
              'chat_conversations': 4,
              'chat_participants': 5,
-             'chat_messages': 6
+             'chat_messages': 6,
+             'staff_tracking_sessions': 7,
+             'staff_location_history': 8,
+             'crm_visits': 9,
+             'staff_travel_segments': 10,
+             'crm_call_events': 11,
+             'crm_notifications': 12
            };
            
            const sortedQueue = [...activeQueue].sort((a, b) => {
@@ -213,6 +344,21 @@ export class SyncService {
                      
                      if (parentInQueue) {
                          console.log(`[DIAGNOSTIC] Blocking ${op.table} ${op.local_id} because parent conversation ${parentId} is still in queue with status ${parentInQueue.status}`);
+                         return false;
+                     }
+                 }
+             }
+
+             if (op.table === 'crm_notifications' && op.payload?.entity_type === 'CHAT_MESSAGE') {
+                 const parentId = op.payload?.entity_id;
+                 if (parentId) {
+                     const parentInQueue = activeQueue.find(parentOp => 
+                         parentOp.table === 'chat_conversations' && 
+                         (parentOp.payload?.id === parentId || parentOp.local_id === parentId)
+                     );
+                     
+                     if (parentInQueue) {
+                         console.log(`[DIAGNOSTIC] Blocking crm_notifications ${op.local_id} because parent conversation ${parentId} is still in queue with status ${parentInQueue.status}`);
                          return false;
                      }
                  }
@@ -272,28 +418,65 @@ export class SyncService {
               // Intentionally leaving weight intact
             }
           }
+
+          // Safe recovery patch for crm_notifications with mismatched conversationId as user_id
+          if (pendingOp.table === 'crm_notifications') {
+            if (safePayload.entity_type === 'CHAT_MESSAGE' && safePayload.entity_id && safePayload.user_id === safePayload.entity_id) {
+              console.warn(`[DIAGNOSTIC] Detected conversation ID as user_id on crm_notifications ${pendingOp.local_id}. Attempting pre-insert recovery...`);
+              try {
+                const { data: parts } = await supabase
+                  .from('chat_participants')
+                  .select('user_id')
+                  .eq('conversation_id', safePayload.entity_id)
+                  .neq('user_id', userId);
+                if (parts && parts.length > 0 && parts[0].user_id) {
+                  console.log(`[DIAGNOSTIC] Pre-insert recovered recipient user_id: ${parts[0].user_id}`);
+                  safePayload.user_id = parts[0].user_id;
+                  pendingOp.payload.user_id = parts[0].user_id;
+                }
+              } catch (recErr) {
+                console.warn('Failed pre-insert recovery for crm_notifications user_id:', recErr);
+              }
+            }
+          }
           
           if (pendingOp.action === 'update') {
-            const { error: updateError } = await supabase
-              .from(pendingOp.table)
-              .update(safePayload)
-              .eq('id', safePayload.id);
+            const { error: updateError } = await withTimeout(
+              supabase
+                .from(pendingOp.table)
+                .update(safePayload)
+                .eq('id', safePayload.id),
+              15000,
+              `Update on ${pendingOp.table} timed out after 15s`
+            );
             error = updateError;
           } else if (pendingOp.action === 'upsert') {
-            const { error: upsertError } = await supabase
-              .from(pendingOp.table)
-              .upsert([safePayload], { onConflict: pendingOp.conflictTarget || 'id' });
+            const { error: upsertError } = await withTimeout(
+              supabase
+                .from(pendingOp.table)
+                .upsert([safePayload], { onConflict: pendingOp.conflictTarget || 'id' }),
+              15000,
+              `Upsert on ${pendingOp.table} timed out after 15s`
+            );
             error = upsertError;
           } else if (pendingOp.action === 'delete') {
-            const { error: deleteError } = await supabase
-              .from(pendingOp.table)
-              .delete()
-              .match(safePayload);
+            const { error: deleteError } = await withTimeout(
+              supabase
+                .from(pendingOp.table)
+                .delete()
+                .match(safePayload),
+              15000,
+              `Delete on ${pendingOp.table} timed out after 15s`
+            );
             error = deleteError;
           } else {
-            const { error: insertError } = await supabase
-              .from(pendingOp.table)
-              .insert([safePayload]);
+            const { error: insertError } = await withTimeout(
+              supabase
+                .from(pendingOp.table)
+                .insert([safePayload]),
+              15000,
+              `Insert on ${pendingOp.table} timed out after 15s`
+            );
             error = insertError;
           }
         } catch (err) {
@@ -304,12 +487,15 @@ export class SyncService {
         if (error && error.code === '23503' && pendingOp.table === 'requirement_items') {
              console.warn(`[DIAGNOSTIC] FK Violation on requirement_items. Fetching recent parent to recover orphan...`);
              try {
-                 const { data: recentReq } = await supabase
+                 const { data: recentReq } = await withTimeout(
+                   supabase
                      .from('requirements')
                      .select('id')
                      .eq('assigned_to', userId)
                      .order('created_at', { ascending: false })
-                     .limit(1);
+                     .limit(1),
+                   5000
+                 );
                  
                  if (recentReq && recentReq.length > 0) {
                      recoveredParentId = recentReq[0].id;
@@ -317,6 +503,33 @@ export class SyncService {
                  }
              } catch (fetchErr) {
                  console.error('Failed to fetch recovery parent', fetchErr);
+             }
+        }
+
+        let recoveredNotifUserId = null;
+        if (error && error.code === '23503' && pendingOp.table === 'crm_notifications') {
+             console.warn(`[DIAGNOSTIC] FK Violation on crm_notifications (${error.message}). Attempting recovery via chat_participants...`);
+             if (pendingOp.payload?.entity_type === 'CHAT_MESSAGE' && pendingOp.payload?.entity_id) {
+                 try {
+                     const { data: parts } = await withTimeout(
+                       supabase
+                         .from('chat_participants')
+                         .select('user_id')
+                         .eq('conversation_id', pendingOp.payload.entity_id)
+                         .neq('user_id', userId),
+                       5000
+                     );
+                     
+                     if (parts && parts.length > 0) {
+                         const validPart = parts.find(p => p.user_id && p.user_id !== pendingOp.payload.entity_id);
+                         if (validPart) {
+                             recoveredNotifUserId = validPart.user_id;
+                             console.log(`[DIAGNOSTIC] Found recovery participant: ${recoveredNotifUserId}`);
+                         }
+                     }
+                 } catch (fetchErr) {
+                     console.error('Failed to resolve recovery participant for crm_notifications', fetchErr);
+                 }
              }
         }
 
@@ -331,7 +544,12 @@ export class SyncService {
               console.log(`[DIAGNOSTIC] CALL_SYNC_SUCCESS (Idempotent): ${pendingOp.table} ${pendingOp.local_id} already exists.`);
               item.status = 'SYNCED';
             } else {
-              console.error(`[DIAGNOSTIC] CALL_SYNC_FAILURE: local_id=${pendingOp.local_id} code=${error.code} msg=${error.message}`);
+              item.attempts = (item.attempts || 0) + 1;
+              item.last_attempted_at = new Date().toISOString();
+              const sanitizedErrMsg = sanitizeError(error.message || error);
+              item.last_error = sanitizedErrMsg;
+
+              console.error(`[DIAGNOSTIC] CALL_SYNC_FAILURE: local_id=${pendingOp.local_id} code=${error.code} msg=${sanitizedErrMsg} attempts=${item.attempts}`);
               
               if (error.code === '23503' && pendingOp.table === 'requirement_items') {
                  if (recoveredParentId) {
@@ -340,12 +558,27 @@ export class SyncService {
                      console.log(`[DIAGNOSTIC] Orphan recovered locally. Will retry in next loop.`);
                  } else {
                      item.status = 'FAILED';
-                     item.last_error = error.message || 'No parent found for recovery';
+                     item.last_error = sanitizedErrMsg || 'No parent found for recovery';
+                 }
+              } else if (error.code === '23503' && pendingOp.table === 'crm_notifications') {
+                 if (recoveredNotifUserId) {
+                     item.payload.user_id = recoveredNotifUserId;
+                     item.status = 'PENDING';
+                     item.last_error = null;
+                     console.log(`[DIAGNOSTIC] Notification recipient recovered. Will retry in next loop.`);
+                 } else {
+                     item.status = 'FAILED';
+                     item.last_error = 'Invalid recipient user: ID not found in auth.users';
                  }
               } else {
-                 item.status = 'FAILED';
-                 item.last_error = error.message || 'Unknown database error';
-                 item.last_attempted_at = new Date().toISOString();
+                 const permanent = isPermanentError(error, pendingOp.table);
+                 if (permanent || item.attempts >= 3) {
+                     item.status = 'FAILED';
+                 } else {
+                     // Transient / retryable failure (e.g. timeout, network offline)
+                     item.status = 'PENDING';
+                 }
+
                  // Save the recovery patch if it failed
                  if (pendingOp.table === 'requirements') {
                      if (item.payload.status === 'Open') {

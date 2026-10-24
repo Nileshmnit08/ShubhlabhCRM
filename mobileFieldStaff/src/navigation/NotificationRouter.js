@@ -40,7 +40,8 @@ async function resolveOtherUser(conversationId, currentUserId) {
 
     if (convData && (convData.type === 'TEAM_GROUP' || Boolean(convData.title))) {
       return {
-        id: convData.id,
+        id: null,
+        conversationId: convData.id,
         full_name: convData.title || 'Group Chat',
         isGroup: true,
       };

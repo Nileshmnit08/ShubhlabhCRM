@@ -106,7 +106,7 @@ class ChatService {
           let finalOtherUser = otherUserObj;
 
           if (type === 'TEAM_GROUP' || (convData.title && type !== 'DIRECT_CHAT')) {
-             finalOtherUser = { id: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
+             finalOtherUser = { id: null, conversationId: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
              type = 'TEAM';
           } else if (type === 'ADMIN_STAFF') {
              type = 'ADMIN_STAFF';
@@ -119,7 +119,7 @@ class ChatService {
              
              if (isGroup) {
                type = 'TEAM';
-               finalOtherUser = { id: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
+               finalOtherUser = { id: null, conversationId: convData.id, full_name: convData.title || 'Group Chat', isGroup: true };
              } else if (isOwnerAdmin || isOtherAdmin) {
                type = 'ADMIN_STAFF';
              } else {
@@ -312,11 +312,16 @@ class ChatService {
 
     // 2. Dispatch notifications
     let targets = [];
+    const isGroup = Boolean(options.isGroup);
+
+    // recipientId must never be the conversationId or senderId
+    const safeRecipientId = (recipientId && recipientId !== senderId && recipientId !== conversationId) ? recipientId : null;
+
     if (Array.isArray(options.recipientIds) && options.recipientIds.length > 0) {
-      targets = options.recipientIds.filter(id => id && id !== senderId);
-    } else if (recipientId && recipientId !== senderId && !options.isGroup) {
-      targets = [recipientId];
-    } else if (options.isGroup) {
+      targets = options.recipientIds.filter(id => id && id !== senderId && id !== conversationId);
+    } else if (safeRecipientId && !isGroup) {
+      targets = [safeRecipientId];
+    } else if (isGroup || !safeRecipientId) {
       // For group chat, fetch all other group participants
       try {
         const { data: parts } = await supabase
@@ -324,14 +329,18 @@ class ChatService {
           .select('user_id')
           .eq('conversation_id', conversationId);
         if (parts) {
-          targets = parts.map(p => p.user_id).filter(id => id && id !== senderId);
+          targets = parts.map(p => p.user_id).filter(id => id && id !== senderId && id !== conversationId);
         }
       } catch (e) {
         console.warn('Failed to resolve group notification recipients:', e);
       }
     }
 
-    const notificationTitle = options.isGroup && options.groupTitle
+    // Strict validation: targets must be valid UUIDs, never senderId or conversationId
+    const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    targets = Array.from(new Set(targets)).filter(id => isUUID(id) && id !== senderId && id !== conversationId);
+
+    const notificationTitle = isGroup && options.groupTitle
       ? `${senderName} (${options.groupTitle})`
       : senderName;
 
