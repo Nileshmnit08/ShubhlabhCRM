@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { supabase } from '../lib/supabase';
+import { isSessionCheckOutBlocked } from '../utils/attendanceSessions';
 
 const getQueueKey = (userId) => `@sync_queue_${userId}`;
 
@@ -70,6 +71,11 @@ const isPermanentError = (error, table) => {
 
   // 22P02: Invalid syntax / UUID format error
   if (code === '22P02' || msg.includes('invalid input syntax')) {
+    return true;
+  }
+
+  // PGRST202: RPC function not found (e.g. migration rolled back) — retrying cannot help
+  if (code === 'PGRST202') {
     return true;
   }
 
@@ -363,7 +369,12 @@ export class SyncService {
                      }
                  }
              }
-             
+
+             // FA-ATTENDANCE-MULTISESSION-01: a session check-out waits for its check-in.
+             if (isSessionCheckOutBlocked(op, activeQueue)) {
+                 return false;
+             }
+
              return true;
            });
         }
@@ -459,6 +470,14 @@ export class SyncService {
               `Upsert on ${pendingOp.table} timed out after 15s`
             );
             error = upsertError;
+          } else if (pendingOp.action === 'rpc') {
+            // payload: { id (operation key), rpc, params }. The server function is idempotent per params.
+            const { error: rpcError } = await withTimeout(
+              supabase.rpc(safePayload.rpc, safePayload.params || {}),
+              15000,
+              `RPC ${safePayload.rpc} timed out after 15s`
+            );
+            error = rpcError;
           } else if (pendingOp.action === 'delete') {
             const { error: deleteError } = await withTimeout(
               supabase
@@ -540,7 +559,8 @@ export class SyncService {
 
           if (error) {
             // Trap Unique Constraint violation (idempotency success)
-            if (error.code === '23505' || (error.message && error.message.includes('unique'))) {
+            // RPCs report their own idempotent replays as success, so a unique violation there is a real conflict.
+            if (pendingOp.action !== 'rpc' && (error.code === '23505' || (error.message && error.message.includes('unique')))) {
               console.log(`[DIAGNOSTIC] CALL_SYNC_SUCCESS (Idempotent): ${pendingOp.table} ${pendingOp.local_id} already exists.`);
               item.status = 'SYNCED';
             } else {
@@ -571,7 +591,8 @@ export class SyncService {
                      item.last_error = 'Invalid recipient user: ID not found in auth.users';
                  }
               } else {
-                 const permanent = isPermanentError(error, pendingOp.table);
+                 const permanent = isPermanentError(error, pendingOp.table)
+                   || (pendingOp.action === 'rpc' && error.code === '23505');
                  if (permanent || item.attempts >= 3) {
                      item.status = 'FAILED';
                  } else {

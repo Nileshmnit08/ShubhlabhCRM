@@ -7,6 +7,7 @@ import { AttendanceService } from '../services/AttendanceService';
 import { captureAttendanceLocation } from '../services/AttendanceLocationService';
 import { deriveAttendanceView, durationSeconds } from '../utils/attendance';
 import { LOCATION_STATUS, locationProblemMessage } from '../utils/attendanceLocation';
+import { deriveSessionView, summarizeSessions } from '../utils/attendanceSessions';
 
 const TICK_MS = 30000;
 const getNoticeKey = (userId) => `@attendance_location_notice_${userId}`;
@@ -135,7 +136,7 @@ export function useAttendance() {
   };
 
   const checkIn = () => runAction(withLocation((uid, opts) => AttendanceService.checkIn(uid, opts)), {
-    synced: 'Checked in. Saved to server.',
+    synced: today?.sessionMode && today.sessions?.length ? 'Checked in again. Saved to server.' : 'Checked in. Saved to server.',
     pending: 'Check-in saved on this device. It will upload when the connection allows.',
     failed: 'Check-in could not be saved to the server.',
   });
@@ -146,18 +147,19 @@ export function useAttendance() {
     failed: 'Check-out could not be saved to the server.',
   });
 
-  const view = today
-    ? deriveAttendanceView({
-        backendReady: today.backendReady,
-        record: today.record,
-        approvedLeaveToday: today.approvedLeaveToday,
-      })
-    : null;
+  const sessionMode = !!today?.sessionMode;
+  let view = null;
+  if (today) {
+    view = sessionMode
+      ? deriveSessionView({ backendReady: today.backendReady, sessions: today.sessions, approvedLeaveToday: today.approvedLeaveToday })
+      : deriveAttendanceView({ backendReady: today.backendReady, record: today.record, approvedLeaveToday: today.approvedLeaveToday });
+  }
 
   const record = today?.record || null;
-  const workedSeconds = record?.check_in_at
-    ? durationSeconds(record.check_in_at, record.check_out_at || new Date(now).toISOString())
-    : null;
+  const nowIso = new Date(now).toISOString();
+  let workedSeconds = null;
+  if (sessionMode) workedSeconds = summarizeSessions(today.sessions, nowIso).workedSeconds;
+  else if (record?.check_in_at) workedSeconds = durationSeconds(record.check_in_at, record.check_out_at || nowIso);
 
   return {
     loading,
@@ -168,6 +170,8 @@ export function useAttendance() {
     view,
     record,
     workedSeconds,
+    sessions: sessionMode ? today.sessions : [],
+    currentSession: sessionMode ? today.currentSession : null,
     locationEnabled,
     refresh,
     checkIn,

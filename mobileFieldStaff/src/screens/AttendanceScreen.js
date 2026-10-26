@@ -18,7 +18,8 @@ const DetailRow = ({ icon, label, value, muted }) => (
 );
 
 export function AttendanceScreen({ navigation }) {
-  const { loading, processing, message, view, record, workedSeconds, today, locationEnabled, refresh, checkIn, checkOut } = useAttendance();
+  const { loading, processing, message, view, record, workedSeconds, today, sessions, locationEnabled, refresh, checkIn, checkOut } = useAttendance();
+  const multiSession = sessions.length > 1;
   const [refreshing, setRefreshing] = React.useState(false);
 
   const onRefresh = async () => {
@@ -70,14 +71,25 @@ export function AttendanceScreen({ navigation }) {
               <Text style={styles.infoText}>A leave request covering today is pending approval. It is not yet approved.</Text>
             )}
 
-            <DetailRow icon="login" label="Check-in" value={formatIstTime(record?.check_in_at) || 'Not recorded'} muted={!record?.check_in_at} />
-            <DetailRow icon="logout" label="Check-out" value={formatIstTime(record?.check_out_at) || 'Not recorded'} muted={!record?.check_out_at} />
+            <DetailRow icon="login" label={multiSession ? 'First check-in' : 'Check-in'} value={formatIstTime(record?.check_in_at) || 'Not recorded'} muted={!record?.check_in_at} />
+            <DetailRow icon="logout" label={multiSession ? 'Last check-out' : 'Check-out'} value={formatIstTime(record?.check_out_at) || 'Not recorded'} muted={!record?.check_out_at} />
             <DetailRow
               icon="schedule"
-              label={record?.check_out_at ? 'Total duration' : 'Working duration'}
+              label={multiSession ? 'Worked (excl. breaks)' : (record?.check_out_at ? 'Total duration' : 'Working duration')}
               value={formatDuration(workedSeconds) || '—'}
               muted={workedSeconds === null}
             />
+
+            {multiSession && (
+              <View style={styles.sessionList}>
+                <Text style={styles.sessionTitle}>Sessions today</Text>
+                {sessions.map((s, i) => (
+                  <Text key={s.id} style={styles.sessionRow}>
+                    {i + 1}. {formatIstTime(s.check_in_at) || '—'} – {s.check_out_at ? formatIstTime(s.check_out_at) : 'working'}
+                  </Text>
+                ))}
+              </View>
+            )}
 
             <AttendanceSyncNote label="Check-in" sync={today?.checkInSync} />
             <AttendanceSyncNote label="Check-out" sync={today?.checkOutSync} />
@@ -106,7 +118,7 @@ export function AttendanceScreen({ navigation }) {
               >
                 {processing
                   ? <ActivityIndicator size="small" color={colors.onPrimary} />
-                  : <Text style={styles.primaryBtnText}>{view.canCheckIn ? 'CHECK IN' : 'CHECK OUT'}</Text>}
+                  : <Text style={styles.primaryBtnText}>{view.canCheckIn ? (view.isRecheckIn ? 'CHECK IN AGAIN' : 'CHECK IN') : 'CHECK OUT'}</Text>}
               </TouchableOpacity>
             )}
           </View>
@@ -146,6 +158,9 @@ const styles = StyleSheet.create({
   infoText: { ...typography.bodyMd, color: colors.onSurfaceVariant, marginBottom: 12 },
   warnText: { ...typography.bodySm, color: colors.status.pending.text, marginTop: 8 },
   noticeText: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 12 },
+  sessionList: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.surfaceContainer },
+  sessionTitle: { ...typography.labelMd, color: colors.onSurfaceVariant, marginBottom: 4 },
+  sessionRow: { ...typography.bodyMd, color: colors.onSurface, paddingVertical: 2 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.surfaceContainer },
   detailLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   detailLabel: { ...typography.bodyLg, color: colors.onSurfaceVariant },

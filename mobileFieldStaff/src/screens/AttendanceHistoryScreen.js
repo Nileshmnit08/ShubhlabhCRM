@@ -73,10 +73,11 @@ export function AttendanceHistoryScreen({ navigation }) {
             <Text style={styles.timeValue}>{v.checkOutLabel}</Text>
           </View>
           <View style={styles.timeCol}>
-            <Text style={styles.timeLabel}>Duration</Text>
+            <Text style={styles.timeLabel}>{v.sessionsLabel ? 'Worked' : 'Duration'}</Text>
             <Text style={styles.timeValue}>{v.durationLabel}</Text>
           </View>
         </View>
+        {v.sessionsLabel && <Text style={styles.sessionsText}>{v.sessionsLabel} · first check-in to last check-out</Text>}
         {v.note && (
           <View style={styles.noteRow}>
             <MaterialIcons name="error-outline" size={14} color={colors.error} />
@@ -132,6 +133,7 @@ const styles = StyleSheet.create({
   timeCol: { flex: 1 },
   timeLabel: { ...typography.labelSm, color: colors.onSurfaceVariant, marginBottom: 2 },
   timeValue: { ...typography.bodyMd, color: colors.onSurface },
+  sessionsText: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 8 },
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
   noteText: { ...typography.bodySm, color: colors.error },
 });

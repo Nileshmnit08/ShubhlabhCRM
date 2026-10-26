@@ -22,6 +22,17 @@ import {
   validateLeaveInput,
 } from '../utils/attendance';
 import { interpretLocationColumnsProbe, pickLocationFields } from '../utils/attendanceLocation';
+import {
+  SESSIONS_TABLE,
+  SESSION_READ_COLUMNS,
+  SUMMARY_EXTRA_COLUMNS,
+  buildSessionCheckIn,
+  buildSessionCheckOut,
+  mergeSessions,
+  openSession,
+  summarizeSessions,
+  sessionErrorMessage,
+} from '../utils/attendanceSessions';
 
 /**
  * FA-ATTENDANCE-01: Attendance & leave persistence.
@@ -34,6 +45,7 @@ import { interpretLocationColumnsProbe, pickLocationFields } from '../utils/atte
 const getStateKey = (userId) => `@attendance_state_${userId}`;
 const getBackendKey = (userId) => `@attendance_backend_ready_${userId}`;
 const getLocationKey = (userId) => `@attendance_location_ready_${userId}`;
+const getSessionsKey = (userId) => `@attendance_sessions_ready_${userId}`;
 const LOCAL_RETENTION_DAYS = 7;
 const CONFIRM_TIMEOUT_MS = 20000;
 const CONFIRM_POLL_MS = 500;
@@ -66,6 +78,33 @@ const writeLocalDay = async (userId, businessDate, dayState) => {
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Local session cache entry: no coordinates and no display-only flags. */
+const toLocalSession = (s) => ({
+  id: s.id,
+  business_date: s.business_date,
+  check_in_at: s.check_in_at,
+  check_out_at: s.check_out_at || null,
+  checkOutOpId: s.checkOutOpId || null,
+});
+
+/**
+ * Drops local session state the server has definitively not accepted: once the
+ * server was read and the operation is no longer queued, a session (or a local
+ * check-out) missing on the server was lost, and keeping it would block the
+ * employee behind a phantom open session.
+ */
+const reconcileLocalSessions = (localSessions, serverSessions, queue) => {
+  const onServer = new Map((serverSessions || []).map((s) => [s.id, s]));
+  return (localSessions || []).flatMap((l) => {
+    const server = onServer.get(l.id);
+    if (!server) return findQueueItem(queue, SESSIONS_TABLE, l.id) ? [l] : [];
+    if (l.check_out_at && !server.check_out_at && !(l.checkOutOpId && findQueueItem(queue, SESSIONS_TABLE, l.checkOutOpId))) {
+      return [{ ...l, check_out_at: null, checkOutOpId: null }];
+    }
+    return [l];
+  });
+};
 
 export class AttendanceService {
   /**
@@ -119,10 +158,41 @@ export class AttendanceService {
     return { ready: cached, verifiedNow: false };
   }
 
-  static async fetchServerDay(userId, businessDate) {
+  /**
+   * FA-ATTENDANCE-MULTISESSION-01: whether the server has staff_attendance_sessions
+   * (proposal 245). Until it does, the single-row path is used unchanged. Cached
+   * for offline use. Returns { ready, verifiedNow }.
+   */
+  static async probeSessionSupport(userId) {
+    const cached = (await AsyncStorage.getItem(getSessionsKey(userId))) === 'true';
+    if (!(await isOnline())) return { ready: cached, verifiedNow: false };
+    const result = await supabase
+      .from(SESSIONS_TABLE)
+      .select('id')
+      .eq('staff_id', userId)
+      .limit(1);
+    const outcome = interpretBackendProbe(result);
+    if (outcome === 'READY' || outcome === 'MISSING') {
+      await AsyncStorage.setItem(getSessionsKey(userId), outcome === 'READY' ? 'true' : 'false');
+      return { ready: outcome === 'READY', verifiedNow: true };
+    }
+    return { ready: cached, verifiedNow: false };
+  }
+
+  static async fetchServerSessions(userId, businessDate) {
+    const { data, error } = await supabase
+      .from(SESSIONS_TABLE)
+      .select(SESSION_READ_COLUMNS)
+      .eq('staff_id', userId)
+      .eq('business_date', businessDate)
+      .order('check_in_at', { ascending: true });
+    return { sessions: data || [], error: error || null };
+  }
+
+  static async fetchServerDay(userId, businessDate, { sessionMode = false } = {}) {
     const { data, error } = await supabase
       .from(ATTENDANCE_TABLE)
-      .select(ATTENDANCE_READ_COLUMNS)
+      .select(ATTENDANCE_READ_COLUMNS + (sessionMode ? SUMMARY_EXTRA_COLUMNS : ''))
       .eq('staff_id', userId)
       .eq('business_date', businessDate)
       .maybeSingle();
@@ -140,9 +210,10 @@ export class AttendanceService {
   }
 
   static async fetchHistory(userId, limit = 60) {
+    const sessionMode = (await this.probeSessionSupport(userId)).ready;
     const { data, error } = await supabase
       .from(ATTENDANCE_TABLE)
-      .select(ATTENDANCE_READ_COLUMNS)
+      .select(ATTENDANCE_READ_COLUMNS + (sessionMode ? SUMMARY_EXTRA_COLUMNS : ''))
       .eq('staff_id', userId)
       .order('business_date', { ascending: false })
       .limit(limit);
@@ -164,6 +235,9 @@ export class AttendanceService {
     const businessDate = istBusinessDate();
     const online = await isOnline();
     const { ready } = await this.probeBackend(userId);
+    if (ready && (await this.probeSessionSupport(userId)).ready) {
+      return this._loadTodaySessions(userId, businessDate, online);
+    }
     const local = (await readLocalState(userId))[businessDate] || null;
 
     let serverRow = null;
@@ -218,6 +292,118 @@ export class AttendanceService {
   }
 
   /**
+   * FA-ATTENDANCE-MULTISESSION-01: today's state from sessions. `record` is a
+   * summary in the single-row shape so existing screens keep working:
+   * first check-in, last check-out (null while a session is open).
+   */
+  static async _loadTodaySessions(userId, businessDate, online) {
+    const local = (await readLocalState(userId))[businessDate] || {};
+    let serverSessions = [];
+    let serverRow = null;
+    let serverChecked = false;
+    let leaves = [];
+    let loadError = null;
+
+    if (online) {
+      const [day, sess, leaveRes] = await Promise.all([
+        this.fetchServerDay(userId, businessDate, { sessionMode: true }),
+        this.fetchServerSessions(userId, businessDate),
+        this.fetchLeaves(userId),
+      ]);
+      if (day.error || sess.error) loadError = (day.error || sess.error).message;
+      else { serverRow = day.row; serverSessions = sess.sessions; serverChecked = true; }
+      if (!leaveRes.error) leaves = leaveRes.leaves;
+    }
+
+    const queue = (await SyncService.getQueue(userId)) || [];
+    const localSessions = serverChecked
+      ? reconcileLocalSessions(local.sessions, serverSessions, queue)
+      : (local.sessions || []);
+    const sessions = mergeSessions(serverChecked ? serverSessions : [], localSessions);
+    if (serverChecked) {
+      await writeLocalDay(userId, businessDate, { ...local, sessions: sessions.map(toLocalSession) });
+    }
+
+    const summary = summarizeSessions(sessions);
+    const record = sessions.length
+      ? {
+          ...(serverRow || {}),
+          business_date: businessDate,
+          check_in_at: summary.firstCheckIn,
+          check_out_at: summary.lastCheckOut,
+          status: summary.open ? 'CHECKED_IN' : 'CHECKED_OUT',
+        }
+      : null;
+
+    const latest = sessions[sessions.length - 1] || null;
+    const syncOf = (opId, serverConfirmed) => {
+      const sync = deriveSyncState({ queueItem: opId ? findQueueItem(queue, SESSIONS_TABLE, opId) : null, serverConfirmed });
+      return sync.error ? { ...sync, error: sessionErrorMessage(sync.error) } : sync;
+    };
+
+    return {
+      businessDate,
+      online,
+      backendReady: true,
+      sessionMode: true,
+      serverChecked,
+      loadError,
+      record,
+      sessions,
+      currentSession: summary.open,
+      checkInSync: latest ? syncOf(latest.id, !!latest._onServer) : null,
+      checkOutSync: latest && latest.check_out_at
+        ? syncOf(latest.checkOutOpId, !!latest._onServer && !latest._checkOutLocal)
+        : null,
+      approvedLeaveToday: findLeaveForDate(leaves, businessDate, 'Approved'),
+      pendingLeaveToday: findLeaveForDate(leaves, businessDate, 'Pending'),
+    };
+  }
+
+  static async _sessionCheckIn(userId, location) {
+    const today = await this.loadToday(userId);
+    if (today.approvedLeaveToday) throw new Error('You have approved leave today. Check-in is not allowed.');
+
+    const op = buildSessionCheckIn({ sessionId: uuidv4(), sessions: today.sessions, location });
+    const date = op.session.business_date;
+    const local = (await readLocalState(userId))[date] || {};
+    // Persist locally first so a crash between enqueue and save cannot lose the action.
+    await writeLocalDay(userId, date, { ...local, sessions: [...(local.sessions || []), op.session] });
+    await SyncService.enqueueOperation(SESSIONS_TABLE, { id: op.id, rpc: op.rpc, params: op.params }, userId, 'rpc');
+
+    if (!(await isOnline())) return { state: 'PENDING', error: null };
+    const result = await this._awaitConfirmation(userId, op.id, async () => {
+      const { sessions } = await this.fetchServerSessions(userId, date);
+      return sessions.some((s) => s.id === op.id);
+    });
+    return result.error ? { ...result, error: sessionErrorMessage(result.error) } : result;
+  }
+
+  static async _sessionCheckOut(userId, location) {
+    const today = await this.loadToday(userId);
+    const session = openSession(today.sessions);
+    if (!session) throw new Error('You are not checked in.');
+
+    const op = buildSessionCheckOut({ opId: uuidv4(), session, location });
+    const date = session.business_date || today.businessDate;
+    const local = (await readLocalState(userId))[date] || {};
+    const closed = { ...toLocalSession(session), check_out_at: op.params.p_check_out_at, checkOutOpId: op.id };
+    const existing = local.sessions || [];
+    const sessions = existing.some((s) => s.id === session.id)
+      ? existing.map((s) => (s.id === session.id ? closed : s))
+      : [...existing, closed];
+    await writeLocalDay(userId, date, { ...local, sessions });
+    await SyncService.enqueueOperation(SESSIONS_TABLE, { id: op.id, rpc: op.rpc, params: op.params }, userId, 'rpc');
+
+    if (!(await isOnline())) return { state: 'PENDING', error: null };
+    const result = await this._awaitConfirmation(userId, op.id, async () => {
+      const { sessions: rows } = await this.fetchServerSessions(userId, date);
+      return rows.some((s) => s.id === session.id && s.check_out_at);
+    });
+    return result.error ? { ...result, error: sessionErrorMessage(result.error) } : result;
+  }
+
+  /**
    * Waits for a queued operation to leave the queue, then checks the server.
    * Returns 'SYNCED' | 'FAILED' | 'PENDING' (still queued / not confirmed in time).
    */
@@ -227,7 +413,9 @@ export class AttendanceService {
     SyncService.processQueue(userId).catch(() => {});
     while (Date.now() < deadline) {
       const queue = (await SyncService.getQueue(userId)) || [];
-      const item = findQueueItem(queue, ATTENDANCE_TABLE, opId) || findQueueItem(queue, LEAVE_TABLE, opId);
+      const item = findQueueItem(queue, ATTENDANCE_TABLE, opId)
+        || findQueueItem(queue, SESSIONS_TABLE, opId)
+        || findQueueItem(queue, LEAVE_TABLE, opId);
       if (item && item.status === 'FAILED') return { state: 'FAILED', error: item.last_error || 'Upload failed.' };
       if (!item) {
         const confirmed = await isConfirmed();
@@ -241,6 +429,7 @@ export class AttendanceService {
   static async checkIn(userId, { location = null } = {}) {
     const { ready } = await this.probeBackend(userId);
     if (!ready) throw new Error('Attendance is not yet enabled on the server. Please contact your administrator.');
+    if ((await this.probeSessionSupport(userId)).ready) return this._sessionCheckIn(userId, location);
 
     const today = await this.loadToday(userId);
     if (today.record?.check_in_at) {
@@ -282,6 +471,7 @@ export class AttendanceService {
   static async checkOut(userId, { location = null } = {}) {
     const { ready } = await this.probeBackend(userId);
     if (!ready) throw new Error('Attendance is not yet enabled on the server. Please contact your administrator.');
+    if ((await this.probeSessionSupport(userId)).ready) return this._sessionCheckOut(userId, location);
 
     const today = await this.loadToday(userId);
     const local = (await readLocalState(userId))[today.businessDate] || {};

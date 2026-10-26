@@ -53,7 +53,7 @@ export function AttendanceMessage({ message }) {
 /** Home / Command Center attendance card. Distinct from FieldSessionCard. */
 export function AttendanceCard() {
   const navigation = useNavigation();
-  const { loading, processing, message, view, record, workedSeconds, today, locationEnabled, checkIn, checkOut } = useAttendance();
+  const { loading, processing, message, view, record, workedSeconds, today, sessions, currentSession, checkIn, checkOut } = useAttendance();
 
   if (loading || !view) {
     return (
@@ -64,7 +64,10 @@ export function AttendanceCard() {
   }
 
   const meta = ATTENDANCE_STATUS_META[view.status];
-  const checkInTime = formatIstTime(record?.check_in_at);
+  // In session mode "Checked in" refers to the current session; the day still starts at the first check-in.
+  const checkInTime = formatIstTime(currentSession?.check_in_at || record?.check_in_at);
+  const dayStartTime = formatIstTime(record?.check_in_at);
+  const sessionsNote = sessions.length > 1 ? ` · ${sessions.length} sessions` : '';
   const checkOutTime = formatIstTime(record?.check_out_at);
   const duration = formatDuration(workedSeconds);
 
@@ -87,10 +90,10 @@ export function AttendanceCard() {
       </TouchableOpacity>
 
       {view.status === 'WORKING' && (
-        <Text style={styles.detail}>Checked in {checkInTime} · Working {duration || '0m'}</Text>
+        <Text style={styles.detail}>Checked in {checkInTime} · Working {duration || '0m'}{sessionsNote}</Text>
       )}
       {view.status === 'CHECKED_OUT' && (
-        <Text style={styles.detail}>{checkInTime} – {checkOutTime} · Total {duration || '—'}</Text>
+        <Text style={styles.detail}>{dayStartTime} – {checkOutTime} · {sessionsNote ? 'Worked' : 'Total'} {duration || '—'}{sessionsNote}</Text>
       )}
       {view.status === 'ON_LEAVE' && (
         <Text style={styles.detail}>Approved leave today. No check-in required.</Text>
@@ -106,10 +109,6 @@ export function AttendanceCard() {
       <AttendanceSyncNote label="Check-out" sync={today?.checkOutSync} />
       <AttendanceMessage message={message} />
 
-      {locationEnabled && (view.canCheckIn || view.canCheckOut) && (
-        <Text style={styles.noticeText}>Location is recorded at check-in and check-out.</Text>
-      )}
-
       {(view.canCheckIn || view.canCheckOut) && (
         <TouchableOpacity
           style={[styles.primaryBtn, processing && styles.btnDisabled]}
@@ -120,7 +119,7 @@ export function AttendanceCard() {
         >
           {processing
             ? <ActivityIndicator size="small" color={colors.onPrimary} />
-            : <Text style={styles.primaryBtnText}>{view.canCheckIn ? 'CHECK IN' : 'CHECK OUT'}</Text>}
+            : <Text style={styles.primaryBtnText}>{view.canCheckIn ? (view.isRecheckIn ? 'CHECK IN AGAIN' : 'CHECK IN') : 'CHECK OUT'}</Text>}
         </TouchableOpacity>
       )}
     </View>
@@ -140,7 +139,6 @@ const styles = StyleSheet.create({
   syncText: { ...typography.bodySm, flex: 1 },
   messageBox: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, padding: 10, borderRadius: rounded.default, marginTop: 10 },
   messageText: { ...typography.bodySm, flex: 1 },
-  noticeText: { ...typography.bodySm, color: colors.onSurfaceVariant, marginTop: 10 },
   primaryBtn: { marginTop: 12, paddingVertical: 14, alignItems: 'center', backgroundColor: colors.primary, borderRadius: rounded.md, minHeight: 48, justifyContent: 'center' },
   btnDisabled: { opacity: 0.6 },
   primaryBtnText: { ...typography.labelLg, color: colors.onPrimary, fontWeight: 'bold' },

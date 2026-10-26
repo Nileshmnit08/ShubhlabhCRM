@@ -317,14 +317,19 @@ export function interpretBackendProbe({ status, error, data }) {
 
 /** Display model for one attendance history row. */
 export function historyEntryView(row, todayYmd) {
-  const seconds = durationSeconds(row.check_in_at, row.check_out_at);
+  const span = durationSeconds(row.check_in_at, row.check_out_at);
+  // FA-ATTENDANCE-MULTISESSION-01: worked_seconds (245) excludes breaks between sessions.
+  const hasWorked = Number.isFinite(row.worked_seconds) && row.worked_seconds >= 0 && row.check_out_at;
+  const seconds = hasWorked ? row.worked_seconds : span;
+  const sessions = Number.isFinite(row.session_count) ? row.session_count : null;
   const checkIn = formatIstTime(row.check_in_at);
   const checkOut = formatIstTime(row.check_out_at);
   let note = null;
   if (!checkIn) note = 'Check-in time missing';
   else if (!checkOut && row.business_date && todayYmd && row.business_date < todayYmd) note = 'Check-out missing';
-  else if (row.check_out_at && seconds === null) note = 'Invalid timestamps';
+  else if (row.check_out_at && span === null) note = 'Invalid timestamps';
   return {
+    sessionsLabel: sessions && sessions > 1 ? `${sessions} sessions` : null,
     id: row.id,
     dateLabel: formatYmd(row.business_date),
     status: row.check_out_at ? 'Checked Out' : (row.business_date === todayYmd ? 'Working' : 'Incomplete'),
