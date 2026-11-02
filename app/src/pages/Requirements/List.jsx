@@ -2,12 +2,15 @@ import React, { useEffect, useState, useContext, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare } from 'lucide-react';
+import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare, Undo2 } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
+import {
+  INACTIVE_DISPATCH_STATUSES, UNDISPATCH_REASON, activeDispatches, checkUndispatch, restoreStatus, needsStatusRestore,
+} from '../../lib/requirementUndispatch';
 
-const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, openDispatchModal, menuPosition }) => {
+const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, openDispatchModal, openUndispatchModal, isAdmin, menuPosition }) => {
   const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
   const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
   const isDispatched = req.status === 'Dispatched' || req.dispatch_progress === 'Fully Dispatched' || (Number(req.total_dispatched_quantity) > 0 && actualPending === 0);
@@ -26,6 +29,9 @@ const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal,
           <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req.id); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
         ) : (
           <button onClick={() => { setOpenMenuId(null); navigate(`/dispatches/list?requirement_id=${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ListIcon size={14} /> View Dispatches</button>
+        )}
+        {isDispatched && isAdmin && (
+          <button onClick={(e) => { setOpenMenuId(null); openUndispatchModal(e, req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--warning)'}}><Undo2 size={14} /> Mark as Not Dispatched</button>
         )}
         <hr style={{margin: '4px 0', border: 'none', borderTop: '1px solid #E5E7EB'}}/>
         <button onClick={(e) => { setOpenMenuId(null); openCancelModal(e, req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--warning)'}}><XSquare size={14} /> Cancel requirement</button>
@@ -61,6 +67,10 @@ export default function RequirementList() {
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
   const [reqToDispatch, setReqToDispatch] = useState(null);
   const [isDispatching, setIsDispatching] = useState(false);
+
+  const [reqToUndispatch, setReqToUndispatch] = useState(null);
+  const [isUndispatching, setIsUndispatching] = useState(false);
+  const isAdmin = userProfile?.role === 'Admin';
 
   const [toast, setToast] = useState(null);
   const triggerRef = useRef(null);
@@ -484,6 +494,73 @@ export default function RequirementList() {
       setToast({ type: 'error', message: err.message || 'Could not mark as dispatched. Please try again.' });
     } finally {
       setIsDispatching(false);
+    }
+  };
+
+  // --- Undispatch Flow (CRM-REQUIREMENT-UNDISPATCH-01): admin correction of a mistaken "Dispatched" ---
+  const openUndispatchModal = (e, req) => {
+    e.preventDefault();
+    e.stopPropagation();
+    triggerRef.current = e.currentTarget;
+    setReqToUndispatch(req);
+    setOpenMenuId(null);
+  };
+
+  const closeUndispatchModal = () => {
+    setReqToUndispatch(null);
+    if (triggerRef.current) triggerRef.current.focus();
+  };
+
+  const executeUndispatch = async () => {
+    if (!reqToUndispatch || !isAdmin) return;
+    setIsUndispatching(true);
+    const req = reqToUndispatch;
+    try {
+      const { data: dispatches, error: dErr } = await supabase
+        .from('requirement_dispatches')
+        .select('id, status, return_quantity')
+        .eq('requirement_id', req.id);
+      if (dErr) throw dErr;
+      const check = checkUndispatch(dispatches);
+      if (!check.ok) throw new Error(check.reason);
+
+      // 1. Cancel (not delete) the active dispatch records; the summary view excludes cancelled ones.
+      const ids = activeDispatches(dispatches).map((d) => d.id);
+      const { error: cErr } = await supabase
+        .from('requirement_dispatches')
+        .update({ status: 'Cancelled', cancellation_reason: UNDISPATCH_REASON })
+        .in('id', ids)
+        .not('status', 'in', `(${INACTIVE_DISPATCH_STATUSES.map((s) => `"${s}"`).join(',')})`);
+      if (cErr) throw cErr;
+
+      // 2. Reopen the requirement at the status it had before it was closed as dispatched.
+      if (needsStatusRestore(req.status)) {
+        const { data: history } = await supabase
+          .from('requirement_status_history')
+          .select('old_status, new_status, created_at')
+          .eq('requirement_id', req.id);
+        const restored = restoreStatus(history);
+        const { error: sErr } = await supabase.from('requirements').update({ status: restored }).eq('id', req.id);
+        if (sErr) throw new Error(`Dispatch cancelled, but the requirement status could not be restored: ${sErr.message}`);
+        if (userProfile?.id) {
+          await supabase.from('requirement_status_history').insert({
+            requirement_id: req.id,
+            old_status: req.status,
+            new_status: restored,
+            note: 'Marked as not dispatched from requirements list (dispatch status set by mistake).',
+            changed_by: userProfile.id,
+          });
+        }
+      }
+
+      setToast({ type: 'success', message: 'Requirement marked as not dispatched.' });
+      closeUndispatchModal();
+      fetchRequirements();
+    } catch (err) {
+      console.error('Undispatch Error:', err);
+      setToast({ type: 'error', message: err.message || 'Could not mark as not dispatched. Please try again.' });
+    } finally {
+      setIsUndispatching(false);
     }
   };
 
@@ -953,7 +1030,7 @@ export default function RequirementList() {
                                       <ActionMenu 
                                         req={req} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} 
                                         navigate={navigate} openCancelModal={openCancelModal} openDeleteModal={openDeleteModal} 
-                                        openDispatchModal={openDispatchModal} menuPosition={menuPosition}
+                                        openDispatchModal={openDispatchModal} openUndispatchModal={openUndispatchModal} isAdmin={isAdmin} menuPosition={menuPosition}
                                       />
                                     </div>
                                   </div>
@@ -1026,7 +1103,7 @@ export default function RequirementList() {
                       <ActionMenu 
                         req={req} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} 
                         navigate={navigate} openCancelModal={openCancelModal} openDeleteModal={openDeleteModal} 
-                        openDispatchModal={openDispatchModal} menuPosition={menuPosition}
+                        openDispatchModal={openDispatchModal} openUndispatchModal={openUndispatchModal} isAdmin={isAdmin} menuPosition={menuPosition}
                       />
                     </div>
                   </div>
@@ -1178,6 +1255,29 @@ export default function RequirementList() {
               <button type="button" className="btn btn-secondary" onClick={closeDispatchModal} disabled={isDispatching}>Cancel</button>
               <button type="button" className="btn btn-primary" style={{ background: 'var(--success)', borderColor: 'var(--success)', color: '#fff' }} onClick={executeDispatch} disabled={isDispatching}>
                 {isDispatching ? 'Marking...' : 'Mark as Dispatched'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {/* Undispatch Modal */}
+      {reqToUndispatch && createPortal(
+        <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={closeUndispatchModal}>
+          <div style={{ background: 'var(--bg-card)', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') closeUndispatchModal(); }} tabIndex={-1} ref={el => el && el.focus()}>
+            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--warning)', fontSize: '1.25rem' }}>Mark this requirement as not dispatched?</h3>
+            <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              <div><strong>Customer:</strong> {reqToUndispatch.customer_name}</div>
+              <div><strong>Product:</strong> {getProductName(reqToUndispatch)}</div>
+              <div><strong>Quantity:</strong> {getProductQuantity(reqToUndispatch)} {getProductUnit(reqToUndispatch)}</div>
+            </div>
+            <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
+              This will correct its dispatch status. The dispatch record is kept and marked cancelled.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={closeUndispatchModal} disabled={isUndispatching}>Cancel</button>
+              <button type="button" className="btn btn-primary" style={{ background: 'var(--warning)', borderColor: 'var(--warning)', color: '#fff' }} onClick={executeUndispatch} disabled={isUndispatching}>
+                {isUndispatching ? 'Updating...' : 'Mark as Not Dispatched'}
               </button>
             </div>
           </div>
