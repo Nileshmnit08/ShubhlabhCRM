@@ -35,6 +35,7 @@ import {
 import theme from '../constants/theme';
 import { useLabourHisaab } from '../context/LabourHisaabContext';
 import { formatRupees } from '../utils/shareWhatsApp';
+import { formatHindiDate } from '../utils/dates';
 
 export default function DailyPaymentScreen({ route, navigation }) {
   const initialTab = route?.params?.initialTab || 'labour_payment';
@@ -247,7 +248,7 @@ export default function DailyPaymentScreen({ route, navigation }) {
           <View style={styles.dateCenter}>
             <Calendar size={16} color="#EE5A00" />
             <Text style={styles.dateText}>
-              {selectedDate === '2026-11-03' ? '03 नवम्बर 2026' : selectedDate}
+              {formatHindiDate(selectedDate)}
             </Text>
           </View>
           <TouchableOpacity style={styles.chevronBtn} onPress={handleNextDay}>

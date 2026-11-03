@@ -173,6 +173,25 @@ export function calculateExpenseDeductionForLabourer(expense, labourerId) {
 }
 
 /**
+ * LH-LABOUR-COUNT-01: stable ids of the distinct labourers who have work recorded in the
+ * given entries. Each labourer counts once however many entries they appear in. Uses
+ * participatingLabourerIds, falling back to allocation labourer ids; never names or indexes.
+ * Registered-but-idle labourers are not counted; a labourer with recorded work is counted
+ * even if since deactivated (the work happened).
+ */
+export function distinctWorkingLabourerIds(entries = []) {
+  const ids = new Set();
+  entries.forEach(e => {
+    const fromParticipants = Array.isArray(e.participatingLabourerIds) ? e.participatingLabourerIds : [];
+    const fromAllocations = Array.isArray(e.allocations) ? e.allocations.map(a => a && a.labourerId) : [];
+    [...fromParticipants, ...fromAllocations].forEach(id => {
+      if (id !== null && id !== undefined && String(id).trim() !== '') ids.add(String(id));
+    });
+  });
+  return [...ids];
+}
+
+/**
  * Calculates today's summary metrics for the Home screen.
  */
 export function calculateDailyMetrics({
@@ -215,7 +234,9 @@ export function calculateDailyMetrics({
 
   return {
     date,
-    activeLabourersCount: activeLabourers.length,
+    activeLabourersCount: activeLabourers.length, // registered roster (not a daily figure)
+    // Distinct labourers with work on this date — same entries as the wage total below.
+    workingLabourersCount: distinctWorkingLabourerIds(dayWork).length,
     todayLabourEarned: Math.round(todayLabourEarned * 100) / 100,
     todayPayments: Math.round(todayPayments * 100) / 100,
     todayTotalExpenses: Math.round(todayTotalExpenses * 100) / 100,

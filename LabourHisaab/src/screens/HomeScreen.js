@@ -10,6 +10,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
 } from 'react-native';
 import {
   Calendar,
@@ -17,6 +18,8 @@ import {
   Wallet,
   Settings,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Layers,
   Truck,
   RotateCw,
@@ -30,6 +33,9 @@ import theme from '../constants/theme';
 import { DEFAULT_WORK_RATES } from '../constants/initialData';
 import { useLabourHisaab } from '../context/LabourHisaabContext';
 import { formatRupees } from '../utils/shareWhatsApp';
+import {
+  todayYmd, formatHindiDate, formatHindiMonth, monthOf, shiftMonth, monthGrid, HINDI_WEEKDAYS_SHORT,
+} from '../utils/dates';
 
 export default function HomeScreen({ navigation }) {
   const {
@@ -40,9 +46,23 @@ export default function HomeScreen({ navigation }) {
     deleteWorkEntry,
   } = useLabourHisaab();
 
-  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  // LH-HOME-TOTAL-DATE-01: the date card opens a calendar; the chosen date drives the
+  // entry list, the wage total and every new entry (AddWorkEntry saves with selectedDate).
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState(() => monthOf(selectedDate));
+  const today = todayYmd();
+  const isToday = selectedDate === today;
 
-  // Filter today's work entries
+  const openDatePicker = () => {
+    setVisibleMonth(monthOf(selectedDate));
+    setDatePickerOpen(true);
+  };
+  const chooseDate = (ymd) => {
+    setSelectedDate(ymd);
+    setDatePickerOpen(false);
+  };
+
+  // Work entries of the selected date — the same set the wage total is computed from.
   const todayWorkList = workEntries.filter(e => e.date === selectedDate);
 
   // Map icon component for each work category
@@ -110,20 +130,68 @@ export default function HomeScreen({ navigation }) {
         {/* 2. DATE SELECTOR CARD */}
         <TouchableOpacity
           style={styles.dateCard}
-          onPress={() => setDateDropdownOpen(!dateDropdownOpen)}
+          onPress={openDatePicker}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`तारीख बदलें: ${formatHindiDate(selectedDate)}`}
         >
           <View style={styles.dateIconBox}>
             <Calendar size={20} color="#EE5A00" />
           </View>
           <View style={styles.dateTextBox}>
-            <Text style={styles.dateSubLabel}>आज की तारीख</Text>
-            <Text style={styles.dateMainLabel}>
-              {selectedDate === '2026-11-03' ? '03 नवम्बर 2026 (मंगलवार)' : selectedDate}
-            </Text>
+            <Text style={styles.dateSubLabel}>{isToday ? 'आज की तारीख' : 'चुनी गई तारीख'}</Text>
+            <Text style={styles.dateMainLabel}>{formatHindiDate(selectedDate)}</Text>
           </View>
           <ChevronDown size={20} color="#64748B" />
         </TouchableOpacity>
+        {!isToday && (
+          <TouchableOpacity style={styles.backToToday} onPress={() => setSelectedDate(today)} activeOpacity={0.8}>
+            <Text style={styles.backToTodayText}>आज की तारीख पर लौटें ({formatHindiDate(today)})</Text>
+          </TouchableOpacity>
+        )}
+
+        <Modal visible={datePickerOpen} transparent animationType="fade" onRequestClose={() => setDatePickerOpen(false)}>
+          <View style={styles.pickerBackdrop}>
+            <View style={styles.pickerCard}>
+              <View style={styles.pickerHeader}>
+                <TouchableOpacity onPress={() => setVisibleMonth(m => shiftMonth(m, -1))} style={styles.pickerNav} accessibilityLabel="पिछला महीना">
+                  <ChevronLeft size={22} color="#1E293B" />
+                </TouchableOpacity>
+                <Text style={styles.pickerMonth}>{formatHindiMonth(visibleMonth.year, visibleMonth.month)}</Text>
+                <TouchableOpacity onPress={() => setVisibleMonth(m => shiftMonth(m, 1))} style={styles.pickerNav} accessibilityLabel="अगला महीना">
+                  <ChevronRight size={22} color="#1E293B" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.pickerWeekRow}>
+                {HINDI_WEEKDAYS_SHORT.map((w) => <Text key={w} style={styles.pickerWeekday}>{w}</Text>)}
+              </View>
+              {monthGrid(visibleMonth.year, visibleMonth.month).map((week, wi) => (
+                <View key={wi} style={styles.pickerWeekRow}>
+                  {week.map((ymd, di) => (
+                    ymd ? (
+                      <TouchableOpacity
+                        key={ymd}
+                        style={[styles.pickerDay, ymd === selectedDate && styles.pickerDaySelected, ymd === today && ymd !== selectedDate && styles.pickerDayToday]}
+                        onPress={() => chooseDate(ymd)}
+                        accessibilityLabel={formatHindiDate(ymd)}
+                      >
+                        <Text style={[styles.pickerDayText, ymd === selectedDate && styles.pickerDayTextSelected]}>{Number(ymd.slice(8))}</Text>
+                      </TouchableOpacity>
+                    ) : <View key={`b${wi}-${di}`} style={styles.pickerDay} />
+                  ))}
+                </View>
+              ))}
+              <View style={styles.pickerActions}>
+                <TouchableOpacity onPress={() => chooseDate(today)} style={styles.pickerTodayBtn}>
+                  <Text style={styles.pickerTodayText}>आज</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setDatePickerOpen(false)} style={styles.pickerCancelBtn}>
+                  <Text style={styles.pickerCancelText}>रद्द करें</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* 3. TWO FOREST GREEN KPI CARDS */}
         <View style={styles.kpiRow}>
@@ -137,8 +205,9 @@ export default function HomeScreen({ navigation }) {
               <Users size={26} color="#FFFFFF" />
             </View>
             <View style={styles.kpiTextCol}>
-              <Text style={styles.kpiLabel}>आज कुल मजदूरी</Text>
-              <Text style={styles.kpiValue}>{todayMetrics.activeLabourersCount || 6}</Text>
+              <Text style={styles.kpiLabel}>{isToday ? 'आज कुल मजदूर' : 'इस दिन कुल मजदूर'}</Text>
+              {/* Distinct labourers with work on the selected date (not the registered roster). */}
+              <Text style={styles.kpiValue}>{Number(todayMetrics.workingLabourersCount) || 0}</Text>
             </View>
           </TouchableOpacity>
 
@@ -152,9 +221,10 @@ export default function HomeScreen({ navigation }) {
               <Wallet size={26} color="#FFFFFF" />
             </View>
             <View style={styles.kpiTextCol}>
-              <Text style={styles.kpiLabel}>आज की कुल मजदूरी</Text>
+              <Text style={styles.kpiLabel}>{isToday ? 'आज की कुल मजदूरी' : 'इस दिन की कुल मजदूरी'}</Text>
+              {/* Sum of the selected date's saved entry amounts only; ₹0 stays ₹0 (no sample fallback). */}
               <Text style={styles.kpiValue}>
-                ₹ {Number(todayMetrics.todayLabourEarned || 5808).toLocaleString('en-IN')}
+                ₹ {(Number(todayMetrics.todayLabourEarned) || 0).toLocaleString('en-IN')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -162,7 +232,7 @@ export default function HomeScreen({ navigation }) {
 
         {/* 4. SECTION HEADING */}
         <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>आज का काम दर्ज करें</Text>
+          <Text style={styles.sectionTitle}>{isToday ? 'आज का काम दर्ज करें' : `${formatHindiDate(selectedDate)} का काम दर्ज करें`}</Text>
         </View>
 
         {/* 5. 10 WORK CATEGORIES IN 2-COLUMN GRID */}
@@ -186,7 +256,7 @@ export default function HomeScreen({ navigation }) {
         {/* 6. TODAY'S RECORDED SUMMARY (Quick Peek & Edit) */}
         {todayWorkList.length > 0 && (
           <View style={styles.todayRecordedSection}>
-            <Text style={styles.recordedSectionTitle}>आज की दर्ज प्रविष्टियां ({todayWorkList.length})</Text>
+            <Text style={styles.recordedSectionTitle}>{isToday ? 'आज की' : 'इस दिन की'} दर्ज प्रविष्टियां ({todayWorkList.length})</Text>
             {todayWorkList.map((entry) => (
               <TouchableOpacity
                 key={entry.id}
@@ -325,6 +395,47 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     marginTop: 1,
   },
+  backToToday: {
+    alignSelf: 'flex-start',
+    marginTop: -6,
+    marginBottom: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#FFF2E6',
+  },
+  backToTodayText: { fontSize: 12, fontWeight: '700', color: '#C94700' },
+  pickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+  },
+  pickerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 14,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  pickerNav: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F1EC' },
+  pickerMonth: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
+  pickerWeekRow: { flexDirection: 'row' },
+  pickerWeekday: { flex: 1, textAlign: 'center', fontSize: 11, fontWeight: '700', color: '#64748B', paddingVertical: 6 },
+  pickerDay: { flex: 1, aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 999, margin: 2 },
+  pickerDaySelected: { backgroundColor: '#EE5A00' },
+  pickerDayToday: { borderWidth: 1.5, borderColor: '#EE5A00' },
+  pickerDayText: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
+  pickerDayTextSelected: { color: '#FFFFFF', fontWeight: '800' },
+  pickerActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 },
+  pickerTodayBtn: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10, backgroundColor: '#FFF2E6' },
+  pickerTodayText: { fontSize: 14, fontWeight: '800', color: '#C94700' },
+  pickerCancelBtn: { paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10, backgroundColor: '#F3F1EC' },
+  pickerCancelText: { fontSize: 14, fontWeight: '700', color: '#475569' },
   kpiRow: {
     flexDirection: 'row',
     gap: 12,

@@ -6,11 +6,8 @@ import React, { createContext, useContext, useState, useMemo } from 'react';
 import {
   DEFAULT_WORK_RATES,
   INITIAL_LABOURERS,
-  INITIAL_WORK_ENTRIES,
-  INITIAL_PAYMENTS,
-  INITIAL_EXPENSES,
-  TODAY_DATE,
 } from '../constants/initialData';
+import { todayYmd } from '../utils/dates';
 import {
   calculateDailyMetrics,
   calculateLabourerStatement,
@@ -29,12 +26,16 @@ export function LabourHisaabProvider({ children }) {
   // Application Data States
   const [labourers, setLabourers] = useState(INITIAL_LABOURERS);
   const [workRates, setWorkRates] = useState(DEFAULT_WORK_RATES);
-  const [workEntries, setWorkEntries] = useState(INITIAL_WORK_ENTRIES);
-  const [payments, setPayments] = useState(INITIAL_PAYMENTS);
-  const [serviceExpenses, setServiceExpenses] = useState(INITIAL_EXPENSES);
+  // LH-HOME-TOTAL-DATE-01: the app starts with no sample work, payments or expenses, so
+  // demo amounts (e.g. the old ₹5,808 day) are never shown as live data. The sample
+  // labourer roster is kept until the persistence sprint (there is no storage yet).
+  const [workEntries, setWorkEntries] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [serviceExpenses, setServiceExpenses] = useState([]);
 
   // Global filters
-  const [selectedDate, setSelectedDate] = useState(TODAY_DATE);
+  // The device's real date, not the fixed demo date (TODAY_DATE).
+  const [selectedDate, setSelectedDate] = useState(() => todayYmd());
   const [selectedMonth, setSelectedMonth] = useState('2026-10');
   const [contractorName, setContractorName] = useState('शुभ लाभ लेबर कांट्रेक्टर');
 

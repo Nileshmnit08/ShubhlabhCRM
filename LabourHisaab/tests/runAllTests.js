@@ -1263,6 +1263,154 @@ runTest('Home entry screen: no `||` default on rate, no preset quantities, zero-
 });
 
 // -----------------------------------------------------------------
+// LH-HOME-TOTAL-DATE-01: Home wage total follows the selected date; no sample fallback
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-HOME-TOTAL-DATE-01: Home daily total & date selection');
+
+const homeEntry = (id, date, rate, bags) => {
+  const c = calculateWorkEntry({ rate, unit: 'per_bag', type: 'bag', totalBags: bags });
+  return { id, date, categoryId: 'bag_stitching', type: 'bag', rate: c.rate, totalBags: c.totalBags, totalAmount: c.totalAmount };
+};
+const homeTotal = (entries, date) => calculateDailyMetrics({ date, workEntries: entries, payments: [], serviceExpenses: [], labourers: [] }).todayLabourEarned;
+
+runTest('Date with no entries → total ₹0', () => {
+  assert.strictEqual(homeTotal([], '2031-02-01'), 0);
+  assert.strictEqual(homeTotal([homeEntry('a', '2031-02-02', 2, 10)], '2031-02-01'), 0, 'other dates are not counted');
+});
+
+runTest('Date with three zero-amount entries → total ₹0 (the ₹5,808 case)', () => {
+  const zeros = [homeEntry('m', '2031-02-03', 0, 100), homeEntry('b', '2031-02-03', 2, 0), homeEntry('p', '2031-02-03', 0, 0)];
+  assert.strictEqual(zeros.length, 3);
+  assert.ok(zeros.every(e => e.totalAmount === 0));
+  assert.strictEqual(homeTotal(zeros, '2031-02-03'), 0);
+});
+
+runTest('Non-zero entries → total equals the sum of that date\'s entries only (payments excluded)', () => {
+  const list = [homeEntry('x', '2031-02-04', 2, 120), homeEntry('y', '2031-02-04', 0.3, 1000), homeEntry('z', '2031-02-05', 2, 50)];
+  const m = calculateDailyMetrics({ date: '2031-02-04', workEntries: list, labourers: [],
+    payments: [{ date: '2031-02-04', amount: 999 }], serviceExpenses: [{ date: '2031-02-04', amount: 50, allocationType: 'contractor_expense' }] });
+  assert.strictEqual(m.todayLabourEarned, 540); // 240 + 300; the 2031-02-05 entry, payment and expense are not wages
+  const shown = list.filter(e => e.date === '2031-02-04').reduce((s, e) => s + e.totalAmount, 0);
+  assert.strictEqual(m.todayLabourEarned, shown, 'total reconciles with the entry list for the date');
+});
+
+runTest('Switching dates changes entries and total together', () => {
+  const list = [homeEntry('d1', '2031-02-06', 2, 10), homeEntry('d2', '2031-02-07', 2, 30)];
+  for (const [date, expected] of [['2031-02-06', 20], ['2031-02-07', 60], ['2031-02-08', 0]]) {
+    const shown = list.filter(e => e.date === date);
+    assert.strictEqual(homeTotal(list, date), expected);
+    assert.strictEqual(shown.reduce((s, e) => s + e.totalAmount, 0), expected);
+  }
+});
+
+runTest('Date helpers: local today, Hindi label, day/month navigation, calendar grid', async () => {
+  const { todayYmd, formatHindiDate, addDaysYmd, monthGrid, monthOf, shiftMonth, isValidYmd } = await import('../src/utils/dates.js');
+  assert.strictEqual(todayYmd(new Date(2026, 10, 3, 23, 30)), '2026-11-03', 'local calendar date, not UTC');
+  assert.ok(isValidYmd(todayYmd()));
+  assert.strictEqual(formatHindiDate('2026-11-03'), '03 नवम्बर 2026 (मंगलवार)');
+  assert.strictEqual(formatHindiDate('2026-12-31'), '31 दिसम्बर 2026 (गुरुवार)');
+  assert.strictEqual(addDaysYmd('2026-12-31', 1), '2027-01-01');
+  assert.strictEqual(addDaysYmd('2026-03-01', -1), '2026-02-28');
+  assert.deepStrictEqual(shiftMonth({ year: 2026, month: 0 }, -1), { year: 2025, month: 11 });
+  assert.deepStrictEqual(monthOf('2026-11-15'), { year: 2026, month: 10 });
+  const grid = monthGrid(2026, 10); // November 2026 starts on Sunday, 30 days
+  assert.strictEqual(grid[0][0], '2026-11-01');
+  assert.strictEqual(grid.flat().filter(Boolean).length, 30);
+  assert.ok(grid.every(w => w.length === 7));
+});
+
+runTest('Entry added while a past date is selected is saved to that date', async () => {
+  const fs = await import('node:fs');
+  const screen = fs.readFileSync(new URL('../src/screens/AddWorkEntryScreen.js', import.meta.url), 'utf8');
+  assert.ok(/date: selectedDate,/.test(screen), 'the entry form saves with the selected date');
+  const ctx = fs.readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
+  assert.ok(/date: entryData\.date \|\| selectedDate/.test(ctx), 'context keeps the provided (selected) date');
+  // Behaviour: the selected past date is what lands on the saved entry.
+  const past = '2031-01-20';
+  const saved = { ...homeEntry('p1', past, 2, 5) };
+  assert.strictEqual(saved.date, past);
+  assert.strictEqual(homeTotal([saved], past), 10);
+  assert.strictEqual(homeTotal([saved], '2031-01-21'), 0);
+});
+
+runTest('No sample/default amount on Home; app starts on the real date with no sample records', async () => {
+  const fs = await import('node:fs');
+  const home = fs.readFileSync(new URL('../src/screens/HomeScreen.js', import.meta.url), 'utf8');
+  assert.ok(!/5808/.test(home), 'no hard-coded ₹5,808');
+  assert.ok(!/\|\| 6\}/.test(home), 'no hard-coded labourer count');
+  assert.ok(!/'2026-11-03'/.test(home), 'no hard-coded date');
+  assert.ok(/onPress=\{openDatePicker\}/.test(home) && /<Modal/.test(home), 'date card opens a picker');
+  assert.ok(/setSelectedDate\(today\)/.test(home), 'one-tap return to today');
+  const ctx = fs.readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
+  assert.ok(/useState\(\(\) => todayYmd\(\)\)/.test(ctx), 'selected date starts at the device date');
+  assert.ok(/const \[workEntries, setWorkEntries\] = useState\(\[\]\)/.test(ctx), 'no sample work entries on start');
+  assert.ok(/const \[payments, setPayments\] = useState\(\[\]\)/.test(ctx), 'no sample payments on start');
+  assert.ok(/const \[serviceExpenses, setServiceExpenses\] = useState\(\[\]\)/.test(ctx), 'no sample expenses on start');
+  assert.strictEqual(homeTotal([], todayYmdForTest()), 0, 'empty start → ₹0 on Home');
+});
+// -----------------------------------------------------------------
+// LH-LABOUR-COUNT-01: Home labour count = distinct labourers with work on the selected date
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-LABOUR-COUNT-01: Home labour count');
+
+const countEntry = (id, date, labourerIds, amount = 100) => ({
+  id, date, type: 'bag', totalAmount: amount, participatingLabourerIds: labourerIds,
+  allocations: labourerIds.map(l => ({ labourerId: l, allocatedAmount: amount / labourerIds.length })),
+});
+const roster = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6'].map((id, i) => ({ id, name: `N${i}`, isActive: true }));
+const workingCount = (entries, date) =>
+  calculateDailyMetrics({ date, workEntries: entries, payments: [], serviceExpenses: [], labourers: roster }).workingLabourersCount;
+
+runTest('No work entries for the date → 0 (a 6-person roster is not counted)', () => {
+  assert.strictEqual(workingCount([], '2031-03-01'), 0);
+  assert.strictEqual(workingCount([countEntry('o', '2031-03-02', ['L1'])], '2031-03-01'), 0, 'other dates ignored');
+});
+
+runTest('One labourer with multiple entries → 1 (incl. a ₹0 entry)', () => {
+  const list = [countEntry('a', '2031-03-03', ['L1']), countEntry('b', '2031-03-03', ['L1'], 0), countEntry('c', '2031-03-03', ['L1'])];
+  assert.strictEqual(workingCount(list, '2031-03-03'), 1);
+});
+
+runTest('Two different labourers → 2, even when one has several entries', () => {
+  const list = [countEntry('a', '2031-03-04', ['L1', 'L2']), countEntry('b', '2031-03-04', ['L2']), countEntry('c', '2031-03-04', ['L1'])];
+  assert.strictEqual(workingCount(list, '2031-03-04'), 2);
+});
+
+runTest('Changing the date updates the count with the same entries as the wage total', () => {
+  const list = [countEntry('a', '2031-03-05', ['L1', 'L2', 'L3'], 300), countEntry('b', '2031-03-06', ['L4'], 50)];
+  for (const [date, count, total] of [['2031-03-05', 3, 300], ['2031-03-06', 1, 50], ['2031-03-07', 0, 0]]) {
+    const m = calculateDailyMetrics({ date, workEntries: list, payments: [], serviceExpenses: [], labourers: roster });
+    assert.strictEqual(m.workingLabourersCount, count);
+    assert.strictEqual(m.todayLabourEarned, total);
+  }
+});
+
+runTest('Counts by stable id (not name), falls back to allocations, ignores blanks; inactive labourer with work is counted', async () => {
+  const { distinctWorkingLabourerIds } = await import('../src/utils/calculations.js');
+  // Same display name, different ids → two people.
+  assert.strictEqual(distinctWorkingLabourerIds([{ participatingLabourerIds: ['L1', 'L9'] }]).length, 2);
+  // Older entry shape with allocations only.
+  assert.deepStrictEqual(distinctWorkingLabourerIds([{ allocations: [{ labourerId: 'L3' }, { labourerId: 'L3' }] }]), ['L3']);
+  assert.deepStrictEqual(distinctWorkingLabourerIds([{ participatingLabourerIds: ['', null, 'L2'] }]), ['L2']);
+  const inactiveRoster = [{ id: 'L1', isActive: false }];
+  const m = calculateDailyMetrics({ date: '2031-03-08', workEntries: [countEntry('x', '2031-03-08', ['L1'])], payments: [], serviceExpenses: [], labourers: inactiveRoster });
+  assert.strictEqual(m.workingLabourersCount, 1, 'work recorded before deactivation still counts');
+  assert.strictEqual(m.activeLabourersCount, 0);
+});
+
+runTest('Home count uses the daily working count; no fixed 6 fallback; app starts with no sample work', async () => {
+  const fs = await import('node:fs');
+  const home = fs.readFileSync(new URL('../src/screens/HomeScreen.js', import.meta.url), 'utf8');
+  assert.ok(/todayMetrics\.workingLabourersCount/.test(home), 'Home shows the working count');
+  assert.ok(!/activeLabourersCount/.test(home), 'Home no longer shows the roster size');
+  assert.ok(!/\|\|\s*6\b/.test(home), 'no || 6 fallback');
+  const ctx = fs.readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
+  assert.ok(/const \[workEntries, setWorkEntries\] = useState\(\[\]\)/.test(ctx), 'no sample work entries at start → count 0');
+});
+
+function todayYmdForTest() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+
+// -----------------------------------------------------------------
 // EXECUTE AND SUMMARY
 // -----------------------------------------------------------------
 (async () => {
