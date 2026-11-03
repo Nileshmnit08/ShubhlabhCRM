@@ -63,6 +63,7 @@ import {
   Wrench,
   Globe,
   CalendarCheck,
+  HardHat,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
@@ -387,6 +388,17 @@ export const NAV_SECTIONS = [
         label: 'Mobility & Expenses',
         href: '/field-mobility',
         icon: Map,
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
+      {
+        // SL-LABOUR-NAV-01: labour work & payments (LabourHisaab). Admin-only, matching the
+        // approved design where CRM admins have read-only access to labour records.
+        id: 'labour-hisaab',
+        label: 'Labour Hisaab',
+        href: '/labour-hisaab',
+        icon: HardHat,
         badgeSource: null,
         permissionKey: 'admin',
         pinEligible: true,
