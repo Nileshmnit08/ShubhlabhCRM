@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "LabourHisaab",
+    "slug": "labour-hisaab",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#F28C28"
+    },
+    "android": {
+      "package": "com.shubhlabh.labourhisaab",
+      "adaptiveIcon": {
+        "backgroundColor": "#F28C28"
+      }
+    }
+  }
+}
+

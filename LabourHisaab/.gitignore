@@ -1,0 +1,10 @@
+# Local browser profiles created by generateScreenshots.js (may hold cookies/session data)
+chrome-temp*/
+
+# Expo local state and environment
+.expo/
+.env
+.env.*
+
+# Local scratch page
+test_screen.html
