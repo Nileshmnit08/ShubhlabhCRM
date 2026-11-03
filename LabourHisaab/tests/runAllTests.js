@@ -1618,6 +1618,78 @@ runTest('Write failure: no false success, nothing changes; retries and concurren
   assert.deepStrictEqual((await open(disk).init()).map(e => e.id).sort(), ['WE_a', 'WE_b', 'WE_d', 'WE_e'], 'delete persists');
 });
 
+// -----------------------------------------------------------------
+// LH-CLOUD-SYNC-01: sync engine (pure parts; DB integration is validated against 249/250 SQL separately)
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-CLOUD-SYNC-01: Cloud sync engine');
+
+runTest('Entry → server rows: units, quantities, fixed amount, bag lines and labourer shares', async () => {
+  const { planEntry, serverUnitFor, makeUuid } = await import('../src/services/CloudSync.js');
+  assert.match(makeUuid(), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.deepStrictEqual(['per_100_kg', 'per_bag', 'per_batch', 'fixed'].map(serverUnitFor), ['Per 100 kg', 'Per bag', 'Per batch', 'Fixed amount']);
+  const ctx = { serverId: 'srv-1', contractorId: 'c-1', rate: { id: 'r-1' }, labourerIds: { LH_LAB_001: 'u-1', LH_LAB_002: 'u-2' } };
+  const weight = calculateWorkEntry({ rate: 21, unit: 'per_100_kg', type: 'weight', bagLines: [{ bagWeightKg: 50, bagCount: 100 }, { bagWeightKg: 40, bagCount: 0 }] });
+  const p = planEntry({ id: 'WE_x', date: '2031-06-01', categoryId: 'pallet', unit: 'per_100_kg', rate: 21, totalKg: weight.totalKg, totalBags: weight.totalBags,
+    totalBatches: 0, totalAmount: weight.totalAmount, bagLines: weight.bagLines, allocations: distributeWorkAllocation(weight.totalAmount, ['LH_LAB_001', 'LH_LAB_002']) }, ctx);
+  assert.strictEqual(p.entryRow.id, 'srv-1');
+  assert.strictEqual(p.entryRow.work_type, 'pallet');
+  assert.strictEqual(p.entryRow.rate_snapshot, 21);
+  assert.strictEqual(p.entryRow.rate_unit_snapshot, 'Per 100 kg');
+  assert.strictEqual(p.entryRow.total_weight_kg, 5000);
+  assert.strictEqual(p.entryRow.calculated_labour_amount, 1050);
+  assert.strictEqual(p.details.length, 1, 'zero-count bag line is not sent');
+  assert.deepStrictEqual(p.allocations.map(a => [a.labourer_id, a.allocated_amount]), [['u-1', 525], ['u-2', 525]]);
+  const fixed = planEntry({ id: 'WE_f', date: '2031-06-01', categoryId: 'misc', unit: 'fixed', rate: 500, totalAmount: 0, allocations: [] }, ctx);
+  assert.strictEqual(fixed.entryRow.rate_snapshot, 0, 'fixed work: the entered amount (even 0) is the server rate');
+  assert.throws(() => planEntry({ id: 'WE_u', unit: 'per_bag', rate: 1, totalAmount: 1, allocations: [{ labourerId: 'LH_LAB_999', allocatedAmount: 1 }] }, ctx), /not on the server roster/);
+});
+
+runTest('Content hash and pending count: only changed entries are re-sent; deleted ones are not pending', async () => {
+  const { contentHash, pendingCount } = await import('../src/services/CloudSync.js');
+  const e = { id: 'WE_1', date: '2031-06-02', categoryId: 'mix', unit: 'per_bag', type: 'bag', rate: 2, totalAmount: 20, totalBags: 10, allocations: [{ labourerId: 'L1', allocatedAmount: 20 }] };
+  const h = contentHash(e);
+  assert.strictEqual(contentHash({ ...e }), h);
+  assert.notStrictEqual(contentHash({ ...e, totalBags: 11, totalAmount: 22 }), h);
+  assert.notStrictEqual(contentHash({ ...e, date: '2031-06-03' }), h);
+  assert.strictEqual(pendingCount([e], []), 1);
+  assert.strictEqual(pendingCount([e], [{ id: 'WE_1', hash: h }]), 0);
+  assert.strictEqual(pendingCount([e], [{ id: 'WE_1', hash: null, deleted: true }]), 0);
+});
+
+runTest('Sync run with a fake server: ids saved before upload, retry-safe, deletes tombstoned and applied', async () => {
+  const { syncAll, queueServerDelete, createSyncStore } = await import('../src/services/CloudSync.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  const disk = memoryBackend();
+  const store = createSyncStore(createLocalStore(disk));
+  const server = new Map();
+  const calls = [];
+  const adapter = {
+    getMembership: async () => ({ contractorId: 'c-1', role: 'Manager' }),
+    upsertLabourers: async (rows) => rows.map(r => ({ id: `u-${r.local_id}`, local_id: r.local_id })),
+    ensureRate: async () => ({ id: 'r-1' }),
+    deleteEntry: async (id) => { calls.push(['delete', id]); server.delete(id); },
+    deleteAllocations: async () => {},
+    upsertEntry: async (row) => { calls.push(['upsert', row.id]); server.set(row.id, row); },
+    replaceDetails: async () => {},
+    insertAllocations: async () => {},
+  };
+  const entries = [persistedEntry('WE_1', '2031-06-04', 2, 10, ['LH_LAB_001']), persistedEntry('WE_2', '2031-06-04', 0, 5, ['LH_LAB_001'])];
+  entries.forEach(e => { e.unit = 'per_bag'; });
+  const labs = [{ id: 'LH_LAB_001', name: 'A', isActive: true }];
+  const r1 = await syncAll({ adapter, store, entries, labourers: labs, today: '2031-06-04' });
+  assert.deepStrictEqual([r1.uploaded, r1.failed.length, server.size], [2, 0, 2]);
+  const ids1 = (await store.getState()).map(s => s.serverId).sort();
+  const r2 = await syncAll({ adapter, store, entries, labourers: labs, today: '2031-06-04' });
+  assert.deepStrictEqual([r2.uploaded, r2.unchanged, server.size], [0, 2, 2], 'nothing re-sent');
+  assert.deepStrictEqual((await store.getState()).map(s => s.serverId).sort(), ids1, 'server ids stable');
+  await queueServerDelete(store, 'WE_2');
+  const r3 = await syncAll({ adapter, store, entries: () => entries.filter(e => e.id !== 'WE_2'), labourers: labs, today: '2031-06-04' });
+  assert.deepStrictEqual([r3.deleted, server.size], [1, 1]);
+  assert.strictEqual((await store.getState()).some(s => s.id === 'WE_2'), false, 'finished tombstone cleaned up');
+  const viewer = { ...adapter, getMembership: async () => ({ contractorId: 'c-1', role: 'Viewer' }) };
+  await assert.rejects(() => syncAll({ adapter: viewer, store, entries, labourers: labs, today: '2031-06-04' }), /Viewer/);
+});
+
 function todayYmdForTest() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 
 // -----------------------------------------------------------------

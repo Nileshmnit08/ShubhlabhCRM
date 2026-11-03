@@ -46,7 +46,53 @@ export default function SettingsScreen({ navigation }) {
     createBackup,
     restoreBackup,
     getOfflineDiagnostics,
+    isCloudConfigured,
+    cloudUser,
+    syncStatus,
+    cloudSignIn,
+    cloudSignOut,
+    syncNow,
   } = useLabourHisaab();
+
+  // Cloud sync sign-in (LH-CLOUD-SYNC-01)
+  const [cloudEmail, setCloudEmail] = useState('');
+  const [cloudPassword, setCloudPassword] = useState('');
+  const [cloudBusy, setCloudBusy] = useState(false);
+
+  const handleCloudSignIn = async () => {
+    if (cloudBusy) return;
+    if (!cloudEmail.trim() || !cloudPassword) {
+      Alert.alert('त्रुटि', 'कृपया ईमेल और पासवर्ड दर्ज करें।');
+      return;
+    }
+    setCloudBusy(true);
+    try {
+      const outcome = await cloudSignIn(cloudEmail, cloudPassword);
+      setCloudPassword('');
+      Alert.alert('साइन इन सफल', outcome
+        ? `सिंक पूरा: ${outcome.uploaded} प्रविष्टि भेजी गई${outcome.failed.length ? `, ${outcome.failed.length} नहीं भेजी जा सकी` : ''}।`
+        : 'साइन इन हो गया।');
+    } catch (e) {
+      Alert.alert('साइन इन नहीं हो सका', e?.message || 'कृपया दोबारा प्रयास करें।');
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    if (cloudBusy) return;
+    setCloudBusy(true);
+    try {
+      const outcome = await syncNow();
+      if (outcome) {
+        Alert.alert(outcome.failed.length ? 'सिंक आंशिक' : 'सिंक पूरा',
+          `${outcome.uploaded} भेजी, ${outcome.unchanged} पहले से भेजी हुई, ${outcome.deleted} हटाई गई` +
+          (outcome.failed.length ? `\n${outcome.failed.length} नहीं भेजी जा सकी: ${outcome.failed[0].message}` : ''));
+      }
+    } finally {
+      setCloudBusy(false);
+    }
+  };
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -167,6 +213,66 @@ export default function SettingsScreen({ navigation }) {
           <Text style={styles.contractorNote}>
             यह नाम दैनिक हिसाब पर्चियों और व्हाट्सएप संदेशों पर प्रदर्शित होगा।
           </Text>
+        </View>
+
+        {/* Cloud sync to ShubhLabh CRM (LH-CLOUD-SYNC-01) */}
+        <View style={styles.contractorCard}>
+          <View style={styles.cardHeader}>
+            <Database size={18} color={theme.colors.primary} />
+            <Text style={styles.cardTitle}>क्लाउड सिंक (CRM से जोड़ें)</Text>
+          </View>
+          {!isCloudConfigured ? (
+            <Text style={styles.contractorNote}>इस ऐप बिल्ड में क्लाउड सेटअप नहीं है। प्रविष्टियां केवल इस फ़ोन में सहेजी जा रही हैं।</Text>
+          ) : !cloudUser ? (
+            <>
+              <Text style={styles.contractorNote}>
+                CRM व्यवस्थापक द्वारा दिए गए ईमेल व पासवर्ड से साइन इन करें। प्रविष्टियां फ़ोन में सहेजी रहेंगी और साइन इन के बाद CRM में भी भेजी जाएंगी।
+              </Text>
+              <TextInput
+                style={[styles.contractorInput, styles.cloudInput]}
+                value={cloudEmail}
+                onChangeText={setCloudEmail}
+                placeholder="ईमेल"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoComplete="email"
+              />
+              <TextInput
+                style={[styles.contractorInput, styles.cloudInput]}
+                value={cloudPassword}
+                onChangeText={setCloudPassword}
+                placeholder="पासवर्ड"
+                secureTextEntry
+                autoCapitalize="none"
+              />
+              <TouchableOpacity style={[styles.saveNameBtn, styles.cloudBtn, cloudBusy && { opacity: 0.6 }]} onPress={handleCloudSignIn} disabled={cloudBusy}>
+                <Text style={styles.saveNameBtnText}>{cloudBusy ? 'कृपया प्रतीक्षा करें...' : 'साइन इन करें'}</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.contractorNote}>साइन इन: {cloudUser.email}</Text>
+              <Text style={styles.contractorNote}>
+                {syncStatus.running ? 'सिंक चल रहा है...'
+                  : syncStatus.pending > 0 ? `भेजना बाकी: ${syncStatus.pending} प्रविष्टि`
+                  : 'सभी प्रविष्टियां CRM में भेजी जा चुकी हैं।'}
+              </Text>
+              {syncStatus.lastSyncAt ? (
+                <Text style={styles.contractorNote}>अंतिम सिंक: {new Date(syncStatus.lastSyncAt).toLocaleString('en-IN')}</Text>
+              ) : null}
+              {syncStatus.lastError ? (
+                <Text style={[styles.contractorNote, { color: theme.colors.danger }]}>त्रुटि: {syncStatus.lastError}</Text>
+              ) : null}
+              <View style={styles.contractorInputRow}>
+                <TouchableOpacity style={[styles.saveNameBtn, styles.cloudBtn, (cloudBusy || syncStatus.running) && { opacity: 0.6 }]} onPress={handleSyncNow} disabled={cloudBusy || syncStatus.running}>
+                  <Text style={styles.saveNameBtnText}>अभी सिंक करें</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.saveNameBtn, styles.cloudBtn, { backgroundColor: theme.colors.surfaceVariant }]} onPress={cloudSignOut}>
+                  <Text style={[styles.saveNameBtnText, { color: theme.colors.textPrimary }]}>साइन आउट</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Prototype Memory Notice */}
@@ -424,6 +530,8 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: 6,
   },
+  cloudInput: { flex: 0, marginTop: 8 },
+  cloudBtn: { marginTop: 10, paddingVertical: 12, flexGrow: 1 },
   infoBanner: {
     flexDirection: 'row',
     backgroundColor: theme.colors.primaryLight,

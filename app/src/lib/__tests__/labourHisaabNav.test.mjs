@@ -35,10 +35,15 @@ test('route /labour-hisaab is registered inside the AdminRoute guard', () => {
   assert.equal(app.match(/path="labour-hisaab"/g).length, 1, 'registered once');
 });
 
-test('page shows the disconnected state and reads no data', () => {
+test('page is read-only, keeps the not-connected state, and shows no sample data', () => {
   const page = read('../../pages/LabourHisaab.jsx');
   assert.match(page, /Labour Hisaab data is not connected yet\./);
-  assert.match(page, /once the live data connection is available/);
-  assert.ok(!/supabase|\.from\(|\.rpc\(|fetch\(/.test(page), 'no database or network access');
-  assert.ok(!/initialData|INITIAL_|₹\s*\d/.test(page), 'no sample data or amounts');
+  assert.match(page, /isNotConnectedError\(e\)\) setState\('not_connected'\)/, 'missing tables → not-connected state');
+  assert.match(page, /No labour work recorded for this period yet\./, 'honest empty state');
+  assert.ok(!/\.(insert|update|upsert|delete)\(|\.rpc\(/.test(page), 'no writes or RPCs: CRM is read-only');
+  for (const t of ['contractors', 'labourers', 'daily_work_entries', 'v_labour_work_lines', 'labour_payments', 'service_expenses', 'service_expense_allocations']) {
+    assert.ok(page.includes(`from('${t}')`), `reads ${t}`);
+  }
+  assert.ok(!/from\('lh_/.test(page), 'never reads the retired lh_ tables');
+  assert.ok(!/initialData|INITIAL_|₹\s*\d/.test(page), 'no sample data or hard-coded amounts');
 });

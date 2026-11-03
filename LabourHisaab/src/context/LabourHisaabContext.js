@@ -6,6 +6,9 @@ import React, { createContext, useContext, useState, useMemo, useEffect, useRef 
 import { deviceStore } from '../services/deviceStorage';
 import { STORAGE_KEYS, makeEntryId } from '../services/LocalPersistence';
 import { createWorkEntryRepository, LOAD_FAILED_MESSAGE } from '../services/WorkEntryRepository';
+import { supabase, isCloudConfigured } from '../services/supabase';
+import { syncAll, queueServerDelete, pendingCount, createSyncStore } from '../services/CloudSync';
+import { createSupabaseSyncAdapter } from '../services/supabaseSyncAdapter';
 import {
   DEFAULT_WORK_RATES,
   INITIAL_LABOURERS,
@@ -86,11 +89,105 @@ export function LabourHisaabProvider({ children }) {
     return () => { cancelled = true; };
   }, []);
 
-  // Apply a list that storage has confirmed, then show it.
+  // Apply a list that storage has confirmed, then show it, then push it to the cloud (if signed in).
   const showSaved = (list) => {
     console.log(`[LH-STORAGE] saved entries=${list.length}`);
     setWorkEntries(list);
+    runSync();
     return list;
+  };
+
+  // -------------------------------------------------------------
+  // 0b. CLOUD SYNC (LH-CLOUD-SYNC-01)
+  //    Optional: when the user signs in (Supabase Auth) and their account is an Owner/Manager
+  //    of a contractor, device entries are uploaded to the secure LabourHisaab tables so the
+  //    CRM can show them. Device storage remains the record on the phone. One sync at a time;
+  //    a change during a run schedules one more run. `[LH-SYNC]` logs are count-only.
+  // -------------------------------------------------------------
+  const syncStoreRef = useRef(null);
+  if (!syncStoreRef.current) syncStoreRef.current = createSyncStore(deviceStore);
+  const syncStore = syncStoreRef.current;
+  const [cloudUser, setCloudUser] = useState(null);
+  const [syncStatus, setSyncStatus] = useState({ running: false, lastSyncAt: null, lastError: null, failed: [], pending: 0 });
+  const syncRunning = useRef(false);
+  const syncAgain = useRef(false);
+  const cloudUserRef = useRef(null);
+  const labourersRef = useRef(labourers);
+  labourersRef.current = labourers;
+
+  const refreshPending = async () => {
+    try {
+      const n = pendingCount(repo.list(), await syncStore.getState());
+      setSyncStatus(s => ({ ...s, pending: n }));
+    } catch (e) { /* bookkeeping read failed; next sync retries */ }
+  };
+
+  const runSync = async () => {
+    if (!supabase || !cloudUserRef.current || !repo.isReady()) { refreshPending(); return null; }
+    if (syncRunning.current) { syncAgain.current = true; return null; }
+    syncRunning.current = true;
+    setSyncStatus(s => ({ ...s, running: true }));
+    let outcome = null;
+    try {
+      outcome = await syncAll({
+        adapter: createSupabaseSyncAdapter(supabase),
+        store: syncStore,
+        entries: () => repo.list(),
+        labourers: labourersRef.current,
+        today: todayYmd(),
+      });
+      console.log(`[LH-SYNC] uploaded=${outcome.uploaded} unchanged=${outcome.unchanged} deleted=${outcome.deleted} failed=${outcome.failed.length}`);
+      setSyncStatus(s => ({ ...s, lastSyncAt: new Date().toISOString(), failed: outcome.failed,
+        lastError: outcome.failed.length ? outcome.failed[0].message : null }));
+    } catch (e) {
+      console.log(`[LH-SYNC] FAILED: ${e?.message || e}`);
+      setSyncStatus(s => ({ ...s, lastError: e?.message || String(e) }));
+    } finally {
+      syncRunning.current = false;
+      setSyncStatus(s => ({ ...s, running: false }));
+      await refreshPending();
+      if (syncAgain.current) { syncAgain.current = false; runSync(); }
+    }
+    return outcome;
+  };
+
+  // Session restore + auth changes.
+  useEffect(() => {
+    if (!supabase) return undefined;
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      const user = data?.session?.user || null;
+      cloudUserRef.current = user;
+      setCloudUser(user ? { id: user.id, email: user.email } : null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user || null;
+      cloudUserRef.current = user;
+      setCloudUser(user ? { id: user.id, email: user.email } : null);
+    });
+    return () => { active = false; sub?.subscription?.unsubscribe?.(); };
+  }, []);
+
+  // Sync once both the device history is loaded and a session exists.
+  useEffect(() => {
+    if (storageReady && cloudUser) runSync();
+    else if (storageReady) refreshPending();
+  }, [storageReady, cloudUser]);
+
+  const cloudSignIn = async (email, password) => {
+    if (!supabase) throw new Error('क्लाउड सेटअप उपलब्ध नहीं है (Supabase कॉन्फ़िगर नहीं)।');
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: String(email || '').trim(), password });
+    if (authError) throw new Error(authError.message);
+    cloudUserRef.current = data.user;
+    setCloudUser({ id: data.user.id, email: data.user.email });
+    return runSync();
+  };
+
+  const cloudSignOut = async () => {
+    if (supabase) await supabase.auth.signOut();
+    cloudUserRef.current = null;
+    setCloudUser(null);
   };
 
   // The roster is saved whenever it changes after loading (add / rename / activate).
@@ -99,7 +196,7 @@ export function LabourHisaabProvider({ children }) {
     if (!labourersHydrated.current) { labourersHydrated.current = true; return; }
     const run = rosterChain.current.then(() => deviceStore.saveList(STORAGE_KEYS.labourers, labourers));
     rosterChain.current = run.catch(() => {});
-    run.catch(() => setError('मजदूर सूची सहेजी नहीं जा सकी। कृपया दोबारा प्रयास करें।'));
+    run.then(() => runSync(), () => setError('मजदूर सूची सहेजी नहीं जा सकी। कृपया दोबारा प्रयास करें।'));
   }, [labourers, storageReady]);
 
   // -------------------------------------------------------------
@@ -289,9 +386,22 @@ export function LabourHisaabProvider({ children }) {
     return updated;
   };
 
-  // Async: removes the record from storage, then from the screen.
+  // Async: removes the record from storage, then from the screen. If it was synced, the cloud
+  // copy is queued for deletion FIRST (tombstone), so a running sync cannot re-upload it.
   const deleteWorkEntry = async (id) => {
-    showSaved(await repo.remove(id));
+    if (repo.hasLoadFailed()) throw new Error(LOAD_FAILED_MESSAGE);
+    if (!repo.isReady()) throw new Error('डेटा अभी लोड हो रहा है, कृपया एक क्षण बाद दोबारा प्रयास करें।');
+    await queueServerDelete(syncStore, id);
+    try {
+      showSaved(await repo.remove(id));
+    } catch (e) {
+      // The phone still has the entry: undo the tombstone so it keeps syncing normally.
+      // (A queued server delete, if any, is cancelled too.)
+      const s = (await syncStore.getState()).find(x => x.id === id);
+      await syncStore.updateState(list => list.map(x => (x.id === id ? { ...x, deleted: false, hash: null } : x)));
+      if (s?.serverId) await syncStore.updateDeletes(list => list.filter(d => d.id !== s.serverId));
+      throw e;
+    }
     labourDatabaseService.deleteWorkEntry(id).catch(() => {});
   };
 
@@ -741,6 +851,13 @@ export function LabourHisaabProvider({ children }) {
     setError,
     storageReady,
     storageError,
+    // Cloud sync
+    isCloudConfigured,
+    cloudUser,
+    syncStatus,
+    cloudSignIn,
+    cloudSignOut,
+    syncNow: runSync,
 
     // Operations
     addLabourer,
