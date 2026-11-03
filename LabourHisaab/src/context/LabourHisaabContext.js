@@ -2,7 +2,10 @@
 // Implements LH-LEDGER-01: Full ledger integration, work allocations with exact penny rounding,
 // rate snapshotting, CRUD operations, idempotent submissions, and daily/monthly reconciliations.
 
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';
+import { deviceStore } from '../services/deviceStorage';
+import { STORAGE_KEYS, makeEntryId } from '../services/LocalPersistence';
+import { createWorkEntryRepository, LOAD_FAILED_MESSAGE } from '../services/WorkEntryRepository';
 import {
   DEFAULT_WORK_RATES,
   INITIAL_LABOURERS,
@@ -42,6 +45,62 @@ export function LabourHisaabProvider({ children }) {
   // UI state tracking
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // -------------------------------------------------------------
+  // 0. DURABLE STORAGE (LH-PERSISTENCE-FIX-01, LH-PERSISTENCE-REPAIR-02)
+  //    Work entries live in WorkEntryRepository (device storage). It loads before any write
+  //    is allowed, refuses writes if loading failed (so history is never replaced by an
+  //    empty list), serialises writes and updates only after storage confirms them.
+  //    The labourer roster is saved alongside. `[LH-STORAGE]` logs are count-only.
+  // -------------------------------------------------------------
+  const [storageReady, setStorageReady] = useState(false);
+  const [storageError, setStorageError] = useState(null);
+  const repoRef = useRef(null);
+  if (!repoRef.current) repoRef.current = createWorkEntryRepository(deviceStore);
+  const repo = repoRef.current;
+  const rosterChain = useRef(Promise.resolve());
+  const labourersHydrated = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      try {
+        const [savedEntries, savedLabourers] = await Promise.all([
+          repo.init(),
+          deviceStore.loadList(STORAGE_KEYS.labourers),
+        ]);
+        if (cancelled) return;
+        console.log(`[LH-STORAGE] loaded entries=${savedEntries.length} labourers=${savedLabourers ? savedLabourers.length : 'none'}`);
+        setWorkEntries(savedEntries);
+        // First launch has no saved roster: start from the default roster and save it once changed.
+        if (savedLabourers && savedLabourers.length > 0) setLabourers(savedLabourers);
+        setStorageReady(true);
+      } catch (e) {
+        console.log(`[LH-STORAGE] load FAILED: ${e?.message || e}`);
+        if (!cancelled) setStorageError(LOAD_FAILED_MESSAGE);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Apply a list that storage has confirmed, then show it.
+  const showSaved = (list) => {
+    console.log(`[LH-STORAGE] saved entries=${list.length}`);
+    setWorkEntries(list);
+    return list;
+  };
+
+  // The roster is saved whenever it changes after loading (add / rename / activate).
+  useEffect(() => {
+    if (!storageReady) return;
+    if (!labourersHydrated.current) { labourersHydrated.current = true; return; }
+    const run = rosterChain.current.then(() => deviceStore.saveList(STORAGE_KEYS.labourers, labourers));
+    rosterChain.current = run.catch(() => {});
+    run.catch(() => setError('मजदूर सूची सहेजी नहीं जा सकी। कृपया दोबारा प्रयास करें।'));
+  }, [labourers, storageReady]);
 
   // -------------------------------------------------------------
   // 1. LABOURER CRUD OPERATIONS (Preserve Stable Local IDs)
@@ -136,7 +195,10 @@ export function LabourHisaabProvider({ children }) {
   // -------------------------------------------------------------
   // 3. DAILY WORK ENTRY & ALLOCATION OPERATIONS
   // -------------------------------------------------------------
-  const addWorkEntry = (entryData) => {
+  // Async: resolves with the saved entry only after storage confirms the write; rejects
+  // (and leaves the screen unchanged) if the write fails. Re-sending the same id (retry,
+  // double tap) replaces that record instead of creating a duplicate.
+  const addWorkEntry = async (entryData) => {
     const rateInfo = workRates.find(r => r.id === entryData.categoryId) || {
       rate: entryData.rate || 0,
       unit: entryData.unit || 'per_100_kg',
@@ -157,8 +219,10 @@ export function LabourHisaabProvider({ children }) {
     const participants = entryData.participatingLabourerIds || [];
     const allocations = distributeWorkAllocation(calculated.totalAmount, participants);
 
+    const entryId = entryData.id || makeEntryId();
+    const previous = repo.get(entryId);
     const newEntry = {
-      id: entryData.id || `WE_${Date.now()}`,
+      id: entryId,
       date: entryData.date || selectedDate,
       categoryId: entryData.categoryId,
       categoryName: rateInfo.name,
@@ -173,59 +237,61 @@ export function LabourHisaabProvider({ children }) {
       notes: entryData.notes || '',
       participatingLabourerIds: participants,
       allocations, // Store calculated allocations directly
-      createdAt: new Date().toISOString(),
+      createdAt: previous?.createdAt || new Date().toISOString(),
     };
 
-    setWorkEntries(prev => [newEntry, ...prev]);
+    showSaved(await repo.upsert(newEntry));
 
-    // Sync to backing service
-    labourDatabaseService.saveWorkEntry({
-      ...newEntry,
-      rate: calculated.rate,
-      unit: calculated.unit,
-      type: calculated.type,
-    }).catch(() => {});
+    // Keep the in-memory report service in step (best effort; storage above is the record).
+    if (!previous) {
+      labourDatabaseService.saveWorkEntry({
+        ...newEntry,
+        rate: calculated.rate,
+        unit: calculated.unit,
+        type: calculated.type,
+      }).catch(() => {});
+    }
 
     return newEntry;
   };
 
-  const updateWorkEntry = (id, updates) => {
-    setWorkEntries(prev =>
-      prev.map(entry => {
-        if (entry.id !== id) return entry;
+  // Async: edits the record with this id in storage, then on screen. Never creates a new record.
+  const updateWorkEntry = async (id, updates) => {
+    const entry = repo.get(id);
+    if (!entry) throw new Error('यह कार्य प्रविष्टि नहीं मिली। कृपया सूची ताज़ा करें।');
 
-        const merged = { ...entry, ...updates };
-        const calculated = calculateWorkEntry({
-          rate: merged.rate,
-          unit: merged.unit,
-          type: merged.type,
-          bagLines: merged.bagLines || [],
-          totalBags: merged.totalBags || 0,
-          totalBatches: merged.totalBatches || 0,
-          fixedAmount: updates.totalAmount ?? merged.totalAmount,
-        });
+    const merged = { ...entry, ...updates, id };
+    const calculated = calculateWorkEntry({
+      rate: merged.rate,
+      unit: merged.unit,
+      type: merged.type,
+      bagLines: merged.bagLines || [],
+      totalBags: merged.totalBags || 0,
+      totalBatches: merged.totalBatches || 0,
+      fixedAmount: updates.totalAmount ?? merged.totalAmount,
+    });
 
-        const participants = merged.participatingLabourerIds || [];
-        const allocations = distributeWorkAllocation(calculated.totalAmount, participants);
+    const participants = merged.participatingLabourerIds || [];
+    const allocations = distributeWorkAllocation(calculated.totalAmount, participants);
 
-        const updated = {
-          ...merged,
-          totalBags: calculated.totalBags,
-          totalKg: calculated.totalKg,
-          totalBatches: calculated.totalBatches,
-          totalAmount: calculated.totalAmount,
-          allocations,
-          updatedAt: new Date().toISOString(),
-        };
+    const updated = {
+      ...merged,
+      totalBags: calculated.totalBags,
+      totalKg: calculated.totalKg,
+      totalBatches: calculated.totalBatches,
+      totalAmount: calculated.totalAmount,
+      allocations,
+      updatedAt: new Date().toISOString(),
+    };
 
-        labourDatabaseService.updateWorkEntry(id, updated).catch(() => {});
-        return updated;
-      })
-    );
+    showSaved(await repo.upsert(updated));
+    labourDatabaseService.updateWorkEntry(id, updated).catch(() => {});
+    return updated;
   };
 
-  const deleteWorkEntry = (id) => {
-    setWorkEntries(prev => prev.filter(e => e.id !== id));
+  // Async: removes the record from storage, then from the screen.
+  const deleteWorkEntry = async (id) => {
+    showSaved(await repo.remove(id));
     labourDatabaseService.deleteWorkEntry(id).catch(() => {});
   };
 
@@ -635,11 +701,15 @@ export function LabourHisaabProvider({ children }) {
   };
 
   const restoreBackup = async (backupPayload) => {
+    if (repo.hasLoadFailed() || !repo.isReady()) {
+      throw new Error(repo.hasLoadFailed() ? LOAD_FAILED_MESSAGE : 'डेटा अभी लोड हो रहा है, कृपया एक क्षण बाद दोबारा प्रयास करें।');
+    }
     const res = await labourDatabaseService.restoreBackup(backupPayload);
-    // Sync React state with restored database service
+    // Restored work entries are written to device storage before the screen updates
+    // (the roster is saved by the labourers effect).
+    showSaved(await repo.replaceAll([...labourDatabaseService.workEntries]));
     setLabourers([...labourDatabaseService.labourers]);
     setWorkRates([...labourDatabaseService.workRates]);
-    setWorkEntries([...labourDatabaseService.workEntries]);
     setPayments([...labourDatabaseService.payments]);
     setServiceExpenses([...labourDatabaseService.serviceExpenses]);
     if (backupPayload.contractorName) {
@@ -669,6 +739,8 @@ export function LabourHisaabProvider({ children }) {
     setIsLoading,
     error,
     setError,
+    storageReady,
+    storageError,
 
     // Operations
     addLabourer,

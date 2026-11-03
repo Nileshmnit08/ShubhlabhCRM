@@ -692,7 +692,10 @@ export default function DailyPaymentScreen({ route, navigation }) {
                     <Edit2 size={16} color="#2563EB" />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => deleteWorkEntry(w.id)}
+                    onPress={() => {
+                      // Removed from device storage first; the list refreshes only after that succeeds.
+                      deleteWorkEntry(w.id).catch((e) => Alert.alert('त्रुटि', `प्रविष्टि हटाई नहीं जा सकी।${e?.message ? `\n(${e.message})` : ''}`));
+                    }}
                     style={{ marginLeft: 8 }}
                     accessibilityLabel="हटाएं"
                   >

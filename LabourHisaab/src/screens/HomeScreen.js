@@ -44,6 +44,7 @@ export default function HomeScreen({ navigation }) {
     todayMetrics,
     workEntries,
     deleteWorkEntry,
+    storageError,
   } = useLabourHisaab();
 
   // LH-HOME-TOTAL-DATE-01: the date card opens a calendar; the chosen date drives the
@@ -127,6 +128,13 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* LH-PERSISTENCE-FIX-01: a failed load is shown, never presented as an empty day. */}
+        {storageError ? (
+          <View style={styles.storageErrorBox} accessibilityLiveRegion="polite">
+            <Text style={styles.storageErrorText}>{storageError}</Text>
+          </View>
+        ) : null}
+
         {/* 2. DATE SELECTOR CARD */}
         <TouchableOpacity
           style={styles.dateCard}
@@ -395,6 +403,15 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     marginTop: 1,
   },
+  storageErrorBox: {
+    backgroundColor: '#FEE4E2',
+    borderColor: '#F5B5AF',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  storageErrorText: { fontSize: 13, fontWeight: '700', color: '#B42318' },
   backToToday: {
     alignSelf: 'flex-start',
     marginTop: -6,

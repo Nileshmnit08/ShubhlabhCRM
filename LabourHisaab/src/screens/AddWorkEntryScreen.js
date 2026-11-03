@@ -28,6 +28,7 @@ import { useLabourHisaab } from '../context/LabourHisaabContext';
 import { calculateWorkEntry, toNumberOrNull, validateWorkEntryInputs } from '../utils/calculations';
 import { formatRupees } from '../utils/shareWhatsApp';
 import { distributeWorkAllocation } from '../services/LabourDatabaseService';
+import { makeEntryId } from '../services/LocalPersistence';
 
 const PRESET_WEIGHTS = [50, 40, 25, 30, 100];
 const QUICK_BAG_ADDS = [50, 100, 200, 500];
@@ -83,6 +84,8 @@ export default function AddWorkEntryScreen({ navigation, route }) {
 
   // Prevents a double tap from saving the same entry twice.
   const savingRef = useRef(false);
+  // Stable record id for this form (new entry) or the edited entry's id.
+  const entryIdRef = useRef(workEntryToEdit?.id || makeEntryId());
   const [isSaving, setIsSaving] = useState(false);
 
   // Participating labourers (multi-select)
@@ -165,7 +168,7 @@ export default function AddWorkEntryScreen({ navigation, route }) {
   }, [calculationResult.totalAmount, selectedLabourerIds]);
 
   // Save handler
-  const handleSave = () => {
+  const handleSave = async () => {
     if (savingRef.current) return;
 
     // Empty required fields are errors; an explicit 0 is valid and saves a ₹0 entry.
@@ -183,7 +186,10 @@ export default function AddWorkEntryScreen({ navigation, route }) {
     }
 
     const entryData = {
-      date: selectedDate,
+      // Same id for every attempt from this form: a retry replaces, never duplicates.
+      id: entryIdRef.current,
+      // Editing keeps the entry's own date; a new entry uses the selected date.
+      date: workEntryToEdit?.date ?? selectedDate,
       categoryId: selectedCategory.id,
       categoryName: selectedCategory.name,
       rate: toNumberOrNull(customRate),
@@ -203,14 +209,15 @@ export default function AddWorkEntryScreen({ navigation, route }) {
     setIsSaving(true);
     try {
       // Saving work never creates a payment; payments are recorded separately.
+      // Success is shown only after device storage has confirmed the write.
       if (workEntryToEdit) {
-        updateWorkEntry(workEntryToEdit.id, entryData);
-        Alert.alert('सफलता', `${selectedCategory.name} का हिसाब ${formatRupees(calculationResult.totalAmount)} पर अपडेट हो गया।`, [
+        const saved = await updateWorkEntry(workEntryToEdit.id, entryData);
+        Alert.alert('सफलता', `${selectedCategory.name} का हिसाब ${formatRupees(saved.totalAmount)} पर अपडेट होकर सहेजा गया।`, [
           { text: 'ठीक है', onPress: () => navigation.goBack() },
         ], { cancelable: false });
       } else {
-        addWorkEntry(entryData);
-        Alert.alert('सफलतापूर्वक दर्ज', `${selectedCategory.name} का ${formatRupees(calculationResult.totalAmount)} दर्ज हो गया।`, [
+        const saved = await addWorkEntry(entryData);
+        Alert.alert('सफलतापूर्वक सहेजा गया', `${selectedCategory.name} का ${formatRupees(saved.totalAmount)} फ़ोन में सहेज लिया गया।`, [
           { text: 'ठीक है', onPress: () => navigation.goBack() },
         ], { cancelable: false });
       }

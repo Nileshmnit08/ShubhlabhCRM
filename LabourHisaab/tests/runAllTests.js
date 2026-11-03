@@ -1322,7 +1322,7 @@ runTest('Date helpers: local today, Hindi label, day/month navigation, calendar 
 runTest('Entry added while a past date is selected is saved to that date', async () => {
   const fs = await import('node:fs');
   const screen = fs.readFileSync(new URL('../src/screens/AddWorkEntryScreen.js', import.meta.url), 'utf8');
-  assert.ok(/date: selectedDate,/.test(screen), 'the entry form saves with the selected date');
+  assert.ok(/date: workEntryToEdit\?\.date \?\? selectedDate,/.test(screen), 'new entries save with the selected date; edits keep their own date');
   const ctx = fs.readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
   assert.ok(/date: entryData\.date \|\| selectedDate/.test(ctx), 'context keeps the provided (selected) date');
   // Behaviour: the selected past date is what lands on the saved entry.
@@ -1406,6 +1406,216 @@ runTest('Home count uses the daily working count; no fixed 6 fallback; app start
   assert.ok(!/\|\|\s*6\b/.test(home), 'no || 6 fallback');
   const ctx = fs.readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
   assert.ok(/const \[workEntries, setWorkEntries\] = useState\(\[\]\)/.test(ctx), 'no sample work entries at start → count 0');
+});
+
+// -----------------------------------------------------------------
+// LH-PERSISTENCE-FIX-01: work entries survive app restart (device storage)
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-PERSISTENCE-FIX-01: Durable work-entry storage');
+
+// A key-value backend that outlives each simulated "app run" (like the phone's storage).
+const memoryBackend = () => {
+  const data = new Map();
+  return { data, getItem: async (k) => (data.has(k) ? data.get(k) : null), setItem: async (k, v) => { data.set(k, v); } };
+};
+const persistedEntry = (id, date, rate, bags, labourers) => {
+  const c = calculateWorkEntry({ rate, unit: 'per_bag', type: 'bag', totalBags: bags });
+  return { id, date, categoryId: 'bag_stitching', categoryName: 'Bag Stitching', rate: c.rate, unit: 'per_bag', type: 'bag',
+    totalBags: c.totalBags, totalAmount: c.totalAmount, participatingLabourerIds: labourers,
+    allocations: distributeWorkAllocation(c.totalAmount, labourers), createdAt: '2031-04-01T10:00:00.000Z' };
+};
+
+runTest('Saved entry survives a restart with the same date, labourers, quantity, rate and amount', async () => {
+  const { createLocalStore, STORAGE_KEYS, upsertById } = await import('../src/services/LocalPersistence.js');
+  const disk = memoryBackend();
+  const run1 = createLocalStore(disk);
+  assert.strictEqual(await run1.loadList(STORAGE_KEYS.workEntries), null, 'first launch: nothing saved, no sample data');
+  const e = persistedEntry('WE_a', '2031-04-01', 2, 120, ['LH_LAB_001', 'LH_LAB_002']);
+  await run1.saveList(STORAGE_KEYS.workEntries, upsertById([], e));
+
+  const run2 = createLocalStore(disk); // app closed and reopened
+  const loaded = await run2.loadList(STORAGE_KEYS.workEntries);
+  assert.strictEqual(loaded.length, 1);
+  assert.deepStrictEqual(loaded[0], e);
+  assert.strictEqual(loaded[0].date, '2031-04-01');
+  assert.deepStrictEqual(loaded[0].participatingLabourerIds, ['LH_LAB_001', 'LH_LAB_002']);
+  assert.strictEqual(loaded[0].totalBags, 120);
+  assert.strictEqual(loaded[0].rate, 2);
+  assert.strictEqual(loaded[0].totalAmount, 240);
+});
+
+runTest('After restart: date switching, daily total and labour count come from saved records; zero stays zero', async () => {
+  const { createLocalStore, STORAGE_KEYS } = await import('../src/services/LocalPersistence.js');
+  const { distinctWorkingLabourerIds } = await import('../src/utils/calculations.js');
+  const disk = memoryBackend();
+  const list = [
+    persistedEntry('WE_1', '2031-04-02', 2, 50, ['L1']),
+    persistedEntry('WE_2', '2031-04-02', 0, 80, ['L1', 'L2']), // explicit rate 0 → ₹0
+    persistedEntry('WE_3', '2031-04-03', 2, 10, ['L3']),
+  ];
+  await createLocalStore(disk).saveList(STORAGE_KEYS.workEntries, list);
+  const loaded = await createLocalStore(disk).loadList(STORAGE_KEYS.workEntries);
+  const day = (d) => calculateDailyMetrics({ date: d, workEntries: loaded, payments: [], serviceExpenses: [], labourers: [] });
+  assert.strictEqual(day('2031-04-02').todayLabourEarned, 100);
+  assert.strictEqual(day('2031-04-02').workingLabourersCount, 2);
+  assert.strictEqual(loaded.find(x => x.id === 'WE_2').totalAmount, 0, 'saved zero is still zero');
+  assert.strictEqual(loaded.find(x => x.id === 'WE_2').rate, 0);
+  assert.strictEqual(day('2031-04-03').todayLabourEarned, 20, 'switch date');
+  assert.strictEqual(day('2031-04-02').todayLabourEarned, 100, 'return to the saved date');
+  assert.strictEqual(day('2031-04-09').todayLabourEarned, 0);
+  assert.deepStrictEqual(distinctWorkingLabourerIds(loaded.filter(x => x.date === '2031-04-02')).sort(), ['L1', 'L2']);
+});
+
+runTest('Retries and edits update the same record; delete removes it from storage', async () => {
+  const { createLocalStore, STORAGE_KEYS, upsertById, removeById, makeEntryId } = await import('../src/services/LocalPersistence.js');
+  const disk = memoryBackend();
+  const store = createLocalStore(disk);
+  const id = makeEntryId(1700000000000, () => 0.5);
+  assert.match(id, /^WE_[0-9a-z]+_[0-9a-z]+$/);
+  let list = upsertById([], persistedEntry(id, '2031-04-04', 2, 10, ['L1']));
+  list = upsertById(list, persistedEntry(id, '2031-04-04', 2, 10, ['L1'])); // double tap / retry
+  assert.strictEqual(list.length, 1, 'no duplicate');
+  list = upsertById(list, { ...list[0], totalBags: 15, totalAmount: 30 }); // edit
+  await store.saveList(STORAGE_KEYS.workEntries, list);
+  let reloaded = await createLocalStore(disk).loadList(STORAGE_KEYS.workEntries);
+  assert.strictEqual(reloaded.length, 1);
+  assert.strictEqual(reloaded[0].totalAmount, 30);
+  await store.saveList(STORAGE_KEYS.workEntries, removeById(reloaded, id));
+  reloaded = await createLocalStore(disk).loadList(STORAGE_KEYS.workEntries);
+  assert.deepStrictEqual(reloaded, [], 'deleted entry is gone after restart');
+});
+
+runTest('Storage failure is reported (no false success); unreadable data is never silently replaced', async () => {
+  const { createLocalStore, STORAGE_KEYS } = await import('../src/services/LocalPersistence.js');
+  const failing = { getItem: async () => null, setItem: async () => { throw new Error('disk full'); } };
+  await assert.rejects(() => createLocalStore(failing).saveList(STORAGE_KEYS.workEntries, [{ id: 'x' }]), /disk full/);
+  const dropping = { getItem: async () => null, setItem: async () => {} }; // write "succeeds" but nothing is stored
+  await assert.rejects(() => createLocalStore(dropping).saveList(STORAGE_KEYS.workEntries, [{ id: 'x' }]), /did not confirm/);
+  const corrupt = memoryBackend();
+  corrupt.data.set(STORAGE_KEYS.workEntries, '{not json');
+  await assert.rejects(() => createLocalStore(corrupt).loadList(STORAGE_KEYS.workEntries), /unreadable/);
+  assert.throws(() => createLocalStore(null), /not available/);
+});
+
+runTest('App wiring: storage before screen, success only after the write, retries reuse the id, load errors block writes', async () => {
+  const fs = await import('node:fs');
+  const ctx = fs.readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
+  const screen = fs.readFileSync(new URL('../src/screens/AddWorkEntryScreen.js', import.meta.url), 'utf8');
+  const pay = fs.readFileSync(new URL('../src/screens/DailyPaymentScreen.js', import.meta.url), 'utf8');
+  const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.strictEqual(pkg.dependencies['@react-native-async-storage/async-storage'], '2.2.0');
+  assert.ok(/createWorkEntryRepository\(deviceStore\)/.test(ctx), 'context uses the repository on device storage');
+  assert.ok(/repo\.init\(\)/.test(ctx), 'loads saved entries on launch through the repository');
+  const add = ctx.slice(ctx.indexOf('const addWorkEntry'), ctx.indexOf('const updateWorkEntry'));
+  assert.ok(/showSaved\(await repo\.upsert\(newEntry\)\)/.test(add), 'add writes through the repository before the screen updates');
+  assert.ok(/showSaved\(await repo\.upsert\(updated\)\)/.test(ctx) && /showSaved\(await repo\.remove\(id\)\)/.test(ctx), 'edit/delete go through the repository');
+  assert.ok(!/useState\(INITIAL_WORK_ENTRIES\)/.test(ctx), 'no sample entries');
+  assert.ok(!/setWorkEntries\(prev/.test(ctx), 'no in-memory-only updates of entries');
+  const sets = [...ctx.matchAll(/setWorkEntries\(([^)]*)\)/g)].map(m => m[1].trim());
+  assert.deepStrictEqual(sets.sort(), ['list', 'savedEntries'], 'entries reach the screen only from a completed load or a confirmed save');
+  assert.ok(/const saved = await addWorkEntry\(entryData\);\s*Alert\.alert\('सफलतापूर्वक सहेजा गया'/.test(screen), 'success shown after the awaited save');
+  assert.ok(/const saved = await updateWorkEntry\(/.test(screen), 'edit awaited');
+  assert.ok(/id: entryIdRef\.current,/.test(screen) && /useRef\(workEntryToEdit\?\.id \|\| makeEntryId\(\)\)/.test(screen), 'one id per form');
+  assert.ok(/catch \(e\)[\s\S]{0,200}savingRef\.current = false/.test(screen), 'failure keeps inputs and unlocks');
+  assert.ok(/deleteWorkEntry\(w\.id\)\.catch/.test(pay), 'delete failure is reported');
+  const persistence = fs.readFileSync(new URL('../src/services/LocalPersistence.js', import.meta.url), 'utf8');
+  assert.ok(!/supabase|lh_/.test(persistence), 'no database tables or retired lh_ schema');
+});
+
+// -----------------------------------------------------------------
+// LH-PERSISTENCE-REPAIR-02: the app's own WorkEntryRepository (used by the context)
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-PERSISTENCE-REPAIR-02: Work entry repository (app logic, storage test double)');
+
+const repoDisk = () => {
+  const data = new Map();
+  let failReads = false;
+  let failWrites = false;
+  return {
+    data,
+    setFailReads: (v) => { failReads = v; },
+    setFailWrites: (v) => { failWrites = v; },
+    getItem: async (k) => { if (failReads) throw new Error('read error'); return data.has(k) ? data.get(k) : null; },
+    setItem: async (k, v) => { if (failWrites) throw new Error('write error'); data.set(k, v); },
+  };
+};
+const repoKit = async () => {
+  const { createLocalStore, STORAGE_KEYS } = await import('../src/services/LocalPersistence.js');
+  const { createWorkEntryRepository, NOT_READY_MESSAGE, LOAD_FAILED_MESSAGE } = await import('../src/services/WorkEntryRepository.js');
+  const open = (disk) => createWorkEntryRepository(createLocalStore(disk)); // = one app launch
+  return { open, STORAGE_KEYS, NOT_READY_MESSAGE, LOAD_FAILED_MESSAGE };
+};
+const storedCount = (disk, key) => (disk.data.has(key) ? JSON.parse(disk.data.get(key)).items.length : 0);
+
+runTest('History loads before use: no write is accepted until the saved list has loaded', async () => {
+  const { open, STORAGE_KEYS, NOT_READY_MESSAGE } = await repoKit();
+  const disk = repoDisk();
+  const first = open(disk);
+  await first.init();
+  await first.upsert(persistedEntry('WE_keep', '2031-05-01', 2, 10, ['L1']));
+  const second = open(disk); // next launch, before init has finished
+  await assert.rejects(() => second.upsert(persistedEntry('WE_early', '2031-05-01', 2, 5, ['L2'])), (e) => e.message === NOT_READY_MESSAGE);
+  assert.strictEqual(storedCount(disk, STORAGE_KEYS.workEntries), 1, 'early write did not replace history');
+  const loaded = await second.init();
+  assert.deepStrictEqual(loaded.map(e => e.id), ['WE_keep']);
+});
+
+runTest('Failed or delayed load never becomes an empty history that overwrites saved data', async () => {
+  const { open, STORAGE_KEYS, LOAD_FAILED_MESSAGE } = await repoKit();
+  const disk = repoDisk();
+  const run1 = open(disk);
+  await run1.init();
+  await run1.upsert(persistedEntry('WE_1', '2031-05-02', 2, 10, ['L1']));
+  await run1.upsert(persistedEntry('WE_2', '2031-05-03', 2, 20, ['L2']));
+  disk.setFailReads(true); // storage read fails at the next launch
+  const run2 = open(disk);
+  await assert.rejects(() => run2.init(), /read error/);
+  assert.strictEqual(run2.hasLoadFailed(), true);
+  disk.setFailReads(false);
+  await assert.rejects(() => run2.upsert(persistedEntry('WE_new', '2031-05-04', 2, 1, ['L1'])), (e) => e.message === LOAD_FAILED_MESSAGE);
+  await assert.rejects(() => run2.remove('WE_1'), (e) => e.message === LOAD_FAILED_MESSAGE);
+  await assert.rejects(() => run2.replaceAll([]), (e) => e.message === LOAD_FAILED_MESSAGE);
+  assert.strictEqual(storedCount(disk, STORAGE_KEYS.workEntries), 2, 'saved history untouched');
+  const run3 = open(disk); // a healthy launch afterwards sees everything
+  assert.deepStrictEqual((await run3.init()).map(e => e.id).sort(), ['WE_1', 'WE_2']);
+});
+
+runTest('Save → fresh launch → same entries; multiple dates; switch and return; totals and counts from saved records', async () => {
+  const { open } = await repoKit();
+  const disk = repoDisk();
+  const run1 = open(disk);
+  await run1.init();
+  await run1.upsert(persistedEntry('WE_today', '2031-05-10', 2, 100, ['L1', 'L2']));          // ₹200
+  await run1.upsert(persistedEntry('WE_today_zero', '2031-05-10', 0, 40, ['L3']));           // ₹0
+  await run1.upsert(persistedEntry('WE_past', '2031-05-09', 2, 275, ['L1']));                // ₹550
+  const loaded = await open(disk).init(); // app closed from Recent Apps and reopened
+  const day = (d) => calculateDailyMetrics({ date: d, workEntries: loaded, payments: [], serviceExpenses: [], labourers: [] });
+  assert.strictEqual(loaded.length, 3);
+  assert.deepStrictEqual([day('2031-05-10').todayLabourEarned, day('2031-05-10').workingLabourersCount], [200, 3]);
+  assert.deepStrictEqual([day('2031-05-09').todayLabourEarned, day('2031-05-09').workingLabourersCount], [550, 1]);
+  assert.deepStrictEqual([day('2031-05-10').todayLabourEarned, day('2031-05-10').workingLabourersCount], [200, 3], 'returning to the date shows the same history');
+  assert.deepStrictEqual([day('2031-05-11').todayLabourEarned, day('2031-05-11').workingLabourersCount], [0, 0], 'empty date');
+  assert.strictEqual(loaded.find(e => e.id === 'WE_today_zero').totalAmount, 0, 'zero kept');
+});
+
+runTest('Write failure: no false success, nothing changes; retries and concurrent saves never duplicate or lose entries', async () => {
+  const { open, STORAGE_KEYS } = await repoKit();
+  const disk = repoDisk();
+  const repo = open(disk);
+  await repo.init();
+  await repo.upsert(persistedEntry('WE_a', '2031-05-12', 2, 10, ['L1']));
+  disk.setFailWrites(true);
+  await assert.rejects(() => repo.upsert(persistedEntry('WE_b', '2031-05-12', 2, 10, ['L1'])), /write error/);
+  assert.deepStrictEqual(repo.list().map(e => e.id), ['WE_a'], 'failed save is not shown as saved');
+  disk.setFailWrites(false);
+  const retry = persistedEntry('WE_b', '2031-05-12', 2, 10, ['L1']);
+  await Promise.all([repo.upsert(retry), repo.upsert(retry)]); // retry + double tap
+  await Promise.all(['c', 'd', 'e'].map(x => repo.upsert(persistedEntry(`WE_${x}`, '2031-05-12', 2, 1, ['L1'])))); // concurrent saves
+  const after = await open(disk).init();
+  assert.deepStrictEqual(after.map(e => e.id).sort(), ['WE_a', 'WE_b', 'WE_c', 'WE_d', 'WE_e']);
+  assert.strictEqual(storedCount(disk, STORAGE_KEYS.workEntries), 5);
+  await repo.remove('WE_c');
+  assert.deepStrictEqual((await open(disk).init()).map(e => e.id).sort(), ['WE_a', 'WE_b', 'WE_d', 'WE_e'], 'delete persists');
 });
 
 function todayYmdForTest() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
