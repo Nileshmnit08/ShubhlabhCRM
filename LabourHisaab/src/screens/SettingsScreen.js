@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import theme from '../constants/theme';
 import { useLabourHisaab } from '../context/LabourHisaabContext';
+import DailySummaryCard from '../components/DailySummaryCard';
 
 const UNITS = [
   { id: 'per_100_kg', label: 'प्रति 100 kg (/ 100 kg)' },
@@ -281,6 +282,9 @@ export default function SettingsScreen({ navigation }) {
             </>
           )}
         </View>
+
+        {/* Daily Labour Summary + CRM approval status (LH-DAILY-REGISTER-APPROVAL-01) */}
+        <DailySummaryCard />
 
         {/* Prototype Memory Notice */}
         <View style={styles.infoBanner}>

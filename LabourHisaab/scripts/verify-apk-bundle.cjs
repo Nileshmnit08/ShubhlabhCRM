@@ -18,6 +18,12 @@ const REQUIRED_MARKERS = [
   '[LH-STORAGE] loaded entries=',  // load diagnostics (LabourHisaabContext)
   'Storage did not confirm the write.', // write read-back check (LocalPersistence)
   'Delete: not permitted for this account.', // Operator role / RLS delete check (LH-ACCESS-MODEL-02)
+  'labourersDownloaded=', // shared download sync log (LH-DAILY-REGISTER-APPROVAL-01)
+];
+
+// Strings that must NOT be in the phone app (approval is a CRM-only action).
+const FORBIDDEN_MARKERS = [
+  'lh_decide_daily_register',
 ];
 
 function readZipEntry(buf, wanted) {
@@ -64,6 +70,11 @@ function main() {
     process.exit(1);
   }
   const missing = REQUIRED_MARKERS.filter(m => bundle.indexOf(Buffer.from(m, 'utf8')) === -1);
+  const forbidden = FORBIDDEN_MARKERS.filter(m => bundle.indexOf(Buffer.from(m, 'utf8')) !== -1);
+  if (forbidden.length) {
+    console.error(`FAIL: bundle contains CRM-only code: ${forbidden.join(', ')}`);
+    process.exit(1);
+  }
   const stat = fs.statSync(apk);
   console.log(`APK: ${apk} (${(stat.size / 1048576).toFixed(1)} MB, built ${stat.mtime.toISOString()})`);
   console.log(`Bundle: ${(bundle.length / 1048576).toFixed(2)} MB`);

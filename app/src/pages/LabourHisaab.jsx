@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { HardHat, PlugZap, RefreshCw, AlertCircle, ClipboardList, Wallet, Scale, Users, CalendarDays, Info } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { HardHat, PlugZap, RefreshCw, AlertCircle, ClipboardList, ClipboardCheck, Wallet, Scale, Users, CalendarDays, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import {
   summarize, dailyRows, labourerBalances, formatInr, monthStart,
@@ -121,6 +122,9 @@ export default function LabourHisaab() {
           Labour work and payment records synced from the LabourHisaab app. Read-only.
         </p>
       </div>
+      <Link to="/labour-hisaab/approvals" className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}>
+        <ClipboardCheck size={16} /> Daily register approvals
+      </Link>
     </div>
   );
 

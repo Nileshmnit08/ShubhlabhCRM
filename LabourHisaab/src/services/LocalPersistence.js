@@ -17,6 +17,15 @@ export function makeEntryId(now = Date.now(), random = Math.random) {
   return `WE_${now.toString(36)}_${Math.floor(random() * 1e9).toString(36)}`;
 }
 
+/**
+ * Stable id for a NEW labourer. Unique across phones (the server matches labourers by this id
+ * per contractor), unlike the old count-based LH_LAB_007, which two phones could both create.
+ * Existing ids (LH_LAB_001…) are never changed.
+ */
+export function makeLabourerId(now = Date.now(), random = Math.random) {
+  return `LH_LAB_${now.toString(36)}_${Math.floor(random() * 1e9).toString(36)}`;
+}
+
 /** Replaces the item with the same id (edit / retry) or prepends it (new). Never duplicates. */
 export function upsertById(list, item) {
   const existing = list.findIndex(x => x.id === item.id);

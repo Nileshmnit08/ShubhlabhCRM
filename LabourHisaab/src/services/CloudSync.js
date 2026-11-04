@@ -1,7 +1,9 @@
 // CloudSync for LabourHisaab (LH-CLOUD-SYNC-01)
 // Uploads device-saved work entries and the labourer roster to the secure LabourHisaab
 // tables (proposal 249) so the CRM can show them. Device storage stays the source of truth
-// on the phone; sync is one-way (phone → cloud) and safe to repeat.
+// on the phone; sync is safe to repeat. LH-DAILY-REGISTER-APPROVAL-01 adds the download half:
+// entries and labourers entered on other phones of the same contractor are brought onto this
+// phone (a pending local edit always wins), plus the CRM approval status of each day.
 //
 // Pure module: the database operations are injected (`adapter`), so the same code runs in the
 // app (Supabase) and in tests (local PostgreSQL with the real 249/250 rules).
@@ -17,6 +19,8 @@
 export const SYNC_KEYS = {
   state: '@labourhisaab/v1/sync_state',     // items: [{ id: localEntryId, serverId, hash, syncedAt }]
   deletes: '@labourhisaab/v1/sync_deletes', // items: [{ id: serverId }]
+  roster: '@labourhisaab/v1/sync_roster',   // items: [{ id: labourerLocalId, hash }] last synced roster
+  registers: '@labourhisaab/v1/registers',  // items: server daily register rows (approval status)
 };
 
 const UNIT_TO_SERVER = {
@@ -60,17 +64,110 @@ export function makeUuid(random = Math.random) {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-/** Stable short hash of what the server stores for an entry (djb2 over canonical JSON). */
+const djb2 = (text) => {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+};
+const byJson = (a, b) => (JSON.stringify(a) < JSON.stringify(b) ? -1 : 1);
+
+/** ISO-8601 UTC ('…Z') for any parseable timestamp, else null (server '+00:00' == phone 'Z'). */
+export function normalizeTs(value) {
+  if (!value) return null;
+  const t = Date.parse(value);
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
+}
+
+/**
+ * Stable short hash of what the server stores for an entry (djb2 over canonical JSON).
+ * Order-free for bag lines and shares, and fixed work hashes its amount as the rate, so an
+ * entry downloaded from the server hashes the same as the phone copy it came from.
+ */
 export function contentHash(entry) {
-  const canonical = JSON.stringify([
+  const amount = Number(entry.totalAmount);
+  return djb2(JSON.stringify([
+    entry.date, entry.categoryId, entry.unit, entry.unit === 'fixed' ? amount : Number(entry.rate), amount,
+    Number(entry.totalKg) || 0, Number(entry.totalBags) || 0, Number(entry.totalBatches) || 0, entry.notes || '',
+    (entry.bagLines || []).map(l => [Number(l.bagWeightKg) || 0, Math.round(Number(l.bagCount) || 0)])
+      .filter(([w, c]) => w > 0 && c > 0).sort(byJson),
+    (entry.allocations || []).map(a => [String(a.labourerId), Number(a.allocatedAmount) || 0]).sort(byJson),
+    normalizeTs(entry.createdAt), normalizeTs(entry.workCompletedAt),
+  ]));
+}
+
+/**
+ * The hash used before LH-DAILY-REGISTER-APPROVAL-01 (kept only to recognise entries already
+ * synced with it, so an app update does not re-upload — and rewrite — unchanged records).
+ */
+export function legacyContentHash(entry) {
+  return djb2(JSON.stringify([
     entry.date, entry.categoryId, entry.type, entry.unit, Number(entry.rate), Number(entry.totalAmount),
     Number(entry.totalKg) || 0, Number(entry.totalBags) || 0, Number(entry.totalBatches) || 0, entry.notes || '',
     (entry.bagLines || []).map(l => [Number(l.bagWeightKg) || 0, Number(l.bagCount) || 0]),
     (entry.allocations || []).map(a => [a.labourerId, Number(a.allocatedAmount) || 0]),
-  ]);
-  let h = 5381;
-  for (let i = 0; i < canonical.length; i++) h = ((h << 5) + h + canonical.charCodeAt(i)) >>> 0;
-  return h.toString(36);
+  ]));
+}
+export const HASH_VERSION = 2;
+
+/** Hash of the labourer fields the server stores. */
+export const labourerHash = (lab) => djb2(JSON.stringify([
+  String(lab.name || '').trim(), lab.phone ? String(lab.phone) : '', lab.role || 'सामान्य मजदूर',
+  lab.isActive !== false, lab.joinDate || '', lab.notes || '',
+]));
+
+const UNIT_FROM_SERVER = Object.fromEntries(Object.entries(UNIT_TO_SERVER).map(([k, v]) => [v, k]));
+const TYPE_FOR_UNIT = { per_100_kg: 'weight', per_bag: 'bag', per_batch: 'batch', fixed: 'fixed' };
+
+/** Device labourer fields from a server labourer row. */
+export const labourerFromServer = (row) => ({
+  id: String(row.local_id),
+  name: row.name,
+  phone: row.phone || '',
+  role: row.role || 'सामान्य मजदूर',
+  isActive: row.active_status !== false,
+  joinDate: row.join_date || '',
+  notes: row.notes || '',
+});
+
+/**
+ * Device entry from a server entry with its bag lines and shares (shares carry the
+ * labourer's stable local id). `localId` is the phone id to use; `categoryNames` maps work type → name.
+ */
+export function entryFromServer({ row, details = [], allocations = [] }, { localId, categoryNames = {} }) {
+  const unit = UNIT_FROM_SERVER[row.rate_unit_snapshot];
+  if (!unit) throw new Error(`Unknown server unit "${row.rate_unit_snapshot}".`);
+  const amount = Number(row.calculated_labour_amount) || 0;
+  const shares = allocations
+    .map(a => ({ labourerId: String(a.labourer_local_id), allocatedAmount: Number(a.allocated_amount) || 0 }))
+    .sort((a, b) => (a.labourerId < b.labourerId ? -1 : 1));
+  return {
+    id: localId,
+    date: String(row.work_date).slice(0, 10),
+    categoryId: row.work_type,
+    categoryName: categoryNames[row.work_type] || row.work_type,
+    rate: unit === 'fixed' ? amount : Number(row.rate_snapshot) || 0,
+    unit,
+    type: TYPE_FOR_UNIT[unit],
+    bagLines: details.map(d => ({ bagWeightKg: Number(d.bag_weight_kg) || 0, bagCount: Number(d.bag_count) || 0 })),
+    totalBags: Number(row.total_bags) || 0,
+    totalKg: Number(row.total_weight_kg) || 0,
+    totalBatches: Number(row.total_batches) || 0,
+    totalAmount: amount,
+    notes: row.notes || '',
+    participatingLabourerIds: shares.map(s => s.labourerId),
+    allocations: shares,
+    createdAt: normalizeTs(row.recorded_at) || undefined,
+    workCompletedAt: normalizeTs(row.work_completed_at) || undefined,
+    createdBy: row.created_by || null,
+    serverId: row.id,
+  };
+}
+
+/** 'device' (not signed in), 'pending', 'synced' or 'failed' for one entry. */
+export function entrySyncStatus(entry, stateItem, failedIds, signedIn) {
+  if (!signedIn) return 'device';
+  if (failedIds && failedIds.has(entry.id)) return 'failed';
+  return stateItem && !stateItem.deleted && stateItem.hash === contentHash(entry) ? 'synced' : 'pending';
 }
 
 export const serverUnitFor = (unit) => UNIT_TO_SERVER[unit] || null;
@@ -118,6 +215,9 @@ export function planEntry(entry, { serverId, contractorId, rate, labourerIds }) 
     total_batches: Math.round(Number(entry.totalBatches) || 0),
     calculated_labour_amount: amount,
     notes: entry.notes || null,
+    // Phone times (IST shown, stored as UTC instants). The server keeps the first recorded_at.
+    recorded_at: normalizeTs(entry.createdAt),
+    work_completed_at: normalizeTs(entry.workCompletedAt),
   };
 
   // Bag-weight lines: the server only accepts positive weight and count.
@@ -142,7 +242,9 @@ export function planEntry(entry, { serverId, contractorId, rate, labourerIds }) 
 }
 
 /**
- * One sync run. Returns { uploaded, unchanged, deleted, failed: [{ localId, message }], contractorId }.
+ * One sync run (both directions). Returns
+ *   { uploaded, unchanged, deleted, downloaded, labourersDownloaded, missingOnServer,
+ *     failed: [{ localId, message }], contractorId, role, registers }.
  *
  * adapter (all async, throw on failure):
  *   getMembership() → { contractorId, role } | null
@@ -150,20 +252,31 @@ export function planEntry(entry, { serverId, contractorId, rate, labourerIds }) 
  *   ensureRate({ contractorId, workType, unit, rate }) → { id, rate, rate_unit, is_editable_rate }
  *   deleteEntry(serverId), deleteAllocations(serverId), upsertEntry(row),
  *   replaceDetails(serverId, rows), insertAllocations(rows)
+ *   Optional (shared register, LH-DAILY-REGISTER-APPROVAL-01):
+ *   features() → { timestamps, registers }      what the server has installed (proposal 252)
+ *   fetchLabourers(contractorId) → server labourer rows
+ *   fetchEntries(contractorId) → [{ row, details, allocations: [{ labourer_local_id, allocated_amount }] }]
+ *   fetchRegisters(contractorId) → daily register rows
  * store (each update is an atomic read-modify-write, so a delete queued on the phone while a
  * sync is running is never overwritten by the sync's own bookkeeping):
  *   getState() → [], updateState(fn(items) → items), getDeletes() → [], updateDeletes(fn)
+ *   getRoster() → [{ id, hash }], updateRoster(fn), setRegisters(rows)          (optional)
+ * applyRemote (optional): async ({ entries: [{ entry, expectedHash }], labourers: [lab] })
+ *   → { entryIds: [ids saved] }. Saves downloads on the phone; must skip an entry whose
+ *   current hash is not expectedHash (null = must not exist yet), so a local edit always wins.
  */
-export async function syncAll({ adapter, store, entries: entriesSource, labourers, today, random = Math.random, now = () => new Date().toISOString() }) {
+export async function syncAll({ adapter, store, entries: entriesSource, labourers, today, random = Math.random, now = () => new Date().toISOString(), applyRemote = null, categoryNames = {} }) {
   // `entries` may be a function returning the CURRENT device list, re-read at the end so
   // entries deleted on the phone during this run are recognised.
   const readEntries = async () => (typeof entriesSource === 'function' ? await entriesSource() : entriesSource) || [];
-  const entries = await readEntries();
   const membership = await adapter.getMembership();
   if (!membership) throw new Error('इस खाते को किसी ठेकेदार से नहीं जोड़ा गया है। व्यवस्थापक से संपर्क करें।');
   if (!ENTRY_ROLES.includes(membership.role)) throw new Error('इस खाते को केवल देखने की अनुमति है (Viewer)।');
   const { contractorId, role } = membership;
-  const result = { uploaded: 0, unchanged: 0, deleted: 0, failed: [], contractorId, role };
+  const features = adapter.features ? await adapter.features() : { timestamps: false, registers: false };
+  const shared = Boolean(applyRemote && adapter.fetchLabourers && adapter.fetchEntries && store.getRoster);
+  const result = { uploaded: 0, unchanged: 0, deleted: 0, downloaded: 0, labourersDownloaded: 0, missingOnServer: 0,
+    failed: [], contractorId, role, registers: null };
 
   // 1. Pending deletes first, so a deleted-then-recreated day never double counts.
   const deletes = await store.getDeletes();
@@ -179,12 +292,122 @@ export async function syncAll({ adapter, store, entries: entriesSource, labourer
     }
   }
 
-  // 2. Roster (labourers referenced by entries must exist on the server).
-  const rows = (labourers || []).map(l => labourerRow(contractorId, l, today));
-  const saved = rows.length ? await adapter.upsertLabourers(rows) : [];
-  const labourerIds = Object.fromEntries(saved.map(r => [String(r.local_id), r.id]));
+  // 1b. Entries synced with the previous hash formula and unchanged since: re-label, don't re-send.
+  {
+    const current = new Map((await readEntries()).map(e => [e.id, e]));
+    await store.updateState(list => list.map(s => {
+      if (!s.hash || s.hv === HASH_VERSION) return s;
+      const e = current.get(s.id);
+      return e && legacyContentHash(e) === s.hash ? { ...s, hash: contentHash(e), hv: HASH_VERSION } : { ...s, hv: HASH_VERSION };
+    }));
+  }
 
-  // 3. Server ids for new entries are assigned and SAVED before any upload (idempotent retries).
+  // 2. Roster (labourers referenced by entries must exist on the server).
+  //    Shared mode: a labourer is uploaded only if it is new to the server or was changed on
+  //    this phone since its last sync; otherwise the server copy wins (another phone may have
+  //    renamed it, and a fresh phone's default roster must never overwrite real names).
+  const labourerIds = {};
+  const remoteLabs = shared ? await adapter.fetchLabourers(contractorId) : [];
+  remoteLabs.forEach(r => { labourerIds[String(r.local_id)] = r.id; });
+  const remoteLabById = new Map(remoteLabs.map(r => [String(r.local_id), r]));
+  const rosterSynced = shared ? new Map((await store.getRoster()).map(r => [r.id, r.hash])) : new Map();
+  const toUpload = [];
+  const adopted = [];
+  const rosterMarks = [];
+  for (const lab of labourers || []) {
+    const id = String(lab.id);
+    const remote = remoteLabById.get(id);
+    const localHash = labourerHash(lab);
+    if (!shared || !remote) { toUpload.push(lab); continue; }
+    const remoteLab = labourerFromServer(remote);
+    const remoteHash = labourerHash(remoteLab);
+    const changedHere = rosterSynced.has(id) && rosterSynced.get(id) !== localHash;
+    if (changedHere) toUpload.push(lab);
+    else if (remoteHash !== localHash) { adopted.push(remoteLab); rosterMarks.push({ id, hash: remoteHash }); }
+    else rosterMarks.push({ id, hash: localHash });
+  }
+  if (shared) {
+    const localIds = new Set((labourers || []).map(l => String(l.id)));
+    remoteLabs.filter(r => !localIds.has(String(r.local_id))).forEach(r => {
+      const lab = labourerFromServer(r);
+      adopted.push(lab);
+      rosterMarks.push({ id: lab.id, hash: labourerHash(lab) });
+    });
+  }
+  const rows = toUpload.map(l => labourerRow(contractorId, l, today));
+  const saved = rows.length ? await adapter.upsertLabourers(rows) : [];
+  saved.forEach(r => { labourerIds[String(r.local_id)] = r.id; });
+  toUpload.forEach(l => rosterMarks.push({ id: String(l.id), hash: labourerHash(l) }));
+
+  // 3. Download (shared mode): entries other phones added or changed. A phone's own pending
+  //    edit always wins; the server's copy replaces only entries unchanged on this phone.
+  //    Nothing is deleted on the phone: a synced entry missing on the server is only counted.
+  let remoteEntries = [];
+  if (shared) {
+    remoteEntries = await adapter.fetchEntries(contractorId);
+    const state = await store.getState();
+    const byServer = new Map(state.filter(s => s.serverId).map(s => [s.serverId, s]));
+    const pendingDel = new Set((await store.getDeletes()).map(d => d.id));
+    const local = new Map((await readEntries()).map(e => [e.id, e]));
+    const downloads = [];
+    const forceUpload = [];
+    for (const rem of remoteEntries) {
+      const serverId = rem.row.id;
+      const s = byServer.get(serverId);
+      if (pendingDel.has(serverId) || (s && s.deleted)) continue;
+      let remoteEntry;
+      try {
+        remoteEntry = entryFromServer(rem, { localId: s ? s.id : `WE_srv_${serverId}`, categoryNames });
+      } catch (e) {
+        result.failed.push({ localId: `download:${serverId}`, message: e.message || String(e) });
+        continue;
+      }
+      if (!s) {
+        if (local.has(remoteEntry.id)) continue;
+        downloads.push({ entry: remoteEntry, expectedHash: null, serverId, hash: contentHash(remoteEntry) });
+        continue;
+      }
+      const mine = local.get(s.id);
+      if (!mine || contentHash(mine) !== s.hash) continue;             // pending local edit wins
+      // Times the server does not have yet are kept from the phone (never dropped).
+      const filled = { ...mine, ...remoteEntry, id: s.id,
+        createdAt: remoteEntry.createdAt || mine.createdAt, workCompletedAt: remoteEntry.workCompletedAt || mine.workCompletedAt };
+      if (features.timestamps && ((mine.createdAt && !remoteEntry.createdAt) || (mine.workCompletedAt && !remoteEntry.workCompletedAt))) {
+        forceUpload.push(s.id);                                       // back-fill the server's times
+      }
+      if (contentHash(filled) === s.hash) continue;
+      downloads.push({ entry: filled, expectedHash: s.hash, serverId, hash: contentHash(filled) });
+    }
+    const remoteIds = new Set(remoteEntries.map(r => r.row.id));
+    result.missingOnServer = state.filter(s => s.serverId && s.hash && !s.deleted && local.has(s.id) && !remoteIds.has(s.serverId)).length;
+
+    const applied = (downloads.length || adopted.length)
+      ? await applyRemote({ entries: downloads.map(d => ({ entry: d.entry, expectedHash: d.expectedHash })), labourers: adopted })
+      : { entryIds: [] };
+    const savedIds = new Set(applied.entryIds || []);
+    const syncedAt = now();
+    await store.updateState(list => {
+      let next = list.map(x => (forceUpload.includes(x.id) ? { ...x, hash: null } : x));
+      for (const d of downloads) {
+        if (!savedIds.has(d.entry.id)) continue;
+        const item = { id: d.entry.id, serverId: d.serverId, hash: d.hash, hv: HASH_VERSION, syncedAt };
+        next = next.some(x => x.id === d.entry.id) ? next.map(x => (x.id === d.entry.id && !x.deleted ? item : x)) : [...next, item];
+      }
+      return next;
+    });
+    result.downloaded = savedIds.size;
+    result.labourersDownloaded = adopted.length;
+  }
+  if (shared && rosterMarks.length) {
+    await store.updateRoster(list => {
+      const m = new Map(list.map(r => [r.id, r]));
+      rosterMarks.forEach(r => m.set(r.id, r));
+      return [...m.values()];
+    });
+  }
+  const entries = await readEntries();
+
+  // 4. Server ids for new entries are assigned and SAVED before any upload (idempotent retries).
   await store.updateState(list => {
     const known = new Set(list.map(s => s.id));
     const added = entries.filter(e => !known.has(e.id))
@@ -209,20 +432,31 @@ export async function syncAll({ adapter, store, entries: entriesSource, labourer
         rateCache.set(key, await adapter.ensureRate({ contractorId, workType: String(e.categoryId), unit, rate: Number(e.rate) || 0 }));
       }
       const plan = planEntry(e, { serverId: s.serverId, contractorId, rate: rateCache.get(key), labourerIds });
+      if (!features.timestamps) { delete plan.entryRow.recorded_at; delete plan.entryRow.work_completed_at; }
       await adapter.deleteAllocations(s.serverId);   // lets an edit lower the amount
       await adapter.upsertEntry(plan.entryRow);
       await adapter.replaceDetails(s.serverId, plan.details);
       if (plan.allocations.length) await adapter.insertAllocations(plan.allocations);
       const syncedAt = now();
       // A tombstone written during the upload is kept (never turned back into a live record).
-      await store.updateState(list => list.map(x => (x.id === e.id && !x.deleted ? { ...x, serverId: s.serverId, hash, syncedAt } : x)));
+      await store.updateState(list => list.map(x => (x.id === e.id && !x.deleted ? { ...x, serverId: s.serverId, hash, hv: HASH_VERSION, syncedAt } : x)));
       result.uploaded += 1;
     } catch (err) {
       result.failed.push({ localId: e.id, message: err.message || String(err) });
     }
   }
 
-  // 5. Drop tombstones that are finished: server delete done and entry gone from the phone.
+  // 6. Daily register approval status (read-only here; decided in the CRM).
+  if (features.registers && adapter.fetchRegisters) {
+    try {
+      result.registers = await adapter.fetchRegisters(contractorId);
+      if (store.setRegisters) await store.setRegisters(result.registers);
+    } catch (e) {
+      result.failed.push({ localId: 'registers', message: e.message || String(e) });
+    }
+  }
+
+  // 7. Drop tombstones that are finished: server delete done and entry gone from the phone.
   const pendingDeletes = new Set((await store.getDeletes()).map(d => d.id));
   const stillOnPhone = new Set((await readEntries()).map(e => e.id));
   await store.updateState(list => list.filter(x => !x.deleted || stillOnPhone.has(x.id) || (x.serverId && pendingDeletes.has(x.serverId))));
@@ -271,6 +505,10 @@ export function createSyncStore(localStore) {
     updateState: update(SYNC_KEYS.state),
     getDeletes: () => locked(() => read(SYNC_KEYS.deletes)),
     updateDeletes: update(SYNC_KEYS.deletes),
+    getRoster: () => locked(() => read(SYNC_KEYS.roster)),
+    updateRoster: update(SYNC_KEYS.roster),
+    getRegisters: () => locked(() => read(SYNC_KEYS.registers)),
+    setRegisters: (rows) => update(SYNC_KEYS.registers)(() => rows || []),
   };
 }
 

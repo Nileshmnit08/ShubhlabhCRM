@@ -29,6 +29,7 @@ import { calculateWorkEntry, toNumberOrNull, validateWorkEntryInputs } from '../
 import { formatRupees } from '../utils/shareWhatsApp';
 import { distributeWorkAllocation } from '../services/LabourDatabaseService';
 import { makeEntryId } from '../services/LocalPersistence';
+import { formatIstTime, formatIstDateTime, istToIso, isValidHm } from '../utils/dailyRegister';
 
 const PRESET_WEIGHTS = [50, 40, 25, 30, 100];
 const QUICK_BAG_ADDS = [50, 100, 200, 500];
@@ -96,6 +97,12 @@ export default function AddWorkEntryScreen({ navigation, route }) {
 
   // Notes
   const [notes, setNotes] = useState(workEntryToEdit?.notes || '');
+
+  // Work completed at (IST, 'HH:MM'). New entry: now. Old entries without a time stay blank
+  // (shown as "—"), so no time is invented for them.
+  const [completedHm, setCompletedHm] = useState(
+    workEntryToEdit ? formatIstTime(workEntryToEdit.workCompletedAt) : formatIstTime(new Date().toISOString())
+  );
 
   // Switch category handler
   const handleSelectCategory = (cat) => {
@@ -184,6 +191,17 @@ export default function AddWorkEntryScreen({ navigation, route }) {
       Alert.alert('त्रुटि', validationError);
       return;
     }
+    const workDate = workEntryToEdit?.date ?? selectedDate;
+    const hm = completedHm.trim();
+    if (hm && !isValidHm(hm)) {
+      Alert.alert('त्रुटि', 'काम पूरा होने का समय HH:MM (24 घंटे) में लिखें, जैसे 14:30।');
+      return;
+    }
+    const workCompletedAt = hm ? istToIso(workDate, hm) : undefined;
+    if (workCompletedAt && Date.parse(workCompletedAt) > Date.now() + 5 * 60000) {
+      Alert.alert('त्रुटि', 'काम पूरा होने का समय भविष्य में नहीं हो सकता।');
+      return;
+    }
 
     const entryData = {
       // Same id for every attempt from this form: a retry replaces, never duplicates.
@@ -203,6 +221,7 @@ export default function AddWorkEntryScreen({ navigation, route }) {
       totalAmount: calculationResult.totalAmount,
       notes,
       participatingLabourerIds: selectedLabourerIds,
+      ...(workCompletedAt ? { workCompletedAt } : {}),
     };
 
     savingRef.current = true;
@@ -610,6 +629,22 @@ export default function AddWorkEntryScreen({ navigation, route }) {
                 );
               })}
           </View>
+        </View>
+
+        {/* Work completed at (IST) */}
+        <View style={styles.notesSection}>
+          <Text style={styles.sectionTitle}>काम पूरा होने का समय (Work completed at, IST)</Text>
+          <TextInput
+            style={styles.textInput}
+            value={completedHm}
+            onChangeText={setCompletedHm}
+            placeholder="HH:MM, जैसे 14:30"
+            keyboardType="numbers-and-punctuation"
+            maxLength={5}
+          />
+          <Text style={styles.sectionSubtitle}>
+            प्रविष्टि दर्ज होने का समय अपने-आप सहेजा जाता है{workEntryToEdit?.createdAt ? ` (${formatIstDateTime(workEntryToEdit.createdAt)})` : ''}।
+          </Text>
         </View>
 
         {/* Step 5: Optional Notes */}

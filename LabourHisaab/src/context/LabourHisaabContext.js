@@ -4,10 +4,10 @@
 
 import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';
 import { deviceStore } from '../services/deviceStorage';
-import { STORAGE_KEYS, makeEntryId } from '../services/LocalPersistence';
+import { STORAGE_KEYS, makeEntryId, makeLabourerId } from '../services/LocalPersistence';
 import { createWorkEntryRepository, LOAD_FAILED_MESSAGE } from '../services/WorkEntryRepository';
 import { supabase, isCloudConfigured } from '../services/supabase';
-import { syncAll, queueServerDelete, pendingCount, createSyncStore, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
+import { syncAll, queueServerDelete, pendingCount, createSyncStore, contentHash, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
 import { createSupabaseSyncAdapter } from '../services/supabaseSyncAdapter';
 import {
   DEFAULT_WORK_RATES,
@@ -116,12 +116,43 @@ export function LabourHisaabProvider({ children }) {
   const cloudContractorRef = useRef(null); // server contractor id from the last successful sync
   const labourersRef = useRef(labourers);
   labourersRef.current = labourers;
+  const workRatesRef = useRef(workRates);
+  workRatesRef.current = workRates;
+
+  // Per-entry sync records and the CRM approval status of each day (shown in Settings).
+  const [syncItems, setSyncItems] = useState([]);
+  const [registers, setRegisters] = useState([]);
 
   const refreshPending = async () => {
     try {
-      const n = pendingCount(repo.list(), await syncStore.getState());
-      setSyncStatus(s => ({ ...s, pending: n }));
+      const items = await syncStore.getState();
+      setSyncItems(items);
+      setSyncStatus(s => ({ ...s, pending: pendingCount(repo.list(), items) }));
     } catch (e) { /* bookkeeping read failed; next sync retries */ }
+  };
+
+  // Saved approval status is shown immediately on launch (refreshed by every sync).
+  useEffect(() => {
+    syncStore.getRegisters().then(setRegisters, () => {});
+  }, []);
+
+  // Saves entries/labourers downloaded from other phones. An entry is written only if the phone
+  // copy is still the one the sync compared against (a local edit made meanwhile wins).
+  const applyRemote = async ({ entries: downloads, labourers: labs }) => {
+    const wanted = new Map(downloads.map(d => [d.entry.id, d.expectedHash]));
+    const { list: downloadedList, savedIds } = await repo.upsertManyIf(downloads.map(d => d.entry), (item, current) => {
+      const expected = wanted.get(item.id);
+      return expected === null ? !current : Boolean(current) && contentHash(current) === expected;
+    });
+    if (savedIds.length) setWorkEntries(downloadedList); // storage-confirmed write, like showSaved
+    if (labs && labs.length) {
+      setLabourers(prev => {
+        const byId = new Map(prev.map(l => [String(l.id), l]));
+        labs.forEach(l => byId.set(String(l.id), { ...(byId.get(String(l.id)) || { avatarColor: '#F28C28' }), ...l }));
+        return [...byId.values()];
+      });
+    }
+    return { entryIds: savedIds };
   };
 
   const runSync = async () => {
@@ -137,8 +168,11 @@ export function LabourHisaabProvider({ children }) {
         entries: () => repo.list(),
         labourers: labourersRef.current,
         today: todayYmd(),
+        applyRemote,
+        categoryNames: Object.fromEntries(workRatesRef.current.map(r => [r.id, r.name])),
       });
-      console.log(`[LH-SYNC] uploaded=${outcome.uploaded} unchanged=${outcome.unchanged} deleted=${outcome.deleted} failed=${outcome.failed.length}`);
+      console.log(`[LH-SYNC] uploaded=${outcome.uploaded} unchanged=${outcome.unchanged} deleted=${outcome.deleted} downloaded=${outcome.downloaded} labourersDownloaded=${outcome.labourersDownloaded} missingOnServer=${outcome.missingOnServer} registers=${outcome.registers ? outcome.registers.length : 'n/a'} failed=${outcome.failed.length}`);
+      if (outcome.registers) setRegisters(outcome.registers);
       cloudRoleRef.current = outcome.role || null;
       cloudContractorRef.current = outcome.contractorId || null;
       setSyncStatus(s => ({ ...s, lastSyncAt: new Date().toISOString(), failed: outcome.failed, role: outcome.role || null,
@@ -221,7 +255,7 @@ export function LabourHisaabProvider({ children }) {
   const addLabourer = ({ name, phone = '', role = 'सामान्य मजदूर', notes = '' }) => {
     if (!name || !name.trim()) throw new Error('मजदूर का नाम आवश्यक है।');
     const nextNum = labourers.length + 1;
-    const newId = `LH_LAB_${String(nextNum).padStart(3, '0')}`;
+    const newId = makeLabourerId(); // unique across phones (shared roster)
     const newLabourer = {
       id: newId,
       name: name.trim(),
@@ -350,7 +384,12 @@ export function LabourHisaabProvider({ children }) {
       notes: entryData.notes || '',
       participatingLabourerIds: participants,
       allocations, // Store calculated allocations directly
+      // Entry recorded at: first save on this phone; never changed by edits or sync.
       createdAt: previous?.createdAt || new Date().toISOString(),
+      // Work completed at: chosen by the operator (defaults to the save time on the form).
+      workCompletedAt: entryData.workCompletedAt ?? previous?.workCompletedAt,
+      ...(previous ? { updatedAt: new Date().toISOString() } : {}),
+      ...(previous?.createdBy ? { createdBy: previous.createdBy } : {}),
     };
 
     showSaved(await repo.upsert(newEntry));
@@ -881,6 +920,8 @@ export function LabourHisaabProvider({ children }) {
     cloudSignOut,
     syncNow: runSync,
     renameCloudContractor,
+    syncItems,
+    registers,
 
     // Operations
     addLabourer,

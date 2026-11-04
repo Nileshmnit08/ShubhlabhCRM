@@ -68,6 +68,7 @@ const TravelExpenses = lazy(() => import('./pages/TravelExpenses'));
 const FieldMobility = lazy(() => import('./pages/FieldMobility'));
 const AttendanceRegister = lazy(() => import('./pages/AttendanceRegister'));
 const LabourHisaab = lazy(() => import('./pages/LabourHisaab'));
+const LabourHisaabApprovals = lazy(() => import('./pages/LabourHisaabApprovals'));
 
 const WebsiteCMS = lazy(() => import('./pages/WebsiteCMS'));
 const WebsiteLeads = lazy(() => import('./pages/WebsiteLeads'));
@@ -381,6 +382,7 @@ function App() {
                     <Route path="field-mobility" element={<FieldMobility />} />
                     <Route path="attendance" element={<AttendanceRegister />} />
                     <Route path="labour-hisaab" element={<LabourHisaab />} />
+                    <Route path="labour-hisaab/approvals" element={<LabourHisaabApprovals />} />
                     <Route path="website-cms/*" element={<WebsiteCMS />} />
                   </Route>
                 </Route>

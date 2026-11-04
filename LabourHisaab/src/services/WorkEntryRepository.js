@@ -72,6 +72,24 @@ export function createWorkEntryRepository(store, key = STORAGE_KEYS.workEntries)
       assertWritable();
       return commit(removeById(entries, id));
     }),
+    /**
+     * Save several entries in ONE write, each only if `accept(current | null)` is true when the
+     * write runs (inside the queue, so an edit saved just before cannot be overwritten).
+     * Resolves with { list, savedIds }.
+     */
+    upsertManyIf: (items, accept) => serial(async () => {
+      assertWritable();
+      let next = entries;
+      const savedIds = [];
+      for (const item of items || []) {
+        if (!item || !item.id) continue;
+        if (!accept(item, next.find(e => e.id === item.id) || null)) continue;
+        next = upsertById(next, item);
+        savedIds.push(item.id);
+      }
+      const list = savedIds.length ? await commit(next) : [...entries];
+      return { list, savedIds };
+    }),
     /** Replace the whole list (backup restore only). */
     replaceAll: (list) => serial(async () => {
       assertWritable();

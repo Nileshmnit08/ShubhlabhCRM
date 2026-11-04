@@ -4,6 +4,8 @@
 // server deletes need Owner/Manager — proposal 251).
 import { SYNC_RATE_EFFECTIVE_FROM, pickMembership } from './CloudSync';
 
+const PAGE = 1000;
+
 const fail = (error, what) => {
   if (!error) return;
   const msg = error.message || String(error);
@@ -13,7 +15,58 @@ const fail = (error, what) => {
 export function createSupabaseSyncAdapter(supabase) {
   if (!supabase) throw new Error('Cloud is not configured.');
 
+  let featureCache = null;
+  const ENTRY_COLS = 'id, work_date, work_type, rate_snapshot, rate_unit_snapshot, total_weight_kg, total_bags, total_batches, calculated_labour_amount, notes, created_by, created_at, updated_at';
+  const pageAll = async (build) => {
+    const rows = [];
+    for (let page = 0; page < 50; page++) {
+      const { data, error } = await build().range(page * PAGE, page * PAGE + PAGE - 1);
+      if (error) return { error, rows };
+      rows.push(...(data || []));
+      if (!data || data.length < PAGE) return { rows };
+    }
+    return { error: new Error('Too many rows to download.'), rows };
+  };
+
   return {
+    // Which parts of proposal 252 the server has (absent column/table → older server; sync still works).
+    async features() {
+      if (featureCache) return featureCache;
+      const ts = await supabase.from('daily_work_entries').select('recorded_at, work_completed_at').limit(1);
+      const reg = await supabase.from('labour_daily_registers').select('id').limit(1);
+      featureCache = { timestamps: !ts.error, registers: !reg.error };
+      return featureCache;
+    },
+
+    async fetchLabourers(contractorId) {
+      const { rows, error } = await pageAll(() => supabase.from('labourers')
+        .select('id, local_id, name, phone, role, active_status, join_date, notes')
+        .eq('contractor_id', contractorId).order('local_id'));
+      fail(error, 'Labourers download');
+      return rows;
+    },
+
+    async fetchEntries(contractorId) {
+      const { timestamps } = await this.features();
+      const cols = `${ENTRY_COLS}${timestamps ? ', recorded_at, work_completed_at' : ''}, daily_work_details(bag_weight_kg, bag_count), labour_work_allocations(allocated_amount, labourers(local_id))`;
+      const { rows, error } = await pageAll(() => supabase.from('daily_work_entries')
+        .select(cols).eq('contractor_id', contractorId).order('work_date').order('id'));
+      fail(error, 'Entries download');
+      return rows.map(r => ({
+        row: r,
+        details: r.daily_work_details || [],
+        allocations: (r.labour_work_allocations || []).map(a => ({ labourer_local_id: a.labourers?.local_id, allocated_amount: a.allocated_amount })),
+      }));
+    },
+
+    async fetchRegisters(contractorId) {
+      const { rows, error } = await pageAll(() => supabase.from('labour_daily_registers')
+        .select('id, work_date, status, revision, rejection_reason, decided_at, updated_at')
+        .eq('contractor_id', contractorId).order('work_date'));
+      fail(error, 'Approval status');
+      return rows;
+    },
+
     async getMembership() {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth?.user?.id;

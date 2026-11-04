@@ -1512,7 +1512,9 @@ runTest('App wiring: storage before screen, success only after the write, retrie
   assert.ok(!/useState\(INITIAL_WORK_ENTRIES\)/.test(ctx), 'no sample entries');
   assert.ok(!/setWorkEntries\(prev/.test(ctx), 'no in-memory-only updates of entries');
   const sets = [...ctx.matchAll(/setWorkEntries\(([^)]*)\)/g)].map(m => m[1].trim());
-  assert.deepStrictEqual(sets.sort(), ['list', 'savedEntries'], 'entries reach the screen only from a completed load or a confirmed save');
+  // downloadedList = a confirmed repo.upsertManyIf write of entries synced from other phones.
+  assert.deepStrictEqual(sets.sort(), ['downloadedList', 'list', 'savedEntries'], 'entries reach the screen only from a completed load or a confirmed save');
+  assert.ok(/const \{ list: downloadedList, savedIds \} = await repo\.upsertManyIf\(/.test(ctx), 'downloads are shown only after storage confirms them');
   assert.ok(/const saved = await addWorkEntry\(entryData\);\s*Alert\.alert\('सफलतापूर्वक सहेजा गया'/.test(screen), 'success shown after the awaited save');
   assert.ok(/const saved = await updateWorkEntry\(/.test(screen), 'edit awaited');
   assert.ok(/id: entryIdRef\.current,/.test(screen) && /useRef\(workEntryToEdit\?\.id \|\| makeEntryId\(\)\)/.test(screen), 'one id per form');
@@ -1688,6 +1690,184 @@ runTest('Sync run with a fake server: ids saved before upload, retry-safe, delet
   assert.strictEqual((await store.getState()).some(s => s.id === 'WE_2'), false, 'finished tombstone cleaned up');
   const viewer = { ...adapter, getMembership: async () => ({ contractorId: 'c-1', role: 'Viewer' }) };
   await assert.rejects(() => syncAll({ adapter: viewer, store, entries, labourers: labs, today: '2031-06-04' }), /Viewer/);
+});
+
+// -----------------------------------------------------------------
+// LH-DAILY-REGISTER-APPROVAL-01: daily register, timestamps, download merge, approval display
+// (cross-device + approvals against the real 249/250/251/252 SQL are validated separately)
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-DAILY-REGISTER-APPROVAL-01: Daily register & approval');
+
+const regEntry = (id, date, cat, hmCompleted, createdAt, amount, labs) => ({
+  id, date, categoryId: cat, categoryName: cat, unit: 'per_bag', type: 'bag', rate: 1, totalBags: amount, totalKg: 0, totalBatches: 0,
+  totalAmount: amount, bagLines: [], notes: '', participatingLabourerIds: labs, allocations: distributeWorkAllocation(amount, labs),
+  createdAt, workCompletedAt: hmCompleted,
+});
+
+runTest('IST times: fixed +05:30 conversion both ways; business date never shifted by UTC', async () => {
+  const { istToIso, formatIstTime, formatIstDateTime, istYmd, isValidHm } = await import('../src/utils/dailyRegister.js');
+  assert.strictEqual(istToIso('2026-11-03', '00:15'), '2026-11-02T18:45:00.000Z', '00:15 IST is the previous UTC day');
+  assert.strictEqual(formatIstTime('2026-11-02T18:45:00.000Z'), '00:15');
+  assert.strictEqual(istYmd('2026-11-02T18:45:00.000Z'), '2026-11-03');
+  assert.strictEqual(formatIstDateTime('2026-11-03T08:30:00+00:00'), '03-11-2026 14:00 IST');
+  assert.strictEqual(formatIstTime(undefined), '');
+  assert.deepStrictEqual(['14:30', '24:00', '9:5', '23:59'].map(isValidHm), [true, false, false, true]);
+});
+
+runTest('Several entries on one date: register in completion-time order, totals from real entries only', async () => {
+  const { buildDailyRegister } = await import('../src/utils/dailyRegister.js');
+  const entries = [
+    regEntry('WE_b', '2026-11-04', 'pallet', '2026-11-04T09:30:00.000Z', '2026-11-04T09:31:00.000Z', 300, ['L1', 'L2']),
+    regEntry('WE_a', '2026-11-04', 'mix', '2026-11-04T04:00:00.000Z', '2026-11-04T10:00:00.000Z', 120, ['L2', 'L3']), // recorded later, done earlier
+    regEntry('WE_old', '2026-11-04', 'premix', undefined, '2026-11-04T06:00:00.000Z', 0, ['L1']),                     // no completion time: by recorded time
+    regEntry('WE_other', '2026-11-03', 'mix', '2026-11-03T05:00:00.000Z', '2026-11-03T05:00:00.000Z', 999, ['L9']),
+  ];
+  const r = buildDailyRegister({ entries, date: '2026-11-04' });
+  assert.deepStrictEqual(r.rows.map(x => x.id), ['WE_a', 'WE_old', 'WE_b']);
+  assert.deepStrictEqual(r.totals, { entries: 3, amount: 420, labourers: 3, bags: 420, kg: 0 });
+  assert.strictEqual(r.rows[0].labourCount, 2);
+  assert.strictEqual(r.rows.find(x => x.id === 'WE_old').completedAt, null, 'no invented completion time');
+  const other = buildDailyRegister({ entries, date: '2026-11-03' });
+  assert.deepStrictEqual([other.totals.entries, other.totals.amount], [1, 999], 'date selection loads that date only');
+  const empty = buildDailyRegister({ entries, date: '2026-11-05' });
+  assert.deepStrictEqual([empty.rows.length, empty.totals.amount], [0, 0]);
+});
+
+runTest('Sync state per entry and approval labels: new day Pending; Approved / Rejected with reason from the server', async () => {
+  const { buildDailyRegister, approvalInfo } = await import('../src/utils/dailyRegister.js');
+  const { contentHash } = await import('../src/services/CloudSync.js');
+  const e1 = regEntry('WE_1', '2026-11-04', 'mix', undefined, '2026-11-04T05:00:00.000Z', 10, ['L1']);
+  const e2 = regEntry('WE_2', '2026-11-04', 'mix', undefined, '2026-11-04T06:00:00.000Z', 20, ['L1']);
+  const e3 = regEntry('WE_3', '2026-11-04', 'mix', undefined, '2026-11-04T07:00:00.000Z', 30, ['L1']);
+  const items = [{ id: 'WE_1', serverId: 's1', hash: contentHash(e1) }, { id: 'WE_2', serverId: 's2', hash: 'old' }];
+  const r = buildDailyRegister({ entries: [e1, e2, e3], date: '2026-11-04', syncItems: items, failed: [{ localId: 'WE_3', message: 'x' }], signedIn: true });
+  assert.deepStrictEqual(r.rows.map(x => x.sync), ['synced', 'pending', 'failed']);
+  assert.deepStrictEqual(buildDailyRegister({ entries: [e1], date: '2026-11-04' }).rows.map(x => x.sync), ['device']);
+  assert.strictEqual(r.approval.status, 'Pending');
+  assert.strictEqual(r.approval.label, 'Approval: Pending — Awaiting Shubh Labh CRM');
+  const appr = buildDailyRegister({ entries: [e1], date: '2026-11-04', registers: [{ work_date: '2026-11-04', status: 'Approved', decided_at: '2026-11-04T12:00:00Z' }] });
+  assert.strictEqual(appr.approval.label, 'Approval: Approved — Shubh Labh CRM');
+  const rej = approvalInfo({ status: 'Rejected', rejection_reason: 'Bag count wrong', decided_at: '2026-11-04T12:00:00Z' });
+  assert.deepStrictEqual([rej.status, rej.reason], ['Rejected', 'Bag count wrong']);
+  assert.match(rej.nextStep, /Pending/);
+});
+
+runTest('Server copy of an entry hashes the same as the phone copy (no re-upload, no ping-pong)', async () => {
+  const { contentHash, entryFromServer, planEntry, normalizeTs } = await import('../src/services/CloudSync.js');
+  const c = calculateWorkEntry({ rate: 21, unit: 'per_100_kg', type: 'weight', bagLines: [{ bagWeightKg: 50, bagCount: 100 }, { bagWeightKg: 40, bagCount: 10 }] });
+  const phone = { id: 'WE_p', date: '2026-11-03', categoryId: 'pallet', categoryName: 'Pallet', rate: 21, unit: 'per_100_kg', type: 'weight', bagLines: c.bagLines,
+    totalBags: c.totalBags, totalKg: c.totalKg, totalBatches: 0, totalAmount: c.totalAmount, notes: '', participatingLabourerIds: ['LH_LAB_002', 'LH_LAB_001'],
+    allocations: distributeWorkAllocation(c.totalAmount, ['LH_LAB_002', 'LH_LAB_001']), createdAt: '2026-11-03T12:30:00.123Z', workCompletedAt: '2026-11-03T12:00:00.000Z' };
+  const plan = planEntry(phone, { serverId: 'srv', contractorId: 'c', rate: { id: 'r' }, labourerIds: { LH_LAB_001: 'u1', LH_LAB_002: 'u2' } });
+  assert.strictEqual(plan.entryRow.recorded_at, '2026-11-03T12:30:00.123Z');
+  // What PostgREST returns: numbers as strings, '+00:00' times, rows in another order.
+  const back = entryFromServer({
+    row: { ...plan.entryRow, rate_snapshot: '21.00', total_weight_kg: '5400.00', calculated_labour_amount: String(c.totalAmount), recorded_at: '2026-11-03T12:30:00.123+00:00', work_completed_at: '2026-11-03T12:00:00+00:00' },
+    details: [...plan.details].reverse(),
+    allocations: [{ labourer_local_id: 'LH_LAB_001', allocated_amount: String(plan.allocations[1].allocated_amount) }, { labourer_local_id: 'LH_LAB_002', allocated_amount: String(plan.allocations[0].allocated_amount) }],
+  }, { localId: 'WE_p', categoryNames: { pallet: 'Pallet' } });
+  assert.strictEqual(contentHash(back), contentHash(phone));
+  assert.strictEqual(back.createdAt, '2026-11-03T12:30:00.123Z');
+  assert.strictEqual(normalizeTs('2026-11-03T12:00:00+00:00'), '2026-11-03T12:00:00.000Z');
+  const fixed = entryFromServer({ row: { id: 'f', work_date: '2026-11-03', work_type: 'misc', rate_unit_snapshot: 'Fixed amount', rate_snapshot: '250', calculated_labour_amount: '250', total_bags: 0, total_weight_kg: 0, total_batches: 0 } }, { localId: 'WE_f' });
+  assert.strictEqual(contentHash(fixed), contentHash({ ...fixed, rate: 999 }), 'fixed work hashes the amount, not the rate');
+});
+
+runTest('New labourer ids are unique across phones; existing ids untouched', async () => {
+  const { makeLabourerId } = await import('../src/services/LocalPersistence.js');
+  const ids = new Set(Array.from({ length: 500 }, () => makeLabourerId()));
+  assert.strictEqual(ids.size, 500);
+  assert.match(makeLabourerId(), /^LH_LAB_[0-9a-z]+_[0-9a-z]+$/);
+  assert.ok(makeLabourerId().length <= 50, 'fits labourers.local_id varchar(50)');
+});
+
+runTest('Downloads are saved in one write and never overwrite a local edit made meanwhile', async () => {
+  const { createWorkEntryRepository } = await import('../src/services/WorkEntryRepository.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  const repo = createWorkEntryRepository(createLocalStore(memoryBackend()));
+  await repo.init();
+  await repo.upsert({ id: 'WE_mine', date: '2026-11-04', totalAmount: 10, v: 'edited-locally' });
+  const { list, savedIds } = await repo.upsertManyIf(
+    [{ id: 'WE_mine', date: '2026-11-04', totalAmount: 99 }, { id: 'WE_srv_x', date: '2026-11-04', totalAmount: 50 }],
+    (item, current) => (item.id === 'WE_mine' ? current?.v === 'server-version' : !current));
+  assert.deepStrictEqual(savedIds, ['WE_srv_x']);
+  assert.strictEqual(list.find(e => e.id === 'WE_mine').totalAmount, 10, 'local edit kept');
+  assert.strictEqual(list.length, 2);
+});
+
+runTest('Shared sync with a fake server: phone B gets phone A entries; B default roster never overwrites real names', async () => {
+  const { syncAll, createSyncStore, contentHash } = await import('../src/services/CloudSync.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  const { createWorkEntryRepository } = await import('../src/services/WorkEntryRepository.js');
+  const server = { labs: new Map(), entries: new Map(), seq: 0 };
+  const adapter = (role = 'Operator') => ({
+    getMembership: async () => ({ contractorId: 'c-1', role }),
+    features: async () => ({ timestamps: true, registers: true }),
+    fetchLabourers: async () => [...server.labs.values()],
+    upsertLabourers: async (rows) => rows.map(r => { const ex = server.labs.get(r.local_id); const row = { ...r, id: ex?.id || `u${++server.seq}` }; server.labs.set(r.local_id, row); return row; }),
+    ensureRate: async () => ({ id: 'r-1' }),
+    deleteEntry: async () => {}, deleteAllocations: async (id) => { const e = server.entries.get(id); if (e) e.allocations = []; },
+    upsertEntry: async (row) => { server.entries.set(row.id, { ...(server.entries.get(row.id) || {}), row, details: server.entries.get(row.id)?.details || [], allocations: server.entries.get(row.id)?.allocations || [] }); },
+    replaceDetails: async (id, rows) => { server.entries.get(id).details = rows; },
+    insertAllocations: async (rows) => { rows.forEach(a => { const lab = [...server.labs.values()].find(l => l.id === a.labourer_id); server.entries.get(a.work_entry_id).allocations.push({ labourer_local_id: lab.local_id, allocated_amount: a.allocated_amount }); }); },
+    fetchEntries: async () => [...server.entries.values()].map(x => ({ row: x.row, details: x.details, allocations: x.allocations })),
+    fetchRegisters: async () => [{ work_date: '2026-11-04', status: 'Pending', revision: 3 }],
+  });
+  const phone = async () => {
+    const disk = memoryBackend();
+    const repo = createWorkEntryRepository(createLocalStore(disk));
+    await repo.init();
+    const store = createSyncStore(createLocalStore(disk));
+    let roster = null;
+    const applyRemote = async ({ entries, labourers }) => {
+      const want = new Map(entries.map(d => [d.entry.id, d.expectedHash]));
+      const { savedIds } = await repo.upsertManyIf(entries.map(d => d.entry), (item, cur) => (want.get(item.id) === null ? !cur : !!cur && contentHash(cur) === want.get(item.id)));
+      if (labourers.length) roster = roster.map(l => labourers.find(x => x.id === l.id) || l).concat(labourers.filter(x => !roster.some(l => l.id === x.id)));
+      return { entryIds: savedIds };
+    };
+    return { repo, store, get roster() { return roster; }, set roster(v) { roster = v; },
+      sync: (role) => syncAll({ adapter: adapter(role), store, entries: () => repo.list(), labourers: roster, today: '2026-11-04', applyRemote }) };
+  };
+  const A = await phone(); A.roster = [{ id: 'LH_LAB_001', name: 'Real One', isActive: true }, { id: 'LH_LAB_002', name: 'Real Two', isActive: true }];
+  const B = await phone(); B.roster = [{ id: 'LH_LAB_001', name: 'Demo Golu', isActive: true }, { id: 'LH_LAB_002', name: 'Demo Satish', isActive: true }];
+  await A.repo.upsert(regEntry('WE_a1', '2026-11-04', 'mix', '2026-11-04T04:00:00.000Z', '2026-11-04T04:05:00.000Z', 40, ['LH_LAB_001', 'LH_LAB_002']));
+  await A.repo.upsert(regEntry('WE_a2', '2026-11-04', 'pallet', '2026-11-04T07:00:00.000Z', '2026-11-04T07:02:00.000Z', 60, ['LH_LAB_002']));
+  const a1 = await A.sync();
+  assert.deepStrictEqual([a1.uploaded, a1.failed.length], [2, 0]);
+  const b1 = await B.sync();
+  assert.strictEqual(b1.downloaded, 2, 'B downloads A entries');
+  assert.deepStrictEqual(B.roster.map(l => l.name), ['Real One', 'Real Two'], 'server names win over B default roster');
+  assert.deepStrictEqual([...server.labs.values()].map(l => l.name), ['Real One', 'Real Two'], 'server names untouched');
+  assert.deepStrictEqual(B.repo.list().map(e => e.createdAt).sort(), ['2026-11-04T04:05:00.000Z', '2026-11-04T07:02:00.000Z'], 'timestamps travel');
+  const b2 = await B.sync();
+  assert.deepStrictEqual([b2.downloaded, b2.uploaded, B.repo.list().length, server.entries.size], [0, 0, 2, 2], 'repeat sync: no duplicates');
+  const a2 = await A.sync();
+  assert.deepStrictEqual([a2.downloaded, a2.uploaded], [0, 0], 'A does not ping-pong its own entries');
+  assert.deepStrictEqual(b2.registers.map(r => r.status), ['Pending']);
+});
+
+runTest('App update: entries synced with the old hash are re-labelled, NOT re-uploaded (2/3 Nov stay untouched)', async () => {
+  const { syncAll, createSyncStore, legacyContentHash, contentHash, HASH_VERSION } = await import('../src/services/CloudSync.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  const store = createSyncStore(createLocalStore(memoryBackend()));
+  const nov2 = regEntry('WE_nov2', '2026-11-02', 'pallet', undefined, '2026-11-02T12:10:00.000Z', 5775, ['LH_LAB_001']);
+  const changed = regEntry('WE_chg', '2026-11-03', 'pallet', undefined, '2026-11-03T12:40:00.000Z', 1050, ['LH_LAB_001']);
+  await store.updateState(() => [
+    { id: 'WE_nov2', serverId: 's-2', hash: legacyContentHash(nov2), syncedAt: 'x' },                    // synced by the old app
+    { id: 'WE_chg', serverId: 's-3', hash: legacyContentHash({ ...changed, totalAmount: 1 }), syncedAt: 'x' }, // edited since
+  ]);
+  const writes = [];
+  const adapter = {
+    getMembership: async () => ({ contractorId: 'c-1', role: 'Owner' }),
+    upsertLabourers: async (rows) => rows.map(r => ({ id: `u-${r.local_id}`, local_id: r.local_id })),
+    ensureRate: async () => ({ id: 'r-1' }), deleteEntry: async () => {}, deleteAllocations: async (id) => writes.push(['alloc-reset', id]),
+    upsertEntry: async (row) => writes.push(['upsert', row.id]), replaceDetails: async () => {}, insertAllocations: async () => {},
+  };
+  const r = await syncAll({ adapter, store, entries: [nov2, changed], labourers: [{ id: 'LH_LAB_001', name: 'A', isActive: true }], today: '2026-11-04' });
+  assert.deepStrictEqual(writes.filter(w => w[1] === 's-2'), [], 'unchanged entry not rewritten');
+  assert.deepStrictEqual([r.uploaded, r.unchanged], [1, 1], 'only the genuinely edited entry is sent');
+  const s = await store.getState();
+  assert.deepStrictEqual(s.find(x => x.id === 'WE_nov2'), { id: 'WE_nov2', serverId: 's-2', hash: contentHash(nov2), syncedAt: 'x', hv: HASH_VERSION });
 });
 
 function todayYmdForTest() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
