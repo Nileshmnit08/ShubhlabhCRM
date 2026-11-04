@@ -8,7 +8,7 @@ import { deviceStore } from '../services/deviceStorage';
 import { STORAGE_KEYS, makeEntryId, makeLabourerId } from '../services/LocalPersistence';
 import { createWorkEntryRepository, LOAD_FAILED_MESSAGE } from '../services/WorkEntryRepository';
 import { supabase, isCloudConfigured } from '../services/supabase';
-import { syncAll, queueServerDelete, pendingCount, createSyncStore, contentHash, cloudSaveStatus, canSwitchContractor, readSelection, writeSelection, SELECTION_GONE_MESSAGE, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
+import { syncAll, queueServerDelete, pendingCount, createSyncStore, contentHash, cloudSaveStatus, readSelection, writeSelection, SELECTION_GONE_MESSAGE, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
 import { createSupabaseSyncAdapter } from '../services/supabaseSyncAdapter';
 import {
   DEFAULT_WORK_RATES,
@@ -31,12 +31,22 @@ const LabourHisaabContext = createContext(null);
 
 export function LabourHisaabProvider({ children }) {
   // Application Data States
-  const [labourers, setLabourers] = useState(INITIAL_LABOURERS);
+  // Full lists on this phone (all contractors). Screens get the SELECTED contractor's part
+  // (`workEntries` / `labourers` below) — LH-CONTRACTOR-SELECT-OPEN-07.
+  const [allLabourers, setLabourers] = useState(INITIAL_LABOURERS);
   const [workRates, setWorkRates] = useState(DEFAULT_WORK_RATES);
   // LH-HOME-TOTAL-DATE-01: the app starts with no sample work, payments or expenses, so
   // demo amounts (e.g. the old ₹5,808 day) are never shown as live data. The sample
   // labourer roster is kept until the persistence sprint (there is no storage yet).
-  const [workEntries, setWorkEntries] = useState([]);
+  const [allWorkEntries, setWorkEntries] = useState([]);
+
+  // Contractor context. Each entry/labourer carries contractorId; older ones without it belong
+  // to the contractor this phone first synced with (boundId) — so 2/3 Nov stay with Ajay.
+  const [scope, setScope] = useState({ activeId: null, boundId: null });
+  const ownerOf = (item) => item.contractorId || scope.boundId || null;
+  const inScope = (item) => !scope.activeId || ownerOf(item) === scope.activeId || ownerOf(item) === null;
+  const workEntries = useMemo(() => allWorkEntries.filter(inScope), [allWorkEntries, scope]);
+  const labourers = useMemo(() => allLabourers.filter(inScope), [allLabourers, scope]);
   const [payments, setPayments] = useState([]);
   const [serviceExpenses, setServiceExpenses] = useState([]);
 
@@ -114,8 +124,8 @@ export function LabourHisaabProvider({ children }) {
   const cloudUserRef = useRef(null);
   const cloudRoleRef = useRef(null); // role from the last successful sync (Owner/Manager/Operator)
   const cloudContractorRef = useRef(null); // server contractor id from the last successful sync
-  const labourersRef = useRef(labourers);
-  labourersRef.current = labourers;
+  const allLabourersRef = useRef(allLabourers);
+  allLabourersRef.current = allLabourers;
   const workRatesRef = useRef(workRates);
   workRatesRef.current = workRates;
 
@@ -129,41 +139,67 @@ export function LabourHisaabProvider({ children }) {
   const selectedContractorRef = useRef(null);
   const [contractorState, setContractorState] = useState({ status: 'idle', memberships: [], selectedId: null, selectedName: null, error: null });
 
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
+  const inScopeNow = (item) => {
+    const { activeId, boundId } = scopeRef.current;
+    const owner = item.contractorId || boundId || null;
+    return !activeId || owner === activeId || owner === null;
+  };
+
+  // Contractor list: every ACTIVE contractor for approved operators (proposal 254), else — on a
+  // server without 254 — only the account's memberships. The database authorises the choice.
   const loadContractors = async () => {
+    const bound = ((await deviceStore.loadList(BOUND_KEY)) || [])[0]?.contractorId || null;
     if (!supabase || !cloudUserRef.current) {
-      setContractorState({ status: 'signed_out', memberships: [], selectedId: null, selectedName: null, error: null });
+      setScope({ activeId: null, boundId: bound });
+      setContractorState({ status: 'signed_out', memberships: [], selectedId: null, selectedName: null, error: null, mode: null });
       return null;
     }
     const uid = cloudUserRef.current.id;
+    const saved = readSelection(await deviceStore.loadList(SELECTION_KEY), uid);
+    selectedContractorRef.current = saved ? saved.contractorId : null;
+    // The saved choice applies straight away (works offline); the list refreshes below.
+    setScope({ activeId: saved ? saved.contractorId : null, boundId: bound });
     setContractorState(s => ({ ...s, status: 'loading', error: null }));
     try {
-      const saved = readSelection(await deviceStore.loadList(SELECTION_KEY), uid);
-      selectedContractorRef.current = saved ? saved.contractorId : null;
-      const memberships = await createSupabaseSyncAdapter(supabase).listMemberships();
-      const selected = saved ? memberships.find(m => m.contractor_id === saved.contractorId) : null;
+      const { items, mode } = await createSupabaseSyncAdapter(supabase).listContractors();
+      const selected = saved ? items.find(m => m.contractor_id === saved.contractorId) : null;
+      // No choice saved yet: the account's only membership (what sync would use) is the context.
+      const members = items.filter(m => m.role);
+      const onlyMember = members.length === 1 ? members[0] : null;
+      const activeId = saved ? saved.contractorId : (onlyMember ? onlyMember.contractor_id : null);
+      setScope({ activeId, boundId: bound });
       setContractorState({
-        status: memberships.length ? 'ready' : 'empty', memberships,
+        status: items.length ? 'ready' : 'empty', memberships: items, mode,
         selectedId: saved ? saved.contractorId : null,
         selectedName: selected ? selected.name : (saved ? saved.name : null),
         error: saved && !selected ? SELECTION_GONE_MESSAGE : null,
       });
-      return memberships;
+      return items;
     } catch (e) {
       setContractorState(s => ({ ...s, status: 'error', error: e?.message || String(e) }));
       return null;
     }
   };
 
-  const selectContractor = async (membership) => {
+  // Select / switch contractor at any time. The DATABASE authorises it (lh_select_contractor:
+  // approved operator → Operator membership; never Owner/Admin). Entries of other contractors
+  // stay on the phone under their own contractor and sync when that contractor is selected.
+  const selectContractor = async (item) => {
     if (!cloudUserRef.current) throw new Error('पहले साइन इन करें।');
-    const bound = ((await deviceStore.loadList(BOUND_KEY)) || [])[0]?.contractorId || null;
-    const check = canSwitchContractor({ boundId: bound, nextId: membership?.contractor_id, entryCount: repo.list().length });
-    if (!check.ok) throw new Error(check.message);
+    if (!item?.contractor_id) throw new Error('ठेकेदार चुनें।');
+    const role = await createSupabaseSyncAdapter(supabase).selectContractor(item.contractor_id, item);
     const uid = cloudUserRef.current.id;
-    await deviceStore.saveList(SELECTION_KEY, writeSelection(await deviceStore.loadList(SELECTION_KEY), uid, membership));
-    selectedContractorRef.current = membership.contractor_id;
-    setContractorState(s => ({ ...s, selectedId: membership.contractor_id, selectedName: membership.name, error: null }));
-    console.log(`[LH-CONTRACTOR] selected contractor=${membership.contractor_id} role=${membership.role}`);
+    await deviceStore.saveList(SELECTION_KEY, writeSelection(await deviceStore.loadList(SELECTION_KEY), uid, item));
+    selectedContractorRef.current = item.contractor_id;
+    const bound = ((await deviceStore.loadList(BOUND_KEY)) || [])[0]?.contractorId || null;
+    setScope({ activeId: item.contractor_id, boundId: bound });
+    scopeRef.current = { activeId: item.contractor_id, boundId: bound };
+    setContractorState(s => ({ ...s, selectedId: item.contractor_id, selectedName: item.name, error: null,
+      memberships: s.memberships.map(m => (m.contractor_id === item.contractor_id ? { ...m, role } : m)) }));
+    setRegisters([]); // the next sync loads this contractor's approval status
+    console.log(`[LH-CONTRACTOR] selected contractor=${item.contractor_id} role=${role}`);
     return runSync();
   };
 
@@ -175,7 +211,7 @@ export function LabourHisaabProvider({ children }) {
     try {
       const items = await syncStore.getState();
       setSyncItems(items);
-      setSyncStatus(s => ({ ...s, pending: pendingCount(repo.list(), items) }));
+      setSyncStatus(s => ({ ...s, pending: pendingCount(repo.list().filter(inScopeNow), items) }));
     } catch (e) { /* bookkeeping read failed; next sync retries */ }
   };
 
@@ -194,10 +230,12 @@ export function LabourHisaabProvider({ children }) {
     });
     if (savedIds.length) setWorkEntries(downloadedList); // storage-confirmed write, like showSaved
     if (labs && labs.length) {
+      // Keyed by contractor + id: two contractors may both have an LH_LAB_001.
+      const key = (l) => `${l.contractorId || scopeRef.current.boundId || ''}|${l.id}`;
       setLabourers(prev => {
-        const byId = new Map(prev.map(l => [String(l.id), l]));
-        labs.forEach(l => byId.set(String(l.id), { ...(byId.get(String(l.id)) || { avatarColor: '#F28C28' }), ...l }));
-        return [...byId.values()];
+        const byKey = new Map(prev.map(l => [key(l), l]));
+        labs.forEach(l => byKey.set(key(l), { ...(byKey.get(key(l)) || { avatarColor: '#F28C28' }), ...l }));
+        return [...byKey.values()];
       });
     }
     return { entryIds: savedIds };
@@ -229,7 +267,9 @@ export function LabourHisaabProvider({ children }) {
         adapter: createSupabaseSyncAdapter(supabase, { selectedContractorId: selectedContractorRef.current }),
         store: syncStore,
         entries: () => repo.list(),
-        labourers: labourersRef.current,
+        labourers: allLabourersRef.current,
+        // Untagged older records belong to this phone's first contractor (2/3 Nov → Ajay).
+        owns: (item, cid) => (item.contractorId || scopeRef.current.boundId || cid) === cid,
         today: todayYmd(),
         applyRemote,
         categoryNames: Object.fromEntries(workRatesRef.current.map(r => [r.id, r.name])),
@@ -241,6 +281,7 @@ export function LabourHisaabProvider({ children }) {
       // Remember which contractor this phone's entries belong to (first successful sync).
       if (outcome.contractorId && !((await deviceStore.loadList(BOUND_KEY)) || []).length) {
         await deviceStore.saveList(BOUND_KEY, [{ contractorId: outcome.contractorId }]);
+        setScope(s => ({ ...s, boundId: outcome.contractorId }));
       }
       setSyncStatus(s => ({ ...s, lastSyncAt: new Date().toISOString(), failed: outcome.failed, role: outcome.role || null,
         lastError: outcome.failed.length ? outcome.failed[0].message : null }));
@@ -320,7 +361,8 @@ export function LabourHisaabProvider({ children }) {
     cloudRoleRef.current = null;
     cloudContractorRef.current = null;
     selectedContractorRef.current = null; // the saved choice stays with that user for next sign-in
-    setContractorState({ status: 'signed_out', memberships: [], selectedId: null, selectedName: null, error: null });
+    setContractorState({ status: 'signed_out', memberships: [], selectedId: null, selectedName: null, error: null, mode: null });
+    setScope(s => ({ ...s, activeId: null }));
     setCloudUser(null);
     setSyncStatus(s => ({ ...s, role: null }));
   };
@@ -338,10 +380,11 @@ export function LabourHisaabProvider({ children }) {
   useEffect(() => {
     if (!storageReady) return;
     if (!labourersHydrated.current) { labourersHydrated.current = true; return; }
-    const run = rosterChain.current.then(() => deviceStore.saveList(STORAGE_KEYS.labourers, labourers));
+    // The FULL roster (every contractor's labourers) is saved, never only the selected part.
+    const run = rosterChain.current.then(() => deviceStore.saveList(STORAGE_KEYS.labourers, allLabourers));
     rosterChain.current = run.catch(() => {});
     run.then(() => runSync(), () => setError('मजदूर सूची सहेजी नहीं जा सकी। कृपया दोबारा प्रयास करें।'));
-  }, [labourers, storageReady]);
+  }, [allLabourers, storageReady]);
 
   // -------------------------------------------------------------
   // 1. LABOURER CRUD OPERATIONS (Preserve Stable Local IDs)
@@ -352,6 +395,9 @@ export function LabourHisaabProvider({ children }) {
     const newId = makeLabourerId(); // unique across phones (shared roster)
     const newLabourer = {
       id: newId,
+      // Belongs to the contractor selected now; marked as a real person added on this phone.
+      ...(scope.activeId ? { contractorId: scope.activeId } : {}),
+      addedOnPhone: true,
       name: name.trim(),
       phone: phone.trim(),
       role: role.trim(),
@@ -369,7 +415,7 @@ export function LabourHisaabProvider({ children }) {
   const renameLabourer = (id, newName) => {
     if (!newName || !newName.trim()) return false;
     setLabourers(prev =>
-      prev.map(lab => (lab.id === id ? { ...lab, name: newName.trim() } : lab))
+      prev.map(lab => (lab.id === id && inScopeNow(lab) ? { ...lab, name: newName.trim() } : lab))
     );
     labourDatabaseService.renameLabourer(id, newName).catch(() => {});
     return true;
@@ -377,14 +423,14 @@ export function LabourHisaabProvider({ children }) {
 
   const toggleLabourerStatus = (id) => {
     setLabourers(prev =>
-      prev.map(lab => (lab.id === id ? { ...lab, isActive: !lab.isActive } : lab))
+      prev.map(lab => (lab.id === id && inScopeNow(lab) ? { ...lab, isActive: !lab.isActive } : lab))
     );
     labourDatabaseService.toggleLabourerActive(id).catch(() => {});
   };
 
   const updateLabourer = (id, updates) => {
     setLabourers(prev =>
-      prev.map(lab => (lab.id === id ? { ...lab, ...updates } : lab))
+      prev.map(lab => (lab.id === id && inScopeNow(lab) ? { ...lab, ...updates } : lab))
     );
   };
 
@@ -484,6 +530,8 @@ export function LabourHisaabProvider({ children }) {
       workCompletedAt: entryData.workCompletedAt ?? previous?.workCompletedAt,
       ...(previous ? { updatedAt: new Date().toISOString() } : {}),
       ...(previous?.createdBy ? { createdBy: previous.createdBy } : {}),
+      // Contractor: an edit keeps the entry's own contractor; a new entry takes the selected one.
+      ...((previous?.contractorId || (!previous && scope.activeId)) ? { contractorId: previous?.contractorId || scope.activeId } : {}),
     };
 
     showSaved(await repo.upsert(newEntry));
@@ -1021,6 +1069,7 @@ export function LabourHisaabProvider({ children }) {
     contractorState,
     loadContractors,
     selectContractor,
+    activeContractorId: scope.activeId,
     renameCloudContractor,
     syncItems,
     registers,

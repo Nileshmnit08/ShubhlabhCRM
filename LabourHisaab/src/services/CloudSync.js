@@ -71,15 +71,11 @@ export const writeSelection = (list, userId, { contractor_id, name }) => [
 ];
 
 /**
- * Whether this phone may switch to `nextId`. A phone's saved entries belong to the contractor
- * it synced with (`boundId`); switching while such entries exist would file them under the
- * wrong contractor, so it is refused (entries are never moved or deleted).
+ * Contractor a phone record belongs to (LH-CONTRACTOR-SELECT-OPEN-07): its own contractorId,
+ * else the contractor this phone first synced with (records saved before tagging existed).
+ * Switching contractor never moves records: each stays with its own contractor.
  */
-export function canSwitchContractor({ boundId, nextId, entryCount }) {
-  if (!nextId) return { ok: false, message: 'ठेकेदार चुनें।' };
-  if (!boundId || boundId === nextId || !entryCount) return { ok: true };
-  return { ok: false, message: `इस फ़ोन की ${entryCount} प्रविष्टियाँ पहले चुने गए ठेकेदार की हैं। ठेकेदार बदलने से वे गलत ठेकेदार में चली जाएँगी, इसलिए बदलाव रोका गया है।` };
-}
+export const recordContractor = (item, boundId) => item.contractorId || boundId || null;
 
 // Synced rate rows start here so any historical work date falls inside the period.
 export const SYNC_RATE_EFFECTIVE_FROM = '2000-01-01';
@@ -321,14 +317,19 @@ export function planEntry(entry, { serverId, contractorId, rate, labourerIds }) 
  *   → { entryIds: [ids saved] }. Saves downloads on the phone; must skip an entry whose
  *   current hash is not expectedHash (null = must not exist yet), so a local edit always wins.
  */
-export async function syncAll({ adapter, store, entries: entriesSource, labourers, today, random = Math.random, now = () => new Date().toISOString(), applyRemote = null, categoryNames = {} }) {
-  // `entries` may be a function returning the CURRENT device list, re-read at the end so
-  // entries deleted on the phone during this run are recognised.
-  const readEntries = async () => (typeof entriesSource === 'function' ? await entriesSource() : entriesSource) || [];
+export async function syncAll({ adapter, store, entries: entriesSource, labourers: allLabs, today, random = Math.random, now = () => new Date().toISOString(), applyRemote = null, categoryNames = {}, owns = null }) {
   const membership = await adapter.getMembership();
   if (!membership) throw new Error(NO_MEMBERSHIP_MESSAGE);
   if (!ENTRY_ROLES.includes(membership.role)) throw new Error('इस खाते को केवल देखने की अनुमति है (Viewer)।');
   const { contractorId, role } = membership;
+  // Only this contractor's records take part (LH-CONTRACTOR-SELECT-OPEN-07): an item tagged with
+  // another contractor is never uploaded here. `owns(item, contractorId)` may resolve untagged
+  // older items (the phone's first contractor); default: untagged items belong to this one.
+  const mine = (item) => (owns ? owns(item, contractorId) : (!item.contractorId || item.contractorId === contractorId));
+  // `entries` may be a function returning the CURRENT device list, re-read at the end so
+  // entries deleted on the phone during this run are recognised.
+  const readEntries = async () => ((typeof entriesSource === 'function' ? await entriesSource() : entriesSource) || []).filter(mine);
+  const labourers = (allLabs || []).filter(mine);
   const features = adapter.features ? await adapter.features() : { timestamps: false, registers: false };
   const shared = Boolean(applyRemote && adapter.fetchLabourers && adapter.fetchEntries && store.getRoster);
   const result = { uploaded: 0, unchanged: 0, deleted: 0, downloaded: 0, labourersDownloaded: 0, missingOnServer: 0,
@@ -370,12 +371,17 @@ export async function syncAll({ adapter, store, entries: entriesSource, labourer
   const toUpload = [];
   const adopted = [];
   const rosterMarks = [];
+  // A labourer new to the server is sent only if this contractor's work uses it or it was added
+  // on the phone — the app's built-in sample roster is never uploaded as real people.
+  const usedIds = new Set((await readEntries()).flatMap(e => [
+    ...(e.participatingLabourerIds || []), ...(e.allocations || []).map(a => a.labourerId)]).map(String));
   for (const lab of labourers || []) {
     const id = String(lab.id);
     const remote = remoteLabById.get(id);
     const localHash = labourerHash(lab);
-    if (!shared || !remote) { toUpload.push(lab); continue; }
-    const remoteLab = labourerFromServer(remote);
+    if (!shared) { toUpload.push(lab); continue; }
+    if (!remote) { if (usedIds.has(id) || lab.addedOnPhone) toUpload.push(lab); continue; }
+    const remoteLab = { ...labourerFromServer(remote), contractorId };
     const remoteHash = labourerHash(remoteLab);
     const changedHere = rosterSynced.has(id) && rosterSynced.get(id) !== localHash;
     if (changedHere) toUpload.push(lab);
@@ -385,7 +391,7 @@ export async function syncAll({ adapter, store, entries: entriesSource, labourer
   if (shared) {
     const localIds = new Set((labourers || []).map(l => String(l.id)));
     remoteLabs.filter(r => !localIds.has(String(r.local_id))).forEach(r => {
-      const lab = labourerFromServer(r);
+      const lab = { ...labourerFromServer(r), contractorId };
       adopted.push(lab);
       rosterMarks.push({ id: lab.id, hash: labourerHash(lab) });
     });
@@ -413,7 +419,7 @@ export async function syncAll({ adapter, store, entries: entriesSource, labourer
       if (pendingDel.has(serverId) || (s && s.deleted)) continue;
       let remoteEntry;
       try {
-        remoteEntry = entryFromServer(rem, { localId: s ? s.id : `WE_srv_${serverId}`, categoryNames });
+        remoteEntry = { ...entryFromServer(rem, { localId: s ? s.id : `WE_srv_${serverId}`, categoryNames }), contractorId };
       } catch (e) {
         result.failed.push({ localId: `download:${serverId}`, message: e.message || String(e) });
         continue;

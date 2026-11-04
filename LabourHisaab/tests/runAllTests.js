@@ -1345,7 +1345,7 @@ runTest('No sample/default amount on Home; app starts on the real date with no s
   assert.ok(/setSelectedDate\(today\)/.test(home), 'one-tap return to today');
   const ctx = fs.readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
   assert.ok(/useState\(\(\) => todayYmd\(\)\)/.test(ctx), 'selected date starts at the device date');
-  assert.ok(/const \[workEntries, setWorkEntries\] = useState\(\[\]\)/.test(ctx), 'no sample work entries on start');
+  assert.ok(/const \[allWorkEntries, setWorkEntries\] = useState\(\[\]\)/.test(ctx), 'no sample work entries on start');
   assert.ok(/const \[payments, setPayments\] = useState\(\[\]\)/.test(ctx), 'no sample payments on start');
   assert.ok(/const \[serviceExpenses, setServiceExpenses\] = useState\(\[\]\)/.test(ctx), 'no sample expenses on start');
   assert.strictEqual(homeTotal([], todayYmdForTest()), 0, 'empty start → ₹0 on Home');
@@ -1407,7 +1407,7 @@ runTest('Home count uses the daily working count; no fixed 6 fallback; app start
   assert.ok(!/activeLabourersCount/.test(home), 'Home no longer shows the roster size');
   assert.ok(!/\|\|\s*6\b/.test(home), 'no || 6 fallback');
   const ctx = fs.readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
-  assert.ok(/const \[workEntries, setWorkEntries\] = useState\(\[\]\)/.test(ctx), 'no sample work entries at start → count 0');
+  assert.ok(/const \[allWorkEntries, setWorkEntries\] = useState\(\[\]\)/.test(ctx), 'no sample work entries at start → count 0');
 });
 
 // -----------------------------------------------------------------
@@ -1966,15 +1966,50 @@ runTest('Selection is saved per signed-in user and restored; another user on the
   assert.strictEqual((await s.loadList(key)).length, 2, 'replaced, not duplicated');
 });
 
-runTest('Switching contractor is refused while this phone holds entries of the previous one', async () => {
-  const { canSwitchContractor } = await import('../src/services/CloudSync.js');
-  assert.deepStrictEqual(canSwitchContractor({ boundId: null, nextId: 'c-ajay', entryCount: 2 }), { ok: true }, 'first choice');
-  assert.deepStrictEqual(canSwitchContractor({ boundId: 'c-ajay', nextId: 'c-ajay', entryCount: 2 }), { ok: true });
-  assert.deepStrictEqual(canSwitchContractor({ boundId: 'c-ajay', nextId: 'c-other', entryCount: 0 }), { ok: true }, 'empty phone may switch');
-  const r = canSwitchContractor({ boundId: 'c-ajay', nextId: 'c-other', entryCount: 2 });
-  assert.strictEqual(r.ok, false);
-  assert.match(r.message, /2 प्रविष्टियाँ/);
-  assert.strictEqual(canSwitchContractor({ boundId: null, nextId: null }).ok, false);
+runTest('Switching contractor: each record stays with its own contractor; older untagged ones with the first contractor', async () => {
+  const { syncAll, createSyncStore, recordContractor } = await import('../src/services/CloudSync.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  assert.strictEqual(recordContractor({}, 'c-ajay'), 'c-ajay', '2/3 Nov (untagged) belong to the first contractor');
+  assert.strictEqual(recordContractor({ contractorId: 'c-y' }, 'c-ajay'), 'c-y');
+  const sent = [];
+  const adapter = (cid) => ({
+    getMembership: async () => ({ contractorId: cid, role: 'Operator' }),
+    upsertLabourers: async (rows) => rows.map(r => ({ id: `u-${r.local_id}`, local_id: r.local_id })),
+    ensureRate: async () => ({ id: 'r-1' }), deleteEntry: async () => {}, deleteAllocations: async () => {},
+    upsertEntry: async (row) => { sent.push([row.contractor_id, row.work_date]); return { id: row.id }; }, replaceDetails: async () => {}, insertAllocations: async () => {},
+  });
+  const old = regEntry('WE_nov2', '2026-11-02', 'pallet', undefined, '2026-11-02T12:10:00.000Z', 5775, ['LH_LAB_001']); // untagged
+  const yWork = { ...regEntry('WE_y', '2026-11-04', 'mix', undefined, '2026-11-04T05:00:00.000Z', 40, ['LH_LAB_y1']), contractorId: 'c-y' };
+  const owns = (item, cid) => (item.contractorId || 'c-ajay' || cid) === cid;
+  const labs = [{ id: 'LH_LAB_001', name: 'A', isActive: true }, { id: 'LH_LAB_y1', name: 'Y worker', isActive: true, contractorId: 'c-y' }];
+  await syncAll({ adapter: adapter('c-y'), store: createSyncStore(createLocalStore(memoryBackend())), entries: [old, yWork], labourers: labs, owns, today: '2026-11-04' });
+  assert.deepStrictEqual(sent, [['c-y', '2026-11-04']], 'with contractor Y selected only Y\'s entry is sent; 2 Nov is not moved to Y');
+  sent.length = 0;
+  await syncAll({ adapter: adapter('c-ajay'), store: createSyncStore(createLocalStore(memoryBackend())), entries: [old, yWork], labourers: labs, owns, today: '2026-11-04' });
+  assert.deepStrictEqual(sent, [['c-ajay', '2026-11-02']], 'back on Ajay: only Ajay\'s entries');
+});
+
+runTest('Shared roster: the built-in sample labourers are never uploaded to a new contractor; real ones are', async () => {
+  const { syncAll, createSyncStore } = await import('../src/services/CloudSync.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  const uploaded = [];
+  const adapter = {
+    getMembership: async () => ({ contractorId: 'c-new', role: 'Operator' }),
+    features: async () => ({ timestamps: true, registers: false }),
+    fetchLabourers: async () => [], fetchEntries: async () => [],
+    upsertLabourers: async (rows) => { uploaded.push(...rows.map(r => r.local_id)); return rows.map(r => ({ id: `u-${r.local_id}`, local_id: r.local_id })); },
+    ensureRate: async () => ({ id: 'r-1' }), deleteEntry: async () => {}, deleteAllocations: async () => {},
+    upsertEntry: async (row) => ({ id: row.id }), replaceDetails: async () => {}, insertAllocations: async () => {},
+  };
+  const store = createSyncStore(createLocalStore(memoryBackend()));
+  const labs = [
+    { id: 'LH_LAB_001', name: 'Sample One', isActive: true },                                        // built-in sample, unused
+    { id: 'LH_LAB_x1', name: 'Real Added', isActive: true, addedOnPhone: true, contractorId: 'c-new' },  // added on the phone
+    { id: 'LH_LAB_002', name: 'Sample Used', isActive: true },                                       // used by work
+  ];
+  const work = { ...regEntry('WE_n', '2026-11-04', 'mix', undefined, '2026-11-04T05:00:00.000Z', 10, ['LH_LAB_002']), contractorId: 'c-new' };
+  await syncAll({ adapter, store, entries: [work], labourers: labs, today: '2026-11-04', applyRemote: async () => ({ entryIds: [] }) });
+  assert.deepStrictEqual(uploaded.sort(), ['LH_LAB_002', 'LH_LAB_x1']);
 });
 
 runTest('Settings shows the Contractor card; save screen names the contractor and the persisted record id', async () => {
@@ -1983,11 +2018,16 @@ runTest('Settings shows the Contractor card; save screen names the contractor an
   assert.match(settings, /<ContractorSelectCard \/>/);
   const card = readFileSync(new URL('../src/components/ContractorSelectCard.js', import.meta.url), 'utf8');
   assert.match(card, /listMemberships|loadContractors/);
+  const adapterSrc = readFileSync(new URL('../src/services/supabaseSyncAdapter.js', import.meta.url), 'utf8');
+  assert.match(adapterSrc, /rpc\('lh_list_active_contractors'\)/, 'all active contractors from the database (254)');
+  assert.match(adapterSrc, /rpc\('lh_select_contractor', \{ p_contractor: contractorId \}\)/, 'the server authorises the choice');
+  assert.ok(!/lh_set_member|lh_add_member_by_email|lh_set_operator|contractor_members'\)\.(insert|upsert|update)/.test(adapterSrc), 'no membership management from the phone');
   assert.match(card, /Alert\.alert\(\s*'ठेकेदार चुनें\?'/, 'confirmation before changing');
   assert.ok(!/contractor_members'\)\.insert|lh_add_member|lh_set_member|\.rpc\(/.test(card), 'the phone cannot grant itself membership');
   assert.ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(card), 'no hard-coded contractor ids');
   const form = readFileSync(new URL('../src/screens/AddWorkEntryScreen.js', import.meta.url), 'utf8');
   assert.match(form, /Record ID: \$\{cloud\.serverId\}/);
+  assert.match(form, /'पहले ठेकेदार चुनें'/, 'no contractor selected → prompt before saving');
 });
 
 // -----------------------------------------------------------------

@@ -1,7 +1,8 @@
-// Settings → Contractor (LH-CONTRACTOR-SELECT-SAVE-VERIFY-06).
-// Lists the REAL contractors this signed-in account is an active member of (from the database),
-// shows which one this phone saves work for, and lets the operator choose (with confirmation).
-// It cannot create memberships: an unlinked account is told exactly who must add it.
+// Settings → Contractor (LH-CONTRACTOR-SELECT-SAVE-VERIFY-06, LH-CONTRACTOR-SELECT-OPEN-07).
+// Lists the active contractors from the database (all of them for approved LabourHisaab
+// operators, proposal 254; only the account's memberships on a server without 254), shows the
+// one this phone works for now, and lets the operator choose or change it (with confirmation).
+// The DATABASE authorises the choice; the phone never grants itself Owner/Admin access.
 
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
@@ -12,21 +13,23 @@ import { useLabourHisaab } from '../context/LabourHisaabContext';
 const ROLE_LABEL = { Owner: 'मालिक (Owner)', Manager: 'मैनेजर (Manager)', Operator: 'ऑपरेटर (Operator)', Viewer: 'केवल देखें (Viewer)' };
 
 export default function ContractorSelectCard() {
-  const { cloudUser, isCloudConfigured, contractorState, loadContractors, selectContractor, syncStatus } = useLabourHisaab();
-  const { status, memberships, selectedId, selectedName, error } = contractorState;
+  const { cloudUser, isCloudConfigured, contractorState, loadContractors, selectContractor, syncStatus, activeContractorId } = useLabourHisaab();
+  const { status, memberships, error, mode } = contractorState;
 
   useEffect(() => { if (cloudUser && status === 'idle') loadContractors(); }, [cloudUser, status]);
 
-  // What this phone uses: the explicit choice, else the only membership.
-  const effective = selectedId
-    ? memberships.find(m => m.contractor_id === selectedId) || null
-    : memberships.length === 1 ? memberships[0] : null;
+  const active = memberships.find(m => m.contractor_id === activeContractorId) || null;
+  const selectable = (m) => !m.removed && (mode === 'open' || Boolean(m.role));
 
   const choose = (m) => {
-    if (m.contractor_id === selectedId) return;
+    if (m.contractor_id === activeContractorId) return;
+    if (!selectable(m)) {
+      Alert.alert('ठेकेदार नहीं चुना जा सकता', m.removed ? 'इस ठेकेदार से आपकी पहुँच मालिक/व्यवस्थापक ने हटा दी है।' : 'यह खाता इस ठेकेदार से जुड़ा नहीं है।');
+      return;
+    }
     Alert.alert(
       'ठेकेदार चुनें?',
-      `इस फ़ोन की नई प्रविष्टियाँ "${m.name}" के लिए डेटाबेस में सहेजी जाएँगी (${ROLE_LABEL[m.role] || m.role}).`,
+      `अब से नई प्रविष्टियाँ "${m.name}" के लिए सहेजी जाएँगी।${active ? `\n"${active.name}" की प्रविष्टियाँ उसी ठेकेदार में सुरक्षित रहेंगी।` : ''}`,
       [
         { text: 'रद्द करें', style: 'cancel' },
         {
@@ -61,43 +64,40 @@ export default function ContractorSelectCard() {
       ) : status === 'loading' || status === 'idle' ? (
         <View style={styles.row}><ActivityIndicator size="small" color={theme.colors.primary} /><Text style={styles.note}>ठेकेदार सूची लोड हो रही है...</Text></View>
       ) : status === 'error' ? (
-        <Text style={[styles.note, { color: theme.colors.danger }]}>ठेकेदार सूची लोड नहीं हुई: {error}</Text>
+        <View style={styles.warnBox}>
+          <Text style={styles.warnText}>ठेकेदार सूची लोड नहीं हुई</Text>
+          <Text style={styles.note}>{error}</Text>
+        </View>
       ) : status === 'empty' ? (
         <View style={styles.warnBox}>
-          <Text style={styles.warnText}>इस खाते ({cloudUser.email}) को अभी किसी ठेकेदार से नहीं जोड़ा गया है।</Text>
-          <Text style={styles.note}>ठेकेदार के मालिक (Owner) या Shubh Labh CRM व्यवस्थापक से कहें कि वे आपका यही ईमेल ठेकेदार में ऑपरेटर के रूप में जोड़ें। जुड़ने के बाद ऊपर ताज़ा करें।</Text>
-          <Text style={styles.note}>तब तक प्रविष्टियाँ केवल इस फ़ोन पर रहेंगी — डेटाबेस/CRM में नहीं जाएँगी।</Text>
+          <Text style={styles.warnText}>{mode === 'open' ? 'डेटाबेस में कोई सक्रिय ठेकेदार नहीं है।' : `इस खाते (${cloudUser.email}) को अभी किसी ठेकेदार से नहीं जोड़ा गया है।`}</Text>
+          <Text style={styles.note}>Shubh Labh CRM व्यवस्थापक से संपर्क करें। तब तक प्रविष्टियाँ केवल इस फ़ोन पर रहेंगी।</Text>
         </View>
       ) : (
         <>
-          <View style={[styles.current, !effective && { borderColor: theme.colors.warning }]}>
-            <Text style={styles.currentLabel}>चुना गया ठेकेदार (Selected)</Text>
-            <Text style={styles.currentName}>
-              {effective ? effective.name : selectedName ? `${selectedName} (अब जुड़ा नहीं)` : 'कोई नहीं — नीचे से चुनें'}
-            </Text>
-            {effective ? (
-              <Text style={styles.note}>
-                भूमिका: {ROLE_LABEL[effective.role] || effective.role}
-                {!selectedId ? ' · इकलौता जुड़ा हुआ ठेकेदार, अपने-आप उपयोग' : ''}
-              </Text>
-            ) : null}
+          <View style={[styles.current, !active && { borderColor: theme.colors.warning }]}>
+            <Text style={styles.currentLabel}>अभी का ठेकेदार (Working for)</Text>
+            <Text style={styles.currentName}>{active ? active.name : 'कोई नहीं — नीचे से चुनें'}</Text>
+            {active?.business_name ? <Text style={styles.note}>{active.business_name}</Text> : null}
+            {active?.role ? <Text style={styles.note}>भूमिका: {ROLE_LABEL[active.role] || active.role}</Text> : null}
             {error ? <Text style={[styles.note, { color: theme.colors.danger }]}>{error}</Text> : null}
-            {effective && effective.role === 'Viewer' ? (
-              <Text style={[styles.note, { color: theme.colors.warning }]}>Viewer भूमिका से काम सहेजा नहीं जा सकता।</Text>
-            ) : null}
+            {active?.role === 'Viewer' ? <Text style={[styles.note, { color: theme.colors.warning }]}>Viewer भूमिका से काम सहेजा नहीं जा सकता।</Text> : null}
           </View>
           {memberships.map(m => {
-            const isOn = effective && m.contractor_id === effective.contractor_id;
+            const isOn = m.contractor_id === activeContractorId;
             return (
-              <TouchableOpacity key={m.contractor_id} style={[styles.option, isOn && styles.optionOn]} onPress={() => choose(m)} disabled={isOn && Boolean(selectedId)}>
+              <TouchableOpacity key={m.contractor_id} style={[styles.option, isOn && styles.optionOn, !selectable(m) && { opacity: 0.5 }]} onPress={() => choose(m)} disabled={isOn}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.optionName}>{m.name}</Text>
-                  <Text style={styles.note}>{ROLE_LABEL[m.role] || m.role}</Text>
+                  <Text style={styles.note}>
+                    {[m.business_name, m.removed ? 'पहुँच हटाई गई' : m.role ? ROLE_LABEL[m.role] || m.role : 'चुनने पर ऑपरेटर के रूप में जुड़ेंगे'].filter(Boolean).join(' · ')}
+                  </Text>
                 </View>
                 {isOn ? <CheckCircle2 size={18} color={theme.colors.success} /> : <Text style={styles.chooseText}>चुनें</Text>}
               </TouchableOpacity>
             );
           })}
+          {mode === 'members' ? <Text style={styles.note}>सूची में केवल वे ठेकेदार हैं जिनसे यह खाता जुड़ा है।</Text> : null}
           {syncStatus.lastError ? <Text style={[styles.note, { color: theme.colors.danger }]}>सिंक: {syncStatus.lastError}</Text> : null}
         </>
       )}

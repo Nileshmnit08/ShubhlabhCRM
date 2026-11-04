@@ -43,13 +43,14 @@ export default function AddWorkEntryScreen({ navigation, route }) {
     updateWorkEntry,
     confirmCloudSave,
     contractorState,
+    activeContractorId,
+    cloudUser,
     registers,
     labourers,
   } = useLabourHisaab();
-  // Contractor this phone saves for (selected in Settings, or the only linked one).
-  const activeContractor = contractorState.selectedId
-    ? contractorState.memberships.find(m => m.contractor_id === contractorState.selectedId)
-    : contractorState.memberships.length === 1 ? contractorState.memberships[0] : null;
+  // Contractor this entry is saved for: the one selected in Settings (or the only linked one).
+  // An edit stays with the entry's own contractor.
+  const activeContractor = contractorState.memberships.find(m => m.contractor_id === activeContractorId) || null;
   const contractorLabel = activeContractor ? activeContractor.name : (contractorState.selectedName || '—');
 
   const workEntryToEdit = route?.params?.workEntryToEdit;
@@ -192,6 +193,15 @@ export default function AddWorkEntryScreen({ navigation, route }) {
   // sends it back to Pending for CRM re-approval (asked once, also skipped on Retry).
   const handleSave = async ({ confirmedDecided = false } = {}) => {
     if (savingRef.current) return;
+
+    // A new entry needs a contractor (LH-CONTRACTOR-SELECT-OPEN-07): ask to choose one first.
+    if (!workEntryToEdit && cloudUser && !activeContractorId) {
+      Alert.alert('पहले ठेकेदार चुनें', 'यह काम किस ठेकेदार के लिए है? सेटिंग्स → ठेकेदार (Contractor) में ठेकेदार चुनें, फिर सहेजें।', [
+        { text: 'रद्द करें', style: 'cancel' },
+        { text: 'ठेकेदार चुनें', onPress: () => navigation.navigate('MainTabs', { screen: 'SettingsTab' }) },
+      ]);
+      return;
+    }
 
     // Empty required fields are errors; an explicit 0 is valid and saves a ₹0 entry.
     const validationError = validateWorkEntryInputs({

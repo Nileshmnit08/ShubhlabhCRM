@@ -2,7 +2,11 @@
 // Talks only to the secure 249 tables as the signed-in user; the database's access rules
 // decide what this user may write (Owner/Manager/Operator of their own contractor only;
 // server deletes need Owner/Manager — proposal 251).
-import { SYNC_RATE_EFFECTIVE_FROM, pickMembership } from './CloudSync';
+import { SYNC_RATE_EFFECTIVE_FROM, pickMembership, NO_MEMBERSHIP_MESSAGE } from './CloudSync';
+
+// PostgREST: the RPC does not exist on this server (proposal not installed).
+const isMissingFunction = (error) => String(error?.code) === 'PGRST202' || String(error?.code) === '42883'
+  || /could not find the function|function .* does not exist/i.test(error?.message || '');
 
 const PAGE = 1000;
 
@@ -85,6 +89,37 @@ export function createSupabaseSyncAdapter(supabase, { selectedContractorId = nul
         .filter(r => r.contractors && r.contractors.is_active !== false)
         .map(r => ({ contractor_id: r.contractor_id, role: r.role, name: r.contractors.name }))
         .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    },
+
+    /**
+     * Contractors this account may choose. With proposal 254: EVERY active contractor (approved
+     * LabourHisaab operators, members, CRM admins) with the account's role there, if any.
+     * Without 254: only the account's own memberships. → { items, mode: 'open' | 'members' }
+     */
+    async listContractors() {
+      const { data, error } = await supabase.rpc('lh_list_active_contractors');
+      if (!error) {
+        return {
+          mode: 'open',
+          items: (data || []).map(r => ({ contractor_id: r.id, name: r.name, business_name: r.business_name || null,
+            role: r.my_membership_active === false ? null : (r.my_role || null), removed: r.my_membership_active === false })),
+        };
+      }
+      if (!isMissingFunction(error)) fail(error, 'Contractor list');
+      return { mode: 'members', items: await this.listMemberships() };
+    },
+
+    /**
+     * Authorise the choice on the server and return the account's role there. With 254 the
+     * database creates an Operator membership for an approved operator (never Owner/Admin).
+     * Without 254 only an existing membership can be chosen.
+     */
+    async selectContractor(contractorId, item = {}) {
+      const { data, error } = await supabase.rpc('lh_select_contractor', { p_contractor: contractorId });
+      if (!error) return data;
+      if (!isMissingFunction(error)) fail(error, 'Contractor selection');
+      if (item.role) return item.role;
+      throw new Error(NO_MEMBERSHIP_MESSAGE);
     },
 
     async getMembership() {
