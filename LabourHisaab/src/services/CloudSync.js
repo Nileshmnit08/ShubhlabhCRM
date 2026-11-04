@@ -26,6 +26,27 @@ const UNIT_TO_SERVER = {
   fixed: 'Fixed amount',
 };
 
+// Roles (contractor_members, proposal 251): who may upload, and who may delete on the server.
+export const ENTRY_ROLES = ['Owner', 'Manager', 'Operator'];
+export const DELETE_ROLES = ['Owner', 'Manager'];
+export const OPERATOR_DELETE_MESSAGE = 'सिंक हो चुकी एंट्री केवल मालिक या मैनेजर हटा सकते हैं।';
+
+/**
+ * Choose the contractor this phone uploads to from the user's active memberships
+ * ([{ contractor_id, role }]). One phone = one contractor: if the account may enter data for
+ * more than one contractor, refuse rather than guess (a wrong guess files records under the
+ * wrong contractor). Read-only memberships are returned only when nothing writable exists.
+ */
+export function pickMembership(rows) {
+  const list = rows || [];
+  const writable = list.filter(r => ENTRY_ROLES.includes(r.role));
+  if (new Set(writable.map(r => r.contractor_id)).size > 1) {
+    throw new Error('यह खाता एक से अधिक ठेकेदार से जुड़ा है। हर फ़ोन के लिए एक ठेकेदार का खाता इस्तेमाल करें।');
+  }
+  const best = ENTRY_ROLES.map(role => writable.find(r => r.role === role)).find(Boolean) || list[0];
+  return best ? { contractorId: best.contractor_id, role: best.role } : null;
+}
+
 // Synced rate rows start here so any historical work date falls inside the period.
 export const SYNC_RATE_EFFECTIVE_FROM = '2000-01-01';
 
@@ -140,14 +161,16 @@ export async function syncAll({ adapter, store, entries: entriesSource, labourer
   const entries = await readEntries();
   const membership = await adapter.getMembership();
   if (!membership) throw new Error('इस खाते को किसी ठेकेदार से नहीं जोड़ा गया है। व्यवस्थापक से संपर्क करें।');
-  if (!['Owner', 'Manager'].includes(membership.role)) throw new Error('इस खाते को केवल देखने की अनुमति है (Viewer)।');
-  const { contractorId } = membership;
-  const result = { uploaded: 0, unchanged: 0, deleted: 0, failed: [], contractorId };
+  if (!ENTRY_ROLES.includes(membership.role)) throw new Error('इस खाते को केवल देखने की अनुमति है (Viewer)।');
+  const { contractorId, role } = membership;
+  const result = { uploaded: 0, unchanged: 0, deleted: 0, failed: [], contractorId, role };
 
   // 1. Pending deletes first, so a deleted-then-recreated day never double counts.
   const deletes = await store.getDeletes();
   for (const d of deletes) {
     try {
+      // An Operator's queued delete stays queued (reported), never silently dropped.
+      if (!DELETE_ROLES.includes(role)) throw new Error(OPERATOR_DELETE_MESSAGE);
       await adapter.deleteEntry(d.id);
       await store.updateDeletes(list => list.filter(x => x.id !== d.id));
       result.deleted += 1;

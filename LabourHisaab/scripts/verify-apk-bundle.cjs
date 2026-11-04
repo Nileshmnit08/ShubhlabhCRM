@@ -17,6 +17,7 @@ const REQUIRED_MARKERS = [
   '@labourhisaab/v1/work_entries', // device storage key (LocalPersistence)
   '[LH-STORAGE] loaded entries=',  // load diagnostics (LabourHisaabContext)
   'Storage did not confirm the write.', // write read-back check (LocalPersistence)
+  'Delete: not permitted for this account.', // Operator role / RLS delete check (LH-ACCESS-MODEL-02)
 ];
 
 function readZipEntry(buf, wanted) {

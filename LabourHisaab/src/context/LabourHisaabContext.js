@@ -7,7 +7,7 @@ import { deviceStore } from '../services/deviceStorage';
 import { STORAGE_KEYS, makeEntryId } from '../services/LocalPersistence';
 import { createWorkEntryRepository, LOAD_FAILED_MESSAGE } from '../services/WorkEntryRepository';
 import { supabase, isCloudConfigured } from '../services/supabase';
-import { syncAll, queueServerDelete, pendingCount, createSyncStore } from '../services/CloudSync';
+import { syncAll, queueServerDelete, pendingCount, createSyncStore, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
 import { createSupabaseSyncAdapter } from '../services/supabaseSyncAdapter';
 import {
   DEFAULT_WORK_RATES,
@@ -112,6 +112,8 @@ export function LabourHisaabProvider({ children }) {
   const syncRunning = useRef(false);
   const syncAgain = useRef(false);
   const cloudUserRef = useRef(null);
+  const cloudRoleRef = useRef(null); // role from the last successful sync (Owner/Manager/Operator)
+  const cloudContractorRef = useRef(null); // server contractor id from the last successful sync
   const labourersRef = useRef(labourers);
   labourersRef.current = labourers;
 
@@ -137,7 +139,9 @@ export function LabourHisaabProvider({ children }) {
         today: todayYmd(),
       });
       console.log(`[LH-SYNC] uploaded=${outcome.uploaded} unchanged=${outcome.unchanged} deleted=${outcome.deleted} failed=${outcome.failed.length}`);
-      setSyncStatus(s => ({ ...s, lastSyncAt: new Date().toISOString(), failed: outcome.failed,
+      cloudRoleRef.current = outcome.role || null;
+      cloudContractorRef.current = outcome.contractorId || null;
+      setSyncStatus(s => ({ ...s, lastSyncAt: new Date().toISOString(), failed: outcome.failed, role: outcome.role || null,
         lastError: outcome.failed.length ? outcome.failed[0].message : null }));
     } catch (e) {
       console.log(`[LH-SYNC] FAILED: ${e?.message || e}`);
@@ -187,7 +191,19 @@ export function LabourHisaabProvider({ children }) {
   const cloudSignOut = async () => {
     if (supabase) await supabase.auth.signOut();
     cloudUserRef.current = null;
+    cloudRoleRef.current = null;
+    cloudContractorRef.current = null;
     setCloudUser(null);
+    setSyncStatus(s => ({ ...s, role: null }));
+  };
+
+  // Renames the contractor on the server (proposal 251: Owner/Manager/Operator). Returns false
+  // when there is no cloud session or no sync has identified the contractor yet.
+  const renameCloudContractor = async (name) => {
+    if (!supabase || !cloudUserRef.current || !cloudContractorRef.current) return false;
+    const { error: rpcError } = await supabase.rpc('lh_rename_contractor', { p_contractor: cloudContractorRef.current, p_name: name });
+    if (rpcError) throw new Error(rpcError.message);
+    return true;
   };
 
   // The roster is saved whenever it changes after loading (add / rename / activate).
@@ -391,6 +407,12 @@ export function LabourHisaabProvider({ children }) {
   const deleteWorkEntry = async (id) => {
     if (repo.hasLoadFailed()) throw new Error(LOAD_FAILED_MESSAGE);
     if (!repo.isReady()) throw new Error('डेटा अभी लोड हो रहा है, कृपया एक क्षण बाद दोबारा प्रयास करें।');
+    // An Operator cannot delete on the server; removing a synced entry only from this phone
+    // would leave the CRM and other devices showing it, so it is refused here.
+    if (cloudRoleRef.current && !DELETE_ROLES.includes(cloudRoleRef.current)
+        && (await syncStore.getState()).some(x => x.id === id && x.serverId)) {
+      throw new Error(OPERATOR_DELETE_MESSAGE);
+    }
     await queueServerDelete(syncStore, id);
     try {
       showSaved(await repo.remove(id));
@@ -858,6 +880,7 @@ export function LabourHisaabProvider({ children }) {
     cloudSignIn,
     cloudSignOut,
     syncNow: runSync,
+    renameCloudContractor,
 
     // Operations
     addLabourer,

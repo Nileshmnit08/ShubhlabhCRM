@@ -1,7 +1,8 @@
 // Supabase implementation of the CloudSync adapter (LH-CLOUD-SYNC-01).
 // Talks only to the secure 249 tables as the signed-in user; the database's access rules
-// decide what this user may write (Owner/Manager of their own contractor only).
-import { SYNC_RATE_EFFECTIVE_FROM } from './CloudSync';
+// decide what this user may write (Owner/Manager/Operator of their own contractor only;
+// server deletes need Owner/Manager — proposal 251).
+import { SYNC_RATE_EFFECTIVE_FROM, pickMembership } from './CloudSync';
 
 const fail = (error, what) => {
   if (!error) return;
@@ -23,9 +24,7 @@ export function createSupabaseSyncAdapter(supabase) {
         .eq('user_id', uid)
         .eq('is_active', true);
       fail(error, 'Membership');
-      const rows = data || [];
-      const writer = rows.find(r => r.role === 'Owner') || rows.find(r => r.role === 'Manager') || rows[0];
-      return writer ? { contractorId: writer.contractor_id, role: writer.role } : null;
+      return pickMembership(data);
     },
 
     async upsertLabourers(rows) {
@@ -62,8 +61,14 @@ export function createSupabaseSyncAdapter(supabase) {
     },
 
     async deleteEntry(serverId) {
-      const { error } = await supabase.from('daily_work_entries').delete().eq('id', serverId);
+      const { data, error } = await supabase.from('daily_work_entries').delete().eq('id', serverId).select('id');
       fail(error, 'Delete');
+      // Access rules turn a forbidden delete into "0 rows" without an error: confirm it is gone.
+      if (!data || !data.length) {
+        const { data: still, error: readErr } = await supabase.from('daily_work_entries').select('id').eq('id', serverId);
+        fail(readErr, 'Delete check');
+        if (still && still.length) throw new Error('Delete: not permitted for this account.');
+      }
     },
 
     async deleteAllocations(serverId) {

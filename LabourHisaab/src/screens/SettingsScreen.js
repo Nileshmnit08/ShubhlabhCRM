@@ -52,6 +52,7 @@ export default function SettingsScreen({ navigation }) {
     cloudSignIn,
     cloudSignOut,
     syncNow,
+    renameCloudContractor,
   } = useLabourHisaab();
 
   // Cloud sync sign-in (LH-CLOUD-SYNC-01)
@@ -140,13 +141,19 @@ export default function SettingsScreen({ navigation }) {
     );
   };
 
-  const handleSaveContractorName = () => {
-    if (!tempContractorName.trim()) {
+  const handleSaveContractorName = async () => {
+    const name = tempContractorName.trim();
+    if (!name) {
       Alert.alert('त्रुटि', 'कृपया ठेकेदार का नाम दर्ज करें।');
       return;
     }
-    setContractorName(tempContractorName.trim());
-    Alert.alert('सहेजा गया', 'ठेकेदार का नाम अपडेट हो गया।');
+    setContractorName(name);
+    try {
+      const onServer = await renameCloudContractor(name);
+      Alert.alert('सहेजा गया', onServer ? 'ठेकेदार का नाम फ़ोन और क्लाउड दोनों में अपडेट हो गया।' : 'ठेकेदार का नाम इस फ़ोन पर अपडेट हो गया।');
+    } catch (e) {
+      Alert.alert('आंशिक रूप से सहेजा गया', `नाम इस फ़ोन पर बदला, लेकिन क्लाउड में नहीं बदल सका।\n(${e?.message || e})`);
+    }
   };
 
   const handleCreateBackup = async () => {
@@ -251,7 +258,7 @@ export default function SettingsScreen({ navigation }) {
             </>
           ) : (
             <>
-              <Text style={styles.contractorNote}>साइन इन: {cloudUser.email}</Text>
+              <Text style={styles.contractorNote}>साइन इन: {cloudUser.email}{syncStatus.role ? ` (${syncStatus.role})` : ''}</Text>
               <Text style={styles.contractorNote}>
                 {syncStatus.running ? 'सिंक चल रहा है...'
                   : syncStatus.pending > 0 ? `भेजना बाकी: ${syncStatus.pending} प्रविष्टि`
