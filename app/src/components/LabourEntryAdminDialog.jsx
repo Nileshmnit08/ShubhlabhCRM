@@ -9,7 +9,7 @@ import { formatInr, previewAmount, adminEntryError, workTypeLabel, quantityLabel
  * Every change goes ONLY through the database functions of proposal 255, which check is_admin()
  * themselves, recompute the amount from the rate period × quantity, keep the entry's id,
  * contractor and historical rate, write the audit history and never set an approval status
- * (the day returns to Pending for another CRM approver). Delete needs a reason and is refused
+ * (the day returns to Pending until a CRM admin approves it). Delete needs a reason and is refused
  * for a closed (settled) month.
  */
 
@@ -86,7 +86,7 @@ export default function LabourEntryAdminDialog({ mode, entry, lines = [], contra
     });
     setBusy(false);
     if (e) { setError(isMissingFn(e) ? 'Admin entry management is not installed yet (proposal 255).' : e.message); return; }
-    onDone(`${isEdit ? 'Entry updated' : 'Entry added'} (${f.workDate}, ${workTypeLabel(f.workType)}). The day is now Pending CRM approval and is not in the totals until another approver approves it.`);
+    onDone(`${isEdit ? 'Entry updated' : 'Entry added'} (${f.workDate}, ${workTypeLabel(f.workType)}). The day is now Pending CRM approval and is not in the totals until it is approved.`);
   };
 
   const remove = async () => {
@@ -200,7 +200,7 @@ export default function LabourEntryAdminDialog({ mode, entry, lines = [], contra
               <label style={{ ...field, flex: 1 }}>Reason for the audit log (optional)<input value={form.reason} onChange={e => set('reason', e.target.value)} maxLength={300} /></label>
             </div>
             <p className="text-muted" style={{ fontSize: '0.78rem', margin: '0.5rem 0 0' }}>
-              Saving makes the day Pending: it leaves the approved totals until another CRM approver approves it. You cannot approve a day you changed.
+              Saving makes the day Pending: it leaves the approved totals until a CRM admin approves it on the approvals page.
             </p>
           </>
         )}

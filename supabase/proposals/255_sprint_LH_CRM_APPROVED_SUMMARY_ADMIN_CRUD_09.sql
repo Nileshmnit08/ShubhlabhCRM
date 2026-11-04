@@ -18,8 +18,10 @@
 --                                      refused for a closed (settled) month; reason required.
 --    Neither ever sets an approval status: every change goes through the 252 triggers, so the
 --    day becomes Pending ("Reopened" if it was decided) and needs a CRM decision.
--- 3. Four-eyes approval: whoever created, edited or deleted any entry of a day (since its last
---    decision) cannot approve or reject that day (lh_decide_daily_register, 253 rules kept).
+-- 3. Decision function (lh_decide_daily_register) = 253 rules. The four-eyes check that was
+--    here ("the admin who changed a day cannot decide it") was REMOVED by PO decision on
+--    2026-11-04 (see 256): any CRM admin may approve/reject any register; contractor members
+--    still cannot decide their own contractor's registers.
 -- 4. Audit: entry_source ('app' | 'crm_admin') on entries; created_by / updated_by (251);
 --    every update/delete keeps old + new rows with actor in lh_work_entry_history (252), now
 --    with the admin's reason.
@@ -223,11 +225,11 @@ BEGIN
 END;
 $$;
 
--- ── 3. Four-eyes decision (253 rules + "the editor is not the approver") ────
+-- ── 3. Decision (253 rules; four-eyes check removed by PO decision, see 256) ────
 CREATE OR REPLACE FUNCTION public.lh_decide_daily_register(
     p_contractor uuid, p_date date, p_decision varchar, p_revision int, p_reason text DEFAULT NULL
 ) RETURNS public.labour_daily_registers LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
-DECLARE r public.labour_daily_registers%ROWTYPE; v_reason text := NULLIF(btrim(p_reason), ''); v_snap jsonb; v_since timestamptz;
+DECLARE r public.labour_daily_registers%ROWTYPE; v_reason text := NULLIF(btrim(p_reason), ''); v_snap jsonb;
 BEGIN
     IF NOT COALESCE(public.is_admin(), false) THEN
         RAISE EXCEPTION 'Only a Shubh Labh CRM approver can approve or reject a daily register' USING ERRCODE = '42501';
@@ -253,15 +255,6 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM public.daily_work_entries WHERE contractor_id = p_contractor AND work_date = p_date) THEN
         RAISE EXCEPTION 'The register has no work entries' USING ERRCODE = '23514';
-    END IF;
-    -- Four-eyes: no decision on a day you changed since its last decision.
-    SELECT max(at) INTO v_since FROM public.labour_daily_register_events
-     WHERE register_id = r.id AND action IN ('Approved', 'Rejected');
-    IF EXISTS (SELECT 1 FROM public.daily_work_entries e WHERE e.contractor_id = p_contractor AND e.work_date = p_date
-                  AND (e.created_by = auth.uid() OR e.updated_by = auth.uid()))
-       OR EXISTS (SELECT 1 FROM public.lh_work_entry_history h WHERE h.contractor_id = p_contractor AND h.work_date = p_date
-                  AND h.actor = auth.uid() AND (v_since IS NULL OR h.at > v_since)) THEN
-        RAISE EXCEPTION 'You changed entries of this day; another CRM approver must review it' USING ERRCODE = '42501';
     END IF;
     UPDATE public.labour_daily_registers
        SET status = p_decision, decided_by = auth.uid(), decided_at = now(),
