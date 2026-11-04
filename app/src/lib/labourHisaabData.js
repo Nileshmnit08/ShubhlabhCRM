@@ -88,6 +88,9 @@ export function dailyRows({ entries = [], lines = [], contractorsById = {}, labo
       rate: rateLabel(e),
       amount: num(e.calculated_labour_amount),
       labourers: people.get(e.id) || [],
+      status: e.approval_status || null,
+      source: e.entry_source || null,
+      entry: e,
     }));
 }
 
@@ -109,6 +112,68 @@ export function labourerBalances({ lines = [], payments = [], deductions = [], l
     .map(r => ({ ...r, days: r.days.size, earned: round2(r.earned), paid: round2(r.paid), deducted: round2(r.deducted),
       balance: round2(r.earned - r.paid - r.deducted) }))
     .sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LH-CRM-APPROVED-SUMMARY-ADMIN-CRUD-09: only APPROVED work counts.
+// Approval is per contractor-day (labour_daily_registers). Missing / Pending / Rejected /
+// anything else = not approved. With proposal 255 the database supplies approval_status and the
+// approved-only views; without it the same rule is applied here from the registers.
+// ─────────────────────────────────────────────────────────────────────────────
+export const APPROVED = 'Approved';
+export const isApproved = (status) => status === APPROVED;
+
+/** Adds approval_status to entries from register rows (fallback when 255 is not installed). */
+export function attachApprovalStatus(entries = [], registers = []) {
+  const byDay = new Map(registers.map(r => [`${r.contractor_id}|${String(r.work_date).slice(0, 10)}`, r.status]));
+  return entries.map(e => ({ ...e, approval_status: byDay.get(`${e.contractor_id}|${String(e.work_date).slice(0, 10)}`) || 'Pending' }));
+}
+
+/** Approved entries and the labourer shares that belong to them (same rule for both). */
+export function approvedOnly({ entries = [], lines = [] }) {
+  const approved = entries.filter(e => isApproved(e.approval_status));
+  const ids = new Set(approved.map(e => e.id));
+  return { entries: approved, lines: lines.filter(l => ids.has(l.work_entry_id)) };
+}
+
+/** What is NOT counted (shown next to the totals so nothing is silently hidden). */
+export function notCountedSummary(entries = []) {
+  const out = { count: 0, amount: 0, byStatus: {} };
+  entries.filter(e => !isApproved(e.approval_status)).forEach(e => {
+    const st = e.approval_status || 'Pending';
+    out.count += 1;
+    out.amount = round2(out.amount + num(e.calculated_labour_amount));
+    out.byStatus[st] = (out.byStatus[st] || 0) + 1;
+  });
+  return out;
+}
+
+export const UNITS = ['Per 100 kg', 'Per bag', 'Per batch', 'Fixed amount'];
+
+/** Amount the server will compute (fn_calculate_work_amount) — preview only. */
+export function previewAmount({ rate, unit, totalWeightKg = 0, totalBags = 0, totalBatches = 0 }) {
+  const r = num(rate);
+  if (unit === 'Per 100 kg') return round2((num(totalWeightKg) / 100) * r);
+  if (unit === 'Per bag') return round2(num(totalBags) * r);
+  if (unit === 'Per batch') return round2(num(totalBatches) * r);
+  return round2(r);
+}
+
+/** Validation for the admin add/edit form (the database validates again). Returns an error or null. */
+export function adminEntryError(f, todayYmd) {
+  if (!f.contractorId) return 'Choose a contractor.';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.workDate || '')) return 'Choose the work date.';
+  if (todayYmd && f.workDate > todayYmd) return 'Work date cannot be in the future.';
+  if (!String(f.workType || '').trim()) return 'Choose the work type.';
+  if (!UNITS.includes(f.unit)) return 'Choose the unit.';
+  const n = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v));
+  if (f.unit === 'Per 100 kg' && !(n(f.totalWeightKg) >= 0)) return 'Enter the total weight (kg).';
+  if (f.unit === 'Per bag' && !(n(f.totalBags) >= 0 && Number.isInteger(n(f.totalBags)))) return 'Enter the number of bags (whole number).';
+  if (f.unit === 'Per batch' && !(n(f.totalBatches) >= 0 && Number.isInteger(n(f.totalBatches)))) return 'Enter the number of batches (whole number).';
+  if (f.rate !== '' && f.rate !== null && f.rate !== undefined && !(Number(f.rate) >= 0)) return 'Rate cannot be negative.';
+  if (f.unit === 'Fixed amount' && (f.rate === '' || f.rate === null || f.rate === undefined)) return 'Enter the fixed amount.';
+  if (!Array.isArray(f.labourerIds) || f.labourerIds.length === 0) return 'Select at least one labourer.';
+  return null;
 }
 
 /** True when the error means the LabourHisaab tables are not installed yet. */

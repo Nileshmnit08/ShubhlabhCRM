@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   summarize, dailyRows, labourerBalances, quantityLabel, rateLabel, workTypeLabel,
   isNotConnectedError, isPermissionError, formatInr, monthStart,
@@ -50,6 +51,79 @@ test('labels and helpers', () => {
   assert.equal(workTypeLabel('unknown_type'), 'unknown_type');
   assert.equal(formatInr(5775), '₹5,775');
   assert.equal(monthStart('2026-11-03'), '2026-11-01');
+});
+
+test('approved-only: only Approved days count; Pending, Rejected, unknown and missing never do', async () => {
+  const { attachApprovalStatus, approvedOnly, notCountedSummary } = await import('../labourHisaabData.js');
+  const es = [
+    { id: 'a', contractor_id: 'c1', work_date: '2026-11-02', calculated_labour_amount: 5775 },
+    { id: 'b', contractor_id: 'c1', work_date: '2026-11-03', calculated_labour_amount: 1050 },
+    { id: 'c', contractor_id: 'c1', work_date: '2026-11-04', calculated_labour_amount: 300 },
+    { id: 'd', contractor_id: 'c2', work_date: '2026-11-02', calculated_labour_amount: 99 },
+    { id: 'e', contractor_id: 'c1', work_date: '2026-11-05', calculated_labour_amount: 7 },
+  ];
+  const regs = [
+    { contractor_id: 'c1', work_date: '2026-11-02', status: 'Approved' },
+    { contractor_id: 'c1', work_date: '2026-11-03', status: 'Rejected' },
+    { contractor_id: 'c1', work_date: '2026-11-04', status: 'Pending' },
+    { contractor_id: 'c2', work_date: '2026-11-02', status: 'Weird' },
+  ]; // e has no register at all
+  const withStatus = attachApprovalStatus(es, regs);
+  assert.deepEqual(withStatus.map(x => x.approval_status), ['Approved', 'Rejected', 'Pending', 'Weird', 'Pending']);
+  const ls = es.map(x => ({ work_entry_id: x.id, labourer_id: `L-${x.id}`, work_date: x.work_date, allocated_amount: x.calculated_labour_amount }));
+  const ok = approvedOnly({ entries: withStatus, lines: ls });
+  assert.deepEqual([ok.entries.map(x => x.id), ok.lines.map(x => x.work_entry_id)], [['a'], ['a']]);
+  const s = summarize({ entries: ok.entries, lines: ok.lines });
+  assert.deepEqual([s.totalWage, s.earned, s.entryCount, s.workDays, s.labourersWorked], [5775, 5775, 1, 1, 1]);
+  const b = labourerBalances({ lines: ok.lines, labourersById: {} });
+  assert.deepEqual(b.map(x => x.earned), [5775], 'labourer totals: approved only');
+  const nc = notCountedSummary(withStatus);
+  assert.deepEqual(nc, { count: 4, amount: 1456, byStatus: { Rejected: 1, Pending: 2, Weird: 1 } });
+});
+
+test('approved-only with filters: contractor and date filters still apply to the approved set', async () => {
+  const { approvedOnly } = await import('../labourHisaabData.js');
+  const es = [
+    { id: 'a', contractor_id: 'c1', work_date: '2026-11-02', approval_status: 'Approved', calculated_labour_amount: 100 },
+    { id: 'b', contractor_id: 'c2', work_date: '2026-11-02', approval_status: 'Approved', calculated_labour_amount: 200 },
+    { id: 'c', contractor_id: 'c1', work_date: '2026-10-30', approval_status: 'Approved', calculated_labour_amount: 400 },
+  ];
+  const filtered = es.filter(e => e.contractor_id === 'c1' && e.work_date >= '2026-11-01'); // what the query filters return
+  assert.deepEqual(summarize(approvedOnly({ entries: filtered, lines: [] })).totalWage, 100);
+  assert.deepEqual(summarize(approvedOnly({ entries: es, lines: [] })).totalWage, 700);
+});
+
+test('admin form validation and amount preview follow the server rules', async () => {
+  const { adminEntryError, previewAmount } = await import('../labourHisaabData.js');
+  const base = { contractorId: 'c1', workDate: '2026-11-04', workType: 'pallet', unit: 'Per 100 kg', totalWeightKg: '5000', totalBags: '100', rate: '', labourerIds: ['L1'] };
+  assert.equal(adminEntryError(base, '2026-11-04'), null);
+  assert.match(adminEntryError({ ...base, contractorId: '' }, '2026-11-04'), /contractor/);
+  assert.match(adminEntryError({ ...base, workDate: '2026-11-05' }, '2026-11-04'), /future/);
+  assert.match(adminEntryError({ ...base, workType: '' }, '2026-11-04'), /work type/);
+  assert.match(adminEntryError({ ...base, labourerIds: [] }, '2026-11-04'), /labourer/);
+  assert.match(adminEntryError({ ...base, unit: 'Per bag', totalBags: '2.5' }, '2026-11-04'), /whole number/);
+  assert.match(adminEntryError({ ...base, rate: '-1' }, '2026-11-04'), /negative/);
+  assert.match(adminEntryError({ ...base, unit: 'Fixed amount', rate: '' }, '2026-11-04'), /fixed amount/);
+  assert.equal(previewAmount({ rate: 21, unit: 'Per 100 kg', totalWeightKg: 27500 }), 5775);
+  assert.equal(previewAmount({ rate: 0.3, unit: 'Per bag', totalBags: 40 }), 12);
+  assert.equal(previewAmount({ rate: 300, unit: 'Per batch', totalBatches: 2 }), 600);
+  assert.equal(previewAmount({ rate: 250, unit: 'Fixed amount' }), 250);
+});
+
+test('admin dialog writes ONLY through the 255 functions; delete needs confirmation + reason; page shows approval', () => {
+  const dlg = readFileSync(new URL('../../components/LabourEntryAdminDialog.jsx', import.meta.url), 'utf8');
+  assert.ok(!/\.from\([^)]*\)\s*\.(insert|update|upsert|delete)\(/.test(dlg), 'no direct table writes');
+  assert.deepEqual([...dlg.matchAll(/\.rpc\('([^']+)'/g)].map(m => m[1]).sort(), ['lh_admin_delete_work_entry', 'lh_admin_save_work_entry']);
+  assert.ok(!/status:\s*'Approved'|p_status|approval_status\s*:/.test(dlg), 'the dialog never sets an approval status');
+  assert.match(dlg, /Confirm delete/);
+  assert.match(dlg, /Give a reason for deleting/);
+  assert.match(dlg, /const idRef = useRef\(entry\?\.id \|\| newId\(\)\)/, 'stable id per dialog (retry-safe)');
+  const page = readFileSync(new URL('../../pages/LabourHisaab.jsx', import.meta.url), 'utf8');
+  assert.match(page, /from\('v_lh_approved_entries'\)/);
+  assert.match(page, /from\('v_lh_approved_work_lines'\)/);
+  assert.match(page, /summarize\(\{ entries: approvedData\.entries, lines: approvedData\.lines/, 'KPIs from approved data only');
+  assert.match(page, /labourerBalances\(\{ lines: approvedData\.lines/, 'balances from approved data only');
+  assert.match(page, /isAdmin \? <th style=\{th\}>Actions<\/th> : null/, 'actions only for admins');
 });
 
 test('connection states: missing tables vs permission denied', () => {

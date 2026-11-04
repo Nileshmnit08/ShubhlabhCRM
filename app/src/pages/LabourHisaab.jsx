@@ -1,11 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { HardHat, PlugZap, RefreshCw, AlertCircle, ClipboardList, ClipboardCheck, Wallet, Scale, Users, CalendarDays, Info } from 'lucide-react';
+import { HardHat, PlugZap, RefreshCw, AlertCircle, ClipboardList, ClipboardCheck, Wallet, Scale, Users, CalendarDays, Info, Plus, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import {
   summarize, dailyRows, labourerBalances, formatInr, monthStart,
-  isNotConnectedError, isPermissionError,
+  isNotConnectedError, isPermissionError, attachApprovalStatus, approvedOnly, notCountedSummary,
 } from '../lib/labourHisaabData';
+import LabourEntryAdminDialog from '../components/LabourEntryAdminDialog';
+import { AuthContext } from '../AuthContext';
 
 /**
  * SL-LABOUR-NAV-01 / LH-CLOUD-SYNC-01: Labour Hisaab (admin only, read-only).
@@ -56,6 +58,11 @@ export default function LabourHisaab() {
   const [data, setData] = useState({ contractors: [], labourers: [], entries: [], lines: [], payments: [], deductions: [] });
 
   const [refreshedAt, setRefreshedAt] = useState(null);
+  // Admin entry management (add / edit / delete) — the database authorises every change.
+  const { userProfile } = useContext(AuthContext) || {};
+  const isAdmin = userProfile?.role === 'Admin';
+  const [dialog, setDialog] = useState(null); // { mode: 'add' | 'edit' | 'delete', entry? }
+  const [notice, setNotice] = useState('');
   // silent: background refresh (focus / every 60 s) keeps the current figures on screen.
   const load = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setState('loading');
@@ -68,11 +75,28 @@ export default function LabourHisaab() {
       if (contractorsRes.error) throw contractorsRes.error;
       if (labourersRes.error) throw labourersRes.error;
 
-      const [entries, lines, payments, expenses] = await Promise.all([
-        fetchAll(() => byContractor(supabase.from('daily_work_entries')
-          .select('id, contractor_id, work_date, work_type, rate_snapshot, rate_unit_snapshot, total_weight_kg, total_bags, total_batches, calculated_labour_amount')
-          .gte('work_date', fromDate).lte('work_date', toDate)
-          .order('work_date', { ascending: false }).order('id'))),
+      // Entries with their day's approval status. Proposal 255: the database supplies it
+      // (v_lh_entries_with_status); before 255 the same rule is applied from the registers.
+      const ENTRY_COLS = 'id, contractor_id, work_date, work_type, rate_snapshot, rate_unit_snapshot, total_weight_kg, total_bags, total_batches, calculated_labour_amount, notes';
+      const inRange = (q) => byContractor(q).gte('work_date', fromDate).lte('work_date', toDate);
+      let entries; let statusFromDb = true;
+      try {
+        entries = await fetchAll(() => inRange(supabase.from('v_lh_entries_with_status')
+          .select(`${ENTRY_COLS}, entry_source, approval_status, register_revision`))
+          .order('work_date', { ascending: false }).order('id'));
+      } catch (e) {
+        if (!isNotConnectedError(e)) throw e;
+        statusFromDb = false;
+        const base = await fetchAll(() => inRange(supabase.from('daily_work_entries').select(ENTRY_COLS))
+          .order('work_date', { ascending: false }).order('id'));
+        let registers = [];
+        try {
+          registers = await fetchAll(() => inRange(supabase.from('labour_daily_registers').select('contractor_id, work_date, status')).order('work_date'));
+        } catch (re) { if (!isNotConnectedError(re)) throw re; } // no registers installed → nothing is approved
+        entries = attachApprovalStatus(base, registers);
+      }
+
+      const [lines, payments, expenses] = await Promise.all([
         fetchAll(() => byContractor(supabase.from('v_labour_work_lines')
           .select('allocation_id, work_entry_id, contractor_id, work_date, labourer_id, labourer_name, allocated_amount')
           .gte('work_date', fromDate).lte('work_date', toDate)
@@ -96,7 +120,21 @@ export default function LabourHisaab() {
         if (error) throw error;
         deductions.push(...(alloc || []));
       }
-      setData({ contractors: contractorsRes.data || [], labourers: labourersRes.data || [], entries, lines, payments, deductions });
+      // Approved-only totals: from the database's approved views when installed (255), else the
+      // same rule applied to the rows above. Pending/Rejected/unknown never enter any total.
+      let approved;
+      if (statusFromDb) {
+        const [aEntries, aLines] = await Promise.all([
+          fetchAll(() => inRange(supabase.from('v_lh_approved_entries').select(ENTRY_COLS)).order('work_date', { ascending: false }).order('id')),
+          fetchAll(() => byContractor(supabase.from('v_lh_approved_work_lines')
+            .select('allocation_id, work_entry_id, contractor_id, work_date, labourer_id, labourer_name, allocated_amount')
+            .gte('work_date', fromDate).lte('work_date', toDate)).order('work_date', { ascending: false }).order('allocation_id')),
+        ]);
+        approved = { entries: aEntries, lines: aLines };
+      } else {
+        approved = approvedOnly({ entries, lines });
+      }
+      setData({ contractors: contractorsRes.data || [], labourers: labourersRes.data || [], entries, lines, payments, deductions, approved, statusFromDb });
       setState('ready');
       setRefreshedAt(new Date());
     } catch (e) {
@@ -120,9 +158,12 @@ export default function LabourHisaab() {
 
   const labourersById = useMemo(() => Object.fromEntries(data.labourers.map(l => [l.id, l])), [data.labourers]);
   const contractorsById = useMemo(() => Object.fromEntries(data.contractors.map(c => [c.id, c])), [data.contractors]);
-  const kpi = useMemo(() => summarize(data), [data]);
+  // Totals and labourer balances count APPROVED work only; the table lists every entry with its status.
+  const approvedData = useMemo(() => data.approved || { entries: [], lines: [] }, [data]);
+  const kpi = useMemo(() => summarize({ entries: approvedData.entries, lines: approvedData.lines, payments: data.payments, deductions: data.deductions }), [approvedData, data]);
+  const notCounted = useMemo(() => notCountedSummary(data.entries), [data]);
   const rows = useMemo(() => dailyRows({ entries: data.entries, lines: data.lines, contractorsById, labourersById }), [data, contractorsById, labourersById]);
-  const balances = useMemo(() => labourerBalances({ lines: data.lines, payments: data.payments, deductions: data.deductions, labourersById }), [data, labourersById]);
+  const balances = useMemo(() => labourerBalances({ lines: approvedData.lines, payments: data.payments, deductions: data.deductions, labourersById }), [approvedData, data, labourersById]);
   const rangeInvalid = !fromDate || !toDate || fromDate > toDate;
 
   const header = (
@@ -132,9 +173,14 @@ export default function LabourHisaab() {
           <HardHat size={26} /> Labour Hisaab
         </h1>
         <p className="text-secondary" style={{ fontSize: '0.95rem' }}>
-          Labour work and payment records synced from the LabourHisaab app. Read-only.
+          Labour work and payment records from the LabourHisaab app. Totals count CRM-approved work only.
         </p>
       </div>
+      {isAdmin && state === 'ready' ? (
+        <button className="btn btn-primary" onClick={() => setDialog({ mode: 'add' })} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}>
+          <Plus size={16} /> Add entry
+        </button>
+      ) : null}
       <Link to="/labour-hisaab/approvals" className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}>
         <ClipboardCheck size={16} /> Daily register approvals
       </Link>
@@ -206,7 +252,7 @@ export default function LabourHisaab() {
       ) : (
         <>
           <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', marginBottom: '1rem' }}>
-            <Kpi icon={Wallet} label="Total wages (work)" value={formatInr(kpi.totalWage)} note={`${kpi.entryCount} entries · ${kpi.workDays} days`} />
+            <Kpi icon={Wallet} label="Approved wages (work)" value={formatInr(kpi.totalWage)} note={`${kpi.entryCount} approved entries · ${kpi.workDays} days`} />
             <Kpi icon={Users} label="Labourers who worked" value={kpi.labourersWorked} />
             <Kpi icon={ClipboardList} label="Paid to labour" value={formatInr(kpi.paid)} />
             <Kpi icon={Scale} label="Allocated deductions" value={formatInr(kpi.deducted)} />
@@ -215,8 +261,14 @@ export default function LabourHisaab() {
 
           <div className="text-muted" style={{ fontSize: '0.8rem', marginBottom: '1rem', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
             <Info size={14} style={{ flexShrink: 0, marginTop: 2 }} />
-            <span>Figures come only from records synced by the LabourHisaab app. Payments and expenses appear here once the app syncs them; until then pending amounts equal earnings.</span>
+            <span>
+              Totals and labourer balances include <strong>approved days only</strong>
+              {notCounted.count ? ` — not counted: ${notCounted.count} entr${notCounted.count === 1 ? 'y' : 'ies'} (${formatInr(notCounted.amount)}; ${Object.entries(notCounted.byStatus).map(([s, n]) => `${n} ${s}`).join(', ')}) awaiting or failing CRM approval` : ''}.
+              {' '}Payments and expenses appear here once the app syncs them.
+              {data.statusFromDb ? '' : ' (Approval status computed from day registers.)'}
+            </span>
           </div>
+          {notice ? <div className="card" role="status" style={{ padding: '0.75rem', marginBottom: '1rem' }}>{notice}</div> : null}
 
           {rows.length === 0 ? (
             <div className="card" style={{ padding: '2rem', textAlign: 'center' }} role="status">
@@ -232,6 +284,8 @@ export default function LabourHisaab() {
                       <th style={th}>Date</th><th style={th}>Work</th><th style={th}>Quantity</th><th style={th}>Rate</th>
                       <th style={{ ...th, textAlign: 'right' }}>Amount</th><th style={th}>Labourers</th>
                       {contractorId === 'ALL' ? <th style={th}>Contractor</th> : null}
+                      <th style={th}>Approval</th>
+                      {isAdmin ? <th style={th}>Actions</th> : null}
                     </tr>
                   </thead>
                   <tbody>
@@ -244,6 +298,19 @@ export default function LabourHisaab() {
                         <td style={tdNum}>{formatInr(r.amount)}</td>
                         <td style={td}>{r.labourers.length ? r.labourers.map(l => `${l.name} (${formatInr(l.amount)})`).join(', ') : '—'}</td>
                         {contractorId === 'ALL' ? <td style={td}>{r.contractor}</td> : null}
+                        <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                          <span style={{ fontWeight: 600, color: r.status === 'Approved' ? 'var(--success, #168A45)' : r.status === 'Rejected' ? 'var(--danger, #D92D20)' : 'var(--warning, #B54708)' }}>
+                            {r.status || 'Pending'}
+                          </span>
+                          {r.status === 'Approved' ? '' : <div className="text-muted" style={{ fontSize: '0.72rem' }}>not in totals</div>}
+                          {r.source === 'crm_admin' ? <div className="text-muted" style={{ fontSize: '0.72rem' }}>added in CRM</div> : null}
+                        </td>
+                        {isAdmin ? (
+                          <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                            <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', marginRight: 4 }} onClick={() => setDialog({ mode: 'edit', entry: r.entry })} aria-label={`Edit entry ${r.date}`}><Pencil size={14} /></button>
+                            <button className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem' }} onClick={() => setDialog({ mode: 'delete', entry: r.entry })} aria-label={`Delete entry ${r.date}`}><Trash2 size={14} /></button>
+                          </td>
+                        ) : null}
                       </tr>
                     ))}
                   </tbody>
@@ -278,6 +345,20 @@ export default function LabourHisaab() {
           )}
         </>
       )}
+
+      {dialog && isAdmin ? (
+        <LabourEntryAdminDialog
+          mode={dialog.mode}
+          entry={dialog.entry || null}
+          lines={dialog.entry ? data.lines.filter(l => l.work_entry_id === dialog.entry.id) : []}
+          contractors={data.contractors.filter(c => c.is_active)}
+          labourers={data.labourers}
+          defaultContractorId={contractorId === 'ALL' ? '' : contractorId}
+          today={today}
+          onClose={() => setDialog(null)}
+          onDone={(message) => { setDialog(null); setNotice(message); load({ silent: true }); }}
+        />
+      ) : null}
     </div>
   );
 }
