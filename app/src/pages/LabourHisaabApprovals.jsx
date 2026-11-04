@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardCheck, RefreshCw, AlertCircle, PlugZap, CheckCircle2, XCircle, ArrowLeft, History } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatInr, monthStart, quantityLabel, workTypeLabel, isPermissionError } from '../lib/labourHisaabData';
-import { formatIst, formatIstTime, sortRegisters, registerTimeline, registerTotals, decisionError, EVENT_LABELS, isRegisterNotInstalled, diffAgainstApproved } from '../lib/labourApprovals';
+import { formatIst, formatIstTime, sortRegisters, registerTimeline, registerTotals, decideRegister, singleFlight, EVENT_LABELS, isRegisterNotInstalled, diffAgainstApproved } from '../lib/labourApprovals';
 
 /**
  * LH-DAILY-REGISTER-APPROVAL-01: approve or reject LabourHisaab daily registers (admin only).
@@ -42,7 +42,7 @@ export default function LabourHisaabApprovals() {
   const [confirm, setConfirm] = useState(null); // { decision }
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(null); // { kind: 'success' | 'error', text }
 
   const load = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setState('loading');
@@ -81,8 +81,10 @@ export default function LabourHisaabApprovals() {
     return () => { clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
   }, [load]);
 
-  const openRegister = useCallback(async (reg) => {
-    setOpenId(reg.id); setDetail(null); setDetailError(''); setConfirm(null); setReason(''); setNotice('');
+  // keepNotice: re-open after a decision without wiping its success/failure message.
+  const openRegister = useCallback(async (reg, { keepNotice = false } = {}) => {
+    setOpenId(reg.id); setDetail(null); setDetailError(''); setConfirm(null); setReason('');
+    if (!keepNotice) setNotice(null);
     try {
       const [eRes, lRes, evRes] = await Promise.all([
         supabase.from('daily_work_entries')
@@ -117,23 +119,42 @@ export default function LabourHisaabApprovals() {
 
   const who = (id) => (!id ? '—' : detail?.users?.[id] || `${String(id).slice(0, 8)}…`);
 
-  const decide = async () => {
-    const err = decisionError({ decision: confirm?.decision, reason });
-    if (err) { setNotice(err); return; }
-    const reg = detail.register;
-    setBusy(true); setNotice('');
-    const { error } = await supabase.rpc('lh_decide_daily_register', {
-      p_contractor: reg.contractor_id, p_date: reg.work_date, p_decision: confirm.decision,
-      p_revision: reg.revision, p_reason: confirm.decision === 'Rejected' ? reason.trim() : null,
-    });
-    setBusy(false);
-    if (error) { setNotice(error.message); return; }
-    setConfirm(null); setReason('');
-    setNotice(`${reg.contractor_name} · ${reg.work_date}: ${confirm.decision}.`);
-    await load();
-    const { data } = await supabase.from('v_lh_daily_registers').select('*').eq('id', reg.id).single();
-    if (data) openRegister(data);
+  // LH-CRM-APPROVAL-ACTION-FIX-10: one request at a time (a ref, so a fast double click cannot
+  // send a second request before React re-renders); success only when the database returns the
+  // new status; afterwards the list and this register refresh WITHOUT wiping the message.
+  const reloadRegister = async (reg, message) => {
+    await load({ silent: true });
+    const { data } = await supabase.from('v_lh_daily_registers').select('*').eq('id', reg.id).maybeSingle();
+    setNotice(message);
+    if (data) await openRegister(data, { keepNotice: true });
   };
+  const stateRef = useRef({});
+  // Latest values for the single-flight handler (created once): never a stale filter or register.
+  stateRef.current = { detail, confirm, reason, reloadRegister };
+  const decideOnce = useRef(null);
+  if (!decideOnce.current) decideOnce.current = singleFlight(async () => {
+    const { detail: d, confirm: c, reason: why, reloadRegister: reload } = stateRef.current;
+    if (!d || !c) return;
+    setBusy(true); setNotice(null);
+    const reg = d.register;
+    const confirm = c; const reason = why; // values at click time
+    try {
+      const out = await decideRegister({ rpc: (name, args) => supabase.rpc(name, args), register: reg, decision: confirm.decision, reason });
+      if (out.ok) {
+        setConfirm(null); setReason('');
+        await reload(reg, { kind: 'success', text: out.message });
+      } else if (out.stale) {
+        await reload(reg, { kind: 'error', text: out.message });
+      } else {
+        setNotice({ kind: 'error', text: out.message });
+      }
+    } catch (e) {
+      setNotice({ kind: 'error', text: `Not saved: ${e?.message || e}` });
+    } finally {
+      setBusy(false);
+    }
+  });
+  const decide = () => decideOnce.current();
 
   const timeline = useMemo(() => (detail ? registerTimeline(detail.entries, detail.lines) : []), [detail]);
   const totals = useMemo(() => (detail ? registerTotals(detail.entries, detail.lines) : null), [detail]);
@@ -263,10 +284,10 @@ export default function LabourHisaabApprovals() {
             </div>
             {detail.register.status === 'Pending' && !confirm ? (
               <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-primary" disabled={!timeline.length} onClick={() => { setConfirm({ decision: 'Approved' }); setNotice(''); }} style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                <button className="btn btn-primary" disabled={!timeline.length} onClick={() => { setConfirm({ decision: 'Approved' }); setNotice(null); }} style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                   <CheckCircle2 size={16} /> Approve
                 </button>
-                <button className="btn btn-secondary" onClick={() => { setConfirm({ decision: 'Rejected' }); setNotice(''); }} style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                <button className="btn btn-secondary" onClick={() => { setConfirm({ decision: 'Rejected' }); setNotice(null); }} style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                   <XCircle size={16} /> Reject
                 </button>
               </div>
@@ -327,7 +348,12 @@ export default function LabourHisaabApprovals() {
               </div>
             </div>
           ) : null}
-          {notice ? <div role="status" style={{ fontSize: '0.85rem', marginBottom: '0.75rem' }}>{notice}</div> : null}
+          {notice ? (
+            <div role={notice.kind === 'error' ? 'alert' : 'status'} style={{ fontSize: '0.9rem', marginBottom: '0.75rem', padding: '0.6rem 0.75rem', borderRadius: 8, fontWeight: 600,
+              border: `1px solid ${notice.kind === 'error' ? STATUS_COLORS.Rejected : STATUS_COLORS.Approved}`, color: notice.kind === 'error' ? STATUS_COLORS.Rejected : STATUS_COLORS.Approved }}>
+              {notice.kind === 'error' ? '✕ ' : '✓ '}{notice.text}
+            </div>
+          ) : null}
 
           {timeline.length === 0 ? (
             <div className="text-secondary" style={{ padding: '1rem 0' }}>This register has no work entries (they were removed after it was created).</div>

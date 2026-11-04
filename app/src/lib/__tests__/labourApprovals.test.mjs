@@ -85,6 +85,65 @@ test('approvals page shows original vs revised and flags edits after approval', 
   assert.match(page, /snRes\.error \? \[\]/, 'works before proposal 253 is installed');
 });
 
+test('decideRegister: approve / reject succeed only when the database returns the new status', async () => {
+  const { decideRegister } = await import('../labourApprovals.js');
+  const reg = { contractor_id: 'c1', contractor_name: 'Ajay', work_date: '2026-11-04', revision: 3 };
+  const calls = [];
+  const rpc = (status) => async (name, args) => { calls.push([name, args]); return { data: { ...args, status }, error: null }; };
+  const ok = await decideRegister({ rpc: rpc('Approved'), register: reg, decision: 'Approved' });
+  assert.deepEqual([ok.ok, ok.status], [true, 'Approved']);
+  assert.deepEqual(calls[0], ['lh_decide_daily_register', { p_contractor: 'c1', p_date: '2026-11-04', p_decision: 'Approved', p_revision: 3, p_reason: null }],
+    'exact function, register id fields and reviewed revision; nothing else (no quantities/amounts) is sent');
+  const rej = await decideRegister({ rpc: rpc('Rejected'), register: reg, decision: 'Rejected', reason: '  Bags wrong ' });
+  assert.deepEqual([rej.ok, calls[1][1].p_reason], [true, 'Bags wrong']);
+  assert.match(rej.message, /reason sent/);
+  const noReason = await decideRegister({ rpc: rpc('Rejected'), register: reg, decision: 'Rejected', reason: ' ' });
+  assert.deepEqual([noReason.ok, calls.length], [false, 2], 'no request without a reason');
+  const unconfirmed = await decideRegister({ rpc: rpc('Pending'), register: reg, decision: 'Approved' });
+  assert.deepEqual([unconfirmed.ok, unconfirmed.stale], [false, true], 'database did not confirm → no success');
+});
+
+test('decideRegister: database errors are shown as clear failures, never as success', async () => {
+  const { decideRegister } = await import('../labourApprovals.js');
+  const reg = { contractor_id: 'c1', work_date: '2026-11-04', revision: 3 };
+  const fail = (message, code = 'P0001') => async () => ({ data: null, error: { message, code } });
+  const member = await decideRegister({ rpc: fail('Approvers cannot decide registers of a contractor they are a member of', '42501'), register: reg, decision: 'Approved' });
+  assert.equal(member.ok, false);
+  assert.match(member.message, /linked to this contractor in the LabourHisaab app/);
+  const stale = await decideRegister({ rpc: fail('The register changed while you were reviewing it (revision 3 → 4). Reload and review again.', '40001'), register: reg, decision: 'Approved' });
+  assert.deepEqual([stale.ok, stale.stale], [false, true]);
+  const notAdmin = await decideRegister({ rpc: fail('Only a Shubh Labh CRM approver can approve or reject a daily register', '42501'), register: reg, decision: 'Approved' });
+  assert.match(notAdmin.message, /Only Shubh Labh CRM admins/);
+  const already = await decideRegister({ rpc: fail('This register is already Approved'), register: reg, decision: 'Approved' });
+  assert.deepEqual([already.ok, already.stale], [false, true]);
+  const other = await decideRegister({ rpc: fail('connection reset'), register: reg, decision: 'Approved' });
+  assert.match(other.message, /^Not saved: connection reset/);
+  assert.ok(![member, stale, notAdmin, already, other].some(r => r.ok));
+});
+
+test('singleFlight: a double click sends exactly one request', async () => {
+  const { singleFlight } = await import('../labourApprovals.js');
+  let n = 0; let release;
+  const gate = new Promise(r => { release = r; });
+  const once = singleFlight(async () => { n += 1; await gate; return 'done'; });
+  const a = once(); const b = once(); const c = once();
+  release();
+  assert.deepEqual(await Promise.all([a, b, c]), ['done', undefined, undefined]);
+  assert.equal(n, 1);
+  assert.equal(await once(), 'done', 'works again after finishing');
+  assert.equal(n, 2);
+});
+
+test('approvals page: single-flight decision, refresh keeps the result message, failures shown as alerts', () => {
+  const page = read('../../pages/LabourHisaabApprovals.jsx');
+  assert.match(page, /decideOnce\.current = singleFlight\(/);
+  assert.match(page, /await decideRegister\(\{ rpc:/);
+  assert.match(page, /openRegister\(data, \{ keepNotice: true \}\)/, 'refreshed register keeps the success/failure message');
+  assert.match(page, /await load\(\{ silent: true \}\)/, 'list refreshes without blanking the page');
+  assert.match(page, /role=\{notice\.kind === 'error' \? 'alert' : 'status'\}/);
+  assert.match(page, /disabled=\{busy\} onClick=\{decide\}/);
+});
+
 test('not-installed detection for proposal 252', () => {
   assert.equal(isRegisterNotInstalled({ code: 'PGRST205', message: "Could not find the table 'public.v_lh_daily_registers'" }), true);
   assert.equal(isRegisterNotInstalled({ code: '42501', message: 'permission denied for view v_lh_daily_registers' }), false);
@@ -103,8 +162,13 @@ test('approvals page: admin route, only write is lh_decide_daily_register with t
   }
   const page = read('../../pages/LabourHisaabApprovals.jsx');
   assert.ok(!/\.(insert|update|upsert|delete)\(/.test(page), 'no direct table writes');
-  assert.deepEqual([...page.matchAll(/\.rpc\('([^']+)'/g)].map(m => m[1]), ['lh_decide_daily_register'], 'the decision RPC is the only write');
-  assert.match(page, /p_revision: reg\.revision/, 'decides the revision that was reviewed');
+  // LH-CRM-APPROVAL-ACTION-FIX-10: the page's only RPC is the pass-through used by decideRegister,
+  // which calls lh_decide_daily_register with the reviewed revision (and nothing else).
+  assert.deepEqual([...page.matchAll(/\.rpc\(([^)]*)\)/g)].map(m => m[1].trim()), ['name, args'], 'the decision is the only write');
+  assert.match(page, /decideRegister\(\{ rpc: \(name, args\) => supabase\.rpc\(name, args\), register: reg/);
+  const lib = read('../labourApprovals.js');
+  assert.deepEqual([...lib.matchAll(/rpc\('([^']+)'/g)].map(m => m[1]), ['lh_decide_daily_register']);
+  assert.match(lib, /p_revision: register\.revision/, 'decides the revision that was reviewed');
   assert.match(page, /role="dialog" aria-label="Confirm decision"/, 'confirmation step before deciding');
   assert.ok(!/initialData|INITIAL_|demo/i.test(page.replace(/no demo entries/gi, '')), 'no sample data');
   const main = read('../../pages/LabourHisaab.jsx');

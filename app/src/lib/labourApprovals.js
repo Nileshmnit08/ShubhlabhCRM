@@ -66,6 +66,60 @@ export function decisionError({ decision, reason }) {
   return null;
 }
 
+/**
+ * LH-CRM-APPROVAL-ACTION-FIX-10: one approve/reject call, as the page runs it.
+ * Success ONLY when the database returns the register with the requested status.
+ * Errors are turned into messages an approver can act on (the database stays the authority).
+ * → { ok, status, message, stale? }
+ */
+const ymd = (d) => (d instanceof Date ? d.toISOString().slice(0, 10) : String(d || '').slice(0, 10));
+
+export async function decideRegister({ rpc, register, decision, reason }) {
+  const err = decisionError({ decision, reason });
+  if (err) return { ok: false, message: err };
+  const { data, error } = await rpc('lh_decide_daily_register', {
+    p_contractor: register.contractor_id, p_date: ymd(register.work_date), p_decision: decision,
+    p_revision: register.revision, p_reason: decision === 'Rejected' ? String(reason).trim() : null,
+  });
+  if (error) {
+    const msg = String(error.message || error);
+    if (/member of/i.test(msg)) {
+      return { ok: false, message: 'You cannot decide this register: your account is linked to this contractor in the LabourHisaab app (as Owner, Manager or Operator). Another CRM admin who is not linked to it must approve or reject it.' };
+    }
+    if (/changed while you were reviewing/i.test(msg)) {
+      return { ok: false, stale: true, message: 'The register changed while you were reviewing it (new or edited work). It has been reloaded — review it again before deciding.' };
+    }
+    if (/changed entries of this day/i.test(msg)) {
+      return { ok: false, message: 'You changed entries of this day, so another CRM admin must approve or reject it.' };
+    }
+    if (/already (Approved|Rejected)/i.test(msg)) {
+      return { ok: false, stale: true, message: `${msg}. It has been reloaded.` };
+    }
+    if (/Only a Shubh Labh CRM approver/i.test(msg) || String(error.code) === '42501') {
+      return { ok: false, message: 'Only Shubh Labh CRM admins can approve or reject registers.' };
+    }
+    return { ok: false, message: `Not saved: ${msg}` };
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || row.status !== decision) {
+    return { ok: false, stale: true, message: 'The database did not confirm the decision. The register has been reloaded — check its status before trying again.' };
+  }
+  return { ok: true, status: row.status, message: `${register.contractor_name || 'Register'} · ${ymd(register.work_date)}: ${row.status}${row.status === 'Rejected' ? ' (reason sent to the operator)' : ''}.` };
+}
+
+/**
+ * Runs `fn` at most once at a time: calls made while it is running are ignored (resolve to
+ * undefined), so a double click can never send a second approve/reject request.
+ */
+export function singleFlight(fn) {
+  let running = false;
+  return async (...args) => {
+    if (running) return undefined;
+    running = true;
+    try { return await fn(...args); } finally { running = false; }
+  };
+}
+
 export const EVENT_LABELS = {
   Created: 'Register created (Pending)',
   Approved: 'Approved',
