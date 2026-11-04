@@ -31,9 +31,11 @@ BEGIN;
 
 DO $$
 BEGIN
-    IF to_regclass('public.labour_daily_register_snapshots') IS NULL OR to_regprocedure('public.lh_month_closed(uuid, date)') IS NULL
+    -- lh_day_snapshot is checked too: 253's ROLLBACK keeps the snapshot table but drops it.
+    IF to_regclass('public.labour_daily_register_snapshots') IS NULL OR to_regprocedure('public.lh_day_snapshot(uuid, date)') IS NULL
+       OR to_regprocedure('public.lh_month_closed(uuid, date)') IS NULL
        OR to_regprocedure('public.lh_register_changed(uuid, date)') IS NULL THEN
-        RAISE EXCEPTION '255 requires proposals 250, 252 and 253';
+        RAISE EXCEPTION '255 requires proposals 250, 252 and 253 (253 must be applied, not rolled back)';
     END IF;
 END $$;
 
