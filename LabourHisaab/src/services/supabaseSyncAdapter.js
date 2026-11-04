@@ -12,7 +12,7 @@ const fail = (error, what) => {
   throw new Error(`${what}: ${msg}`);
 };
 
-export function createSupabaseSyncAdapter(supabase) {
+export function createSupabaseSyncAdapter(supabase, { selectedContractorId = null } = {}) {
   if (!supabase) throw new Error('Cloud is not configured.');
 
   let featureCache = null;
@@ -67,17 +67,28 @@ export function createSupabaseSyncAdapter(supabase) {
       return rows;
     },
 
-    async getMembership() {
+    /**
+     * The signed-in account's ACTIVE memberships of ACTIVE contractors, with names
+     * (RLS: a user reads only their own membership rows and the contractors they belong to).
+     */
+    async listMemberships() {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth?.user?.id;
       if (!uid) throw new Error('पहले साइन इन करें।');
       const { data, error } = await supabase
         .from('contractor_members')
-        .select('contractor_id, role, is_active')
+        .select('contractor_id, role, is_active, contractors(name, is_active)')
         .eq('user_id', uid)
         .eq('is_active', true);
       fail(error, 'Membership');
-      return pickMembership(data);
+      return (data || [])
+        .filter(r => r.contractors && r.contractors.is_active !== false)
+        .map(r => ({ contractor_id: r.contractor_id, role: r.role, name: r.contractors.name }))
+        .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    },
+
+    async getMembership() {
+      return pickMembership(await this.listMemberships(), selectedContractorId);
     },
 
     async upsertLabourers(rows) {

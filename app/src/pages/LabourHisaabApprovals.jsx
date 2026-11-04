@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ClipboardCheck, RefreshCw, AlertCircle, PlugZap, CheckCircle2, XCircle, ArrowLeft, History } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatInr, monthStart, quantityLabel, workTypeLabel, isPermissionError } from '../lib/labourHisaabData';
-import { formatIst, formatIstTime, sortRegisters, registerTimeline, registerTotals, decisionError, EVENT_LABELS, isRegisterNotInstalled } from '../lib/labourApprovals';
+import { formatIst, formatIstTime, sortRegisters, registerTimeline, registerTotals, decisionError, EVENT_LABELS, isRegisterNotInstalled, diffAgainstApproved } from '../lib/labourApprovals';
 
 /**
  * LH-DAILY-REGISTER-APPROVAL-01: approve or reject LabourHisaab daily registers (admin only).
@@ -51,7 +51,7 @@ export default function LabourHisaabApprovals() {
         supabase.from('contractors').select('id, name, is_active').order('name'),
         (() => {
           let q = supabase.from('v_lh_daily_registers')
-            .select('id, contractor_id, contractor_name, work_date, status, revision, rejection_reason, decided_by, decided_at, entry_count, total_amount, labourer_count, updated_at')
+            .select('*') // 252 columns + 253 last_approved_* / edited_after_approval when installed
             .gte('work_date', fromDate).lte('work_date', toDate).order('work_date', { ascending: false }).limit(1000);
           if (contractorId !== 'ALL') q = q.eq('contractor_id', contractorId);
           if (statusFilter !== 'ALL') q = q.eq('status', statusFilter);
@@ -96,14 +96,20 @@ export default function LabourHisaabApprovals() {
           .eq('register_id', reg.id).order('at', { ascending: true }),
       ]);
       for (const r of [eRes, lRes, evRes]) if (r.error) throw r.error;
+      // Reviewed versions (proposal 253). Before 253 is installed there are none — not an error.
+      const snRes = await supabase.from('labour_daily_register_snapshots')
+        .select('id, revision, decision, reason, decided_by, decided_at, entry_count, total_amount, entries, backfilled')
+        .eq('register_id', reg.id).order('decided_at', { ascending: true });
+      const snapshots = snRes.error ? [] : (snRes.data || []);
       // Names for people ids (CRM users); unknown ids are shown shortened, never guessed.
-      const ids = [...new Set([...(eRes.data || []).flatMap(e => [e.created_by, e.updated_by]), ...(evRes.data || []).map(e => e.actor), reg.decided_by].filter(Boolean))];
+      const ids = [...new Set([...(eRes.data || []).flatMap(e => [e.created_by, e.updated_by]), ...(evRes.data || []).map(e => e.actor),
+        ...snapshots.map(s => s.decided_by), reg.decided_by].filter(Boolean))];
       let users = {};
       if (ids.length) {
         const { data: u } = await supabase.from('app_users').select('id, email').in('id', ids);
         users = Object.fromEntries((u || []).map(x => [x.id, x.email]));
       }
-      setDetail({ register: reg, entries: eRes.data || [], lines: lRes.data || [], events: evRes.data || [], users });
+      setDetail({ register: reg, entries: eRes.data || [], lines: lRes.data || [], events: evRes.data || [], snapshots, users });
     } catch (e) {
       setDetailError(e?.message || 'Could not load the register.');
     }
@@ -132,6 +138,14 @@ export default function LabourHisaabApprovals() {
   const timeline = useMemo(() => (detail ? registerTimeline(detail.entries, detail.lines) : []), [detail]);
   const totals = useMemo(() => (detail ? registerTotals(detail.entries, detail.lines) : null), [detail]);
   const list = useMemo(() => sortRegisters(registers), [registers]);
+  // Last APPROVED version of this day (proposal 253) and how the current day differs from it.
+  const lastApproved = useMemo(() => (detail ? [...(detail.snapshots || [])].reverse().find(s => s.decision === 'Approved') || null : null), [detail]);
+  const changes = useMemo(() => (detail && lastApproved ? diffAgainstApproved(lastApproved.entries, detail.entries, detail.lines) : []), [detail, lastApproved]);
+  const changed = changes.filter(c => c.change !== 'same');
+  const fmtVal = (field, v) => (v === null || v === undefined || v === '' ? '—'
+    : field === 'calculated_labour_amount' || field === 'rate_snapshot' ? formatInr(v)
+    : field === 'work_completed_at' ? formatIstTime(v)
+    : field === 'work_type' ? workTypeLabel(v) : String(v));
   const rangeInvalid = !fromDate || !toDate || fromDate > toDate;
 
   const header = (
@@ -214,7 +228,10 @@ export default function LabourHisaabApprovals() {
                 <tr key={r.id} style={r.id === openId ? { background: 'var(--bg-secondary, rgba(0,0,0,0.03))' } : undefined}>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>{r.work_date}</td>
                   <td style={td}>{r.contractor_name}</td>
-                  <td style={td}><Badge status={r.status} /></td>
+                  <td style={td}>
+                    <Badge status={r.status} />
+                    {r.edited_after_approval ? <div style={{ fontSize: '0.72rem', color: STATUS_COLORS.Pending, marginTop: 2 }}>Edited after approval</div> : null}
+                  </td>
                   <td style={tdNum}>{r.entry_count}</td>
                   <td style={tdNum}>{r.labourer_count}</td>
                   <td style={tdNum}>{formatInr(r.total_amount)}</td>
@@ -255,6 +272,45 @@ export default function LabourHisaabApprovals() {
               </div>
             ) : null}
           </div>
+
+          {lastApproved && detail.register.status !== 'Approved' ? (
+            <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem', border: `1px solid ${STATUS_COLORS.Pending}` }} role="note">
+              <div style={{ fontWeight: 600 }}>
+                Edit to a previously approved register — approved {formatIst(lastApproved.decided_at)} by {who(lastApproved.decided_by)}
+                {' '}(revision {lastApproved.revision}, {lastApproved.entry_count} entries, {formatInr(lastApproved.total_amount)}).
+              </div>
+              <div className="text-secondary" style={{ fontSize: '0.85rem', margin: '4px 0 6px' }}>
+                The approved values below stay on record; the revised values are Pending until you decide. Current total {formatInr(totals.amount)}.
+              </div>
+              {changed.length === 0 ? (
+                <div style={{ fontSize: '0.85rem' }}>No differences from the approved version.</div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }} aria-label="Original vs revised">
+                    <thead><tr><th style={th}>Entry</th><th style={th}>Change</th><th style={th}>Field</th><th style={th}>Approved (original)</th><th style={th}>Revised (pending)</th><th style={th}>Edited by</th></tr></thead>
+                    <tbody>
+                      {changed.flatMap(c => {
+                        const label = workTypeLabel((c.after || c.before).work_type);
+                        const editor = c.after ? `${who(c.after.updated_by || c.after.created_by)} · ${formatIst(c.after.updated_at)}` : '—';
+                        if (c.change !== 'edited') {
+                          return [<tr key={c.id}><td style={td}>{label}</td><td style={td}>{c.change === 'added' ? 'Added after approval' : 'Removed after approval'}</td>
+                            <td style={td}>Amount</td><td style={td}>{c.before ? formatInr(c.before.calculated_labour_amount) : '—'}</td>
+                            <td style={td}>{c.after ? formatInr(c.after.calculated_labour_amount) : '—'}</td><td style={td}>{editor}</td></tr>];
+                        }
+                        return c.fields.map((f, i) => (
+                          <tr key={`${c.id}-${f.field}`}>
+                            <td style={td}>{i === 0 ? label : ''}</td><td style={td}>{i === 0 ? 'Edited' : ''}</td><td style={td}>{f.label}</td>
+                            <td style={td}>{fmtVal(f.field, f.before)}</td><td style={{ ...td, fontWeight: 600 }}>{fmtVal(f.field, f.after)}</td>
+                            <td style={td}>{i === 0 ? editor : ''}</td>
+                          </tr>
+                        ));
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {confirm ? (
             <div className="card" style={{ padding: '0.75rem', marginBottom: '0.75rem', border: `1px solid ${STATUS_COLORS[confirm.decision]}` }} role="dialog" aria-label="Confirm decision">
@@ -309,6 +365,19 @@ export default function LabourHisaabApprovals() {
               <li key={ev.id}>{formatIst(ev.at)} — {EVENT_LABELS[ev.action] || ev.action} (rev {ev.revision}){ev.actor ? ` by ${who(ev.actor)}` : ''}{ev.reason ? `: ${ev.reason}` : ''}</li>
             ))}
           </ul>
+          {detail.snapshots?.length ? (
+            <>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: '1rem 0 0.5rem' }}>Reviewed versions (kept permanently)</h3>
+              <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.85rem' }}>
+                {detail.snapshots.map(s => (
+                  <li key={s.id}>
+                    Revision {s.revision} — <span style={{ color: STATUS_COLORS[s.decision] }}>{s.decision}</span> {formatIst(s.decided_at)} by {who(s.decided_by)}
+                    {' '}· {s.entry_count} entries · {formatInr(s.total_amount)}{s.reason ? ` · reason: ${s.reason}` : ''}{s.backfilled ? ' · recorded at install of 253' : ''}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </div>
       ))}
     </div>

@@ -29,6 +29,7 @@ import {
 import theme from '../constants/theme';
 import { useLabourHisaab } from '../context/LabourHisaabContext';
 import DailySummaryCard from '../components/DailySummaryCard';
+import ContractorSelectCard from '../components/ContractorSelectCard';
 
 const UNITS = [
   { id: 'per_100_kg', label: 'प्रति 100 kg (/ 100 kg)' },
@@ -282,6 +283,9 @@ export default function SettingsScreen({ navigation }) {
             </>
           )}
         </View>
+
+        {/* Contractor selection (LH-CONTRACTOR-SELECT-SAVE-VERIFY-06) */}
+        <ContractorSelectCard />
 
         {/* Daily Labour Summary + CRM approval status (LH-DAILY-REGISTER-APPROVAL-01) */}
         <DailySummaryCard />

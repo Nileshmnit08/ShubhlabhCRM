@@ -33,6 +33,7 @@ import theme from '../constants/theme';
 import { DEFAULT_WORK_RATES } from '../constants/initialData';
 import { useLabourHisaab } from '../context/LabourHisaabContext';
 import { formatRupees } from '../utils/shareWhatsApp';
+import { approvalInfo, formatIstDateTime } from '../utils/dailyRegister';
 import {
   todayYmd, formatHindiDate, formatHindiMonth, monthOf, shiftMonth, monthGrid, HINDI_WEEKDAYS_SHORT,
 } from '../utils/dates';
@@ -48,6 +49,7 @@ export default function HomeScreen({ navigation }) {
     isCloudConfigured,
     cloudUser,
     syncStatus,
+    registers,
   } = useLabourHisaab();
 
   // LH-HOME-TOTAL-DATE-01: the date card opens a calendar; the chosen date drives the
@@ -281,6 +283,10 @@ export default function HomeScreen({ navigation }) {
         {todayWorkList.length > 0 && (
           <View style={styles.todayRecordedSection}>
             <Text style={styles.recordedSectionTitle}>{isToday ? 'आज की' : 'इस दिन की'} दर्ज प्रविष्टियां ({todayWorkList.length})</Text>
+            {/* LH-WORK-EDIT-APPROVAL-07: the day's CRM status; tap an entry to edit (re-approval). */}
+            <Text style={styles.recordedEntryDetail}>
+              {approvalInfo(registers.find(r => String(r.work_date).slice(0, 10) === selectedDate)).label}
+            </Text>
             {todayWorkList.map((entry) => (
               <TouchableOpacity
                 key={entry.id}
@@ -295,6 +301,9 @@ export default function HomeScreen({ navigation }) {
                     {entry.type === 'bag' && `${entry.totalBags} बोरी`}
                     {entry.type === 'batch' && `${entry.totalBatches} बैच`}
                   </Text>
+                  {entry.updatedAt ? (
+                    <Text style={styles.recordedEntryDetail}>अंतिम बदलाव: {formatIstDateTime(entry.updatedAt)}</Text>
+                  ) : null}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={styles.recordedEntryAmount}>{formatRupees(entry.totalAmount)}</Text>

@@ -35,20 +35,50 @@ export const ENTRY_ROLES = ['Owner', 'Manager', 'Operator'];
 export const DELETE_ROLES = ['Owner', 'Manager'];
 export const OPERATOR_DELETE_MESSAGE = 'सिंक हो चुकी एंट्री केवल मालिक या मैनेजर हटा सकते हैं।';
 
+export const NO_MEMBERSHIP_MESSAGE = 'इस खाते को किसी ठेकेदार से नहीं जोड़ा गया है। व्यवस्थापक से संपर्क करें।';
+export const CHOOSE_CONTRACTOR_MESSAGE = 'यह खाता एक से अधिक ठेकेदार से जुड़ा है। सेटिंग्स → ठेकेदार (Contractor) में ठेकेदार चुनें।';
+export const SELECTION_GONE_MESSAGE = 'चुना गया ठेकेदार अब इस खाते से जुड़ा नहीं है। सेटिंग्स → ठेकेदार में दोबारा चुनें।';
+
 /**
  * Choose the contractor this phone uploads to from the user's active memberships
- * ([{ contractor_id, role }]). One phone = one contractor: if the account may enter data for
- * more than one contractor, refuse rather than guess (a wrong guess files records under the
- * wrong contractor). Read-only memberships are returned only when nothing writable exists.
+ * ([{ contractor_id, role }]) and the contractor selected in Settings (LH-CONTRACTOR-SELECT-SAVE-VERIFY-06).
+ *  - A selection is honoured only if the account really is an active member of it (the
+ *    database decides membership; the phone can never grant itself one).
+ *  - Without a selection, a single membership is used; several writable ones require a choice
+ *    (never guessed — a wrong guess files records under the wrong contractor).
+ *  - Read-only memberships are returned only when nothing writable exists.
  */
-export function pickMembership(rows) {
+export function pickMembership(rows, selectedContractorId = null) {
   const list = rows || [];
-  const writable = list.filter(r => ENTRY_ROLES.includes(r.role));
-  if (new Set(writable.map(r => r.contractor_id)).size > 1) {
-    throw new Error('यह खाता एक से अधिक ठेकेदार से जुड़ा है। हर फ़ोन के लिए एक ठेकेदार का खाता इस्तेमाल करें।');
+  if (selectedContractorId) {
+    const mine = list.filter(r => r.contractor_id === selectedContractorId);
+    if (!mine.length) throw new Error(SELECTION_GONE_MESSAGE);
+    const best = ENTRY_ROLES.map(role => mine.find(r => r.role === role)).find(Boolean) || mine[0];
+    return { contractorId: best.contractor_id, role: best.role };
   }
+  const writable = list.filter(r => ENTRY_ROLES.includes(r.role));
+  if (new Set(writable.map(r => r.contractor_id)).size > 1) throw new Error(CHOOSE_CONTRACTOR_MESSAGE);
   const best = ENTRY_ROLES.map(role => writable.find(r => r.role === role)).find(Boolean) || list[0];
   return best ? { contractorId: best.contractor_id, role: best.role } : null;
+}
+
+/** This user's saved contractor choice ([{ userId, contractorId, name }] on the phone), or null. */
+export const readSelection = (list, userId) => (list || []).find(x => x.userId === userId) || null;
+
+/** The saved list with this user's choice replaced (other users' choices untouched). */
+export const writeSelection = (list, userId, { contractor_id, name }) => [
+  ...(list || []).filter(x => x.userId !== userId), { userId, contractorId: contractor_id, name },
+];
+
+/**
+ * Whether this phone may switch to `nextId`. A phone's saved entries belong to the contractor
+ * it synced with (`boundId`); switching while such entries exist would file them under the
+ * wrong contractor, so it is refused (entries are never moved or deleted).
+ */
+export function canSwitchContractor({ boundId, nextId, entryCount }) {
+  if (!nextId) return { ok: false, message: 'ठेकेदार चुनें।' };
+  if (!boundId || boundId === nextId || !entryCount) return { ok: true };
+  return { ok: false, message: `इस फ़ोन की ${entryCount} प्रविष्टियाँ पहले चुने गए ठेकेदार की हैं। ठेकेदार बदलने से वे गलत ठेकेदार में चली जाएँगी, इसलिए बदलाव रोका गया है।` };
 }
 
 // Synced rate rows start here so any historical work date falls inside the period.
@@ -296,7 +326,7 @@ export async function syncAll({ adapter, store, entries: entriesSource, labourer
   // entries deleted on the phone during this run are recognised.
   const readEntries = async () => (typeof entriesSource === 'function' ? await entriesSource() : entriesSource) || [];
   const membership = await adapter.getMembership();
-  if (!membership) throw new Error('इस खाते को किसी ठेकेदार से नहीं जोड़ा गया है। व्यवस्थापक से संपर्क करें।');
+  if (!membership) throw new Error(NO_MEMBERSHIP_MESSAGE);
   if (!ENTRY_ROLES.includes(membership.role)) throw new Error('इस खाते को केवल देखने की अनुमति है (Viewer)।');
   const { contractorId, role } = membership;
   const features = adapter.features ? await adapter.features() : { timestamps: false, registers: false };

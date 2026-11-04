@@ -73,6 +73,46 @@ export const EVENT_LABELS = {
   Reopened: 'Changed after decision — back to Pending',
 };
 
+const DIFF_FIELDS = [
+  ['work_type', 'Work'], ['total_bags', 'Bags'], ['total_weight_kg', 'Weight (kg)'], ['total_batches', 'Batches'],
+  ['rate_snapshot', 'Rate'], ['rate_unit_snapshot', 'Unit'], ['calculated_labour_amount', 'Amount'],
+  ['notes', 'Notes'], ['work_completed_at', 'Completed at'], ['shares', 'Labourers'],
+];
+const norm = (field, v) => {
+  if (v === null || v === undefined || v === '') return '';
+  if (field === 'work_completed_at') { const t = Date.parse(v); return Number.isFinite(t) ? new Date(t).toISOString() : String(v); }
+  if (['total_bags', 'total_weight_kg', 'total_batches', 'rate_snapshot', 'calculated_labour_amount'].includes(field)) return String(Number(v));
+  return String(v);
+};
+const sharesText = (shares) => [...(shares || [])]
+  .map(s => `${s.labourer_name || s.name || '—'} ${Number(s.allocated_amount ?? s.amount) || 0}`).sort().join(', ');
+
+/**
+ * Original (last APPROVED snapshot, proposal 253) vs revised (current rows) for one day.
+ * Returns [{ id, change: 'edited' | 'added' | 'removed' | 'same', before, after, fields: [{ field, label, before, after }] }].
+ * `lines` are the current v_labour_work_lines rows of the day.
+ */
+export function diffAgainstApproved(snapshotEntries = [], currentEntries = [], lines = []) {
+  const currentShares = new Map();
+  lines.forEach(l => {
+    const list = currentShares.get(l.work_entry_id) || [];
+    list.push({ labourer_name: l.labourer_name, allocated_amount: l.allocated_amount });
+    currentShares.set(l.work_entry_id, list);
+  });
+  const before = new Map(snapshotEntries.map(e => [e.id, { ...e, shares: sharesText(e.shares) }]));
+  const after = new Map(currentEntries.map(e => [e.id, { ...e, shares: sharesText(currentShares.get(e.id)) }]));
+  const out = [];
+  for (const [id, a] of after) {
+    const b = before.get(id);
+    if (!b) { out.push({ id, change: 'added', before: null, after: a, fields: [] }); continue; }
+    const fields = DIFF_FIELDS.filter(([f]) => norm(f, b[f]) !== norm(f, a[f])).map(([f, label]) => ({ field: f, label, before: b[f], after: a[f] }));
+    out.push({ id, change: fields.length ? 'edited' : 'same', before: b, after: a, fields });
+  }
+  for (const [id, b] of before) if (!after.has(id)) out.push({ id, change: 'removed', before: b, after: null, fields: [] });
+  const order = { edited: 0, added: 1, removed: 2, same: 3 };
+  return out.sort((x, y) => order[x.change] - order[y.change]);
+}
+
 /** True when the error means proposal 252 is not installed yet. */
 export function isRegisterNotInstalled(error) {
   if (!error) return false;

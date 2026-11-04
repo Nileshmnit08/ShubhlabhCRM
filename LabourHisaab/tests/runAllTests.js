@@ -1322,7 +1322,9 @@ runTest('Date helpers: local today, Hindi label, day/month navigation, calendar 
 runTest('Entry added while a past date is selected is saved to that date', async () => {
   const fs = await import('node:fs');
   const screen = fs.readFileSync(new URL('../src/screens/AddWorkEntryScreen.js', import.meta.url), 'utf8');
-  assert.ok(/date: workEntryToEdit\?\.date \?\? selectedDate,/.test(screen), 'new entries save with the selected date; edits keep their own date');
+  // LH-WORK-EDIT-APPROVAL-07: the form's date starts at the selected date (new) or the entry's
+  // own date (edit); the operator may change it to today or earlier.
+  assert.ok(/useState\(workEntryToEdit\?\.date \?\? selectedDate\)/.test(screen) && /date: workDate,/.test(screen), 'new entries save with the selected date; edits keep their own date');
   const ctx = fs.readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
   assert.ok(/date: entryData\.date \|\| selectedDate/.test(ctx), 'context keeps the provided (selected) date');
   // Behaviour: the selected past date is what lands on the saved entry.
@@ -1516,7 +1518,7 @@ runTest('App wiring: storage before screen, success only after the write, retrie
   assert.deepStrictEqual(sets.sort(), ['downloadedList', 'list', 'savedEntries'], 'entries reach the screen only from a completed load or a confirmed save');
   assert.ok(/const \{ list: downloadedList, savedIds \} = await repo\.upsertManyIf\(/.test(ctx), 'downloads are shown only after storage confirms them');
   // LH-REALTIME-WORK-SAVE-03: success only after the awaited local save AND the database confirmation.
-  assert.ok(/: await addWorkEntry\(entryData\);[\s\S]*const cloud = await confirmCloudSave\(saved\.id\);[\s\S]*if \(cloud\.state === 'database'\) \{\s*Alert\.alert\('डेटाबेस में सहेजा गया ✅'/.test(screen), 'success shown after the awaited save and database confirmation');
+  assert.ok(/: await addWorkEntry\(entryData\);[\s\S]*const cloud = await confirmCloudSave\(saved\.id\);[\s\S]*if \(cloud\.state === 'database'\) \{[\s\S]{0,400}?Alert\.alert\(workEntryToEdit \? 'बदलाव डेटाबेस में सहेजा गया ✅' : 'डेटाबेस में सहेजा गया ✅'/.test(screen), 'success shown after the awaited save and database confirmation');
   assert.ok(/\? await updateWorkEntry\(workEntryToEdit\.id, entryData\)/.test(screen), 'edit awaited');
   assert.ok(/id: entryIdRef\.current,/.test(screen) && /useRef\(workEntryToEdit\?\.id \|\| makeEntryId\(\)\)/.test(screen), 'one id per form');
   assert.ok(/catch \(e\)[\s\S]{0,200}savingRef\.current = false/.test(screen), 'failure keeps inputs and unlocks');
@@ -1923,10 +1925,107 @@ runTest('Save screen: database confirmation awaited; success text only on databa
   const okBranch = src.indexOf("if (cloud.state === 'database') {");
   assert.ok(okBranch > 0 && src.indexOf('डेटाबेस में सहेजा गया ✅') > okBranch, 'success alert lives inside the database branch');
   assert.ok(!/फ़ोन में सहेज लिया गया/.test(src), 'old local-only success text is gone');
-  assert.match(src, /'दोबारा कोशिश करें \(Retry\)', onPress: \(\) => handleSave\(\)/, 'retry re-sends with the same entry id');
+  assert.match(src, /'दोबारा कोशिश करें \(Retry\)', onPress: \(\) => handleSave\(\{ confirmedDecided: true \}\)/, 'retry re-sends with the same entry id');
   const ctx = readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
   assert.match(ctx, /AppState\.addEventListener\('change'/, 'refresh when the app returns to the foreground');
   assert.match(ctx, /setInterval\(\(\) => \{ if \(AppState\.currentState === 'active'\) runSync\(\); \}, 60000\)/, 'periodic refresh while open');
+});
+
+// -----------------------------------------------------------------
+// LH-CONTRACTOR-SELECT-SAVE-VERIFY-06: contractor selection
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-CONTRACTOR-SELECT-SAVE-VERIFY-06: Contractor selection');
+
+runTest('Membership + selection: honoured only for real memberships; several need a choice; none = clear error', async () => {
+  const { pickMembership, NO_MEMBERSHIP_MESSAGE, CHOOSE_CONTRACTOR_MESSAGE, SELECTION_GONE_MESSAGE, syncAll, createSyncStore } = await import('../src/services/CloudSync.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  const ajay = { contractor_id: 'c-ajay', role: 'Operator', name: 'Ajay' };
+  const other = { contractor_id: 'c-other', role: 'Manager', name: 'Other' };
+  assert.deepStrictEqual(pickMembership([ajay]), { contractorId: 'c-ajay', role: 'Operator' }, 'single membership used automatically');
+  assert.throws(() => pickMembership([ajay, other]), (e) => e.message === CHOOSE_CONTRACTOR_MESSAGE, 'several: must choose');
+  assert.deepStrictEqual(pickMembership([ajay, other], 'c-other'), { contractorId: 'c-other', role: 'Manager' });
+  assert.throws(() => pickMembership([ajay], 'c-not-mine'), (e) => e.message === SELECTION_GONE_MESSAGE, 'selection is not a membership');
+  assert.strictEqual(pickMembership([]), null);
+  const store = createSyncStore(createLocalStore(memoryBackend()));
+  await assert.rejects(() => syncAll({ adapter: { getMembership: async () => null }, store, entries: [], labourers: [], today: '2026-11-04' }), (e) => e.message === NO_MEMBERSHIP_MESSAGE);
+});
+
+runTest('Selection is saved per signed-in user and restored; another user on the phone keeps their own', async () => {
+  const { readSelection, writeSelection } = await import('../src/services/CloudSync.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  const disk = memoryBackend();
+  const key = '@labourhisaab/v1/contractor_selection';
+  let s = createLocalStore(disk);
+  await s.saveList(key, writeSelection(await s.loadList(key), 'user-a', { contractor_id: 'c-ajay', name: 'Ajay' }));
+  await s.saveList(key, writeSelection(await s.loadList(key), 'user-b', { contractor_id: 'c-other', name: 'Other' }));
+  s = createLocalStore(disk); // app restart: a new store over the same device storage
+  assert.deepStrictEqual(readSelection(await s.loadList(key), 'user-a'), { userId: 'user-a', contractorId: 'c-ajay', name: 'Ajay' });
+  assert.strictEqual(readSelection(await s.loadList(key), 'user-b').contractorId, 'c-other');
+  assert.strictEqual(readSelection(await s.loadList(key), 'user-c'), null, 'a new user starts with no selection');
+  await s.saveList(key, writeSelection(await s.loadList(key), 'user-a', { contractor_id: 'c-other', name: 'Other' }));
+  assert.strictEqual((await s.loadList(key)).length, 2, 'replaced, not duplicated');
+});
+
+runTest('Switching contractor is refused while this phone holds entries of the previous one', async () => {
+  const { canSwitchContractor } = await import('../src/services/CloudSync.js');
+  assert.deepStrictEqual(canSwitchContractor({ boundId: null, nextId: 'c-ajay', entryCount: 2 }), { ok: true }, 'first choice');
+  assert.deepStrictEqual(canSwitchContractor({ boundId: 'c-ajay', nextId: 'c-ajay', entryCount: 2 }), { ok: true });
+  assert.deepStrictEqual(canSwitchContractor({ boundId: 'c-ajay', nextId: 'c-other', entryCount: 0 }), { ok: true }, 'empty phone may switch');
+  const r = canSwitchContractor({ boundId: 'c-ajay', nextId: 'c-other', entryCount: 2 });
+  assert.strictEqual(r.ok, false);
+  assert.match(r.message, /2 प्रविष्टियाँ/);
+  assert.strictEqual(canSwitchContractor({ boundId: null, nextId: null }).ok, false);
+});
+
+runTest('Settings shows the Contractor card; save screen names the contractor and the persisted record id', async () => {
+  const { readFileSync } = await import('node:fs');
+  const settings = readFileSync(new URL('../src/screens/SettingsScreen.js', import.meta.url), 'utf8');
+  assert.match(settings, /<ContractorSelectCard \/>/);
+  const card = readFileSync(new URL('../src/components/ContractorSelectCard.js', import.meta.url), 'utf8');
+  assert.match(card, /listMemberships|loadContractors/);
+  assert.match(card, /Alert\.alert\(\s*'ठेकेदार चुनें\?'/, 'confirmation before changing');
+  assert.ok(!/contractor_members'\)\.insert|lh_add_member|lh_set_member|\.rpc\(/.test(card), 'the phone cannot grant itself membership');
+  assert.ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(card), 'no hard-coded contractor ids');
+  const form = readFileSync(new URL('../src/screens/AddWorkEntryScreen.js', import.meta.url), 'utf8');
+  assert.match(form, /Record ID: \$\{cloud\.serverId\}/);
+});
+
+// -----------------------------------------------------------------
+// LH-WORK-EDIT-APPROVAL-07: edit current/past work with re-approval
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-WORK-EDIT-APPROVAL-07: Edit with re-approval');
+
+runTest('Edit keeps the record id and creation time, records the edit time, can move to an earlier date', async () => {
+  const { createWorkEntryRepository } = await import('../src/services/WorkEntryRepository.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  const { contentHash } = await import('../src/services/CloudSync.js');
+  const repo = createWorkEntryRepository(createLocalStore(memoryBackend()));
+  await repo.init();
+  const original = regEntry('WE_edit', '2026-11-04', 'mix', '2026-11-04T05:00:00.000Z', '2026-11-04T05:01:00.000Z', 40, ['L1']);
+  await repo.upsert(original);
+  // What updateWorkEntry stores: merged values + updatedAt, same id; createdAt untouched.
+  const edited = { ...original, date: '2026-11-02', totalBags: 50, totalAmount: 50, allocations: distributeWorkAllocation(50, ['L1', 'L2']), participatingLabourerIds: ['L1', 'L2'], updatedAt: '2026-11-04T09:00:00.000Z' };
+  await repo.upsert(edited);
+  const list = repo.list();
+  assert.deepStrictEqual(list.map(e => e.id), ['WE_edit'], 'no second record');
+  assert.deepStrictEqual([list[0].date, list[0].createdAt, list[0].updatedAt], ['2026-11-02', '2026-11-04T05:01:00.000Z', '2026-11-04T09:00:00.000Z']);
+  assert.notStrictEqual(contentHash(list[0]), contentHash(original), 'the edit is sent to the database');
+  await repo.upsert(edited);
+  assert.strictEqual(repo.list().length, 1, 'repeated save of the same edit: still one record');
+});
+
+runTest('Edit form: date today-or-earlier, decided days ask before re-approval, Home shows day status + last edit', async () => {
+  const { readFileSync } = await import('node:fs');
+  const form = readFileSync(new URL('../src/screens/AddWorkEntryScreen.js', import.meta.url), 'utf8');
+  assert.match(form, /const \[workDate, setWorkDate\] = useState\(workEntryToEdit\?\.date \?\? selectedDate\);/, 'edit starts at the entry date');
+  assert.match(form, /workDate > todayYmd\(\)/, 'future dates refused');
+  assert.match(form, /date: workDate,/, 'chosen date is saved');
+  assert.match(form, /x\.st === 'Approved' \|\| x\.st === 'Rejected'/);
+  assert.match(form, /बदलाव सहेजने पर यह दिन फिर से "Pending" होगा/, 'operator is told the edit needs re-approval');
+  assert.ok(!/Approved'\s*:\s*'Approved|status: 'Approved'/.test(form), 'the app never sets Approved');
+  const home = readFileSync(new URL('../src/screens/HomeScreen.js', import.meta.url), 'utf8');
+  assert.match(home, /approvalInfo\(registers\.find\(/);
+  assert.match(home, /अंतिम बदलाव: \{formatIstDateTime\(entry\.updatedAt\)\}/);
 });
 
 function todayYmdForTest() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }

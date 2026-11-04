@@ -30,6 +30,7 @@ import { formatRupees } from '../utils/shareWhatsApp';
 import { distributeWorkAllocation } from '../services/LabourDatabaseService';
 import { makeEntryId } from '../services/LocalPersistence';
 import { formatIstTime, formatIstDateTime, istToIso, isValidHm } from '../utils/dailyRegister';
+import { todayYmd, addDaysYmd, formatHindiDate, isValidYmd } from '../utils/dates';
 
 const PRESET_WEIGHTS = [50, 40, 25, 30, 100];
 const QUICK_BAG_ADDS = [50, 100, 200, 500];
@@ -41,8 +42,15 @@ export default function AddWorkEntryScreen({ navigation, route }) {
     addWorkEntry,
     updateWorkEntry,
     confirmCloudSave,
+    contractorState,
+    registers,
     labourers,
   } = useLabourHisaab();
+  // Contractor this phone saves for (selected in Settings, or the only linked one).
+  const activeContractor = contractorState.selectedId
+    ? contractorState.memberships.find(m => m.contractor_id === contractorState.selectedId)
+    : contractorState.memberships.length === 1 ? contractorState.memberships[0] : null;
+  const contractorLabel = activeContractor ? activeContractor.name : (contractorState.selectedName || '—');
 
   const workEntryToEdit = route?.params?.workEntryToEdit;
   const initialCategoryId =
@@ -89,6 +97,9 @@ export default function AddWorkEntryScreen({ navigation, route }) {
   // Stable record id for this form (new entry) or the edited entry's id.
   const entryIdRef = useRef(workEntryToEdit?.id || makeEntryId());
   const [isSaving, setIsSaving] = useState(false);
+  // Work date: an edit starts at the entry's own date; today or any earlier date is allowed.
+  const [workDate, setWorkDate] = useState(workEntryToEdit?.date ?? selectedDate);
+  const dayStatus = (d) => registers.find(r => String(r.work_date).slice(0, 10) === d)?.status || null;
   const [saveStage, setSaveStage] = useState(null); // null | 'database' (waiting for the server)
 
   // Participating labourers (multi-select)
@@ -177,7 +188,9 @@ export default function AddWorkEntryScreen({ navigation, route }) {
   }, [calculationResult.totalAmount, selectedLabourerIds]);
 
   // Save handler
-  const handleSave = async () => {
+  // { confirmedDecided }: the operator already accepted that editing an approved/rejected day
+  // sends it back to Pending for CRM re-approval (asked once, also skipped on Retry).
+  const handleSave = async ({ confirmedDecided = false } = {}) => {
     if (savingRef.current) return;
 
     // Empty required fields are errors; an explicit 0 is valid and saves a ₹0 entry.
@@ -193,7 +206,25 @@ export default function AddWorkEntryScreen({ navigation, route }) {
       Alert.alert('त्रुटि', validationError);
       return;
     }
-    const workDate = workEntryToEdit?.date ?? selectedDate;
+    if (!isValidYmd(workDate) || workDate > todayYmd()) {
+      Alert.alert('त्रुटि', 'काम की तारीख आज या उससे पहले की होनी चाहिए।');
+      return;
+    }
+    // Editing a day the CRM already decided: the revision must be re-approved.
+    const decidedDays = [...new Set([workEntryToEdit?.date, workDate].filter(Boolean))]
+      .map(d => ({ d, st: registers.find(r => String(r.work_date).slice(0, 10) === d)?.status }))
+      .filter(x => x.st === 'Approved' || x.st === 'Rejected');
+    if (workEntryToEdit && decidedDays.length && !confirmedDecided) {
+      Alert.alert(
+        'स्वीकृत/जाँचे गए दिन में बदलाव',
+        `${decidedDays.map(x => `${x.d}: ${x.st}`).join(', ')}\nबदलाव सहेजने पर यह दिन फिर से "Pending" होगा और Shubh Labh CRM इसे दोबारा जाँचेगा। पिछला स्वीकृत संस्करण CRM में सुरक्षित रहेगा।`,
+        [
+          { text: 'रद्द करें', style: 'cancel' },
+          { text: 'हाँ, बदलाव भेजें', onPress: () => handleSave({ confirmedDecided: true }) },
+        ],
+      );
+      return;
+    }
     const hm = completedHm.trim();
     if (hm && !isValidHm(hm)) {
       Alert.alert('त्रुटि', 'काम पूरा होने का समय HH:MM (24 घंटे) में लिखें, जैसे 14:30।');
@@ -208,8 +239,9 @@ export default function AddWorkEntryScreen({ navigation, route }) {
     const entryData = {
       // Same id for every attempt from this form: a retry replaces, never duplicates.
       id: entryIdRef.current,
-      // Editing keeps the entry's own date; a new entry uses the selected date.
-      date: workEntryToEdit?.date ?? selectedDate,
+      // The work date chosen on the form (edit: starts at the entry's own date; may move to an
+      // earlier or later past date — same record id, same contractor, never a new entry).
+      date: workDate,
       categoryId: selectedCategory.id,
       categoryName: selectedCategory.name,
       rate: toNumberOrNull(customRate),
@@ -241,7 +273,11 @@ export default function AddWorkEntryScreen({ navigation, route }) {
       console.log(`[LH-SAVE] entry=${saved.id} state=${cloud.state}${cloud.serverId ? ` serverId=${cloud.serverId}` : ''}`);
       const amountText = `${selectedCategory.name}: ${formatRupees(saved.totalAmount)}`;
       if (cloud.state === 'database') {
-        Alert.alert('डेटाबेस में सहेजा गया ✅', `${amountText}\nSaved to database${cloud.serverCreatedAt ? ` (${formatIstDateTime(cloud.serverCreatedAt)})` : ''}.\nस्वीकृति: Pending — Shubh Labh CRM`, [
+        const when = workEntryToEdit
+          ? `बदलाव ${cloud.serverUpdatedAt ? formatIstDateTime(cloud.serverUpdatedAt) : ''}`
+          : (cloud.serverCreatedAt ? formatIstDateTime(cloud.serverCreatedAt) : '');
+        Alert.alert(workEntryToEdit ? 'बदलाव डेटाबेस में सहेजा गया ✅' : 'डेटाबेस में सहेजा गया ✅',
+          `${amountText}\nSaved to database${when ? ` (${when})` : ''}.\nतारीख: ${workDate} · ठेकेदार: ${contractorLabel}\nRecord ID: ${cloud.serverId}\nस्वीकृति: Pending — ${workEntryToEdit ? 'CRM दोबारा जाँचेगा (re-approval)' : 'Shubh Labh CRM'}`, [
           { text: 'ठीक है', onPress: () => navigation.goBack() },
         ], { cancelable: false });
         return; // stay locked: the screen closes from the alert
@@ -256,7 +292,7 @@ export default function AddWorkEntryScreen({ navigation, route }) {
         cloud.state === 'device'
           ? [{ text: 'ठीक है', onPress: () => navigation.goBack() }]
           : [
-            { text: 'दोबारा कोशिश करें (Retry)', onPress: () => handleSave() },
+            { text: 'दोबारा कोशिश करें (Retry)', onPress: () => handleSave({ confirmedDecided: true }) },
             { text: 'बाद में (फ़ोन में सुरक्षित)', style: 'cancel', onPress: () => navigation.goBack() },
           ],
         { cancelable: false },
@@ -279,7 +315,7 @@ export default function AddWorkEntryScreen({ navigation, route }) {
             {workEntryToEdit ? 'कार्य प्रविष्टि सम्पादित करें' : 'दैनिक कार्य प्रविष्टि'}
           </Text>
           <Text style={styles.headerSubtitle}>
-            तारीख: {selectedDate} | {workEntryToEdit ? 'Edit Work Entry' : 'New Work Entry'}
+            तारीख: {workDate} | ठेकेदार: {contractorLabel} | {workEntryToEdit ? 'Edit Work Entry' : 'New Work Entry'}
           </Text>
         </View>
         <TouchableOpacity
@@ -652,6 +688,26 @@ export default function AddWorkEntryScreen({ navigation, route }) {
           </View>
         </View>
 
+        {/* Work date (today or earlier) + the day's CRM approval status */}
+        <View style={styles.notesSection}>
+          <Text style={styles.sectionTitle}>काम की तारीख (Work date)</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity style={styles.dateStepBtn} onPress={() => setWorkDate(addDaysYmd(workDate, -1))} accessibilityLabel="पिछला दिन">
+              <Text style={styles.dateStepText}>◀</Text>
+            </TouchableOpacity>
+            <Text style={{ flex: 1, textAlign: 'center', fontWeight: '700', color: theme.colors.textPrimary }}>{formatHindiDate(workDate)}</Text>
+            <TouchableOpacity style={[styles.dateStepBtn, workDate >= todayYmd() && { opacity: 0.4 }]} disabled={workDate >= todayYmd()}
+              onPress={() => setWorkDate(addDaysYmd(workDate, 1))} accessibilityLabel="अगला दिन">
+              <Text style={styles.dateStepText}>▶</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.sectionSubtitle}>
+            स्वीकृति: {dayStatus(workDate) || 'Pending'}
+            {workEntryToEdit && workEntryToEdit.date !== workDate ? ` · मूल तारीख ${workEntryToEdit.date} (${dayStatus(workEntryToEdit.date) || 'Pending'})` : ''}
+            {workEntryToEdit?.updatedAt ? ` · अंतिम बदलाव ${formatIstDateTime(workEntryToEdit.updatedAt)}` : ''}
+          </Text>
+        </View>
+
         {/* Work completed at (IST) */}
         <View style={styles.notesSection}>
           <Text style={styles.sectionTitle}>काम पूरा होने का समय (Work completed at, IST)</Text>
@@ -683,7 +739,7 @@ export default function AddWorkEntryScreen({ navigation, route }) {
         {/* Save CTA */}
         <TouchableOpacity
           style={[styles.saveButton, isSaving && { opacity: 0.6 }]}
-          onPress={handleSave}
+          onPress={() => handleSave()}
           disabled={isSaving}
           activeOpacity={0.8}
         >
@@ -1154,6 +1210,8 @@ const styles = StyleSheet.create({
     color: '#059669',
     marginTop: 1,
   },
+  dateStepBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: theme.colors.surfaceVariant },
+  dateStepText: { fontSize: 14, fontWeight: '800', color: theme.colors.textPrimary },
   notesSection: {
     marginTop: theme.spacing.lg,
   },

@@ -52,6 +52,39 @@ test('decision checks: reject needs a reason; only Approved / Rejected', () => {
   assert.equal(EVENT_LABELS.Reopened, 'Changed after decision — back to Pending');
 });
 
+test('original (approved snapshot) vs revised: edited fields, added and removed entries', async () => {
+  const { diffAgainstApproved } = await import('../labourApprovals.js');
+  const snapshot = [
+    { id: 'e1', work_type: 'pallet', total_bags: 100, total_weight_kg: 5000, calculated_labour_amount: 1050, rate_snapshot: 21, notes: null,
+      work_completed_at: '2026-11-04T05:00:00+00:00', shares: [{ labourer_name: 'One', allocated_amount: 1050 }] },
+    { id: 'e2', work_type: 'mix', total_bags: 10, calculated_labour_amount: 100, shares: [] },
+    { id: 'e3', work_type: 'premix', total_bags: 5, calculated_labour_amount: 50, shares: [] },
+  ];
+  const current = [
+    { id: 'e1', work_type: 'pallet', total_bags: '120', total_weight_kg: '6000.00', calculated_labour_amount: '1260.00', rate_snapshot: '21.00', notes: 'corrected', work_completed_at: '2026-11-04T05:00:00.000Z' },
+    { id: 'e2', work_type: 'mix', total_bags: 10, calculated_labour_amount: '100.00' },
+    { id: 'e4', work_type: 'mix', total_bags: 1, calculated_labour_amount: '10.00' },
+  ];
+  const lines = [{ work_entry_id: 'e1', labourer_name: 'One', allocated_amount: '630' }, { work_entry_id: 'e1', labourer_name: 'Two', allocated_amount: '630' }];
+  const d = diffAgainstApproved(snapshot, current, lines);
+  const e1 = d.find(x => x.id === 'e1');
+  assert.equal(e1.change, 'edited');
+  assert.deepEqual(e1.fields.map(f => f.field), ['total_bags', 'total_weight_kg', 'calculated_labour_amount', 'notes', 'shares'], 'number formats and +00:00 vs Z are not "changes"');
+  assert.equal(d.find(x => x.id === 'e2').change, 'same');
+  assert.equal(d.find(x => x.id === 'e3').change, 'removed');
+  assert.equal(d.find(x => x.id === 'e4').change, 'added');
+  assert.deepEqual(diffAgainstApproved([], [], []), []);
+});
+
+test('approvals page shows original vs revised and flags edits after approval', () => {
+  const page = read('../../pages/LabourHisaabApprovals.jsx');
+  assert.match(page, /Edit to a previously approved register/);
+  assert.match(page, /aria-label="Original vs revised"/);
+  assert.match(page, /Edited after approval/);
+  assert.match(page, /from\('labour_daily_register_snapshots'\)/);
+  assert.match(page, /snRes\.error \? \[\]/, 'works before proposal 253 is installed');
+});
+
 test('not-installed detection for proposal 252', () => {
   assert.equal(isRegisterNotInstalled({ code: 'PGRST205', message: "Could not find the table 'public.v_lh_daily_registers'" }), true);
   assert.equal(isRegisterNotInstalled({ code: '42501', message: 'permission denied for view v_lh_daily_registers' }), false);

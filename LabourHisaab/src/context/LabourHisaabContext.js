@@ -8,7 +8,7 @@ import { deviceStore } from '../services/deviceStorage';
 import { STORAGE_KEYS, makeEntryId, makeLabourerId } from '../services/LocalPersistence';
 import { createWorkEntryRepository, LOAD_FAILED_MESSAGE } from '../services/WorkEntryRepository';
 import { supabase, isCloudConfigured } from '../services/supabase';
-import { syncAll, queueServerDelete, pendingCount, createSyncStore, contentHash, cloudSaveStatus, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
+import { syncAll, queueServerDelete, pendingCount, createSyncStore, contentHash, cloudSaveStatus, canSwitchContractor, readSelection, writeSelection, SELECTION_GONE_MESSAGE, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
 import { createSupabaseSyncAdapter } from '../services/supabaseSyncAdapter';
 import {
   DEFAULT_WORK_RATES,
@@ -119,6 +119,54 @@ export function LabourHisaabProvider({ children }) {
   const workRatesRef = useRef(workRates);
   workRatesRef.current = workRates;
 
+  // -------------------------------------------------------------
+  // Contractor selection (LH-CONTRACTOR-SELECT-SAVE-VERIFY-06). Saved per signed-in user on this
+  // phone. It only CHOOSES among the account's real memberships — the database decides who is a
+  // member (Owner / CRM admin onboarding); the phone can never grant itself one.
+  // -------------------------------------------------------------
+  const SELECTION_KEY = '@labourhisaab/v1/contractor_selection'; // [{ userId, contractorId, name }]
+  const BOUND_KEY = '@labourhisaab/v1/bound_contractor';         // [{ contractorId }] contractor of this phone's synced entries
+  const selectedContractorRef = useRef(null);
+  const [contractorState, setContractorState] = useState({ status: 'idle', memberships: [], selectedId: null, selectedName: null, error: null });
+
+  const loadContractors = async () => {
+    if (!supabase || !cloudUserRef.current) {
+      setContractorState({ status: 'signed_out', memberships: [], selectedId: null, selectedName: null, error: null });
+      return null;
+    }
+    const uid = cloudUserRef.current.id;
+    setContractorState(s => ({ ...s, status: 'loading', error: null }));
+    try {
+      const saved = readSelection(await deviceStore.loadList(SELECTION_KEY), uid);
+      selectedContractorRef.current = saved ? saved.contractorId : null;
+      const memberships = await createSupabaseSyncAdapter(supabase).listMemberships();
+      const selected = saved ? memberships.find(m => m.contractor_id === saved.contractorId) : null;
+      setContractorState({
+        status: memberships.length ? 'ready' : 'empty', memberships,
+        selectedId: saved ? saved.contractorId : null,
+        selectedName: selected ? selected.name : (saved ? saved.name : null),
+        error: saved && !selected ? SELECTION_GONE_MESSAGE : null,
+      });
+      return memberships;
+    } catch (e) {
+      setContractorState(s => ({ ...s, status: 'error', error: e?.message || String(e) }));
+      return null;
+    }
+  };
+
+  const selectContractor = async (membership) => {
+    if (!cloudUserRef.current) throw new Error('पहले साइन इन करें।');
+    const bound = ((await deviceStore.loadList(BOUND_KEY)) || [])[0]?.contractorId || null;
+    const check = canSwitchContractor({ boundId: bound, nextId: membership?.contractor_id, entryCount: repo.list().length });
+    if (!check.ok) throw new Error(check.message);
+    const uid = cloudUserRef.current.id;
+    await deviceStore.saveList(SELECTION_KEY, writeSelection(await deviceStore.loadList(SELECTION_KEY), uid, membership));
+    selectedContractorRef.current = membership.contractor_id;
+    setContractorState(s => ({ ...s, selectedId: membership.contractor_id, selectedName: membership.name, error: null }));
+    console.log(`[LH-CONTRACTOR] selected contractor=${membership.contractor_id} role=${membership.role}`);
+    return runSync();
+  };
+
   // Per-entry sync records and the CRM approval status of each day (shown in Settings).
   const [syncItems, setSyncItems] = useState([]);
   const [registers, setRegisters] = useState([]);
@@ -178,7 +226,7 @@ export function LabourHisaabProvider({ children }) {
     lastSyncError.current = null;
     try {
       outcome = await syncAll({
-        adapter: createSupabaseSyncAdapter(supabase),
+        adapter: createSupabaseSyncAdapter(supabase, { selectedContractorId: selectedContractorRef.current }),
         store: syncStore,
         entries: () => repo.list(),
         labourers: labourersRef.current,
@@ -190,6 +238,10 @@ export function LabourHisaabProvider({ children }) {
       if (outcome.registers) setRegisters(outcome.registers);
       cloudRoleRef.current = outcome.role || null;
       cloudContractorRef.current = outcome.contractorId || null;
+      // Remember which contractor this phone's entries belong to (first successful sync).
+      if (outcome.contractorId && !((await deviceStore.loadList(BOUND_KEY)) || []).length) {
+        await deviceStore.saveList(BOUND_KEY, [{ contractorId: outcome.contractorId }]);
+      }
       setSyncStatus(s => ({ ...s, lastSyncAt: new Date().toISOString(), failed: outcome.failed, role: outcome.role || null,
         lastError: outcome.failed.length ? outcome.failed[0].message : null }));
     } catch (e) {
@@ -246,10 +298,11 @@ export function LabourHisaabProvider({ children }) {
     return () => { active = false; sub?.subscription?.unsubscribe?.(); };
   }, []);
 
-  // Sync once both the device history is loaded and a session exists.
+  // Sync once both the device history is loaded and a session exists (after restoring this
+  // user's contractor selection, so the first sync already uses it).
   useEffect(() => {
-    if (storageReady && cloudUser) runSync();
-    else if (storageReady) refreshPending();
+    if (storageReady && cloudUser) loadContractors().finally(() => runSync());
+    else if (storageReady) { refreshPending(); loadContractors(); }
   }, [storageReady, cloudUser]);
 
   const cloudSignIn = async (email, password) => {
@@ -266,6 +319,8 @@ export function LabourHisaabProvider({ children }) {
     cloudUserRef.current = null;
     cloudRoleRef.current = null;
     cloudContractorRef.current = null;
+    selectedContractorRef.current = null; // the saved choice stays with that user for next sign-in
+    setContractorState({ status: 'signed_out', memberships: [], selectedId: null, selectedName: null, error: null });
     setCloudUser(null);
     setSyncStatus(s => ({ ...s, role: null }));
   };
@@ -963,6 +1018,9 @@ export function LabourHisaabProvider({ children }) {
     cloudSignOut,
     syncNow: runSync,
     confirmCloudSave,
+    contractorState,
+    loadContractors,
+    selectContractor,
     renameCloudContractor,
     syncItems,
     registers,
