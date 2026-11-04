@@ -51,10 +51,10 @@ export function istToIso(ymd, hm) {
 const sortKey = (e) => Date.parse(e.workCompletedAt || e.createdAt || '') || Number.MAX_SAFE_INTEGER;
 
 export const SYNC_LABELS = {
-  device: 'फ़ोन पर सहेजा गया (Saved on device)',
-  pending: 'सिंक बाकी (Sync pending)',
-  synced: 'सिंक हो गया (Synced)',
-  failed: 'सिंक विफल (Sync failed)',
+  device: 'केवल फ़ोन पर — साइन इन करें (Saved on device only)',
+  pending: 'सिंक नहीं — कनेक्शन की प्रतीक्षा (Not synced — waiting for connection)',
+  synced: 'डेटाबेस में सहेजा गया (Saved to database)',
+  failed: 'सिंक विफल — दोबारा कोशिश होगी (Sync failed)',
 };
 
 /**

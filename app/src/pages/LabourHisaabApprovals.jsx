@@ -44,8 +44,8 @@ export default function LabourHisaabApprovals() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
 
-  const load = useCallback(async () => {
-    setState('loading');
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setState('loading');
     try {
       const [cRes, rRes] = await Promise.all([
         supabase.from('contractors').select('id, name, is_active').order('name'),
@@ -71,6 +71,15 @@ export default function LabourHisaabApprovals() {
   }, [fromDate, toDate, contractorId, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Registers submitted from the phones appear without a reload (tab focus / every 60 s).
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') load({ silent: true }); };
+    const timer = setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+  }, [load]);
 
   const openRegister = useCallback(async (reg) => {
     setOpenId(reg.id); setDetail(null); setDetailError(''); setConfirm(null); setReason(''); setNotice('');
@@ -177,7 +186,7 @@ export default function LabourHisaabApprovals() {
             <option value="Rejected">Rejected</option><option value="ALL">All</option>
           </select>
         </label>
-        <button className="btn btn-secondary" onClick={load} disabled={state === 'loading' || rangeInvalid} style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <button className="btn btn-secondary" onClick={() => load()} disabled={state === 'loading' || rangeInvalid} style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <RefreshCw size={14} /> Refresh
         </button>
       </div>

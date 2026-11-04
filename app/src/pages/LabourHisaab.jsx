@@ -55,8 +55,10 @@ export default function LabourHisaab() {
   const [errorText, setErrorText] = useState('');
   const [data, setData] = useState({ contractors: [], labourers: [], entries: [], lines: [], payments: [], deductions: [] });
 
-  const load = useCallback(async () => {
-    setState('loading');
+  const [refreshedAt, setRefreshedAt] = useState(null);
+  // silent: background refresh (focus / every 60 s) keeps the current figures on screen.
+  const load = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setState('loading');
     try {
       const byContractor = (q) => (contractorId === 'ALL' ? q : q.eq('contractor_id', contractorId));
       const [contractorsRes, labourersRes] = await Promise.all([
@@ -96,6 +98,7 @@ export default function LabourHisaab() {
       }
       setData({ contractors: contractorsRes.data || [], labourers: labourersRes.data || [], entries, lines, payments, deductions });
       setState('ready');
+      setRefreshedAt(new Date());
     } catch (e) {
       if (isNotConnectedError(e)) setState('not_connected');
       else if (isPermissionError(e)) setState('no_access');
@@ -104,6 +107,16 @@ export default function LabourHisaab() {
   }, [fromDate, toDate, contractorId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // New entries saved on the phones appear without a manual reload: on returning to the tab
+  // and every 60 s while it is visible (the database is the only source).
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') load({ silent: true }); };
+    const timer = setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { clearInterval(timer); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+  }, [load]);
 
   const labourersById = useMemo(() => Object.fromEntries(data.labourers.map(l => [l.id, l])), [data.labourers]);
   const contractorsById = useMemo(() => Object.fromEntries(data.contractors.map(c => [c.id, c])), [data.contractors]);
@@ -168,9 +181,14 @@ export default function LabourHisaab() {
         </label>
         <button className="btn btn-secondary" onClick={() => { setFromDate(today); setToDate(today); }} style={{ height: 38 }}>Today</button>
         <button className="btn btn-secondary" onClick={() => { setFromDate(monthStart(today)); setToDate(today); }} style={{ height: 38 }}>This month</button>
-        <button className="btn btn-secondary" onClick={load} disabled={state === 'loading' || rangeInvalid} style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <button className="btn btn-secondary" onClick={() => load()} disabled={state === 'loading' || rangeInvalid} style={{ height: 38, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <RefreshCw size={14} /> Refresh
         </button>
+        {refreshedAt ? (
+          <span className="text-muted" style={{ fontSize: '0.75rem', alignSelf: 'center' }}>
+            Updated {refreshedAt.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })} IST · auto-refresh every minute
+          </span>
+        ) : null}
       </div>
 
       {rangeInvalid ? (

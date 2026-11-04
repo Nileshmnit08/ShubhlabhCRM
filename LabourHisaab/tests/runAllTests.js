@@ -1515,8 +1515,9 @@ runTest('App wiring: storage before screen, success only after the write, retrie
   // downloadedList = a confirmed repo.upsertManyIf write of entries synced from other phones.
   assert.deepStrictEqual(sets.sort(), ['downloadedList', 'list', 'savedEntries'], 'entries reach the screen only from a completed load or a confirmed save');
   assert.ok(/const \{ list: downloadedList, savedIds \} = await repo\.upsertManyIf\(/.test(ctx), 'downloads are shown only after storage confirms them');
-  assert.ok(/const saved = await addWorkEntry\(entryData\);\s*Alert\.alert\('सफलतापूर्वक सहेजा गया'/.test(screen), 'success shown after the awaited save');
-  assert.ok(/const saved = await updateWorkEntry\(/.test(screen), 'edit awaited');
+  // LH-REALTIME-WORK-SAVE-03: success only after the awaited local save AND the database confirmation.
+  assert.ok(/: await addWorkEntry\(entryData\);[\s\S]*const cloud = await confirmCloudSave\(saved\.id\);[\s\S]*if \(cloud\.state === 'database'\) \{\s*Alert\.alert\('डेटाबेस में सहेजा गया ✅'/.test(screen), 'success shown after the awaited save and database confirmation');
+  assert.ok(/\? await updateWorkEntry\(workEntryToEdit\.id, entryData\)/.test(screen), 'edit awaited');
   assert.ok(/id: entryIdRef\.current,/.test(screen) && /useRef\(workEntryToEdit\?\.id \|\| makeEntryId\(\)\)/.test(screen), 'one id per form');
   assert.ok(/catch \(e\)[\s\S]{0,200}savingRef\.current = false/.test(screen), 'failure keeps inputs and unlocks');
   assert.ok(/deleteWorkEntry\(w\.id\)\.catch/.test(pay), 'delete failure is reported');
@@ -1868,6 +1869,64 @@ runTest('App update: entries synced with the old hash are re-labelled, NOT re-up
   assert.deepStrictEqual([r.uploaded, r.unchanged], [1, 1], 'only the genuinely edited entry is sent');
   const s = await store.getState();
   assert.deepStrictEqual(s.find(x => x.id === 'WE_nov2'), { id: 'WE_nov2', serverId: 's-2', hash: contentHash(nov2), syncedAt: 'x', hv: HASH_VERSION });
+});
+
+// -----------------------------------------------------------------
+// LH-REALTIME-WORK-SAVE-03: database-first save confirmation
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-REALTIME-WORK-SAVE-03: Database-first save');
+
+runTest('Save status: "Saved to database" only when the server holds this exact content', async () => {
+  const { cloudSaveStatus, contentHash } = await import('../src/services/CloudSync.js');
+  const e = regEntry('WE_s', '2026-11-04', 'mix', undefined, '2026-11-04T05:00:00.000Z', 40, ['L1']);
+  const ok = cloudSaveStatus({ entry: e, item: { id: 'WE_s', serverId: 'srv-1', hash: contentHash(e), serverCreatedAt: '2026-11-04T05:00:01Z' }, outcome: { failed: [] } });
+  assert.deepStrictEqual([ok.state, ok.serverId, ok.serverCreatedAt], ['database', 'srv-1', '2026-11-04T05:00:01Z']);
+  assert.match(ok.message, /Saved to database/);
+  const stale = cloudSaveStatus({ entry: { ...e, totalAmount: 41 }, item: { id: 'WE_s', serverId: 'srv-1', hash: contentHash(e) }, outcome: { failed: [] } });
+  assert.notStrictEqual(stale.state, 'database', 'an older server copy is not a confirmation of the edit');
+  const rejected = cloudSaveStatus({ entry: e, item: { id: 'WE_s', serverId: 'srv-1', hash: null }, outcome: { failed: [{ localId: 'WE_s', message: 'new row violates row-level security policy' }] } });
+  assert.strictEqual(rejected.state, 'failed');
+  assert.match(rejected.message, /row-level security/);
+  const notLinked = cloudSaveStatus({ entry: e, item: null, outcome: null, error: 'इस खाते को किसी ठेकेदार से नहीं जोड़ा गया है।' });
+  assert.deepStrictEqual([notLinked.state, /ठेकेदार/.test(notLinked.message)], ['failed', true]);
+  const offline = cloudSaveStatus({ entry: e, item: null, outcome: null, error: 'TypeError: Network request failed' });
+  assert.strictEqual(offline.state, 'offline');
+  assert.match(offline.message, /Not synced — waiting for connection/);
+  assert.strictEqual(cloudSaveStatus({ entry: e, item: null, outcome: null, signedIn: false }).state, 'device');
+  assert.ok(![rejected, notLinked, offline].some(s => /Saved to database/.test(s.message)), 'no false success');
+});
+
+runTest('Sync keeps the persisted record the database returned; a mismatched id is a failure, not a save', async () => {
+  const { syncAll, createSyncStore } = await import('../src/services/CloudSync.js');
+  const { createLocalStore } = await import('../src/services/LocalPersistence.js');
+  const base = {
+    getMembership: async () => ({ contractorId: 'c-1', role: 'Operator' }),
+    upsertLabourers: async (rows) => rows.map(r => ({ id: `u-${r.local_id}`, local_id: r.local_id })),
+    ensureRate: async () => ({ id: 'r-1' }), deleteEntry: async () => {}, deleteAllocations: async () => {},
+    replaceDetails: async () => {}, insertAllocations: async () => {},
+  };
+  const e = regEntry('WE_p1', '2026-11-04', 'mix', undefined, '2026-11-04T05:00:00.000Z', 40, ['LH_LAB_001']);
+  const labs = [{ id: 'LH_LAB_001', name: 'A', isActive: true }];
+  const store = createSyncStore(createLocalStore(memoryBackend()));
+  const r = await syncAll({ adapter: { ...base, upsertEntry: async (row) => ({ id: row.id, created_at: '2026-11-04T05:00:02+00:00', updated_at: '2026-11-04T05:00:02+00:00' }) }, store, entries: [e], labourers: labs, today: '2026-11-04' });
+  const s = (await store.getState())[0];
+  assert.deepStrictEqual([r.uploaded, s.serverCreatedAt, typeof s.serverId], [1, '2026-11-04T05:00:02+00:00', 'string']);
+  const store2 = createSyncStore(createLocalStore(memoryBackend()));
+  const r2 = await syncAll({ adapter: { ...base, upsertEntry: async () => ({ id: 'someone-else' }) }, store: store2, entries: [e], labourers: labs, today: '2026-11-04' });
+  assert.deepStrictEqual([r2.uploaded, r2.failed.length, (await store2.getState())[0].hash], [0, 1, null], 'not marked as saved');
+});
+
+runTest('Save screen: database confirmation awaited; success text only on database state; form kept for retry', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../src/screens/AddWorkEntryScreen.js', import.meta.url), 'utf8');
+  assert.match(src, /const cloud = await confirmCloudSave\(saved\.id\);/);
+  const okBranch = src.indexOf("if (cloud.state === 'database') {");
+  assert.ok(okBranch > 0 && src.indexOf('डेटाबेस में सहेजा गया ✅') > okBranch, 'success alert lives inside the database branch');
+  assert.ok(!/फ़ोन में सहेज लिया गया/.test(src), 'old local-only success text is gone');
+  assert.match(src, /'दोबारा कोशिश करें \(Retry\)', onPress: \(\) => handleSave\(\)/, 'retry re-sends with the same entry id');
+  const ctx = readFileSync(new URL('../src/context/LabourHisaabContext.js', import.meta.url), 'utf8');
+  assert.match(ctx, /AppState\.addEventListener\('change'/, 'refresh when the app returns to the foreground');
+  assert.match(ctx, /setInterval\(\(\) => \{ if \(AppState\.currentState === 'active'\) runSync\(\); \}, 60000\)/, 'periodic refresh while open');
 });
 
 function todayYmdForTest() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }

@@ -40,6 +40,7 @@ export default function AddWorkEntryScreen({ navigation, route }) {
     workRates,
     addWorkEntry,
     updateWorkEntry,
+    confirmCloudSave,
     labourers,
   } = useLabourHisaab();
 
@@ -88,6 +89,7 @@ export default function AddWorkEntryScreen({ navigation, route }) {
   // Stable record id for this form (new entry) or the edited entry's id.
   const entryIdRef = useRef(workEntryToEdit?.id || makeEntryId());
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStage, setSaveStage] = useState(null); // null | 'database' (waiting for the server)
 
   // Participating labourers (multi-select)
   const [selectedLabourerIds, setSelectedLabourerIds] = useState(
@@ -228,23 +230,42 @@ export default function AddWorkEntryScreen({ navigation, route }) {
     setIsSaving(true);
     try {
       // Saving work never creates a payment; payments are recorded separately.
-      // Success is shown only after device storage has confirmed the write.
-      if (workEntryToEdit) {
-        const saved = await updateWorkEntry(workEntryToEdit.id, entryData);
-        Alert.alert('सफलता', `${selectedCategory.name} का हिसाब ${formatRupees(saved.totalAmount)} पर अपडेट होकर सहेजा गया।`, [
+      // 1. Device storage first (never lost, even offline), same id on every retry.
+      const saved = workEntryToEdit
+        ? await updateWorkEntry(workEntryToEdit.id, entryData)
+        : await addWorkEntry(entryData);
+      // 2. Database: wait for the server's confirmation (LH-REALTIME-WORK-SAVE-03).
+      //    "Saved to database" is shown ONLY when the database returned the persisted record.
+      setSaveStage('database');
+      const cloud = await confirmCloudSave(saved.id);
+      console.log(`[LH-SAVE] entry=${saved.id} state=${cloud.state}${cloud.serverId ? ` serverId=${cloud.serverId}` : ''}`);
+      const amountText = `${selectedCategory.name}: ${formatRupees(saved.totalAmount)}`;
+      if (cloud.state === 'database') {
+        Alert.alert('डेटाबेस में सहेजा गया ✅', `${amountText}\nSaved to database${cloud.serverCreatedAt ? ` (${formatIstDateTime(cloud.serverCreatedAt)})` : ''}.\nस्वीकृति: Pending — Shubh Labh CRM`, [
           { text: 'ठीक है', onPress: () => navigation.goBack() },
         ], { cancelable: false });
-      } else {
-        const saved = await addWorkEntry(entryData);
-        Alert.alert('सफलतापूर्वक सहेजा गया', `${selectedCategory.name} का ${formatRupees(saved.totalAmount)} फ़ोन में सहेज लिया गया।`, [
-          { text: 'ठीक है', onPress: () => navigation.goBack() },
-        ], { cancelable: false });
+        return; // stay locked: the screen closes from the alert
       }
-      // Stay locked after success: the screen closes from the alert.
+      // Not confirmed: the entry is safe on the phone; keep the form so the operator can retry.
+      savingRef.current = false;
+      setIsSaving(false);
+      setSaveStage(null);
+      Alert.alert(
+        cloud.state === 'device' ? 'केवल फ़ोन पर सहेजा गया' : 'डेटाबेस में नहीं सहेजा गया',
+        `${amountText}\n${cloud.message}`,
+        cloud.state === 'device'
+          ? [{ text: 'ठीक है', onPress: () => navigation.goBack() }]
+          : [
+            { text: 'दोबारा कोशिश करें (Retry)', onPress: () => handleSave() },
+            { text: 'बाद में (फ़ोन में सुरक्षित)', style: 'cancel', onPress: () => navigation.goBack() },
+          ],
+        { cancelable: false },
+      );
     } catch (e) {
       // Keep every entered value so the user can retry without re-typing.
       savingRef.current = false;
       setIsSaving(false);
+      setSaveStage(null);
       Alert.alert('त्रुटि', `कार्य प्रविष्टि सहेजी नहीं जा सकी। कृपया दोबारा कोशिश करें।${e?.message ? `\n(${e.message})` : ''}`);
     }
   };
@@ -668,9 +689,11 @@ export default function AddWorkEntryScreen({ navigation, route }) {
         >
           <Check size={20} color="#FFF" />
           <Text style={styles.saveButtonText}>
-            {workEntryToEdit
-              ? 'कार्य प्रविष्टि अपडेट करें (Update Work Entry)'
-              : 'कार्य प्रविष्टि सहेजें (Save Work Entry)'}
+            {saveStage === 'database'
+              ? 'डेटाबेस में सहेजा जा रहा है... (Saving to database)'
+              : workEntryToEdit
+                ? 'कार्य प्रविष्टि अपडेट करें (Update Work Entry)'
+                : 'कार्य प्रविष्टि सहेजें (Save Work Entry)'}
           </Text>
         </TouchableOpacity>
       </ScrollView>

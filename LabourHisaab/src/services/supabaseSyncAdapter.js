@@ -129,9 +129,13 @@ export function createSupabaseSyncAdapter(supabase) {
       fail(error, 'Allocations reset');
     },
 
+    // Returns the persisted row (id + server timestamps) — proof the database stored it.
     async upsertEntry(row) {
-      const { error } = await supabase.from('daily_work_entries').upsert(row, { onConflict: 'id' });
+      const { data, error } = await supabase.from('daily_work_entries').upsert(row, { onConflict: 'id' })
+        .select('id, created_at, updated_at').single();
       fail(error, 'Work entry');
+      if (!data || data.id !== row.id) throw new Error('Work entry: the database did not return the saved record.');
+      return data;
     },
 
     async replaceDetails(serverId, rows) {

@@ -3,11 +3,12 @@
 // rate snapshotting, CRUD operations, idempotent submissions, and daily/monthly reconciliations.
 
 import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import { deviceStore } from '../services/deviceStorage';
 import { STORAGE_KEYS, makeEntryId, makeLabourerId } from '../services/LocalPersistence';
 import { createWorkEntryRepository, LOAD_FAILED_MESSAGE } from '../services/WorkEntryRepository';
 import { supabase, isCloudConfigured } from '../services/supabase';
-import { syncAll, queueServerDelete, pendingCount, createSyncStore, contentHash, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
+import { syncAll, queueServerDelete, pendingCount, createSyncStore, contentHash, cloudSaveStatus, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
 import { createSupabaseSyncAdapter } from '../services/supabaseSyncAdapter';
 import {
   DEFAULT_WORK_RATES,
@@ -110,7 +111,6 @@ export function LabourHisaabProvider({ children }) {
   const [cloudUser, setCloudUser] = useState(null);
   const [syncStatus, setSyncStatus] = useState({ running: false, lastSyncAt: null, lastError: null, failed: [], pending: 0 });
   const syncRunning = useRef(false);
-  const syncAgain = useRef(false);
   const cloudUserRef = useRef(null);
   const cloudRoleRef = useRef(null); // role from the last successful sync (Owner/Manager/Operator)
   const cloudContractorRef = useRef(null); // server contractor id from the last successful sync
@@ -155,12 +155,27 @@ export function LabourHisaabProvider({ children }) {
     return { entryIds: savedIds };
   };
 
-  const runSync = async () => {
-    if (!supabase || !cloudUserRef.current || !repo.isReady()) { refreshPending(); return null; }
-    if (syncRunning.current) { syncAgain.current = true; return null; }
+  // One sync at a time. A call made while a run is in progress queues ONE more run (calls made
+  // meanwhile share it) and resolves with THAT run's outcome, so a caller awaiting runSync()
+  // right after a save gets a run that includes the saved entry.
+  const lastDateRefresh = useRef(0);
+  const syncChain = useRef(Promise.resolve());
+  const queuedRun = useRef(null);
+  const lastSyncError = useRef(null);
+  const runSync = () => {
+    if (queuedRun.current) return queuedRun.current;
+    const run = syncChain.current.then(() => { queuedRun.current = null; return syncOnce(); });
+    queuedRun.current = run;
+    syncChain.current = run.catch(() => {});
+    return run;
+  };
+
+  const syncOnce = async () => {
+    if (!supabase || !cloudUserRef.current || !repo.isReady()) { lastSyncError.current = null; await refreshPending(); return null; }
     syncRunning.current = true;
     setSyncStatus(s => ({ ...s, running: true }));
     let outcome = null;
+    lastSyncError.current = null;
     try {
       outcome = await syncAll({
         adapter: createSupabaseSyncAdapter(supabase),
@@ -178,16 +193,40 @@ export function LabourHisaabProvider({ children }) {
       setSyncStatus(s => ({ ...s, lastSyncAt: new Date().toISOString(), failed: outcome.failed, role: outcome.role || null,
         lastError: outcome.failed.length ? outcome.failed[0].message : null }));
     } catch (e) {
-      console.log(`[LH-SYNC] FAILED: ${e?.message || e}`);
-      setSyncStatus(s => ({ ...s, lastError: e?.message || String(e) }));
+      lastSyncError.current = e?.message || String(e);
+      console.log(`[LH-SYNC] FAILED: ${lastSyncError.current}`);
+      setSyncStatus(s => ({ ...s, lastError: lastSyncError.current }));
     } finally {
       syncRunning.current = false;
       setSyncStatus(s => ({ ...s, running: false }));
       await refreshPending();
-      if (syncAgain.current) { syncAgain.current = false; runSync(); }
     }
     return outcome;
   };
+
+  /**
+   * Database-first confirmation for one saved entry (LH-REALTIME-WORK-SAVE-03): runs a sync that
+   * includes it and reports what the DATABASE confirmed — never success on a local save alone.
+   * → { state: 'database' | 'device' | 'offline' | 'failed', message, serverId, serverCreatedAt }
+   */
+  const confirmCloudSave = async (entryId) => {
+    const outcome = await runSync();
+    const entry = repo.get(entryId);
+    const items = await syncStore.getState();
+    return cloudSaveStatus({
+      entry, item: items.find(s => s.id === entryId), outcome,
+      error: lastSyncError.current, configured: Boolean(supabase), signedIn: Boolean(cloudUserRef.current),
+    });
+  };
+
+  // Other phones' work appears without a restart: sync when the app returns to the foreground,
+  // and every 60 s while it is open (cheap when nothing changed).
+  useEffect(() => {
+    if (!storageReady || !cloudUser) return undefined;
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') runSync(); });
+    const timer = setInterval(() => { if (AppState.currentState === 'active') runSync(); }, 60000);
+    return () => { sub?.remove?.(); clearInterval(timer); };
+  }, [storageReady, cloudUser]);
 
   // Session restore + auth changes.
   useEffect(() => {
@@ -901,7 +940,11 @@ export function LabourHisaabProvider({ children }) {
     payments,
     serviceExpenses,
     selectedDate,
-    setSelectedDate,
+    // Choosing a date also refreshes from the database (at most every 15 s).
+    setSelectedDate: (d) => {
+      setSelectedDate(d);
+      if (Date.now() - lastDateRefresh.current > 15000) { lastDateRefresh.current = Date.now(); runSync(); }
+    },
     selectedMonth,
     setSelectedMonth,
     contractorName,
@@ -919,6 +962,7 @@ export function LabourHisaabProvider({ children }) {
     cloudSignIn,
     cloudSignOut,
     syncNow: runSync,
+    confirmCloudSave,
     renameCloudContractor,
     syncItems,
     registers,

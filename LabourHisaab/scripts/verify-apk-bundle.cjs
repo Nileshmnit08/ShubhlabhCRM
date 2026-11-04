@@ -19,6 +19,7 @@ const REQUIRED_MARKERS = [
   'Storage did not confirm the write.', // write read-back check (LocalPersistence)
   'Delete: not permitted for this account.', // Operator role / RLS delete check (LH-ACCESS-MODEL-02)
   'labourersDownloaded=', // shared download sync log (LH-DAILY-REGISTER-APPROVAL-01)
+  '[LH-SAVE] entry=', // database-first save confirmation (LH-REALTIME-WORK-SAVE-03)
 ];
 
 // Strings that must NOT be in the phone app (approval is a CRM-only action).

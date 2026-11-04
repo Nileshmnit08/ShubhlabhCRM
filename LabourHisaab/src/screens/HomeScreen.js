@@ -45,6 +45,9 @@ export default function HomeScreen({ navigation }) {
     workEntries,
     deleteWorkEntry,
     storageError,
+    isCloudConfigured,
+    cloudUser,
+    syncStatus,
   } = useLabourHisaab();
 
   // LH-HOME-TOTAL-DATE-01: the date card opens a calendar; the chosen date drives the
@@ -133,6 +136,19 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.storageErrorBox} accessibilityLiveRegion="polite">
             <Text style={styles.storageErrorText}>{storageError}</Text>
           </View>
+        ) : null}
+
+        {/* LH-REALTIME-WORK-SAVE-03: never let phone-only entries look like database records. */}
+        {isCloudConfigured && workEntries.length > 0 && (!cloudUser || syncStatus.pending > 0 || syncStatus.lastError) ? (
+          <TouchableOpacity style={styles.syncWarnBox} onPress={() => navigation.navigate('SettingsTab')} accessibilityLiveRegion="polite">
+            <Text style={styles.syncWarnText}>
+              {!cloudUser
+                ? 'प्रविष्टियाँ केवल इस फ़ोन पर हैं — CRM में भेजने के लिए सेटिंग्स में साइन इन करें।'
+                : syncStatus.pending > 0
+                  ? `${syncStatus.pending} प्रविष्टि डेटाबेस में नहीं गई (Not synced — waiting for connection)${syncStatus.lastError ? `: ${syncStatus.lastError}` : ''}`
+                  : `सिंक त्रुटि: ${syncStatus.lastError}`}
+            </Text>
+          </TouchableOpacity>
         ) : null}
 
         {/* 2. DATE SELECTOR CARD */}
@@ -412,6 +428,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   storageErrorText: { fontSize: 13, fontWeight: '700', color: '#B42318' },
+  syncWarnBox: { backgroundColor: '#FFFAEB', borderColor: '#FEDF89', borderWidth: 1, borderRadius: 12, padding: 10, marginBottom: 12 },
+  syncWarnText: { fontSize: 12, fontWeight: '700', color: '#B54708' },
   backToToday: {
     alignSelf: 'flex-start',
     marginTop: -6,

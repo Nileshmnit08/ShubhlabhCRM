@@ -163,6 +163,32 @@ export function entryFromServer({ row, details = [], allocations = [] }, { local
   };
 }
 
+const NETWORK_ERROR = /network request failed|failed to fetch|network ?error|timed? ?out|ENOTFOUND|ECONNREFUSED|ERR_INTERNET|offline/i;
+
+/**
+ * What the DATABASE confirmed for one entry after a save + sync (LH-REALTIME-WORK-SAVE-03).
+ *   database  the server holds exactly this content (persisted id + server time known)
+ *   device    saved on this phone only: cloud not set up or not signed in
+ *   offline   no connection: kept on the phone, retried automatically
+ *   failed    the server refused it (message says why); kept on the phone, retried
+ */
+export function cloudSaveStatus({ entry, item, outcome, error, configured = true, signedIn = true }) {
+  if (!entry) return { state: 'failed', message: 'Entry not found on this phone.' };
+  if (!configured || !signedIn) {
+    return { state: 'device', message: 'फ़ोन पर सहेजा गया — डेटाबेस में भेजने के लिए सेटिंग्स में साइन इन करें।' };
+  }
+  if (item && !item.deleted && item.hash === contentHash(entry)) {
+    return { state: 'database', message: 'डेटाबेस में सहेजा गया (Saved to database)', serverId: item.serverId,
+      serverCreatedAt: item.serverCreatedAt || null, serverUpdatedAt: item.serverUpdatedAt || null };
+  }
+  const own = outcome?.failed?.find(f => f.localId === entry.id);
+  const why = own?.message || error || (outcome ? '' : 'Sync did not run.');
+  if (NETWORK_ERROR.test(why)) {
+    return { state: 'offline', message: 'सिंक नहीं — कनेक्शन की प्रतीक्षा (Not synced — waiting for connection). फ़ोन पर सुरक्षित है, अपने-आप दोबारा भेजा जाएगा।' };
+  }
+  return { state: 'failed', message: `डेटाबेस ने सहेजने से मना किया: ${why || 'unknown error'}. फ़ोन पर सुरक्षित है, दोबारा कोशिश करें।` };
+}
+
 /** 'device' (not signed in), 'pending', 'synced' or 'failed' for one entry. */
 export function entrySyncStatus(entry, stateItem, failedIds, signedIn) {
   if (!signedIn) return 'device';
@@ -434,12 +460,14 @@ export async function syncAll({ adapter, store, entries: entriesSource, labourer
       const plan = planEntry(e, { serverId: s.serverId, contractorId, rate: rateCache.get(key), labourerIds });
       if (!features.timestamps) { delete plan.entryRow.recorded_at; delete plan.entryRow.work_completed_at; }
       await adapter.deleteAllocations(s.serverId);   // lets an edit lower the amount
-      await adapter.upsertEntry(plan.entryRow);
+      const persisted = await adapter.upsertEntry(plan.entryRow);
       await adapter.replaceDetails(s.serverId, plan.details);
       if (plan.allocations.length) await adapter.insertAllocations(plan.allocations);
+      if (persisted && persisted.id && persisted.id !== s.serverId) throw new Error('Server returned a different entry id.');
       const syncedAt = now();
+      const serverTimes = persisted ? { serverCreatedAt: persisted.created_at || null, serverUpdatedAt: persisted.updated_at || null } : {};
       // A tombstone written during the upload is kept (never turned back into a live record).
-      await store.updateState(list => list.map(x => (x.id === e.id && !x.deleted ? { ...x, serverId: s.serverId, hash, hv: HASH_VERSION, syncedAt } : x)));
+      await store.updateState(list => list.map(x => (x.id === e.id && !x.deleted ? { ...x, serverId: s.serverId, hash, hv: HASH_VERSION, syncedAt, ...serverTimes } : x)));
       result.uploaded += 1;
     } catch (err) {
       result.failed.push({ localId: e.id, message: err.message || String(err) });
