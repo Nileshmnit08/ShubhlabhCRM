@@ -8,7 +8,7 @@ import { deviceStore } from '../services/deviceStorage';
 import { STORAGE_KEYS, makeEntryId, makeLabourerId } from '../services/LocalPersistence';
 import { createWorkEntryRepository, LOAD_FAILED_MESSAGE } from '../services/WorkEntryRepository';
 import { supabase, isCloudConfigured } from '../services/supabase';
-import { syncAll, queueServerDelete, pendingCount, createSyncStore, contentHash, cloudSaveStatus, readSelection, writeSelection, SELECTION_GONE_MESSAGE, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
+import { syncAll, queueServerDelete, pendingCount, createSyncStore, contentHash, cloudSaveStatus, contractorErrorKind, readSelection, writeSelection, SELECTION_GONE_MESSAGE, DELETE_ROLES, OPERATOR_DELETE_MESSAGE } from '../services/CloudSync';
 import { createSupabaseSyncAdapter } from '../services/supabaseSyncAdapter';
 import {
   DEFAULT_WORK_RATES,
@@ -164,6 +164,8 @@ export function LabourHisaabProvider({ children }) {
     setContractorState(s => ({ ...s, status: 'loading', error: null }));
     try {
       const { items, mode } = await createSupabaseSyncAdapter(supabase).listContractors();
+      // Count-only diagnostics (no names/emails): which list the server gave and how many.
+      console.log(`[LH-CONTRACTOR] list mode=${mode} count=${items.length} members=${items.filter(m => m.role).length}`);
       const selected = saved ? items.find(m => m.contractor_id === saved.contractorId) : null;
       // No choice saved yet: the account's only membership (what sync would use) is the context.
       const members = items.filter(m => m.role);
@@ -178,7 +180,8 @@ export function LabourHisaabProvider({ children }) {
       });
       return items;
     } catch (e) {
-      setContractorState(s => ({ ...s, status: 'error', error: e?.message || String(e) }));
+      console.log(`[LH-CONTRACTOR] list FAILED code=${e?.code || 'n/a'}: ${e?.message || e}`);
+      setContractorState(s => ({ ...s, status: 'error', error: e?.message || String(e), errorKind: contractorErrorKind(e) }));
       return null;
     }
   };

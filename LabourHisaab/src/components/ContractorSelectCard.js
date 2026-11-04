@@ -64,13 +64,34 @@ export default function ContractorSelectCard() {
       ) : status === 'loading' || status === 'idle' ? (
         <View style={styles.row}><ActivityIndicator size="small" color={theme.colors.primary} /><Text style={styles.note}>ठेकेदार सूची लोड हो रही है...</Text></View>
       ) : status === 'error' ? (
-        <View style={styles.warnBox}>
-          <Text style={styles.warnText}>ठेकेदार सूची लोड नहीं हुई</Text>
-          <Text style={styles.note}>{error}</Text>
+        // A failure is never shown as "no contractors" (LH-CONTRACTOR-VISIBILITY-FIX-08).
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>
+            {contractorState.errorKind === 'not_operator'
+              ? `यह खाता (${cloudUser.email}) अभी LabourHisaab ऑपरेटर के रूप में स्वीकृत नहीं है।`
+              : contractorState.errorKind === 'offline'
+                ? 'इंटरनेट नहीं — ठेकेदार सूची लोड नहीं हुई।'
+                : 'ठेकेदार सूची लोड नहीं हुई (सर्वर त्रुटि)।'}
+          </Text>
+          <Text style={styles.note}>
+            {contractorState.errorKind === 'not_operator'
+              ? 'Shubh Labh CRM व्यवस्थापक से कहें कि वे यही ईमेल ऑपरेटर के रूप में स्वीकृत करें, फिर ऊपर ताज़ा करें।'
+              : 'ऊपर ताज़ा करें (↻) से दोबारा कोशिश करें।'}
+          </Text>
+          <Text style={styles.note}>विवरण: {error}</Text>
         </View>
       ) : status === 'empty' ? (
         <View style={styles.warnBox}>
-          <Text style={styles.warnText}>{mode === 'open' ? 'डेटाबेस में कोई सक्रिय ठेकेदार नहीं है।' : `इस खाते (${cloudUser.email}) को अभी किसी ठेकेदार से नहीं जोड़ा गया है।`}</Text>
+          {mode === 'open' ? (
+            <Text style={styles.warnText}>डेटाबेस में कोई सक्रिय ठेकेदार नहीं है।</Text>
+          ) : (
+            <>
+              <Text style={styles.warnText}>इस खाते ({cloudUser.email}) के लिए कोई ठेकेदार नहीं दिखा।</Text>
+              <Text style={styles.note}>
+                कारण: सर्वर पर "सभी ठेकेदार देखें" सुविधा (proposal 254) अभी चालू नहीं है, इसलिए केवल वे ठेकेदार दिखते हैं जिनसे खाता पहले से जुड़ा है — और यह खाता किसी से नहीं जुड़ा।
+              </Text>
+            </>
+          )}
           <Text style={styles.note}>Shubh Labh CRM व्यवस्थापक से संपर्क करें। तब तक प्रविष्टियाँ केवल इस फ़ोन पर रहेंगी।</Text>
         </View>
       ) : (
@@ -114,6 +135,8 @@ const styles = StyleSheet.create({
   note: { fontSize: 11, color: theme.colors.textSecondary, marginTop: 4 },
   warnBox: { backgroundColor: theme.colors.warningLight, borderRadius: theme.borderRadius.md, padding: 10 },
   warnText: { fontSize: 12, fontWeight: '800', color: theme.colors.warning },
+  errorBox: { backgroundColor: theme.colors.dangerLight, borderRadius: theme.borderRadius.md, padding: 10 },
+  errorText: { fontSize: 12, fontWeight: '800', color: theme.colors.danger },
   current: { borderWidth: 1, borderColor: theme.colors.success, borderRadius: theme.borderRadius.md, padding: 10, marginBottom: 8 },
   currentLabel: { fontSize: 11, color: theme.colors.textSecondary },
   currentName: { fontSize: 15, fontWeight: '800', color: theme.colors.textPrimary, marginTop: 2 },

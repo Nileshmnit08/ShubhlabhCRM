@@ -71,6 +71,18 @@ export const writeSelection = (list, userId, { contractor_id, name }) => [
 ];
 
 /**
+ * Why the contractor list failed (LH-CONTRACTOR-VISIBILITY-FIX-08), so a permission problem is
+ * never shown as "no contractors": 'not_operator' (account not approved as a LabourHisaab
+ * operator), 'offline', or 'error'.
+ */
+export function contractorErrorKind(error) {
+  const msg = String(error?.message || error || '');
+  if (/not a LabourHisaab operator|42501|permission denied/i.test(msg) || String(error?.code) === '42501') return 'not_operator';
+  if (NETWORK_ERROR.test(msg)) return 'offline';
+  return 'error';
+}
+
+/**
  * Contractor a phone record belongs to (LH-CONTRACTOR-SELECT-OPEN-07): its own contractorId,
  * else the contractor this phone first synced with (records saved before tagging existed).
  * Switching contractor never moves records: each stays with its own contractor.

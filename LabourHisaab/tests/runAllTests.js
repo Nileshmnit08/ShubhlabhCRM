@@ -2068,6 +2068,55 @@ runTest('Edit form: date today-or-earlier, decided days ask before re-approval, 
   assert.match(home, /अंतिम बदलाव: \{formatIstDateTime\(entry\.updatedAt\)\}/);
 });
 
+// -----------------------------------------------------------------
+// LH-CONTRACTOR-VISIBILITY-FIX-08: a failure is never shown as "no contractors"
+// -----------------------------------------------------------------
+console.log('\n📋 Test Suite LH-CONTRACTOR-VISIBILITY-FIX-08: Contractor list errors');
+
+runTest('Contractor list errors are classified: not approved / offline / server error', async () => {
+  const { contractorErrorKind } = await import('../src/services/CloudSync.js');
+  assert.strictEqual(contractorErrorKind(new Error('Contractor list: This account is not a LabourHisaab operator. Ask a Shubh Labh CRM admin to approve it.')), 'not_operator');
+  assert.strictEqual(contractorErrorKind({ code: '42501', message: 'permission denied for function lh_list_active_contractors' }), 'not_operator');
+  assert.strictEqual(contractorErrorKind(new Error('TypeError: Network request failed')), 'offline');
+  assert.strictEqual(contractorErrorKind(new Error('Contractor list: column x does not exist')), 'error');
+});
+
+runTest('Adapter: missing 254 falls back to memberships; any OTHER error is raised (not swallowed into an empty list)', async () => {
+  // The adapter imports './CloudSync' without an extension (Metro resolves it; Node does not):
+  // load the REAL adapter source with that one specifier made absolute.
+  const { readFileSync, writeFileSync, mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { pathToFileURL } = await import('node:url');
+  const srcUrl = new URL('../src/services/supabaseSyncAdapter.js', import.meta.url);
+  const cloudSyncUrl = new URL('../src/services/CloudSync.js', import.meta.url).href;
+  const tmp = join(mkdtempSync(join(tmpdir(), 'lh-adapter-')), 'adapter.mjs');
+  writeFileSync(tmp, readFileSync(srcUrl, 'utf8').replace("from './CloudSync'", `from '${cloudSyncUrl}'`));
+  const { createSupabaseSyncAdapter } = await import(pathToFileURL(tmp).href);
+  const fakeSupabase = (rpcResult, memberRows = []) => ({
+    rpc: async () => rpcResult,
+    auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) },
+    from: () => ({ select: () => ({ eq: () => ({ eq: async () => ({ data: memberRows, error: null }) }) }) }),
+  });
+  const missing = await createSupabaseSyncAdapter(fakeSupabase({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.lh_list_active_contractors' } })).listContractors();
+  assert.deepStrictEqual([missing.mode, missing.items.length], ['members', 0], 'pre-254: own memberships (none) — the UI explains why');
+  await assert.rejects(() => createSupabaseSyncAdapter(fakeSupabase({ data: null, error: { code: '42501', message: 'This account is not a LabourHisaab operator.' } })).listContractors(),
+    /not a LabourHisaab operator/, 'permission error surfaces as an error');
+  const open = await createSupabaseSyncAdapter(fakeSupabase({ data: [{ id: 'c1', name: 'Ajay', business_name: null, my_role: null, my_membership_active: null }], error: null })).listContractors();
+  assert.deepStrictEqual([open.mode, open.items[0].name, open.items[0].role], ['open', 'Ajay', null], 'approved operator without membership sees contractors');
+});
+
+runTest('Card: error state is distinct from the empty state; empty pre-254 list explains the cause; no emails hard-coded', async () => {
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL('../src/components/ContractorSelectCard.js', import.meta.url), 'utf8');
+  assert.match(card, /status === 'error' \? \(/);
+  assert.match(card, /errorKind === 'not_operator'/);
+  assert.match(card, /proposal 254\) अभी चालू नहीं/);
+  const all = ['../src/components/ContractorSelectCard.js', '../src/context/LabourHisaabContext.js', '../src/services/CloudSync.js', '../src/services/supabaseSyncAdapter.js']
+    .map(p => readFileSync(new URL(p, import.meta.url), 'utf8')).join('\n');
+  assert.ok(!/@shubhlabh\.com/i.test(all), 'no operator emails in app logic');
+});
+
 function todayYmdForTest() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 
 // -----------------------------------------------------------------
