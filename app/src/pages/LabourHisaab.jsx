@@ -6,7 +6,7 @@ import {
   CheckCircle2, Clock, ChevronDown, ChevronRight, Download, FileText,
   FileSpreadsheet, Eye, X, Search, Check, AlertTriangle, Layers,
   TrendingUp, ArrowRight, DollarSign, Building2, UserCheck, ArrowDownRight,
-  Filter, RotateCcw
+  Filter, RotateCcw, CreditCard
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -20,6 +20,7 @@ import {
   reconciliationPanelData, contractorSettlementSummaries
 } from '../lib/labourHisaabData';
 import LabourEntryAdminDialog from '../components/LabourEntryAdminDialog';
+import LabourPaymentRecordDialog from '../components/LabourPaymentRecordDialog';
 import { AuthContext } from '../AuthContext';
 
 /**
@@ -72,6 +73,7 @@ export default function LabourHisaab() {
   const { userProfile } = useContext(AuthContext) || {};
   const isAdmin = userProfile?.role === 'Admin';
   const [dialog, setDialog] = useState(null); // { mode: 'add' | 'edit' | 'delete', entry? }
+  const [paymentDialog, setPaymentDialog] = useState(null); // { open: boolean, contractorId?: string, labourerId?: string }
   const [notice, setNotice] = useState('');
 
   // Apply a date range preset
@@ -125,7 +127,7 @@ export default function LabourHisaab() {
           .gte('work_date', fromDate).lte('work_date', toDate)
           .order('work_date', { ascending: false }).order('allocation_id'))),
         fetchAll(() => byContractor(supabase.from('labour_payments')
-          .select('id, contractor_id, labourer_id, payment_date, amount, payment_method')
+          .select('id, contractor_id, labourer_id, payment_date, amount, payment_method, notes')
           .gte('payment_date', fromDate).lte('payment_date', toDate)
           .order('payment_date', { ascending: false }).order('id'))),
         fetchAll(() => byContractor(supabase.from('service_expenses')
@@ -400,13 +402,27 @@ export default function LabourHisaab() {
 
       <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         {isAdmin && state === 'ready' ? (
-          <button
-            className="btn btn-primary"
-            onClick={() => setDialog({ mode: 'add' })}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
-          >
-            <Plus size={16} /> Add entry
-          </button>
+          <>
+            <button
+              className="btn btn-primary"
+              onClick={() => setDialog({ mode: 'add' })}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600 }}
+            >
+              <Plus size={16} /> Add entry
+            </button>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setPaymentDialog({
+                open: true,
+                contractorId: contractorId === 'ALL' ? '' : contractorId,
+                labourerId: '',
+              })}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600, color: '#047857', borderColor: '#A7F3D0', backgroundColor: '#ECFDF5' }}
+              title="Record cash or electronic payment to a labourer"
+            >
+              <CreditCard size={16} /> Record Payment · भुगतान दर्ज करें
+            </button>
+          </>
         ) : null}
         <Link
           to="/labour-hisaab/approvals"
@@ -1227,13 +1243,32 @@ export default function LabourHisaab() {
                             </span>
                           </td>
                           <td style={{ ...td, textAlign: 'center' }}>
-                            <button
-                              className="btn btn-secondary"
-                              onClick={(e) => { e.stopPropagation(); setSelectedLabourer(l); }}
-                              style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            >
-                              <Eye size={12} /> View
-                            </button>
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                              <button
+                                className="btn btn-secondary"
+                                onClick={(e) => { e.stopPropagation(); setSelectedLabourer(l); }}
+                                style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              >
+                                <Eye size={12} /> View
+                              </button>
+                              {isAdmin ? (
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPaymentDialog({
+                                      open: true,
+                                      contractorId: l.contractorId || (contractorId !== 'ALL' ? contractorId : ''),
+                                      labourerId: l.id,
+                                    });
+                                  }}
+                                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4, color: '#047857', borderColor: '#A7F3D0', backgroundColor: '#ECFDF5' }}
+                                  title="Record payment for this labourer"
+                                >
+                                  <CreditCard size={12} /> Pay · भुगतान
+                                </button>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1325,13 +1360,29 @@ export default function LabourHisaab() {
                             </span>
                           </td>
                           <td style={{ ...td, textAlign: 'center' }}>
-                            <button
-                              className="btn btn-secondary"
-                              onClick={() => { setContractorId(c.contractorId); setActiveTab('register'); }}
-                              style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}
-                            >
-                              Filter records
-                            </button>
+                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                              <button
+                                className="btn btn-secondary"
+                                onClick={() => { setContractorId(c.contractorId); setActiveTab('register'); }}
+                                style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}
+                              >
+                                Filter records
+                              </button>
+                              {isAdmin ? (
+                                <button
+                                  className="btn btn-primary"
+                                  onClick={() => setPaymentDialog({
+                                    open: true,
+                                    contractorId: c.contractorId,
+                                    labourerId: '',
+                                  })}
+                                  style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4, backgroundColor: '#047857' }}
+                                  title="Record payment for labourers under this contractor"
+                                >
+                                  <CreditCard size={12} /> Pay · भुगतान
+                                </button>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1758,6 +1809,7 @@ export default function LabourHisaab() {
                         <tr>
                           <th style={th}>Date</th>
                           <th style={th}>Method</th>
+                          <th style={th}>Notes / Ref</th>
                           <th style={{ ...th, textAlign: 'right' }}>Amount</th>
                         </tr>
                       </thead>
@@ -1766,6 +1818,7 @@ export default function LabourHisaab() {
                           <tr key={idx}>
                             <td style={td}>{p.date}</td>
                             <td style={td}>{p.method}</td>
+                            <td style={{ ...td, fontSize: '0.75rem', color: '#64748B' }}>{p.notes || '—'}</td>
                             <td style={{ ...tdNum, fontWeight: 600, color: '#4338CA' }}>{formatInr(p.amount)}</td>
                           </tr>
                         ))}
@@ -1808,8 +1861,25 @@ export default function LabourHisaab() {
               backgroundColor: '#F8FAFC',
               borderTop: '1px solid var(--border)',
               display: 'flex',
-              justifyContent: 'flex-end',
+              justifyContent: 'space-between',
+              alignItems: 'center',
             }}>
+              <div>
+                {isAdmin ? (
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      const lId = selectedLabourer.id;
+                      const cId = selectedLabourer.contractorId || (contractorId !== 'ALL' ? contractorId : '');
+                      setSelectedLabourer(null);
+                      setPaymentDialog({ open: true, contractorId: cId, labourerId: lId });
+                    }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, backgroundColor: '#047857' }}
+                  >
+                    <CreditCard size={15} /> Record Payment · भुगतान दर्ज करें
+                  </button>
+                ) : null}
+              </div>
               <button className="btn btn-secondary" onClick={() => setSelectedLabourer(null)}>
                 Close
               </button>
@@ -1830,6 +1900,24 @@ export default function LabourHisaab() {
           today={today}
           onClose={() => setDialog(null)}
           onDone={(message) => { setDialog(null); setNotice(message); load({ silent: true }); }}
+        />
+      ) : null}
+
+      {/* ADMIN RECORD PAYMENT DIALOG */}
+      {paymentDialog?.open && isAdmin ? (
+        <LabourPaymentRecordDialog
+          contractors={data.contractors.filter(c => c.is_active)}
+          labourers={data.labourers}
+          defaultContractorId={paymentDialog.contractorId || (contractorId === 'ALL' ? '' : contractorId)}
+          defaultLabourerId={paymentDialog.labourerId || ''}
+          today={today}
+          labourerLedger={detailedLabourers}
+          onClose={() => setPaymentDialog(null)}
+          onDone={(message) => {
+            setPaymentDialog(null);
+            setNotice(message);
+            load({ silent: true });
+          }}
         />
       ) : null}
     </div>

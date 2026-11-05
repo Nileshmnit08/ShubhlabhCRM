@@ -26,7 +26,7 @@ const num = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
-const round2 = (n) => Math.round(n * 100) / 100;
+export const round2 = (n) => Math.round(n * 100) / 100;
 
 /** "5000 kg (100 बोरी)" / "120 बोरी" / "2 बैच" / "फिक्स राशि" from an entry row. */
 export function quantityLabel(entry) {
@@ -322,6 +322,7 @@ export function detailedLabourerLedger({ lines = [], payments = [], deductions =
       date: p.payment_date,
       amount,
       method: p.payment_method || 'Cash',
+      notes: p.notes || '',
     });
   });
 

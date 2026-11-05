@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   summarize, dailyRows, labourerBalances, quantityLabel, rateLabel, workTypeLabel,
-  isNotConnectedError, isPermissionError, formatInr, monthStart,
+  isNotConnectedError, isPermissionError, formatInr, monthStart, detailedLabourerLedger,
 } from '../labourHisaabData.js';
 
 // Rows shaped like the 249 tables/views, as synced from the LabourHisaab app.
@@ -284,4 +284,24 @@ test('connection states: missing tables vs permission denied', () => {
   assert.equal(isNotConnectedError({ code: '42P01', message: 'relation "daily_work_entries" does not exist' }), true);
   assert.equal(isNotConnectedError({ code: '42501', message: 'permission denied for table daily_work_entries' }), false);
   assert.equal(isPermissionError({ code: '42501', message: 'permission denied' }), true);
+});
+
+test('LH-PAYMENTS-ENTRY-01: payment recording dialog and ledger payment notes', () => {
+  const dlg = readFileSync(new URL('../../components/LabourPaymentRecordDialog.jsx', import.meta.url), 'utf8');
+  assert.ok(dlg.includes("from('labour_payments')"), 'inserts into public.labour_payments');
+  assert.ok(dlg.includes("lh_admin_record_payment"), 'supports lh_admin_record_payment RPC');
+  assert.ok(dlg.includes("const idRef = useRef(newId())"), 'idempotency key per dialog lifecycle');
+  assert.ok(!/\.from\([^)]*\)\s*\.delete\(/.test(dlg), 'no payment deletes: disbursements cannot be hard-deleted');
+  assert.ok(dlg.includes('Pay Full Balance'), 'quick fill full balance button');
+
+  // Ledger records include payment notes
+  const lines = [{ work_entry_id: 'e1', labourer_id: 'L1', allocated_amount: 2000 }];
+  const payments = [{ id: 'p1', labourer_id: 'L1', amount: 500, payment_date: '2026-11-04', payment_method: 'UPI', notes: 'Ref: UTR99887766' }];
+  const ledger = detailedLabourerLedger({ lines, payments, deductions: [], entries: [{ id: 'e1', approval_status: 'Approved' }] });
+  const l1 = ledger.find(l => l.id === 'L1');
+  assert.equal(l1.paid, 500);
+  assert.equal(l1.payableBalance, 1500);
+  assert.equal(l1.paymentHistory.length, 1);
+  assert.equal(l1.paymentHistory[0].notes, 'Ref: UTR99887766');
+  assert.equal(l1.paymentHistory[0].method, 'UPI');
 });
