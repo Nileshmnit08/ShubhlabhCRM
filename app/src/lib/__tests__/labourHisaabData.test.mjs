@@ -209,6 +209,76 @@ test('groupedDailyEntries, detailedLabourerLedger, workTypeSummary, and CSV expo
   assert.match(labCsv, /LH_LAB_001/);
 });
 
+test('LH-SETTLEMENT-UX-02: reconciliationPanelData, contractorSettlementSummaries, and date presets', async () => {
+  const {
+    shiftDays, weekStart, lastMonthRange, getDateRangePreset,
+    reconciliationPanelData, contractorSettlementSummaries,
+  } = await import('../labourHisaabData.js');
+
+  // 1. Date math & presets
+  assert.equal(shiftDays('2026-11-05', -1), '2026-11-04');
+  assert.equal(weekStart('2026-11-05'), '2026-11-02');
+  assert.deepEqual(lastMonthRange('2026-11-05'), { fromDate: '2026-10-01', toDate: '2026-10-31' });
+  assert.deepEqual(getDateRangePreset('today', '2026-11-05'), { fromDate: '2026-11-05', toDate: '2026-11-05' });
+  assert.deepEqual(getDateRangePreset('yesterday', '2026-11-05'), { fromDate: '2026-11-04', toDate: '2026-11-04' });
+  assert.deepEqual(getDateRangePreset('thisWeek', '2026-11-05'), { fromDate: '2026-11-02', toDate: '2026-11-05' });
+  assert.deepEqual(getDateRangePreset('thisMonth', '2026-11-05'), { fromDate: '2026-11-01', toDate: '2026-11-05' });
+  assert.deepEqual(getDateRangePreset('lastMonth', '2026-11-05'), { fromDate: '2026-10-01', toDate: '2026-10-31' });
+
+  // 2. Reconciliation panel: Approved Wages − Paid − Deductions = Balance Payable
+  const entries = [
+    { id: 'e1', contractor_id: 'c1', calculated_labour_amount: 10000, approval_status: 'Approved' },
+    { id: 'e2', contractor_id: 'c1', calculated_labour_amount: 3000, approval_status: 'Pending' },
+    { id: 'e3', contractor_id: 'c2', calculated_labour_amount: 4000, approval_status: 'Approved' },
+  ];
+  const lines = [
+    { work_entry_id: 'e1', contractor_id: 'c1', allocated_amount: 10000 },
+    { work_entry_id: 'e2', contractor_id: 'c1', allocated_amount: 3000 },
+    { work_entry_id: 'e3', contractor_id: 'c2', allocated_amount: 4000 },
+  ];
+  const payments = [
+    { id: 'p1', contractor_id: 'c1', amount: 4000, payment_date: '2026-11-03' },
+  ];
+  const deductions = [
+    { id: 'd1', contractor_id: 'c1', allocated_amount: 1000 },
+  ];
+
+  const recon = reconciliationPanelData({ entries, lines, payments, deductions });
+  assert.equal(recon.approvedWages, 14000);
+  assert.equal(recon.pendingWages, 3000);
+  assert.equal(recon.paid, 4000);
+  assert.equal(recon.deductions, 1000);
+  // 14000 (approved) - 4000 (paid) - 1000 (deductions) = 9000
+  assert.equal(recon.balancePayable, 9000);
+  assert.equal(recon.isPartiallyPaid, true);
+  assert.equal(recon.isFullySettled, false);
+
+  // 3. Contractor settlement summaries
+  const contractors = [
+    { id: 'c1', name: 'Contractor 1', is_active: true },
+    { id: 'c2', name: 'Contractor 2', is_active: true },
+  ];
+  const summaries = contractorSettlementSummaries({ contractors, entries, lines, payments, deductions });
+  assert.equal(summaries.length, 2);
+
+  const c1 = summaries.find(s => s.contractorId === 'c1');
+  assert.equal(c1.approvedWages, 10000);
+  assert.equal(c1.pendingWages, 3000);
+  assert.equal(c1.paid, 4000);
+  assert.equal(c1.deductions, 1000);
+  assert.equal(c1.balancePayable, 5000); // 10000 - 4000 - 1000
+  assert.equal(c1.lastPaymentDate, '2026-11-03');
+  assert.equal(c1.status, 'Partially Paid');
+
+  const c2 = summaries.find(s => s.contractorId === 'c2');
+  assert.equal(c2.approvedWages, 4000);
+  assert.equal(c2.pendingWages, 0);
+  assert.equal(c2.paid, 0);
+  assert.equal(c2.balancePayable, 4000);
+  assert.equal(c2.lastPaymentDate, null);
+  assert.equal(c2.status, 'Unpaid');
+});
+
 test('connection states: missing tables vs permission denied', () => {
   assert.equal(isNotConnectedError({ code: 'PGRST205', message: "Could not find the table 'public.v_labour_work_lines'" }), true);
   assert.equal(isNotConnectedError({ code: '42P01', message: 'relation "daily_work_entries" does not exist' }), true);

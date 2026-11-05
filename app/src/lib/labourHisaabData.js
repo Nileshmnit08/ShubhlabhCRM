@@ -512,3 +512,147 @@ export const formatInr = (n) => `₹${num(n).toLocaleString('en-IN', { maximumFr
 
 /** First day of the month of a 'YYYY-MM-DD' date. */
 export const monthStart = (ymd) => `${String(ymd).slice(0, 7)}-01`;
+
+/** Shifts a 'YYYY-MM-DD' date string by delta days. */
+export function shiftDays(ymd, deltaDays) {
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  return date.toISOString().slice(0, 10);
+}
+
+/** Returns the Monday of the week for a given 'YYYY-MM-DD' date. */
+export function weekStart(ymd) {
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  const day = date.getUTCDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  const monday = new Date(Date.UTC(y, m - 1, d + diff));
+  return monday.toISOString().slice(0, 10);
+}
+
+/** Returns the { fromDate, toDate } for the previous calendar month. */
+export function lastMonthRange(ymd) {
+  const [y, m] = String(ymd).split('-').map(Number);
+  const prevMonthDate = new Date(Date.UTC(y, m - 2, 1));
+  const startYmd = prevMonthDate.toISOString().slice(0, 7) + '-01';
+  const lastDayDate = new Date(Date.UTC(y, m - 1, 0));
+  const endYmd = lastDayDate.toISOString().slice(0, 10);
+  return { fromDate: startYmd, toDate: endYmd };
+}
+
+/**
+ * Returns { fromDate, toDate } for presets: 'today' | 'yesterday' | 'thisWeek' | 'thisMonth' | 'lastMonth'.
+ */
+export function getDateRangePreset(presetKey, baseToday) {
+  const today = baseToday || new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+  switch (presetKey) {
+    case 'today':
+      return { fromDate: today, toDate: today };
+    case 'yesterday': {
+      const y = shiftDays(today, -1);
+      return { fromDate: y, toDate: y };
+    }
+    case 'thisWeek':
+      return { fromDate: weekStart(today), toDate: today };
+    case 'thisMonth':
+      return { fromDate: monthStart(today), toDate: today };
+    case 'lastMonth':
+      return lastMonthRange(today);
+    default:
+      return { fromDate: monthStart(today), toDate: today };
+  }
+}
+
+/**
+ * Financial reconciliation metrics: Approved Wages − Paid − Deductions = Balance Payable.
+ */
+export function reconciliationPanelData({ entries = [], lines = [], payments = [], deductions = [] }) {
+  const approved = entries.filter(e => isApproved(e.approval_status));
+  const pending = entries.filter(e => !isApproved(e.approval_status) && e.approval_status !== 'Rejected');
+  const rejected = entries.filter(e => e.approval_status === 'Rejected');
+
+  const approvedWages = round2(approved.reduce((s, e) => s + num(e.calculated_labour_amount), 0));
+  const pendingWages = round2(pending.reduce((s, e) => s + num(e.calculated_labour_amount), 0));
+  const rejectedWages = round2(rejected.reduce((s, e) => s + num(e.calculated_labour_amount), 0));
+
+  const approvedIds = new Set(approved.map(e => e.id));
+  const approvedLines = lines.filter(l => approvedIds.has(l.work_entry_id));
+  const approvedEarned = round2(approvedLines.reduce((s, l) => s + num(l.allocated_amount), 0));
+
+  const paid = round2(payments.reduce((s, p) => s + num(p.amount), 0));
+  const deductionsTotal = round2(deductions.reduce((s, d) => s + num(d.allocated_amount), 0));
+  const balancePayable = round2(approvedEarned - paid - deductionsTotal);
+
+  const fulfillmentPct = approvedEarned > 0
+    ? Math.min(100, Math.round((paid / approvedEarned) * 100))
+    : (paid > 0 ? 100 : 0);
+
+  return {
+    approvedWages,
+    pendingWages,
+    rejectedWages,
+    approvedEarned,
+    paid,
+    deductions: deductionsTotal,
+    balancePayable,
+    fulfillmentPct,
+    isFullySettled: balancePayable <= 0 && approvedEarned > 0,
+    isPartiallyPaid: paid > 0 && balancePayable > 0,
+    isUnpaid: paid === 0 && approvedEarned > 0,
+  };
+}
+
+/**
+ * Per-contractor settlement summary cards with last payment date and status.
+ */
+export function contractorSettlementSummaries({ contractors = [], entries = [], lines = [], payments = [], deductions = [], expenses = [] }) {
+  const expenseContractorMap = new Map((expenses || []).map(e => [e.id, e.contractor_id]));
+
+  return contractors.map(c => {
+    const cEntries = entries.filter(e => e.contractor_id === c.id);
+    const cLines = lines.filter(l => l.contractor_id === c.id);
+    const cPayments = payments.filter(p => p.contractor_id === c.id);
+    const cDeductions = deductions.filter(d => {
+      if (d.contractor_id) return d.contractor_id === c.id;
+      const cId = expenseContractorMap.get(d.expense_id);
+      return cId ? cId === c.id : true;
+    });
+
+    const recon = reconciliationPanelData({
+      entries: cEntries,
+      lines: cLines,
+      payments: cPayments,
+      deductions: cDeductions,
+    });
+
+    let lastPaymentDate = null;
+    if (cPayments.length > 0) {
+      const dates = cPayments.map(p => p.payment_date).filter(Boolean).sort();
+      lastPaymentDate = dates[dates.length - 1] || null;
+    }
+
+    let status = 'No dues';
+    if (recon.approvedWages > 0) {
+      if (recon.paid === 0) status = 'Unpaid';
+      else if (recon.balancePayable > 0) status = 'Partially Paid';
+      else status = 'Fully Settled';
+    } else if (recon.paid > 0) {
+      status = 'Advance Disbursed';
+    }
+
+    return {
+      contractorId: c.id,
+      name: c.name || 'Unnamed Contractor',
+      isActive: c.is_active !== false,
+      approvedWages: recon.approvedWages,
+      pendingWages: recon.pendingWages,
+      paid: recon.paid,
+      deductions: recon.deductions,
+      balancePayable: recon.balancePayable,
+      lastPaymentDate,
+      status,
+      entryCount: cEntries.length,
+      paymentCount: cPayments.length,
+    };
+  }).sort((a, b) => b.balancePayable - a.balancePayable || a.name.localeCompare(b.name));
+}
