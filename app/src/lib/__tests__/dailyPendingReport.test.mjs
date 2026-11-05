@@ -3,234 +3,175 @@ import assert from 'node:assert/strict';
 import {
   calculateRequirementPendingQty,
   isRequirementPending,
-  formatDateForDisplay,
+  formatOrderDate,
+  formatMT,
+  extractItemWeight,
+  extractGiftDetails,
   filterPendingRequirements,
   computeDailyPendingReport,
   generateWhatsAppReportText,
 } from '../dailyPendingReport.js';
 
-test('isRequirementPending: identifies undispatched and filters out completed or closed', () => {
-  // Undispatched active requirement
-  const r1 = {
-    id: 'req-1',
+test('isRequirementPending: identifies active pending and excludes closed/dispatched', () => {
+  assert.equal(isRequirementPending({
     status: 'Identified',
     required_quantity: 100,
     total_dispatched_quantity: 0,
     dispatch_progress: 'Not Dispatched',
-  };
-  assert.equal(isRequirementPending(r1), true);
-  assert.equal(calculateRequirementPendingQty(r1), 100);
+  }), true);
 
-  // Partially dispatched requirement
-  const r2 = {
-    id: 'req-2',
-    status: 'Commercial Intent',
-    required_quantity: 100,
-    total_dispatched_quantity: 30,
-    dispatch_progress: 'Partially Dispatched',
-  };
-  assert.equal(isRequirementPending(r2), true);
-  assert.equal(calculateRequirementPendingQty(r2), 70);
-
-  // Fully dispatched
-  const r3 = {
-    id: 'req-3',
+  assert.equal(isRequirementPending({
     status: 'Dispatched',
     required_quantity: 100,
     total_dispatched_quantity: 100,
     dispatch_progress: 'Fully Dispatched',
-  };
-  assert.equal(isRequirementPending(r3), false);
+  }), false);
 
-  // Closed / Cancelled
-  const r4 = {
-    id: 'req-4',
+  assert.equal(isRequirementPending({
     status: 'Cancelled',
     required_quantity: 50,
-    total_dispatched_quantity: 0,
-  };
-  assert.equal(isRequirementPending(r4), false);
-
-  const r5 = {
-    id: 'req-5',
-    status: 'Closed',
-    required_quantity: 50,
-    total_dispatched_quantity: 0,
-  };
-  assert.equal(isRequirementPending(r5), false);
+  }), false);
 });
 
-test('Multi-product requirements: calculates product-wise quantities without double-counting', () => {
-  const reqWithItems = {
-    id: 'req-multi',
-    status: 'Qualified',
-    customer_name: 'Shree Krishna Agro',
-    party_id: 'party-1',
-    expected_date: '2026-11-05',
-    total_dispatched_quantity: 0,
+test('formatOrderDate: formats in DD-MM-YYYY Indian local date', () => {
+  assert.equal(formatOrderDate('2026-11-05T04:30:00.000Z'), '05-11-2026');
+  assert.equal(formatOrderDate('2026-10-24'), '24-10-2026');
+  assert.equal(formatOrderDate(null), 'Date Not Available');
+});
+
+test('Weight calculation & validation: calculates exact MT and handles missing weight without assuming 50kg', () => {
+  // Valid weight: 110 Bags × 40 kg = 4,400 kg = 4.400 MT
+  assert.equal(formatMT(4400), '4.400 MT');
+  assert.equal(extractItemWeight({ weight: 40 }), 40);
+
+  // Missing weight: never assume 50kg, never guess from name
+  assert.equal(extractItemWeight({ weight: null, product_name: 'Super Feed (50 kg)' }), null);
+  assert.equal(extractItemWeight({}), null);
+
+  const reqWithMissingWeight = {
+    id: 'req-missing-w',
+    customer_name: 'Kisan Feeds',
+    party_id: 'cust-1',
+    created_at: '2026-11-05T05:00:00Z',
     requirement_items: [
-      { id: 'item-1', product_name: 'Mustard Cake', quantity: 60, unit: 'Bags' },
-      { id: 'item-2', product_name: 'Soya DOC', quantity: 40, unit: 'Bags' },
+      { product_name: 'Feed A', quantity: 50, weight: null },
     ],
   };
 
-  assert.equal(calculateRequirementPendingQty(reqWithItems), 100);
+  const report = computeDailyPendingReport([reqWithMissingWeight]);
+  assert.equal(report.hasMissingWeightOverall, true);
+  assert.equal(report.customerList[0].hasMissingWeight, true);
 
-  const report = computeDailyPendingReport([reqWithItems], '2026-11-05');
-  assert.equal(report.totalRequirements, 1);
-  assert.equal(report.totalBags, 100);
-  assert.equal(report.totalCustomers, 1);
-  assert.equal(report.totalProducts, 2);
-
-  // Check product breakdown
-  assert.equal(report.productSummary.length, 2);
-  assert.equal(report.productSummary[0].productName, 'Mustard Cake');
-  assert.equal(report.productSummary[0].pendingBags, 60);
-  assert.equal(report.productSummary[1].productName, 'Soya DOC');
-  assert.equal(report.productSummary[1].pendingBags, 40);
+  const text = generateWhatsAppReportText(report);
+  assert.match(text, /Feed A: 50 Bags \(Weight Not Available\)/);
+  assert.match(text, /⚠️ Incomplete|Weight Not Available/);
 });
 
-test('Product-wise summary sorting: sorts by highest pending quantity', () => {
-  const requirements = [
-    {
-      id: 'r1',
-      status: 'Qualified',
-      customer_name: 'Customer A',
-      product_type: 'Wheat Bran',
-      required_quantity: 25,
-      total_dispatched_quantity: 0,
-    },
-    {
-      id: 'r2',
-      status: 'Identified',
-      customer_name: 'Customer B',
-      product_type: 'Mustard Cake',
-      required_quantity: 150,
-      total_dispatched_quantity: 0,
-    },
-    {
-      id: 'r3',
-      status: 'Engaged',
-      customer_name: 'Customer C',
-      product_type: 'Cotton Seed Cake',
-      required_quantity: 80,
-      total_dispatched_quantity: 0,
-    },
-  ];
-
-  const report = computeDailyPendingReport(requirements, '2026-11-05');
-  assert.equal(report.productSummary[0].productName, 'Mustard Cake');
-  assert.equal(report.productSummary[0].pendingBags, 150);
-  assert.equal(report.productSummary[1].productName, 'Cotton Seed Cake');
-  assert.equal(report.productSummary[1].pendingBags, 80);
-  assert.equal(report.productSummary[2].productName, 'Wheat Bran');
-  assert.equal(report.productSummary[2].pendingBags, 25);
-});
-
-test('Customer-wise summary: includes required fields and groups products per customer', () => {
+test('Customer-wise report with gifts: conforms exactly to Section 1 reference structure', () => {
   const req = {
-    id: 'req-cust-1',
-    status: 'Identified',
-    customer_name: 'Balaji Feeds',
-    party_id: 'cust-123',
-    customer_city: 'Indore',
-    owner_email: 'ramesh@shubhlabh.com',
-    expected_date: '2026-11-05',
-    required_quantity: 120,
-    product_type: 'Soya Meal',
-    total_dispatched_quantity: 0,
-  };
-
-  const report = computeDailyPendingReport([req], '2026-11-05');
-  assert.equal(report.customerSummary.length, 1);
-  const cust = report.customerSummary[0];
-  assert.equal(cust.customerName, 'Balaji Feeds');
-  assert.equal(cust.productName, 'Soya Meal');
-  assert.equal(cust.pendingBags, 120);
-  assert.equal(cust.requirementDate, '2026-11-05');
-  assert.equal(cust.assignedOwner, 'ramesh');
-});
-
-test('Date filtering: filters correctly for exact date, up_to date, and all', () => {
-  const requirements = [
-    { id: '1', status: 'Identified', expected_date: '2026-11-04', required_quantity: 10, total_dispatched_quantity: 0 },
-    { id: '2', status: 'Identified', expected_date: '2026-11-05', required_quantity: 20, total_dispatched_quantity: 0 },
-    { id: '3', status: 'Identified', expected_date: '2026-11-06', required_quantity: 30, total_dispatched_quantity: 0 },
-  ];
-
-  // Exact date
-  const exact = filterPendingRequirements(requirements, { reportDate: '2026-11-05', dateMode: 'exact' });
-  assert.equal(exact.length, 1);
-  assert.equal(exact[0].id, '2');
-
-  // Up to date (including overdue)
-  const upTo = filterPendingRequirements(requirements, { reportDate: '2026-11-05', dateMode: 'up_to' });
-  assert.equal(upTo.length, 2);
-  assert.deepEqual(upTo.map(r => r.id), ['1', '2']);
-
-  // All dates
-  const all = filterPendingRequirements(requirements, { reportDate: '2026-11-05', dateMode: 'all' });
-  assert.equal(all.length, 3);
-});
-
-test('WhatsApp report generation: conforms to FR-05 exact template', () => {
-  const reportData = {
-    reportDateFormatted: '05 Nov 2026',
-    totalRequirements: 2,
-    totalCustomers: 2,
-    totalProducts: 2,
-    totalBags: 200,
-    productSummary: [
-      { productName: 'Mustard Cake', pendingBags: 120 },
-      { productName: 'Soya Meal', pendingBags: 80 },
-    ],
-    customerSummary: [
-      { customerName: 'Apex Feeds', productName: 'Mustard Cake', pendingBags: 120 },
-      { customerName: 'Kisan Traders', productName: 'Soya Meal', pendingBags: 80 },
+    id: 'req-1',
+    customer_name: 'Sharma Poultry Farm',
+    party_id: 'p-1',
+    created_at: '2026-11-02T10:00:00Z',
+    requirement_items: [
+      { product_name: 'Broiler Pre-Starter', quantity: 50, weight: 50 },
+      { product_name: 'Broiler Starter', quantity: 60, weight: 40, gift: 'Steel Bucket × 2' },
     ],
   };
 
-  const text = generateWhatsAppReportText(reportData);
+  const report = computeDailyPendingReport([req]);
+  assert.equal(report.totalPendingBags, 110);
+  // (50 * 50) + (60 * 40) = 2500 + 2400 = 4900 kg = 4.900 MT
+  assert.equal(report.totalPendingWeightMT, '4.900');
+  assert.equal(report.customerList.length, 1);
+  assert.equal(report.customerList[0].orders[0].orderDate, '02-11-2026');
 
-  const expected = `📋 SHUBH LABH CRM
-DAILY PENDING DISPATCH REPORT
-📅 Date: 05 Nov 2026
+  const text = generateWhatsAppReportText(report);
 
-PENDING SUMMARY
-• Pending Requirements: 2
-• Pending Customers: 2
-• Pending Products: 2
-• Total Pending Bags: 200
+  const expected = `👥 *CUSTOMER-WISE PENDING ORDERS*
+━━━━━━━━━━━━━━━━━━
 
-PRODUCT-WISE PENDING
-Mustard Cake — 120 Bags
-Soya Meal — 80 Bags
+1. *Sharma Poultry Farm*
+📅 Order Date: 02-11-2026
 
-CUSTOMER-WISE PENDING
-Apex Feeds
-Product: Mustard Cake
-Pending: 120 Bags
+• Broiler Pre-Starter: 50 Bags × 50 kg
+• Broiler Starter: 60 Bags × 40 kg
 
-Kisan Traders
-Product: Soya Meal
-Pending: 80 Bags
+🎁 Gift: Steel Bucket × 2
 
-TOTAL PENDING: 200 BAGS
+📦 Total: 110 Bags
+⚖️ Total Weight: 4.900 MT
 
-Report generated from Shubh Labh CRM.`;
+━━━━━━━━━━━━━━━━━━
+
+📌 *TOTAL PENDING*
+📦 110 Bags
+⚖️ 4.900 MT
+
+🎁 *PENDING GIFTS SUMMARY*
+Steel Bucket: 2 Nos
+
+*Report generated from Shubh Labh CRM*`;
 
   assert.equal(text, expected);
 });
 
-test('Empty state: generates graceful message and handles 0 requirements', () => {
-  const emptyReport = computeDailyPendingReport([], '2026-11-05');
-  assert.equal(emptyReport.totalRequirements, 0);
-  assert.equal(emptyReport.totalBags, 0);
-  assert.equal(emptyReport.totalCustomers, 0);
-  assert.equal(emptyReport.totalProducts, 0);
-  assert.equal(emptyReport.productSummary.length, 0);
-  assert.equal(emptyReport.customerSummary.length, 0);
+test('Multiple orders with different dates for one customer: preserves individual order dates', () => {
+  const req1 = {
+    id: 'order-1',
+    customer_name: 'Apex Traders',
+    party_id: 'apex-1',
+    created_at: '2026-11-01T04:00:00Z',
+    requirement_items: [
+      { product_name: 'Layer Mash', quantity: 40, weight: 50 },
+    ],
+  };
 
+  const req2 = {
+    id: 'order-2',
+    customer_name: 'Apex Traders',
+    party_id: 'apex-1',
+    created_at: '2026-11-04T04:00:00Z',
+    requirement_items: [
+      { product_name: 'Layer Grower', quantity: 60, weight: 50 },
+    ],
+  };
+
+  const report = computeDailyPendingReport([req1, req2]);
+  assert.equal(report.totalCustomers, 1);
+  assert.equal(report.totalPendingBags, 100);
+  assert.equal(report.customerList[0].orders.length, 2);
+  assert.equal(report.customerList[0].orders[0].orderDate, '01-11-2026');
+  assert.equal(report.customerList[0].orders[1].orderDate, '04-11-2026');
+
+  const text = generateWhatsAppReportText(report);
+  assert.match(text, /📅 Order Date: 01-11-2026/);
+  assert.match(text, /📅 Order Date: 04-11-2026/);
+  assert.match(text, /📦 Total: 100 Bags/);
+  assert.match(text, /⚖️ Total Weight: 5\.000 MT/);
+});
+
+test('Empty gifts: omits gift section when customer has no gift', () => {
+  const req = {
+    id: 'order-no-gift',
+    customer_name: 'Modern Feed Store',
+    party_id: 'm-1',
+    created_at: '2026-11-05T04:00:00Z',
+    requirement_items: [
+      { product_name: 'Chicks Mash', quantity: 20, weight: 50, gift: 'None' },
+    ],
+  };
+
+  const report = computeDailyPendingReport([req]);
+  const text = generateWhatsAppReportText(report);
+
+  assert.equal(text.includes('🎁 Gift:'), false);
+  assert.equal(text.includes('PENDING GIFTS SUMMARY'), false);
+});
+
+test('Empty state: generates graceful fallback when 0 orders pending', () => {
+  const emptyReport = computeDailyPendingReport([]);
   const text = generateWhatsAppReportText(emptyReport);
+
   assert.match(text, /No pending dispatch requirements found for this date/);
 });
