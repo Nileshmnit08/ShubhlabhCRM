@@ -1593,26 +1593,42 @@ export default function LabourHisaab() {
 
       {/* LABOURER DETAIL STATEMENT MODAL */}
       {selectedLabourer ? (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '1rem',
-        }}>
-          <div className="card" style={{
-            width: '100%',
-            maxWidth: '750px',
-            maxHeight: '90vh',
+        <div
+          onClick={e => {
+            if (e.target === e.currentTarget) setSelectedLabourer(null);
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
             display: 'flex',
-            flexDirection: 'column',
-            padding: 0,
-            borderRadius: '12px',
-            overflow: 'hidden',
-          }}>
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '1rem',
+          }}
+        >
+          <div
+            className="card"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '750px',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: 0,
+              borderRadius: '16px',
+              overflow: 'hidden',
+              backgroundColor: 'var(--bg-surface, #FFFFFF)',
+              color: 'var(--text-primary, #1E293B)',
+              border: '1px solid var(--border, #CBD5E1)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              margin: 'auto',
+            }}
+          >
             {/* Modal Header */}
             <div style={{
               padding: '1rem 1.25rem',

@@ -16,7 +16,8 @@ import { formatInr, previewAmount, adminEntryError, workTypeLabel, quantityLabel
 const newId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16); }));
 
-const field = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.8rem', minWidth: 160 };
+const field = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.8rem', minWidth: 160, color: 'var(--text-primary, #1E293B)' };
+const inputStyle = { backgroundColor: 'var(--bg-surface, #FFFFFF)', color: 'var(--text-primary, #1E293B)', border: '1px solid var(--border, #CBD5E1)', borderRadius: '6px' };
 const isMissingFn = (e) => String(e?.code) === 'PGRST202' || /could not find the function/i.test(e?.message || '');
 
 export default function LabourEntryAdminDialog({ mode, entry, lines = [], contractors = [], labourers = [], defaultContractorId = '', today, onClose, onDone }) {
@@ -40,6 +41,17 @@ export default function LabourEntryAdminDialog({ mode, entry, lines = [], contra
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // Close dialog on Escape key when not busy
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape' && !busy) {
+        onClose?.();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [busy, onClose]);
 
   // Rate periods of the contractor (read-only for admins) and the entry's own bag lines.
   useEffect(() => {
@@ -99,40 +111,75 @@ export default function LabourEntryAdminDialog({ mode, entry, lines = [], contra
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={mode === 'delete' ? 'Delete labour entry' : isEdit ? 'Edit labour entry' : 'Add labour entry'}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '2rem 1rem' }}>
-      <div className="card" style={{ width: '100%', maxWidth: 760, padding: '1.25rem' }}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={mode === 'delete' ? 'Delete labour entry' : isEdit ? 'Edit labour entry' : 'Add labour entry'}
+      onClick={e => {
+        if (e.target === e.currentTarget && !busy) onClose?.();
+      }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflowY: 'auto',
+        padding: '1rem',
+      }}
+    >
+      <div
+        className="card"
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: 760,
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          backgroundColor: 'var(--bg-surface, #FFFFFF)',
+          color: 'var(--text-primary, #1E293B)',
+          border: '1px solid var(--border, #CBD5E1)',
+          borderRadius: '16px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+          padding: '1.5rem',
+          margin: 'auto',
+        }}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>{mode === 'delete' ? 'Delete labour entry' : isEdit ? 'Edit labour entry' : 'Add labour entry'}</h2>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0, color: 'var(--text-primary, #1E293B)' }}>{mode === 'delete' ? 'Delete labour entry' : isEdit ? 'Edit labour entry' : 'Add labour entry'}</h2>
           <button className="btn btn-secondary" onClick={onClose} aria-label="Close" disabled={busy}><X size={16} /></button>
         </div>
 
         {mode === 'delete' ? (
           <>
-            <p style={{ margin: '0 0 0.5rem' }}>
+            <p style={{ margin: '0 0 0.5rem', color: 'var(--text-primary, #1E293B)' }}>
               Delete <strong>{workTypeLabel(entry.work_type)}</strong> on <strong>{String(entry.work_date).slice(0, 10)}</strong> — {quantityLabel(entry)}, {formatInr(entry.calculated_labour_amount)}?
             </p>
             <p className="text-secondary" style={{ fontSize: '0.85rem', margin: '0 0 0.75rem' }}>
               The full entry stays in the audit history. Entries in a closed (settled) month are protected and cannot be deleted.
             </p>
             <label style={{ ...field, minWidth: 0 }}>Reason (required)
-              <textarea rows={2} value={form.reason} onChange={e => set('reason', e.target.value)} maxLength={500} />
+              <textarea rows={2} value={form.reason} onChange={e => set('reason', e.target.value)} maxLength={500} style={inputStyle} />
             </label>
           </>
         ) : (
           <>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
               <label style={field}>Contractor
-                <select value={form.contractorId} disabled={isEdit} onChange={e => setForm(f => ({ ...f, contractorId: e.target.value, workType: '', unit: '', labourerIds: [] }))}>
+                <select value={form.contractorId} disabled={isEdit} onChange={e => setForm(f => ({ ...f, contractorId: e.target.value, workType: '', unit: '', labourerIds: [] }))} style={inputStyle}>
                   <option value="">Choose…</option>
                   {contractors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </label>
               <label style={field}>Work date
-                <input type="date" value={form.workDate} max={today} onChange={e => set('workDate', e.target.value)} />
+                <input type="date" value={form.workDate} max={today} onChange={e => set('workDate', e.target.value)} style={inputStyle} />
               </label>
               <label style={{ ...field, minWidth: 220 }}>Work type
-                <select value={`${form.workType}|${form.unit}`} onChange={e => { const [w, u] = e.target.value.split('|'); setForm(f => ({ ...f, workType: w, unit: u, rate: '' })); }}>
+                <select value={`${form.workType}|${form.unit}`} onChange={e => { const [w, u] = e.target.value.split('|'); setForm(f => ({ ...f, workType: w, unit: u, rate: '' })); }} style={inputStyle}>
                   <option value="|">Choose…</option>
                   {workTypes.map(r => <option key={`${r.work_type}|${r.rate_unit}`} value={`${r.work_type}|${r.rate_unit}`}>{workTypeLabel(r.work_type)} — {r.rate_unit}</option>)}
                 </select>
@@ -153,27 +200,27 @@ export default function LabourEntryAdminDialog({ mode, entry, lines = [], contra
                   Bag lines (weight kg × count) — or total weight
                   {bagLines.map((l, i) => (
                     <div key={i} style={{ display: 'flex', gap: 6 }}>
-                      <input type="number" min="0" step="0.01" value={l.w} onChange={e => setBagLines(b => b.map((x, j) => (j === i ? { ...x, w: e.target.value } : x)))} aria-label="Bag weight kg" style={{ width: 90 }} />
-                      <input type="number" min="0" step="1" value={l.c} onChange={e => setBagLines(b => b.map((x, j) => (j === i ? { ...x, c: e.target.value } : x)))} aria-label="Bag count" style={{ width: 90 }} />
+                      <input type="number" min="0" step="0.01" value={l.w} onChange={e => setBagLines(b => b.map((x, j) => (j === i ? { ...x, w: e.target.value } : x)))} aria-label="Bag weight kg" style={{ ...inputStyle, width: 90 }} />
+                      <input type="number" min="0" step="1" value={l.c} onChange={e => setBagLines(b => b.map((x, j) => (j === i ? { ...x, c: e.target.value } : x)))} aria-label="Bag count" style={{ ...inputStyle, width: 90 }} />
                       <button className="btn btn-secondary" onClick={() => setBagLines(b => b.filter((_, j) => j !== i))} aria-label="Remove bag line">×</button>
                     </div>
                   ))}
                   <button className="btn btn-secondary" style={{ alignSelf: 'flex-start' }} onClick={() => setBagLines(b => [...b, { w: '50', c: '' }])}>+ Bag line</button>
                   {bagLines.length ? <span>Total: {bagTotals.kg.toLocaleString('en-IN')} kg · {bagTotals.bags} bags</span> : (
                     <span style={{ display: 'flex', gap: 6 }}>
-                      <input type="number" min="0" step="0.01" placeholder="Total kg" value={form.totalWeightKg} onChange={e => set('totalWeightKg', e.target.value)} aria-label="Total weight kg" style={{ width: 110 }} />
-                      <input type="number" min="0" step="1" placeholder="Bags" value={form.totalBags} onChange={e => set('totalBags', e.target.value)} aria-label="Total bags" style={{ width: 90 }} />
+                      <input type="number" min="0" step="0.01" placeholder="Total kg" value={form.totalWeightKg} onChange={e => set('totalWeightKg', e.target.value)} aria-label="Total weight kg" style={{ ...inputStyle, width: 110 }} />
+                      <input type="number" min="0" step="1" placeholder="Bags" value={form.totalBags} onChange={e => set('totalBags', e.target.value)} aria-label="Total bags" style={{ ...inputStyle, width: 90 }} />
                     </span>
                   )}
                 </div>
               ) : unit === 'Per bag' ? (
-                <label style={field}>Bags<input type="number" min="0" step="1" value={form.totalBags} onChange={e => set('totalBags', e.target.value)} /></label>
+                <label style={field}>Bags<input type="number" min="0" step="1" value={form.totalBags} onChange={e => set('totalBags', e.target.value)} style={inputStyle} /></label>
               ) : unit === 'Per batch' ? (
-                <label style={field}>Batches<input type="number" min="0" step="1" value={form.totalBatches} onChange={e => set('totalBatches', e.target.value)} /></label>
+                <label style={field}>Batches<input type="number" min="0" step="1" value={form.totalBatches} onChange={e => set('totalBatches', e.target.value)} style={inputStyle} /></label>
               ) : null}
               {period && (period.is_editable_rate || unit === 'Fixed amount') ? (
                 <label style={field}>{unit === 'Fixed amount' ? 'Amount (₹)' : 'Rate (₹, optional)'}
-                  <input type="number" min="0" step="0.01" value={form.rate} placeholder={String(effectiveRate)} onChange={e => set('rate', e.target.value)} disabled={!period.is_editable_rate} />
+                  <input type="number" min="0" step="0.01" value={form.rate} placeholder={String(effectiveRate)} onChange={e => set('rate', e.target.value)} disabled={!period.is_editable_rate} style={inputStyle} />
                 </label>
               ) : null}
               <div style={{ ...field, justifyContent: 'flex-end' }}>
@@ -196,8 +243,8 @@ export default function LabourEntryAdminDialog({ mode, entry, lines = [], contra
             </div>
 
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <label style={{ ...field, flex: 2 }}>Notes<input value={form.notes} onChange={e => set('notes', e.target.value)} maxLength={500} /></label>
-              <label style={{ ...field, flex: 1 }}>Reason for the audit log (optional)<input value={form.reason} onChange={e => set('reason', e.target.value)} maxLength={300} /></label>
+              <label style={{ ...field, flex: 2 }}>Notes<input value={form.notes} onChange={e => set('notes', e.target.value)} maxLength={500} style={inputStyle} /></label>
+              <label style={{ ...field, flex: 1 }}>Reason for the audit log (optional)<input value={form.reason} onChange={e => set('reason', e.target.value)} maxLength={300} style={inputStyle} /></label>
             </div>
             <p className="text-muted" style={{ fontSize: '0.78rem', margin: '0.5rem 0 0' }}>
               Saving makes the day Pending: it leaves the approved totals until a CRM admin approves it on the approvals page.
