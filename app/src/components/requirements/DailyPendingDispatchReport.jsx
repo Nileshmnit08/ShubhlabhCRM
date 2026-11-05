@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   FileText, Calendar, Copy, Check, 
   Package, Users, ClipboardList, 
-  MessageCircle, Eye, AlertTriangle, Gift, Scale
+  MessageCircle, Eye, AlertTriangle, Gift, Scale, MapPin
 } from 'lucide-react';
 import { 
   filterPendingRequirements, 
@@ -84,7 +84,7 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       
-      {/* 1. Header Toolbar & Date Selection (FR-02) */}
+      {/* 1. Header Toolbar & Date Selection */}
       <div 
         className="glass-panel" 
         style={{ 
@@ -102,7 +102,7 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
           <div>
             <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
               <FileText size={20} style={{ color: 'var(--primary)' }} />
-              Customer-wise Pending Dispatch Report
+              Customer-wise Pending Orders Report
             </h2>
             <p className="text-secondary" style={{ margin: '4px 0 0', fontSize: '0.85rem' }}>
               {dateMode === 'exact' && `Showing pending orders scheduled for ${formatDateForDisplay(selectedDate)}`}
@@ -244,7 +244,7 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                WhatsApp Output Preview
+                WhatsApp Output Preview (Mobile Readable)
               </span>
               <button
                 type="button"
@@ -257,16 +257,17 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
             <pre 
               style={{ 
                 margin: 0, 
-                fontFamily: 'monospace', 
+                fontFamily: 'monospace, Courier, sans-serif', 
                 fontSize: '0.85rem', 
                 whiteSpace: 'pre-wrap', 
                 background: '#ffffff', 
-                padding: '12px', 
+                padding: '14px', 
                 borderRadius: '6px',
                 border: '1px solid #E5E7EB',
                 color: '#111827',
-                maxHeight: '320px',
-                overflowY: 'auto'
+                maxHeight: '360px',
+                overflowY: 'auto',
+                lineHeight: '1.45'
               }}
             >
               {whatsAppText}
@@ -306,7 +307,7 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
             {reportData.totalCustomers}
           </div>
           <div className="text-secondary" style={{ fontSize: '0.78rem', marginTop: '4px' }}>
-            Parties with pending dispatch
+            Parties with pending orders
           </div>
         </div>
 
@@ -330,7 +331,7 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
             </div>
           </div>
           <div style={{ fontSize: '1.85rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
-            {reportData.totalPendingBags.toLocaleString('en-IN')}
+            {reportData.totalPendingBags.toLocaleString('en-IN')} Bags
           </div>
           <div className="text-secondary" style={{ fontSize: '0.78rem', marginTop: '4px' }}>
             Total bag count
@@ -350,7 +351,7 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Total Pending Weight
+              Available Weight
             </span>
             <div style={{ padding: '6px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', color: 'var(--success)' }}>
               <Scale size={18} />
@@ -362,10 +363,10 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
           <div className="text-secondary" style={{ fontSize: '0.78rem', marginTop: '4px' }}>
             {reportData.hasMissingWeightOverall ? (
               <span style={{ color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <AlertTriangle size={12} /> Some weights unavailable
+                <AlertTriangle size={12} /> Some product weights are unavailable
               </span>
             ) : (
-              'Calculated from bag weights'
+              'Sum of known product weights'
             )}
           </div>
         </div>
@@ -383,7 +384,7 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Pending Gifts
+              Committed Gifts
             </span>
             <div style={{ padding: '6px', background: 'rgba(236, 72, 153, 0.1)', borderRadius: '8px', color: '#EC4899' }}>
               <Gift size={18} />
@@ -393,7 +394,7 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
             {reportData.giftsSummary.length}
           </div>
           <div className="text-secondary" style={{ fontSize: '0.78rem', marginTop: '4px' }}>
-            Distinct gift commodities
+            Distinct gift items
           </div>
         </div>
       </div>
@@ -470,9 +471,9 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
                     <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{idx + 1}.</span> {customer.customerName}
                   </h3>
                   {customer.customerCity && (
-                    <span className="text-secondary" style={{ fontSize: '0.82rem' }}>
-                      Location: {customer.customerCity}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: '2px' }}>
+                      <MapPin size={12} /> {customer.customerCity}
+                    </div>
                   )}
                 </div>
 
@@ -483,10 +484,15 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
                   <span className="badge badge-neutral" style={{ fontSize: '0.85rem', padding: '4px 10px' }}>
                     ⚖️ {(customer.totalWeightKg / 1000).toFixed(3)} MT
                   </span>
+                  {customer.hasMissingWeight && (
+                    <span className="badge badge-warning" style={{ fontSize: '0.75rem', padding: '2px 8px' }}>
+                      ⚠️ Weight incomplete
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Orders under this customer */}
+              {/* Orders under this customer (preserving separate order dates) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {customer.orders.map((order, oIdx) => (
                   <div 
@@ -500,7 +506,7 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
                       <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        📅 Order Date: <strong style={{ color: 'var(--primary)' }}>{order.orderDate}</strong>
+                        📅 <strong style={{ color: 'var(--primary)' }}>{order.orderDate}</strong>
                         {order.demandRef && <span className="text-secondary" style={{ fontSize: '0.8rem', fontWeight: 'normal' }}>({order.demandRef})</span>}
                       </span>
                       <span className="text-secondary" style={{ fontSize: '0.8rem' }}>
@@ -508,95 +514,117 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
                       </span>
                     </div>
 
-                    {/* Products list */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', margin: '8px 0' }}>
-                      {order.products.map((p, pIdx) => (
-                        <div key={pIdx} style={{ fontSize: '0.9rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-                          <span style={{ color: 'var(--text-secondary)' }}>•</span>
-                          <span style={{ fontWeight: 600 }}>{p.productName}:</span>
-                          <span>
-                            {p.pendingBags} Bags {p.hasWeight ? `× ${p.bagWeightKg} kg` : <span style={{ color: 'var(--warning)', fontSize: '0.8rem' }}>(Weight Not Available)</span>}
-                          </span>
-                          {p.hasWeight && (
-                            <span className="text-secondary" style={{ fontSize: '0.8rem' }}>
-                              ({(p.itemWeightKg / 1000).toFixed(3)} MT)
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                    {/* Table View: Product | Bags | Kg/Bag | Total MT */}
+                    <div style={{ overflowX: 'auto', margin: '8px 0' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem', textAlign: 'left' }}>
+                        <thead>
+                          <tr style={{ color: 'var(--text-secondary)', borderBottom: '1px solid #E5E7EB', fontSize: '0.8rem' }}>
+                            <th style={{ padding: '6px 8px', fontWeight: 600 }}>Product</th>
+                            <th style={{ padding: '6px 8px', fontWeight: 600, textAlign: 'right' }}>Bags</th>
+                            <th style={{ padding: '6px 8px', fontWeight: 600, textAlign: 'right' }}>Kg/Bag</th>
+                            <th style={{ padding: '6px 8px', fontWeight: 600, textAlign: 'right' }}>Total MT</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {order.products.map((p, pIdx) => (
+                            <tr key={pIdx} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                              <td style={{ padding: '8px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {p.productName}
+                              </td>
+                              <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>
+                                {p.pendingBags}
+                              </td>
+                              <td style={{ padding: '8px', textAlign: 'right', color: p.hasWeight ? 'inherit' : 'var(--warning)' }}>
+                                {p.hasWeight ? p.bagWeightKg : '—'}
+                              </td>
+                              <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600, color: p.hasWeight ? 'var(--primary)' : 'var(--warning)' }}>
+                                {p.hasWeight ? (p.itemWeightKg / 1000).toFixed(3) : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
 
-                    {/* Gifts (if any) */}
-                    {order.gifts.length > 0 && (
-                      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #D1D5DB', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        {order.gifts.map((g, gIdx) => (
-                          <div key={gIdx} style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span>🎁 Gift:</span>
-                            <strong>{g.giftName}</strong>
-                            {g.giftQuantity !== null && <span>× {g.giftQuantity}</span>}
-                          </div>
-                        ))}
+                    {/* Order Totals Bar */}
+                    <div style={{ borderTop: '1px solid #E5E7EB', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          📦 Total: <strong>{order.orderTotalBags} Bags</strong>
+                        </span>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          ⚖️ Weight: <strong>{(order.orderTotalWeightKg / 1000).toFixed(3)} MT</strong>
+                        </span>
+                        {order.orderHasMissingWeight && (
+                          <span style={{ fontSize: '0.78rem', color: 'var(--warning)', fontWeight: 600 }}>
+                            ⚠️ Weight incomplete
+                          </span>
+                        )}
                       </div>
-                    )}
+
+                      {/* Gifts */}
+                      {order.gifts.length > 0 && (
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {order.gifts.map((g, gIdx) => (
+                            <span key={gIdx} style={{ fontSize: '0.82rem', color: '#047857', background: '#ECFDF5', padding: '2px 8px', borderRadius: '4px', fontWeight: 500 }}>
+                              🎁 Gift: {g.giftName} × {g.giftQuantity !== null ? g.giftQuantity : 'Qty Not Specified'}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                   </div>
                 ))}
               </div>
 
-              {/* Customer Total Line */}
-              <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Customer Total:
-                </span>
-                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    📦 {customer.totalBags} Bags
-                  </span>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    ⚖️ {(customer.totalWeightKg / 1000).toFixed(3)} MT
-                    {customer.hasMissingWeight && <span style={{ color: 'var(--warning)', fontSize: '0.75rem', marginLeft: '4px' }}>(Incomplete)</span>}
-                  </span>
-                </div>
-              </div>
             </div>
           ))}
 
-          {/* 5. Overall Gifts Summary Card (if gifts exist) */}
-          {reportData.giftsSummary.length > 0 && (
-            <div 
-              className="glass-panel" 
-              style={{ 
-                background: '#ffffff', 
-                borderRadius: '12px', 
-                border: '1px solid var(--border)',
-                padding: '1.25rem',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
-              }}
-            >
-              <h3 style={{ margin: '0 0 0.75rem', fontSize: '1.05rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Gift size={18} style={{ color: '#EC4899' }} />
-                Pending Gifts Summary
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
-                {reportData.giftsSummary.map((g, idx) => (
-                  <div 
-                    key={idx}
-                    style={{
-                      background: '#FDF2F8',
-                      border: '1px solid #FBCFE8',
-                      borderRadius: '8px',
-                      padding: '8px 12px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <span style={{ fontWeight: 600, color: '#9D174D', fontSize: '0.9rem' }}>{g.giftName}</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#BE185D' }}>{g.displayQty}</span>
-                  </div>
-                ))}
+          {/* 5. Grand Total Pending & Gifts Card */}
+          <div 
+            className="glass-panel" 
+            style={{ 
+              background: '#ffffff', 
+              borderRadius: '12px', 
+              border: '1px solid var(--border)',
+              padding: '1.25rem',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+            }}
+          >
+            <h3 style={{ margin: '0 0 0.75rem', fontSize: '1.1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📌 Grand Total Pending
+            </h3>
+            <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'baseline' }}>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                📦 Total Bags: <span style={{ color: 'var(--primary)' }}>{reportData.totalPendingBags} Bags</span>
+              </div>
+              <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                ⚖️ Available Weight: <span style={{ color: 'var(--primary)' }}>{reportData.totalPendingWeightMT} MT</span>
               </div>
             </div>
-          )}
+            {reportData.hasMissingWeightOverall && (
+              <div style={{ marginTop: '6px', fontSize: '0.85rem', color: 'var(--warning)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <AlertTriangle size={14} /> Some product weights are unavailable.
+              </div>
+            )}
+
+            {/* Pending Gifts Summary */}
+            {reportData.giftsSummary.length > 0 && (
+              <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #F3F4F6' }}>
+                <h4 style={{ margin: '0 0 0.5rem', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Gift size={16} style={{ color: '#EC4899' }} /> 🎁 Pending Gifts
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {reportData.giftsSummary.map((g, idx) => (
+                    <div key={idx} style={{ fontSize: '0.88rem', color: '#374151' }}>
+                      <strong style={{ color: '#9D174D' }}>{g.giftName}:</strong> {g.summaryText}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

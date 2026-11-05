@@ -1,7 +1,9 @@
 /**
  * Pure functions and calculations for Daily Pending Dispatch Report.
- * WhatsApp report format strictly adheres to SL-REQ-WHATSAPP-REPORT-01.
+ * Formats WhatsApp report according to SL-REQ-WHATSAPP-REPORT-FORMAT-02.
  */
+
+export const SEPARATOR = '━━━━━━━━━━━━━━━━━━━━';
 
 /**
  * Calculates pending quantity in bags for a requirement.
@@ -85,7 +87,7 @@ export function formatDateForDisplay(dateString) {
  * Formats weight in MT with 3 decimal places.
  */
 export function formatMT(weightInKg) {
-  if (weightInKg === null || weightInKg === undefined || isNaN(weightInKg)) return 'Weight Not Available';
+  if (weightInKg === null || weightInKg === undefined || isNaN(weightInKg)) return '—';
   const mt = Number(weightInKg) / 1000;
   return `${mt.toFixed(3)} MT`;
 }
@@ -190,9 +192,36 @@ export function extractGiftDetails(item, extra = {}) {
   }
 
   return {
-    giftName,
+    giftName: giftName.toUpperCase(),
     giftQuantity: (giftQty !== null && !isNaN(giftQty) && giftQty > 0) ? giftQty : null,
   };
+}
+
+/**
+ * Formats a single product row with monospaced column spacing:
+ * Product             Bags   Kg/Bag   Total MT
+ * PRODUCT NAME          45      45      2.025
+ */
+export function formatProductRow(productName, bags, bagWeightKg) {
+  const upperName = (productName || 'PRODUCT').toUpperCase();
+  const bagsStr = (bags !== null && bags !== undefined) ? String(bags) : '—';
+  const kgStr = (bagWeightKg !== null && bagWeightKg !== undefined && bagWeightKg > 0) ? String(bagWeightKg) : '—';
+  const mtStr = (bags !== null && bagWeightKg !== null && bagWeightKg > 0)
+    ? ((bags * bagWeightKg) / 1000).toFixed(3)
+    : '—';
+
+  const kgPart = ' '.repeat(Math.max(2, 8 - kgStr.length)) + kgStr;
+  const mtPart = ' '.repeat(Math.max(2, 11 - mtStr.length)) + mtStr;
+
+  if (upperName.length <= 18) {
+    const padding = Math.max(2, 24 - upperName.length - bagsStr.length);
+    const firstPart = upperName + ' '.repeat(padding) + bagsStr;
+    return `${firstPart}${kgPart}${mtPart}`;
+  } else {
+    // For long product names, wrap naturally onto the next line without changing the values
+    const colBags = bagsStr.padStart(24, ' ');
+    return `${upperName}\n${colBags}${kgPart}${mtPart}`;
+  }
 }
 
 /**
@@ -203,18 +232,18 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
   let totalPendingWeightKg = 0;
   let hasMissingWeightOverall = false;
 
-  const giftsSummaryMap = new Map(); // giftName -> { totalQty: number, countUnknown: number }
+  const giftsSummaryMap = new Map(); // giftName -> { totalQty: number, hasUnspecified: boolean }
   const customerMap = new Map(); // customerKey -> customerData
 
   pendingRequirements.forEach(req => {
-    const customerName = req.customer_name?.trim() || 'Unknown Customer';
+    const customerName = req.customer_name?.trim() || 'UNKNOWN CUSTOMER';
     const customerKey = req.party_id || customerName;
 
     if (!customerMap.has(customerKey)) {
       customerMap.set(customerKey, {
         customerId: customerKey,
-        customerName,
-        customerCity: req.customer_city || '',
+        customerName: customerName.toUpperCase(),
+        customerCity: req.customer_city ? req.customer_city.trim().toUpperCase() : '',
         customerMobile: req.customer_mobile || '',
         customerWhatsapp: req.customer_whatsapp || '',
         orders: [],
@@ -250,7 +279,7 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
       const ratio = headerTotal > 0 ? (headerPending / headerTotal) : 1;
 
       req.requirement_items.forEach(item => {
-        const prodName = item.product_name?.trim() || 'Unknown Product';
+        const prodName = item.product_name?.trim() || 'UNKNOWN PRODUCT';
         const rawQty = Number(item.quantity) || 0;
         const itemPending = ratio < 1 ? Math.round(rawQty * ratio) : rawQty;
         if (itemPending <= 0) return;
@@ -278,7 +307,7 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
         totalPendingBags += itemPending;
 
         orderObj.products.push({
-          productName: prodName,
+          productName: prodName.toUpperCase(),
           pendingBags: itemPending,
           bagWeightKg: bagWeight,
           itemWeightKg: hasWeight ? itemWeightKg : null,
@@ -290,16 +319,15 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
         if (giftDetails) {
           orderObj.gifts.push(giftDetails);
 
-          // Aggregate into overall gifts summary
           const gName = giftDetails.giftName;
           if (!giftsSummaryMap.has(gName)) {
-            giftsSummaryMap.set(gName, { giftName: gName, totalQty: 0, countUnknown: 0 });
+            giftsSummaryMap.set(gName, { giftName: gName, totalQty: 0, hasUnspecified: false });
           }
           const gEntry = giftsSummaryMap.get(gName);
           if (giftDetails.giftQuantity !== null) {
             gEntry.totalQty += giftDetails.giftQuantity;
           } else {
-            gEntry.countUnknown += 1;
+            gEntry.hasUnspecified = true;
           }
         }
       });
@@ -309,7 +337,7 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
       if (reqPending > 0) {
         const prodName = (req.product_type && req.product_type !== 'General Requirement')
           ? req.product_type.trim()
-          : (req.product_name?.trim() || 'General Requirement');
+          : (req.product_name?.trim() || 'GENERAL REQUIREMENT');
 
         const itemExtra = extras[prodName] || extras['General'] || {};
         const bagWeight = extractItemWeight(req, itemExtra);
@@ -332,7 +360,7 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
         totalPendingBags += reqPending;
 
         orderObj.products.push({
-          productName: prodName,
+          productName: prodName.toUpperCase(),
           pendingBags: reqPending,
           bagWeightKg: bagWeight,
           itemWeightKg: hasWeight ? itemWeightKg : null,
@@ -344,13 +372,13 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
           orderObj.gifts.push(giftDetails);
           const gName = giftDetails.giftName;
           if (!giftsSummaryMap.has(gName)) {
-            giftsSummaryMap.set(gName, { giftName: gName, totalQty: 0, countUnknown: 0 });
+            giftsSummaryMap.set(gName, { giftName: gName, totalQty: 0, hasUnspecified: false });
           }
           const gEntry = giftsSummaryMap.get(gName);
           if (giftDetails.giftQuantity !== null) {
             gEntry.totalQty += giftDetails.giftQuantity;
           } else {
-            gEntry.countUnknown += 1;
+            gEntry.hasUnspecified = true;
           }
         }
       }
@@ -368,17 +396,19 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
 
   // Overall gifts summary array
   const giftsSummary = Array.from(giftsSummaryMap.values()).map(g => {
-    let displayQty = '';
-    if (g.totalQty > 0) {
-      displayQty = g.countUnknown > 0 ? `${g.totalQty} Nos (+ some unknown)` : `${g.totalQty} Nos`;
+    let summaryText = '';
+    if (g.totalQty > 0 && !g.hasUnspecified) {
+      summaryText = `Committed — ${g.totalQty} Nos`;
+    } else if (g.totalQty > 0 && g.hasUnspecified) {
+      summaryText = `Committed — ${g.totalQty} Nos (+ Qty Not Specified)`;
     } else {
-      displayQty = 'Committed (Qty Not Specified)';
+      summaryText = 'Committed — Quantity Not Specified';
     }
     return {
       giftName: g.giftName,
       totalQty: g.totalQty,
-      countUnknown: g.countUnknown,
-      displayQty,
+      hasUnspecified: g.hasUnspecified,
+      summaryText,
     };
   });
 
@@ -398,7 +428,7 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
 }
 
 /**
- * Generates exact WhatsApp message formatted for SL-REQ-WHATSAPP-REPORT-01.
+ * Generates exact WhatsApp message formatted for SL-REQ-WHATSAPP-REPORT-FORMAT-02.
  */
 export function generateWhatsAppReportText(reportData) {
   const {
@@ -411,92 +441,79 @@ export function generateWhatsAppReportText(reportData) {
 
   if (customerList.length === 0) {
     return `👥 *CUSTOMER-WISE PENDING ORDERS*
-━━━━━━━━━━━━━━━━━━
+${SEPARATOR}
 
 No pending dispatch requirements found for this date.
 
+${SEPARATOR}
 *Report generated from Shubh Labh CRM*`;
   }
 
-  const separator = '━━━━━━━━━━━━━━━━━━';
+  const tableHeader = 'Product             Bags   Kg/Bag   Total MT';
 
   const customerBlocks = customerList.map((customer, idx) => {
     const custNum = idx + 1;
-    const custHeader = `${custNum}. *${customer.customerName}*`;
+    let custHeader = `*${custNum}. ${customer.customerName}*`;
+    if (customer.customerCity) {
+      custHeader += `\n📍 ${customer.customerCity}`;
+    }
 
-    // Process orders under customer
+    // Process orders under customer (preserving separate order dates)
     const orderSections = customer.orders.map(order => {
-      const dateLine = `📅 Order Date: ${order.orderDate}`;
+      const dateLine = `📅 ${order.orderDate}`;
 
       const productLines = order.products.map(p => {
-        if (p.hasWeight) {
-          return `• ${p.productName}: ${p.pendingBags} Bags × ${p.bagWeightKg} kg`;
-        } else {
-          return `• ${p.productName}: ${p.pendingBags} Bags (Weight Not Available)`;
-        }
+        return formatProductRow(p.productName, p.pendingBags, p.bagWeightKg);
       }).join('\n');
+
+      const orderBags = `📦 Total: *${order.orderTotalBags} Bags*`;
+      let orderWeight = `⚖️ Weight: *${(order.orderTotalWeightKg / 1000).toFixed(3)} MT*`;
+      if (order.orderHasMissingWeight) {
+        orderWeight += '\n⚠️ Weight incomplete';
+      }
 
       const giftLines = order.gifts.map(g => {
         if (g.giftQuantity !== null) {
           return `🎁 Gift: ${g.giftName} × ${g.giftQuantity}`;
         }
-        return `🎁 Gift: ${g.giftName}`;
+        return `🎁 Gift: ${g.giftName} × Qty Not Specified`;
       }).join('\n');
 
-      let sectionContent = `${dateLine}\n\n${productLines}`;
+      let orderBlock = `${dateLine}\n\n${tableHeader}\n${productLines}\n${SEPARATOR}\n${orderBags}\n${orderWeight}`;
       if (giftLines) {
-        sectionContent += `\n\n${giftLines}`;
+        orderBlock += `\n${giftLines}`;
       }
-      return sectionContent;
+      return orderBlock;
     }).join('\n\n');
 
-    // Customer totals
-    const custTotalBags = `📦 Total: ${customer.totalBags} Bags`;
-    let custTotalWeight = '';
-    if (customer.hasMissingWeight) {
-      if (customer.totalWeightKg > 0) {
-        custTotalWeight = `⚖️ Total Weight: ${(customer.totalWeightKg / 1000).toFixed(3)} MT (⚠️ Incomplete - Weight Not Available for some items)`;
-      } else {
-        custTotalWeight = `⚖️ Total Weight: Weight Not Available`;
-      }
-    } else {
-      custTotalWeight = `⚖️ Total Weight: ${(customer.totalWeightKg / 1000).toFixed(3)} MT`;
-    }
+    return `${custHeader}\n\n${orderSections}`;
+  }).join(`\n\n${SEPARATOR}\n\n`);
 
-    return `${custHeader}\n${orderSections}\n\n${custTotalBags}\n${custTotalWeight}`;
-  }).join(`\n\n${separator}\n\n`);
+  // Grand Total Section
+  let grandTotalSection = `📌 *GRAND TOTAL PENDING*
+📦 Total Bags: *${totalPendingBags} Bags*
+⚖️ Available Weight: *${totalPendingWeightMT} MT*`;
 
-  // Overall Total Section
-  let overallWeightLine = '';
   if (hasMissingWeightOverall) {
-    if (reportData.totalPendingWeightKg > 0) {
-      overallWeightLine = `⚖️ ${totalPendingWeightMT} MT (⚠️ Incomplete - Weight Not Available for some items)`;
-    } else {
-      overallWeightLine = `⚖️ Weight Not Available`;
-    }
-  } else {
-    overallWeightLine = `⚖️ ${totalPendingWeightMT} MT`;
+    grandTotalSection += '\n⚠️ Some product weights are unavailable.';
   }
-
-  const overallPendingSection = `📌 *TOTAL PENDING*
-📦 ${totalPendingBags} Bags
-${overallWeightLine}`;
 
   // Gifts summary section
   let giftsSection = '';
   if (giftsSummary.length > 0) {
-    const giftLines = giftsSummary.map(g => `${g.giftName}: ${g.displayQty}`).join('\n');
-    giftsSection = `\n\n🎁 *PENDING GIFTS SUMMARY*\n${giftLines}`;
+    const giftLines = giftsSummary.map(g => `${g.giftName}: ${g.summaryText}`).join('\n');
+    giftsSection = `\n\n🎁 *PENDING GIFTS*\n${giftLines}`;
   }
 
   return `👥 *CUSTOMER-WISE PENDING ORDERS*
-${separator}
+${SEPARATOR}
 
 ${customerBlocks}
 
-${separator}
+${SEPARATOR}
 
-${overallPendingSection}${giftsSection}
+${grandTotalSection}${giftsSection}
 
+${SEPARATOR}
 *Report generated from Shubh Labh CRM*`;
 }
