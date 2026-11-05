@@ -150,6 +150,327 @@ export function notCountedSummary(entries = []) {
 
 export const UNITS = ['Per 100 kg', 'Per bag', 'Per batch', 'Fixed amount'];
 
+/**
+ * Command Center KPIs: Approved, Pending, Total Recorded, Paid, Deductions, Payable Now, Labourers.
+ * Guarantees pending/rejected never inflate approved wages or payable balance.
+ */
+export function commandCenterMetrics({ entries = [], lines = [], payments = [], deductions = [] }) {
+  const approved = entries.filter(e => isApproved(e.approval_status));
+  const pending = entries.filter(e => !isApproved(e.approval_status) && e.approval_status !== 'Rejected');
+  const rejected = entries.filter(e => e.approval_status === 'Rejected');
+
+  const approvedWage = round2(approved.reduce((s, e) => s + num(e.calculated_labour_amount), 0));
+  const pendingWage = round2(pending.reduce((s, e) => s + num(e.calculated_labour_amount), 0));
+  const rejectedWage = round2(rejected.reduce((s, e) => s + num(e.calculated_labour_amount), 0));
+  const totalRecordedWage = round2(approvedWage + pendingWage);
+
+  const approvedEntryIds = new Set(approved.map(e => e.id));
+  const approvedLines = lines.filter(l => approvedEntryIds.has(l.work_entry_id));
+  const approvedEarned = round2(approvedLines.reduce((s, l) => s + num(l.allocated_amount), 0));
+
+  const pendingEntryIds = new Set(pending.map(e => e.id));
+  const pendingLines = lines.filter(l => pendingEntryIds.has(l.work_entry_id));
+  const pendingEarned = round2(pendingLines.reduce((s, l) => s + num(l.allocated_amount), 0));
+
+  const paid = round2(payments.reduce((s, p) => s + num(p.amount), 0));
+  const deductionsTotal = round2(deductions.reduce((s, d) => s + num(d.allocated_amount), 0));
+  const payableNow = round2(approvedEarned - paid - deductionsTotal);
+
+  const labourersWorked = new Set(approvedLines.map(l => l.labourer_id)).size;
+  const avgApprovedPerLabourer = labourersWorked > 0 ? round2(approvedEarned / labourersWorked) : 0;
+  const workDays = new Set(approved.map(e => e.work_date)).size;
+
+  return {
+    approvedWage,
+    approvedCount: approved.length,
+    pendingWage,
+    pendingCount: pending.length,
+    rejectedWage,
+    rejectedCount: rejected.length,
+    totalRecordedWage,
+    totalRecordedCount: approved.length + pending.length,
+    totalEntriesCount: entries.length,
+    approvedEarned,
+    pendingEarned,
+    paid,
+    deductions: deductionsTotal,
+    payableNow,
+    labourersWorked,
+    avgApprovedPerLabourer,
+    workDays,
+  };
+}
+
+/**
+ * Groups daily rows by date (newest first) with subtotals and day statuses.
+ */
+export function groupedDailyEntries({ entries = [], lines = [], contractorsById = {}, labourersById = {} }) {
+  const rows = dailyRows({ entries, lines, contractorsById, labourersById });
+  const byDate = new Map();
+
+  rows.forEach(r => {
+    if (!byDate.has(r.date)) {
+      byDate.set(r.date, []);
+    }
+    byDate.get(r.date).push(r);
+  });
+
+  const sortedDates = [...byDate.keys()].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+
+  return sortedDates.map(date => {
+    const dateRows = byDate.get(date);
+    const approvedRows = dateRows.filter(r => isApproved(r.status));
+    const pendingRows = dateRows.filter(r => !isApproved(r.status));
+
+    const totalApprovedAmount = round2(approvedRows.reduce((s, r) => s + num(r.amount), 0));
+    const totalPendingAmount = round2(pendingRows.reduce((s, r) => s + num(r.amount), 0));
+    const totalAmount = round2(dateRows.reduce((s, r) => s + num(r.amount), 0));
+    const totalWeightKg = dateRows.reduce((s, r) => s + num(r.entry?.total_weight_kg), 0);
+    const totalBags = dateRows.reduce((s, r) => s + num(r.entry?.total_bags), 0);
+    const totalBatches = dateRows.reduce((s, r) => s + num(r.entry?.total_batches), 0);
+
+    const statuses = new Set(dateRows.map(r => r.status || 'Pending'));
+    let dayStatus = 'Pending';
+    if (statuses.size === 1) {
+      dayStatus = [...statuses][0];
+    } else if (statuses.has('Approved') && (statuses.has('Pending') || statuses.has('Rejected'))) {
+      dayStatus = 'Mixed';
+    }
+
+    const uniqueLabourerNames = new Set();
+    dateRows.forEach(r => {
+      (r.labourers || []).forEach(l => {
+        if (l.name && l.name !== '—') uniqueLabourerNames.add(l.name);
+      });
+    });
+
+    return {
+      date,
+      rows: dateRows,
+      entryCount: dateRows.length,
+      totalApprovedAmount,
+      totalPendingAmount,
+      totalAmount,
+      totalWeightKg,
+      totalBags,
+      totalBatches,
+      dayStatus,
+      labourerCount: uniqueLabourerNames.size,
+    };
+  });
+}
+
+/**
+ * Detailed labourer balances and history for drill-down.
+ */
+export function detailedLabourerLedger({ lines = [], payments = [], deductions = [], entries = [], labourersById = {} }) {
+  const entriesById = Object.fromEntries(entries.map(e => [e.id, e]));
+  const by = new Map();
+
+  const getLabourer = (id) => {
+    if (!by.has(id)) {
+      const lab = labourersById[id] || {};
+      by.set(id, {
+        id,
+        name: lab.name || '—',
+        localId: lab.local_id || '',
+        active: lab.active_status !== false,
+        approvedDays: new Set(),
+        pendingDays: new Set(),
+        approvedEarned: 0,
+        pendingEarned: 0,
+        paid: 0,
+        deducted: 0,
+        workHistory: [],
+        paymentHistory: [],
+        deductionHistory: [],
+      });
+    }
+    return by.get(id);
+  };
+
+  lines.forEach(l => {
+    const r = getLabourer(l.labourer_id);
+    const entry = entriesById[l.work_entry_id] || {};
+    const approved = isApproved(entry.approval_status);
+    const amount = num(l.allocated_amount);
+    if (approved) {
+      r.approvedEarned += amount;
+      r.approvedDays.add(l.work_date);
+    } else {
+      r.pendingEarned += amount;
+      r.pendingDays.add(l.work_date);
+    }
+    r.workHistory.push({
+      id: l.allocation_id || `${l.work_entry_id}_${l.labourer_id}`,
+      workEntryId: l.work_entry_id,
+      date: l.work_date,
+      workType: workTypeLabel(entry.work_type),
+      quantity: quantityLabel(entry),
+      rate: rateLabel(entry),
+      allocatedAmount: amount,
+      status: entry.approval_status || 'Pending',
+    });
+  });
+
+  payments.forEach(p => {
+    const r = getLabourer(p.labourer_id);
+    const amount = num(p.amount);
+    r.paid += amount;
+    r.paymentHistory.push({
+      id: p.id,
+      date: p.payment_date,
+      amount,
+      method: p.payment_method || 'Cash',
+    });
+  });
+
+  deductions.forEach(d => {
+    const r = getLabourer(d.labourer_id);
+    const amount = num(d.allocated_amount);
+    r.deducted += amount;
+    r.deductionHistory.push({
+      id: d.id || `${d.expense_id}_${d.labourer_id}`,
+      expenseId: d.expense_id,
+      amount,
+    });
+  });
+
+  return [...by.values()]
+    .map(r => {
+      const approvedEarned = round2(r.approvedEarned);
+      const pendingEarned = round2(r.pendingEarned);
+      const paid = round2(r.paid);
+      const deducted = round2(r.deducted);
+      const totalEarned = round2(approvedEarned + pendingEarned);
+      const payableBalance = round2(approvedEarned - paid - deducted);
+
+      r.workHistory.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+      r.paymentHistory.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
+      return {
+        ...r,
+        approvedDays: r.approvedDays.size,
+        pendingDays: r.pendingDays.size,
+        approvedEarned,
+        pendingEarned,
+        totalEarned,
+        paid,
+        deducted,
+        payableBalance,
+      };
+    })
+    .sort((a, b) => b.payableBalance - a.payableBalance || a.name.localeCompare(b.name));
+}
+
+/**
+ * Breakdown by work type.
+ */
+export function workTypeSummary({ entries = [] }) {
+  const byType = new Map();
+
+  entries.forEach(e => {
+    const t = e.work_type || 'other';
+    if (!byType.has(t)) {
+      byType.set(t, {
+        workType: t,
+        label: workTypeLabel(t),
+        unit: e.rate_unit_snapshot || '',
+        count: 0,
+        approvedCount: 0,
+        pendingCount: 0,
+        approvedAmount: 0,
+        pendingAmount: 0,
+        totalAmount: 0,
+        totalWeightKg: 0,
+        totalBags: 0,
+        totalBatches: 0,
+      });
+    }
+    const row = byType.get(t);
+    const amt = num(e.calculated_labour_amount);
+    const approved = isApproved(e.approval_status);
+    row.count += 1;
+    row.totalAmount = round2(row.totalAmount + amt);
+    row.totalWeightKg += num(e.total_weight_kg);
+    row.totalBags += num(e.total_bags);
+    row.totalBatches += num(e.total_batches);
+    if (approved) {
+      row.approvedCount += 1;
+      row.approvedAmount = round2(row.approvedAmount + amt);
+    } else {
+      row.pendingCount += 1;
+      row.pendingAmount = round2(row.pendingAmount + amt);
+    }
+  });
+
+  return [...byType.values()].sort((a, b) => b.totalAmount - a.totalAmount);
+}
+
+/**
+ * Export daily register rows to CSV string.
+ */
+export function generateDailyRegisterCsv(groupedRows = [], { contractorName = '', fromDate = '', toDate = '' } = {}) {
+  const headers = ['Date', 'Contractor', 'Work Type', 'Quantity', 'Rate', 'Amount (INR)', 'Status', 'Labourer Count', 'Labourers'];
+  const lines = [
+    `# Labour Hisaab - Daily Register`,
+    `# Period: ${fromDate} to ${toDate}`,
+    `# Contractor: ${contractorName || 'All'}`,
+    headers.join(','),
+  ];
+
+  const escape = (v) => `"${String(v || '').replace(/"/g, '""')}"`;
+  groupedRows.forEach(g => {
+    g.rows.forEach(r => {
+      const labourersStr = (r.labourers || []).map(l => `${l.name} (${l.amount})`).join('; ');
+      lines.push([
+        r.date,
+        escape(r.contractor),
+        escape(r.workType),
+        escape(r.quantity),
+        escape(r.rate),
+        r.amount,
+        escape(r.status || 'Pending'),
+        (r.labourers || []).length,
+        escape(labourersStr),
+      ].join(','));
+    });
+  });
+
+  return lines.join('\n');
+}
+
+/**
+ * Export labourer balances to CSV string.
+ */
+export function generateLabourerBalancesCsv(labourers = [], { contractorName = '', fromDate = '', toDate = '' } = {}) {
+  const headers = ['Labourer Name', 'Local ID', 'Status', 'Days Worked', 'Approved Earned (INR)', 'Pending Earned (INR)', 'Total Earned (INR)', 'Paid (INR)', 'Deductions (INR)', 'Payable Balance (INR)'];
+  const lines = [
+    `# Labour Hisaab - Labourer Balances`,
+    `# Period: ${fromDate} to ${toDate}`,
+    `# Contractor: ${contractorName || 'All'}`,
+    headers.join(','),
+  ];
+
+  const escape = (v) => `"${String(v || '').replace(/"/g, '""')}"`;
+  labourers.forEach(l => {
+    lines.push([
+      escape(l.name),
+      escape(l.localId),
+      l.active ? 'Active' : 'Inactive',
+      l.approvedDays || l.days || 0,
+      l.approvedEarned ?? l.earned ?? 0,
+      l.pendingEarned ?? 0,
+      l.totalEarned ?? l.earned ?? 0,
+      l.paid ?? 0,
+      l.deducted ?? 0,
+      l.payableBalance ?? l.balance ?? 0,
+    ].join(','));
+  });
+
+  return lines.join('\n');
+}
+
 /** Amount the server will compute (fn_calculate_work_amount) — preview only. */
 export function previewAmount({ rate, unit, totalWeightKg = 0, totalBags = 0, totalBatches = 0 }) {
   const r = num(rate);

@@ -126,6 +126,89 @@ test('admin dialog writes ONLY through the 255 functions; delete needs confirmat
   assert.match(page, /isAdmin \? <th style=\{th\}>Actions<\/th> : null/, 'actions only for admins');
 });
 
+test('commandCenterMetrics: separates approved vs pending, excludes pending from payableNow', async () => {
+  const { commandCenterMetrics } = await import('../labourHisaabData.js');
+  const es = [
+    { id: 'e1', work_date: '2026-11-02', approval_status: 'Approved', calculated_labour_amount: 5000 },
+    { id: 'e2', work_date: '2026-11-03', approval_status: 'Pending', calculated_labour_amount: 2000 },
+    { id: 'e3', work_date: '2026-11-03', approval_status: 'Rejected', calculated_labour_amount: 800 },
+  ];
+  const ls = [
+    { work_entry_id: 'e1', labourer_id: 'L1', allocated_amount: 5000 },
+    { work_entry_id: 'e2', labourer_id: 'L1', allocated_amount: 2000 },
+    { work_entry_id: 'e3', labourer_id: 'L1', allocated_amount: 800 },
+  ];
+  const payments = [{ labourer_id: 'L1', amount: 1500 }];
+  const deductions = [{ labourer_id: 'L1', allocated_amount: 200 }];
+
+  const m = commandCenterMetrics({ entries: es, lines: ls, payments, deductions });
+  assert.equal(m.approvedWage, 5000);
+  assert.equal(m.pendingWage, 2000);
+  assert.equal(m.rejectedWage, 800);
+  assert.equal(m.totalRecordedWage, 7000); // 5000 + 2000
+  assert.equal(m.approvedEarned, 5000);
+  assert.equal(m.pendingEarned, 2000);
+  assert.equal(m.paid, 1500);
+  assert.equal(m.deductions, 200);
+  assert.equal(m.payableNow, 3300); // 5000 - 1500 - 200
+  assert.equal(m.labourersWorked, 1);
+  assert.equal(m.avgApprovedPerLabourer, 5000);
+  assert.equal(m.workDays, 1);
+});
+
+test('groupedDailyEntries, detailedLabourerLedger, workTypeSummary, and CSV exports', async () => {
+  const {
+    groupedDailyEntries, detailedLabourerLedger, workTypeSummary,
+    generateDailyRegisterCsv, generateLabourerBalancesCsv,
+  } = await import('../labourHisaabData.js');
+
+  const es = [
+    { id: 'e1', contractor_id: 'c1', work_date: '2026-11-03', work_type: 'pallet', rate_snapshot: 21, rate_unit_snapshot: 'Per 100 kg', total_weight_kg: 5000, total_bags: 100, total_batches: 0, calculated_labour_amount: 1050, approval_status: 'Approved' },
+    { id: 'e2', contractor_id: 'c1', work_date: '2026-11-02', work_type: 'mix', rate_snapshot: 21, rate_unit_snapshot: 'Per 100 kg', total_weight_kg: 2000, total_bags: 40, total_batches: 0, calculated_labour_amount: 420, approval_status: 'Pending' },
+  ];
+  const ls = [
+    { work_entry_id: 'e1', labourer_id: 'L1', work_date: '2026-11-03', allocated_amount: 1050 },
+    { work_entry_id: 'e2', labourer_id: 'L1', work_date: '2026-11-02', allocated_amount: 420 },
+  ];
+  const labourersById = { L1: { name: 'Golu', local_id: 'LH_LAB_001', active_status: true } };
+  const contractorsById = { c1: { name: 'Shubh Labh' } };
+
+  // 1. Grouped Daily Entries
+  const grouped = groupedDailyEntries({ entries: es, lines: ls, contractorsById, labourersById });
+  assert.equal(grouped.length, 2);
+  assert.equal(grouped[0].date, '2026-11-03');
+  assert.equal(grouped[0].dayStatus, 'Approved');
+  assert.equal(grouped[0].totalApprovedAmount, 1050);
+  assert.equal(grouped[1].date, '2026-11-02');
+  assert.equal(grouped[1].dayStatus, 'Pending');
+  assert.equal(grouped[1].totalPendingAmount, 420);
+
+  // 2. Detailed Labourer Ledger
+  const ledger = detailedLabourerLedger({ lines: ls, payments: [{ labourer_id: 'L1', amount: 500 }], deductions: [], entries: es, labourersById });
+  assert.equal(ledger.length, 1);
+  assert.equal(ledger[0].approvedEarned, 1050);
+  assert.equal(ledger[0].pendingEarned, 420);
+  assert.equal(ledger[0].paid, 500);
+  assert.equal(ledger[0].payableBalance, 550); // 1050 - 500
+  assert.equal(ledger[0].workHistory.length, 2);
+
+  // 3. Work Type Summary
+  const wt = workTypeSummary({ entries: es });
+  assert.equal(wt.length, 2);
+  assert.equal(wt[0].workType, 'pallet');
+  assert.equal(wt[0].totalAmount, 1050);
+
+  // 4. CSV Exports
+  const dailyCsv = generateDailyRegisterCsv(grouped, { contractorName: 'Shubh Labh', fromDate: '2026-11-01', toDate: '2026-11-03' });
+  assert.match(dailyCsv, /Daily Register/);
+  assert.match(dailyCsv, /2026-11-03/);
+  assert.match(dailyCsv, /Golu/);
+
+  const labCsv = generateLabourerBalancesCsv(ledger, { contractorName: 'Shubh Labh', fromDate: '2026-11-01', toDate: '2026-11-03' });
+  assert.match(labCsv, /Labourer Balances/);
+  assert.match(labCsv, /LH_LAB_001/);
+});
+
 test('connection states: missing tables vs permission denied', () => {
   assert.equal(isNotConnectedError({ code: 'PGRST205', message: "Could not find the table 'public.v_labour_work_lines'" }), true);
   assert.equal(isNotConnectedError({ code: '42P01', message: 'relation "daily_work_entries" does not exist' }), true);
