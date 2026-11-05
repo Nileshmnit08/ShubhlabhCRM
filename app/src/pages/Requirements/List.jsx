@@ -2,13 +2,14 @@ import React, { useEffect, useState, useContext, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare, Undo2 } from 'lucide-react';
+import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare, Undo2, FileText } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
 import {
   INACTIVE_DISPATCH_STATUSES, UNDISPATCH_REASON, activeDispatches, checkUndispatch, restoreStatus, needsStatusRestore,
 } from '../../lib/requirementUndispatch';
+import DailyPendingDispatchReport from '../../components/requirements/DailyPendingDispatchReport';
 
 const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, openDispatchModal, openUndispatchModal, isAdmin, menuPosition }) => {
   const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
@@ -51,7 +52,7 @@ export default function RequirementList() {
   const [users, setUsers] = useState([]);
   
   // View Modes
-  const [viewMode, setViewMode] = useState('customer');
+  const [viewMode, setViewMode] = useState('customer'); // 'customer' | 'requirement' | 'daily_report'
   const [expandedCustomers, setExpandedCustomers] = useState(new Set());
 
   // Modal & Toast State
@@ -731,7 +732,9 @@ export default function RequirementList() {
         <div>
           <h1 style={{margin: 0}}>Requirements Board</h1>
           <p className="text-secondary" style={{marginTop: '0.25rem'}}>
-            {viewMode === 'customer' ? (
+            {viewMode === 'daily_report' ? (
+              <span>Daily Pending Dispatch Report • WhatsApp Sharing</span>
+            ) : viewMode === 'customer' ? (
               <span>{groupedCustomers.length} customers • {filteredRequirements.length} {statusFilter === 'Dispatched' ? 'dispatched' : statusFilter === 'Not Dispatched' ? 'not dispatched' : includeCompleted || statusFilter === 'All' ? 'total' : 'active'} requirements</span>
             ) : (
               <span>Showing {filteredRequirements.length} {statusFilter === 'Dispatched' ? 'dispatched' : statusFilter === 'Not Dispatched' ? 'not dispatched' : includeCompleted || statusFilter === 'All' ? 'total' : 'active'} requirements</span>
@@ -757,6 +760,15 @@ export default function RequirementList() {
               }}
             >
               <LayoutGrid size={14} /> Flat List
+            </button>
+            <button 
+              onClick={() => setViewMode('daily_report')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 500, cursor: 'pointer',
+                border: 'none', background: viewMode === 'daily_report' ? 'var(--primary)' : 'transparent', color: viewMode === 'daily_report' ? '#fff' : 'var(--text-secondary)'
+              }}
+            >
+              <FileText size={14} /> Daily Report
             </button>
           </div>
           <Link to="/customers" className="btn btn-primary">
@@ -850,6 +862,12 @@ export default function RequirementList() {
         </div>
       ) : loading ? (
         <div style={{padding: '3rem', textAlign: 'center'}} className="text-muted">Loading pipeline...</div>
+      ) : viewMode === 'daily_report' ? (
+        <DailyPendingDispatchReport 
+          requirements={filteredRequirements} 
+          loading={loading} 
+          onRefresh={fetchRequirements} 
+        />
       ) : filteredRequirements.length === 0 ? (
         <div className="glass-panel" style={{padding: '4rem', textAlign: 'center'}}>
           <ClipboardList size={48} className="text-secondary" style={{margin: '0 auto 1rem', opacity: 0.5}} />
