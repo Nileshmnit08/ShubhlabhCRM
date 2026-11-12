@@ -156,7 +156,7 @@ export function extractItemWeight(item, extra = {}) {
  * Extracts gift details for an item.
  * Returns null if no gift.
  */
-export function extractGiftDetails(item, extra = {}) {
+export function extractGiftDetails(item, extra = {}, { preserveCase = false } = {}) {
   const rawGift = item?.gift || extra?.gift;
   const rawOther = item?.other_gift || extra?.other_gift;
 
@@ -192,7 +192,7 @@ export function extractGiftDetails(item, extra = {}) {
   }
 
   return {
-    giftName: giftName.toUpperCase(),
+    giftName: preserveCase ? giftName : giftName.toUpperCase(),
     giftQuantity: (giftQty !== null && !isNaN(giftQty) && giftQty > 0) ? giftQty : null,
   };
 }

@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   FileText, Calendar, Copy, Check, 
   Package, Users, ClipboardList, 
-  MessageCircle, Eye, AlertTriangle, Gift, Scale, MapPin
+  MessageCircle, Eye, AlertTriangle, Gift, Scale, MapPin, X
 } from 'lucide-react';
 import { 
   filterPendingRequirements, 
@@ -10,6 +10,11 @@ import {
   generateWhatsAppReportText,
   formatDateForDisplay
 } from '../../lib/dailyPendingReport';
+import {
+  computeProductionReport,
+  generateProductionReportText,
+  formatIndianNumber,
+} from '../../lib/productionReport';
 
 export default function DailyPendingDispatchReport({ requirements = [], loading = false, onRefresh }) {
   // Default to today's date in local YYYY-MM-DD
@@ -23,6 +28,18 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
   const [dateMode, setDateMode] = useState('exact'); // 'exact' | 'up_to' | 'all'
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showProductionModal, setShowProductionModal] = useState(false);
+  const [productionCopyFeedback, setProductionCopyFeedback] = useState(false);
+
+  // Close production modal on Escape key
+  useEffect(() => {
+    if (!showProductionModal) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setShowProductionModal(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showProductionModal]);
 
   // Compute pending requirements based on date filters
   const pendingFiltered = useMemo(() => {
@@ -42,6 +59,35 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
     return generateWhatsAppReportText(reportData);
   }, [reportData]);
 
+  // Compute Factory Production Report data (strictly product & packaging grouped, no customers)
+  const productionData = useMemo(() => {
+    return computeProductionReport(pendingFiltered, dateMode === 'all' ? '' : selectedDate);
+  }, [pendingFiltered, selectedDate, dateMode]);
+
+  const productionReportText = useMemo(() => {
+    return generateProductionReportText(productionData);
+  }, [productionData]);
+
+  // Shared clipboard helper
+  const copyTextToClipboard = async (text, setFeedback) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setFeedback(true);
+      setTimeout(() => setFeedback(false), 2500);
+    } catch (err) {
+      console.error('Failed to copy report text:', err);
+    }
+  };
+
   // Handle Share on WhatsApp
   const handleShareWhatsApp = () => {
     if (reportData.totalCustomers === 0) return;
@@ -49,25 +95,17 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  // Handle Copy to Clipboard
-  const handleCopyReport = async () => {
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(whatsAppText);
-      } else {
-        const textarea = document.createElement('textarea');
-        textarea.value = whatsAppText;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      }
-      setCopyFeedback(true);
-      setTimeout(() => setCopyFeedback(false), 2500);
-    } catch (err) {
-      console.error('Failed to copy report text:', err);
-    }
+  // Handle Copy to Clipboard (Customer Report)
+  const handleCopyReport = () => copyTextToClipboard(whatsAppText, setCopyFeedback);
+
+  // Handle Production Report WhatsApp & Copy
+  const handleShareProductionWhatsApp = () => {
+    if (productionData.totalBags === 0) return;
+    const url = `https://wa.me/?text=${encodeURIComponent(productionReportText)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
+
+  const handleCopyProductionReport = () => copyTextToClipboard(productionReportText, setProductionCopyFeedback);
 
   const handleQuickDate = (mode, targetDate) => {
     setDateMode(mode);
@@ -141,6 +179,22 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
             >
               {copyFeedback ? <Check size={15} /> : <Copy size={15} />}
               {copyFeedback ? 'Copied to Clipboard!' : 'Copy Report'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowProductionModal(true)}
+              className="btn btn-secondary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.85rem',
+                padding: '7px 12px'
+              }}
+              title="Open Hindi Production Report for factory & packing team"
+            >
+              🏭 Production Report
             </button>
 
             <button
@@ -624,6 +678,168 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 6. Factory Production Report Modal (SL-REQ-PRODUCTION-REPORT-01) */}
+      {showProductionModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="production-report-modal-title"
+          onClick={() => setShowProductionModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            padding: '1rem'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: '720px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              borderRadius: '16px',
+              backgroundColor: '#ffffff',
+              color: '#111827',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid #E5E7EB',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', borderBottom: '1px solid #E5E7EB' }}>
+              <div>
+                <h3 id="production-report-modal-title" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#111827' }}>
+                  🏭 Production Report (उत्पादन विभाग)
+                </h3>
+                <p style={{ margin: '2px 0 0', fontSize: '0.82rem', color: '#6B7280' }}>
+                  दिनांक: {productionData.reportDateDDMMYYYY} • केवल उत्पाद एवं पैकेजिंग सारांश (ग्राहक जानकारी रहित)
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="बंद करें"
+                onClick={() => setShowProductionModal(false)}
+                style={{
+                  background: '#F3F4F6',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '6px',
+                  cursor: 'pointer',
+                  color: '#4B5563',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Compact Totals Strip */}
+            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', padding: '0.75rem 1.25rem', backgroundColor: '#F9FAFB', borderBottom: '1px solid #E5E7EB', fontSize: '0.85rem' }}>
+              <span>
+                📦 उत्पाद: <strong>{productionData.products.length}</strong>
+              </span>
+              <span>
+                🛍️ कुल बैग: <strong>{formatIndianNumber(productionData.totalBags)}</strong>
+              </span>
+              <span>
+                ⚖️ कुल माल: <strong>{formatIndianNumber(productionData.totalKnownWeightKg)} किलो ({productionData.totalKnownWeightMT} MT)</strong>
+              </span>
+              {productionData.hasMissingWeightOverall && (
+                <span style={{ color: '#B45309', fontWeight: 600 }}>
+                  ⚠️ कुछ वजन उपलब्ध नहीं
+                </span>
+              )}
+            </div>
+
+            {/* Preview Text */}
+            <div style={{ padding: '1.25rem' }}>
+              <pre
+                style={{
+                  margin: 0,
+                  fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+                  fontSize: '0.9rem',
+                  whiteSpace: 'pre-wrap',
+                  backgroundColor: '#F9FAFB',
+                  padding: '1rem',
+                  borderRadius: '8px',
+                  border: '1px solid #E5E7EB',
+                  color: '#111827',
+                  maxHeight: '50vh',
+                  overflowY: 'auto',
+                  lineHeight: 1.55
+                }}
+              >
+                {productionReportText}
+              </pre>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', padding: '1rem 1.25rem', borderTop: '1px solid #E5E7EB', backgroundColor: '#F9FAFB' }}>
+              <button
+                type="button"
+                onClick={() => setShowProductionModal(false)}
+                className="btn btn-secondary"
+                style={{ padding: '8px 14px', fontSize: '0.88rem' }}
+              >
+                बंद करें
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyProductionReport}
+                className="btn btn-secondary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 14px',
+                  fontSize: '0.88rem',
+                  borderColor: productionCopyFeedback ? 'var(--success)' : undefined,
+                  color: productionCopyFeedback ? 'var(--success)' : undefined,
+                  background: productionCopyFeedback ? 'rgba(16, 185, 129, 0.08)' : undefined
+                }}
+              >
+                {productionCopyFeedback ? <Check size={15} /> : <Copy size={15} />}
+                {productionCopyFeedback ? 'कॉपी हो गया!' : 'कॉपी करें'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleShareProductionWhatsApp}
+                disabled={productionData.totalBags === 0}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  fontSize: '0.88rem',
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: productionData.totalBags === 0 ? 'not-allowed' : 'pointer',
+                  background: productionData.totalBags === 0 ? '#9CA3AF' : '#25D366',
+                  color: '#ffffff',
+                  opacity: productionData.totalBags === 0 ? 0.6 : 1
+                }}
+              >
+                <MessageCircle size={16} />
+                WhatsApp पर भेजें
+              </button>
+            </div>
           </div>
         </div>
       )}
