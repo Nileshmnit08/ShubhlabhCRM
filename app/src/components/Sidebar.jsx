@@ -103,6 +103,7 @@ function NavItem({
   onNotifClick,
   onMobileClose,
   isChild,
+  isDailyItem,
 }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -135,11 +136,26 @@ function NavItem({
   };
 
   const tooltipLabel = collapsed ? item.label : null;
+  const dailyIconWrapStyle = isDailyItem && item.iconColor
+    ? {
+        backgroundColor: `${item.iconColor}20`,
+        color: item.iconColor,
+      }
+    : undefined;
+  const iconStyle = isDailyItem && item.iconColor
+    ? { color: item.iconColor }
+    : undefined;
 
   const innerContent = (
     <>
       <div className="nav-item-content">
-        <item.icon size={18} className="nav-icon" aria-hidden="true" />
+        {isDailyItem ? (
+          <span className="nav-daily-icon-wrap" style={dailyIconWrapStyle} aria-hidden="true">
+            <item.icon size={17} className="nav-icon nav-daily-icon" style={iconStyle} aria-hidden="true" />
+          </span>
+        ) : (
+          <item.icon size={18} className="nav-icon" aria-hidden="true" />
+        )}
         {!collapsed && (
           <span className="nav-label">{item.label}</span>
         )}
@@ -165,6 +181,7 @@ function NavItem({
 
   const className = [
     'nav-item',
+    isDailyItem ? 'nav-daily-item' : '',
     isActive ? 'active' : '',
     isChild ? 'nav-item-child' : '',
     collapsed ? 'nav-item-collapsed' : '',
@@ -191,6 +208,7 @@ function NavItem({
       className={({ isActive: routerActive }) =>
         [
           'nav-item',
+          isDailyItem ? 'nav-daily-item' : '',
           routerActive ? 'active' : '',
           isChild ? 'nav-item-child' : '',
           collapsed ? 'nav-item-collapsed' : '',
@@ -328,10 +346,11 @@ export default function Sidebar({
   const userRole = userProfile?.role || 'Staff';
   const isAdmin = userRole === 'Admin';
 
-  // ── Collapsed state ──
+  // ── Collapsed state (always expand inside mobile drawer) ──
   const [collapsed, setCollapsed] = useState(
     () => safeGet(COLLAPSED_STORAGE_KEY, false)
   );
+  const isCollapsed = collapsed && !isOpen;
 
   // ── Section expand state ──
   const [expandedSections, setExpandedSections] = useState(
@@ -436,37 +455,63 @@ export default function Sidebar({
 
     if (visibleItems.length === 0) return null;
 
-    const isExpanded = expandedSections[section.id] !== false;
+    const isDailyWork = Boolean(section.isDailyWork);
+    const isCollapsible = section.collapsible !== false;
+    const isExpanded = isCollapsible ? expandedSections[section.id] !== false : true;
 
     return (
-      <div key={section.id} className="nav-section">
+      <div
+        key={section.id}
+        className={[
+          'nav-section',
+          isDailyWork ? 'nav-daily-work-section' : '',
+          isDailyWork && isCollapsed ? 'nav-daily-work-collapsed' : '',
+        ].filter(Boolean).join(' ')}
+      >
         {section.dividerBefore && <div className="nav-divider" role="separator" />}
 
-        <button
-          className={`nav-section-header ${collapsed ? 'collapsed-mode' : ''}`}
-          onClick={() => toggleSection(section.id)}
-          aria-expanded={isExpanded}
-          title={collapsed ? section.title : undefined}
-        >
-          {!collapsed && (
-            <>
-              <span className="nav-section-title">{section.title.toUpperCase()}</span>
-              {isExpanded
-                ? <ChevronDown size={14} aria-hidden="true" className="nav-section-chevron" />
-                : <ChevronRight size={14} aria-hidden="true" className="nav-section-chevron" />
-              }
-            </>
-          )}
-          {collapsed && (
-            <span className="nav-section-dot" aria-hidden="true" />
-          )}
-        </button>
+        {isDailyWork ? (
+          <div
+            className={`nav-daily-work-header ${isCollapsed ? 'collapsed-mode' : ''}`}
+            title={isCollapsed ? section.title : undefined}
+          >
+            {!isCollapsed ? (
+              <span className="nav-daily-work-title">{section.title.toUpperCase()}</span>
+            ) : (
+              <span className="nav-daily-work-dot" aria-hidden="true" />
+            )}
+          </div>
+        ) : (
+          <button
+            className={`nav-section-header ${isCollapsed ? 'collapsed-mode' : ''}`}
+            onClick={() => toggleSection(section.id)}
+            aria-expanded={isExpanded}
+            title={isCollapsed ? section.title : undefined}
+          >
+            {!isCollapsed && (
+              <>
+                <span className="nav-section-title">{section.title.toUpperCase()}</span>
+                {isExpanded
+                  ? <ChevronDown size={14} aria-hidden="true" className="nav-section-chevron" />
+                  : <ChevronRight size={14} aria-hidden="true" className="nav-section-chevron" />
+                }
+              </>
+            )}
+            {isCollapsed && (
+              <span className="nav-section-dot" aria-hidden="true" />
+            )}
+          </button>
+        )}
 
         {isExpanded && (
-          <div className="nav-section-items" role="group" aria-label={section.title}>
+          <div
+            className={isDailyWork ? 'nav-daily-work-items' : 'nav-section-items'}
+            role="group"
+            aria-label={section.title}
+          >
             {visibleItems.map(item => {
               if (item.isFavoritesAnchor) {
-                if (collapsed) return null;
+                if (isCollapsed) return null;
                 return (
                   <div key="favorites" className="nav-favorites-section">
                     <div className="nav-favorites-header">
@@ -491,7 +536,7 @@ export default function Sidebar({
                   <SubGroup
                     key={item.id}
                     item={item}
-                    collapsed={collapsed}
+                    collapsed={isCollapsed}
                     badges={badges}
                     onNotifClick={onNotifClick}
                     onMobileClose={onClose}
@@ -510,12 +555,13 @@ export default function Sidebar({
                 <NavItem
                   key={item.id}
                   item={item}
-                  collapsed={collapsed}
+                  collapsed={isCollapsed}
                   isPinned={pinnedIds.includes(item.id)}
                   onTogglePin={item.pinEligible ? togglePin : null}
                   badges={badges}
                   onNotifClick={onNotifClick}
                   onMobileClose={onClose}
+                  isDailyItem={isDailyWork}
                 />
               );
             })}
@@ -524,6 +570,9 @@ export default function Sidebar({
       </div>
     );
   };
+
+  const dailyWorkSections = NAV_SECTIONS.filter(section => section.isDailyWork);
+  const otherModuleSections = NAV_SECTIONS.filter(section => !section.isDailyWork);
 
   return (
     <>
@@ -539,14 +588,14 @@ export default function Sidebar({
       <aside
         className={[
           'sidebar',
-          collapsed ? 'sidebar-collapsed' : '',
+          isCollapsed ? 'sidebar-collapsed' : '',
           isOpen ? 'sidebar-mobile-open' : '',
         ].filter(Boolean).join(' ')}
         aria-label="Main navigation"
       >
         {/* Brand header */}
         <div className="sidebar-header">
-          {!collapsed && (
+          {!isCollapsed && (
             <div className="sidebar-brand">
               {crmSettings?.app_logo_url ? (
                 <img
@@ -570,7 +619,7 @@ export default function Sidebar({
               </div>
             </div>
           )}
-          {collapsed && (
+          {isCollapsed && (
             <div className="sidebar-brand sidebar-brand-collapsed">
               {crmSettings?.app_logo_url ? (
                 <img src={crmSettings.app_logo_url} alt={crmSettings?.crm_name || 'Shubh Labh CRM'} className="sidebar-logo" />
@@ -596,7 +645,19 @@ export default function Sidebar({
 
         {/* Nav */}
         <nav className="sidebar-nav" role="navigation" aria-label="CRM Navigation">
-          {NAV_SECTIONS.map(renderSection)}
+          {dailyWorkSections.map(renderSection)}
+
+          {otherModuleSections.length > 0 && (
+            !isCollapsed ? (
+              <div className="nav-other-modules-heading" role="heading" aria-level={2}>
+                <span>OTHER MODULES</span>
+              </div>
+            ) : (
+              <div className="nav-divider" role="separator" />
+            )
+          )}
+
+          {otherModuleSections.map(renderSection)}
         </nav>
 
         {/* Collapse toggle (desktop) */}
@@ -604,14 +665,14 @@ export default function Sidebar({
           <button
             className="sidebar-collapse-btn"
             onClick={() => setCollapsed(c => !c)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed
+            {isCollapsed
               ? <PanelLeftOpen size={18} />
               : <PanelLeftClose size={18} />
             }
-            {!collapsed && <span>Collapse</span>}
+            {!isCollapsed && <span>Collapse</span>}
           </button>
         </div>
       </aside>

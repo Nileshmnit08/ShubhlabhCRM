@@ -5,17 +5,17 @@ import { NAV_SECTIONS, getAllNavItems, getNavItemById, SECTION_IDS } from '../na
 
 const read = (rel) => readFileSync(new URL(rel, import.meta.url), 'utf8');
 
-test('sidebar has exactly one Labour Hisaab item, admin-only, in Operations', () => {
+test('sidebar has exactly one Labour Hisaab item, admin-only, in Daily Work', () => {
   const matches = getAllNavItems().filter((i) => i.id === 'labour-hisaab' || i.href === '/labour-hisaab' || /labour/i.test(i.label));
   assert.equal(matches.length, 1, 'no duplicate entries');
   const item = getNavItemById('labour-hisaab');
   assert.equal(item.label, 'Labour Hisaab');
   assert.equal(item.href, '/labour-hisaab');
   assert.equal(item.permissionKey, 'admin');
-  assert.equal(item.sectionId, SECTION_IDS.OPERATIONS);
+  assert.equal(item.sectionId, SECTION_IDS.DAILY_WORK);
   assert.ok(item.icon, 'has an icon');
-  const ops = NAV_SECTIONS.find((s) => s.id === SECTION_IDS.OPERATIONS);
-  assert.ok(ops.items.some((i) => i.id === 'labour-hisaab'));
+  const dailyWork = NAV_SECTIONS.find((s) => s.id === SECTION_IDS.DAILY_WORK);
+  assert.ok(dailyWork.items.some((i) => i.id === 'labour-hisaab'));
 });
 
 test('route /labour-hisaab is registered inside the AdminRoute guard', () => {

@@ -70,6 +70,7 @@ import {
 // Section IDs  (used as localStorage keys)
 // ─────────────────────────────────────────────────────────────
 export const SECTION_IDS = {
+  DAILY_WORK: 'daily-work',
   WORKSPACE: 'workspace',
   CUSTOMER_MANAGEMENT: 'customer-management',
   CUSTOMER_GROWTH: 'customer-growth',
@@ -84,6 +85,79 @@ export const SECTION_IDS = {
 // NAV CONFIG
 // ─────────────────────────────────────────────────────────────
 export const NAV_SECTIONS = [
+  // ══════════════════════════════════════
+  // 0. DAILY WORK (Priority Shortcuts)
+  // ══════════════════════════════════════
+  {
+    id: SECTION_IDS.DAILY_WORK,
+    title: 'Daily Work',
+    collapsible: false,
+    isDailyWork: true,
+    dividerBefore: false,
+    items: [
+      {
+        id: 'requirements',
+        label: 'Requirements',
+        href: '/requirements',
+        icon: ClipboardList,
+        iconColor: '#7DD3FC',
+        badgeSource: 'requirements',
+        permissionKey: 'all',
+        pinEligible: true,
+      },
+      {
+        id: 'customers',
+        label: 'Customers',
+        href: '/customers',
+        icon: Users,
+        iconColor: '#6EE7B7',
+        badgeSource: null,
+        permissionKey: 'all',
+        pinEligible: true,
+      },
+      {
+        id: 'labour-hisaab',
+        label: 'Labour Hisaab',
+        href: '/labour-hisaab',
+        icon: HardHat,
+        iconColor: '#FCD34D',
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
+      {
+        id: 'attendance',
+        label: 'Attendance',
+        href: '/attendance',
+        icon: CalendarCheck,
+        iconColor: '#C4B5FD',
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
+      {
+        id: 'communication',
+        label: 'Customer Communication',
+        href: '/communication',
+        icon: MessageSquare,
+        iconColor: '#FDA4AF',
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
+      {
+        id: 'leads',
+        label: 'Website Leads',
+        href: '/leads',
+        icon: Target,
+        iconColor: '#5EEAD4',
+        badgeSource: 'website_leads',
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
+    ],
+  },
+
   // ══════════════════════════════════════
   // 1. WORKSPACE
   // ══════════════════════════════════════
@@ -145,15 +219,6 @@ export const NAV_SECTIONS = [
     dividerBefore: false,
     items: [
       {
-        id: 'customers',
-        label: 'Customers',
-        href: '/customers',
-        icon: Users,
-        badgeSource: null,
-        permissionKey: 'all',
-        pinEligible: true,
-      },
-      {
         id: 'dormant',
         label: 'Dormant Accounts',
         href: '/dormant',
@@ -177,15 +242,6 @@ export const NAV_SECTIONS = [
         blockedReason: 'No dedicated /issues route — links to /customers',
       },
       {
-        id: 'communication',
-        label: 'Customer Communication',
-        href: '/communication',
-        icon: MessageSquare,
-        badgeSource: null,
-        permissionKey: 'admin',
-        pinEligible: true,
-      },
-      {
         id: 'customer-updates',
         label: 'Customer Updates',
         href: '/customer-updates',
@@ -206,15 +262,6 @@ export const NAV_SECTIONS = [
     collapsible: true,
     dividerBefore: false,
     items: [
-      {
-        id: 'leads',
-        label: 'Website Leads',
-        href: '/leads',
-        icon: Target,
-        badgeSource: 'website_leads',
-        permissionKey: 'admin',
-        pinEligible: true,
-      },
       {
         id: 'opportunities',
         label: 'Opportunities',
@@ -254,16 +301,6 @@ export const NAV_SECTIONS = [
     collapsible: true,
     dividerBefore: false,
     items: [
-      // Core Sales
-      {
-        id: 'requirements',
-        label: 'Requirements',
-        href: '/requirements',
-        icon: ClipboardList,
-        badgeSource: 'requirements',
-        permissionKey: 'all',
-        pinEligible: true,
-      },
       // NOTE: Quotations are managed inside /requirements.
       // No /quotations route exists. Omitted per spec.
 
@@ -392,17 +429,6 @@ export const NAV_SECTIONS = [
         permissionKey: 'admin',
         pinEligible: true,
       },
-      {
-        // SL-LABOUR-NAV-01: labour work & payments (LabourHisaab). Admin-only, matching the
-        // approved design where CRM admins have read-only access to labour records.
-        id: 'labour-hisaab',
-        label: 'Labour Hisaab',
-        href: '/labour-hisaab',
-        icon: HardHat,
-        badgeSource: null,
-        permissionKey: 'admin',
-        pinEligible: true,
-      },
     ],
   },
 
@@ -420,15 +446,6 @@ export const NAV_SECTIONS = [
         label: 'Staff Messages',
         href: '/staff-messages',
         icon: MessageCircle,
-        badgeSource: null,
-        permissionKey: 'admin',
-        pinEligible: true,
-      },
-      {
-        id: 'attendance',
-        label: 'Attendance Register',
-        href: '/attendance',
-        icon: CalendarCheck,
         badgeSource: null,
         permissionKey: 'admin',
         pinEligible: true,
