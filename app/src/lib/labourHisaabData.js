@@ -22,7 +22,7 @@ export const WORK_TYPE_LABELS = {
 
 export const workTypeLabel = (id) => WORK_TYPE_LABELS[id] || String(id || '—');
 
-const num = (v) => {
+export const num = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 };
@@ -304,6 +304,7 @@ export function detailedLabourerLedger({ lines = [], payments = [], deductions =
     r.workHistory.push({
       id: l.allocation_id || `${l.work_entry_id}_${l.labourer_id}`,
       workEntryId: l.work_entry_id,
+      contractorId: entry.contractor_id || l.contractor_id || '',
       date: l.work_date,
       workType: workTypeLabel(entry.work_type),
       quantity: quantityLabel(entry),
@@ -656,4 +657,296 @@ export function contractorSettlementSummaries({ contractors = [], entries = [], 
       paymentCount: cPayments.length,
     };
   }).sort((a, b) => b.balancePayable - a.balancePayable || a.name.localeCompare(b.name));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LH-DAILY-LABOUR-ACTIVE-INACTIVE-01: Day-wise Active/Inactive Redistribution
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const DAY_STATUS_STORAGE_KEY = 'lh_daily_labourer_status_v1';
+
+export function makeDayStatusKey(contractorId, workDate, labourerId) {
+  const cId = contractorId || 'ALL';
+  const d = String(workDate || '').slice(0, 10);
+  return `${cId}|${d}|${labourerId}`;
+}
+
+export function parseDayStatusKey(key) {
+  const [contractorId, workDate, labourerId] = String(key || '').split('|');
+  return { contractorId, workDate, labourerId };
+}
+
+export function loadDayStatusFromStorage() {
+  try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(DAY_STATUS_STORAGE_KEY) : null;
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+export function saveDayStatusToStorage(statusMap = {}) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(DAY_STATUS_STORAGE_KEY, JSON.stringify(statusMap));
+    }
+  } catch (_) {
+    // silent
+  }
+}
+
+export function isLabourerActiveOnDay(dayStatusMap = {}, contractorId, workDate, labourerId, defaultActive = true) {
+  const specificKey = makeDayStatusKey(contractorId, workDate, labourerId);
+  if (dayStatusMap[specificKey] !== undefined) {
+    return Boolean(dayStatusMap[specificKey]);
+  }
+  const wildcardKey = makeDayStatusKey('ALL', workDate, labourerId);
+  if (dayStatusMap[wildcardKey] !== undefined) {
+    return Boolean(dayStatusMap[wildcardKey]);
+  }
+  return defaultActive;
+}
+
+/**
+ * Validates whether toggling a labourer's status on a day is permissible.
+ * Enforces rule: at least one active labourer must remain.
+ */
+export function canToggleLabourerStatus(dayLabourers = [], targetLabourerId, nextStatus) {
+  if (nextStatus === true) {
+    return { allowed: true };
+  }
+  const activeCount = dayLabourers.filter(l => l.isActive !== false).length;
+  const isTargetActive = dayLabourers.some(l => l.id === targetLabourerId && l.isActive !== false);
+  const remainingActive = isTargetActive ? activeCount - 1 : activeCount;
+
+  if (remainingActive < 1) {
+    return {
+      allowed: false,
+      reason: 'At least one labourer must remain active for this day.',
+    };
+  }
+  return { allowed: true };
+}
+
+/**
+ * Pure amount redistribution algorithm (LH-DAILY-LABOUR-ACTIVE-INACTIVE-01).
+ *
+ * Given the complete list of entries and lines, redistributes labour shares for
+ * the target workDate (and optional contractorId) according to dayStatusMap:
+ * - Active labourers divide the entry's calculated_labour_amount equally.
+ * - Inactive labourers receive ₹0.00.
+ * - The sum of all active allocations strictly equals the entry's original calculated_labour_amount.
+ * - Always calculates from the original calculated_labour_amount to prevent repeated drift.
+ * - Leaves all other dates completely untouched.
+ */
+export function redistributeDailyLabour({
+  workDate,
+  contractorId = 'ALL',
+  entries = [],
+  lines = [],
+  dayStatusMap = {},
+}) {
+  const targetDate = String(workDate || '').slice(0, 10);
+  if (!targetDate) return [...lines];
+
+  // Map entries for quick lookup
+  const dayEntries = entries.filter(e => {
+    const d = String(e.work_date || '').slice(0, 10);
+    const matchesContractor = contractorId === 'ALL' || e.contractor_id === contractorId;
+    return d === targetDate && matchesContractor;
+  });
+
+  if (dayEntries.length === 0) return [...lines];
+
+  const dayEntryIds = new Set(dayEntries.map(e => e.id));
+  const dayEntryMap = new Map(dayEntries.map(e => [e.id, e]));
+
+  // Group lines by work_entry_id
+  const linesByEntry = new Map();
+  const otherLines = [];
+
+  lines.forEach(l => {
+    if (dayEntryIds.has(l.work_entry_id)) {
+      if (!linesByEntry.has(l.work_entry_id)) {
+        linesByEntry.set(l.work_entry_id, []);
+      }
+      linesByEntry.get(l.work_entry_id).push({ ...l });
+    } else {
+      otherLines.push(l);
+    }
+  });
+
+  const updatedDayLines = [];
+
+  for (const [entryId, entryLines] of linesByEntry.entries()) {
+    const entry = dayEntryMap.get(entryId);
+    const entryAmount = round2(num(entry?.calculated_labour_amount));
+
+    if (entryLines.length === 0) continue;
+
+    // Check who is active on this day
+    const activeLines = [];
+    const inactiveLines = [];
+
+    entryLines.forEach(line => {
+      const active = isLabourerActiveOnDay(dayStatusMap, line.contractor_id || entry.contractor_id, targetDate, line.labourer_id, true);
+      if (active) {
+        activeLines.push(line);
+      } else {
+        inactiveLines.push(line);
+      }
+    });
+
+    // Guard: at least one active labourer must remain
+    if (activeLines.length === 0) {
+      throw new Error(`At least one active labourer must remain on ${targetDate}.`);
+    }
+
+    const n = activeLines.length;
+    let allocatedSum = 0;
+
+    // Distribute equally with penny-perfect remainder to last labourer
+    activeLines.forEach((line, index) => {
+      let share;
+      if (index < n - 1) {
+        share = Math.floor((entryAmount * 100) / n) / 100;
+        allocatedSum = round2(allocatedSum + share);
+      } else {
+        share = round2(entryAmount - allocatedSum);
+      }
+      updatedDayLines.push({
+        ...line,
+        allocated_amount: share,
+      });
+    });
+
+    // Inactive labourers get ₹0
+    inactiveLines.forEach(line => {
+      updatedDayLines.push({
+        ...line,
+        allocated_amount: 0,
+      });
+    });
+  }
+
+  return [...otherLines, ...updatedDayLines];
+}
+
+/**
+ * Returns a day-wise summary of all labourers for a specific working date.
+ * Formats: Labourer Name, Current Amount, Status (Active/Inactive), Action details.
+ */
+export function getDailyLabourersSummary({
+  workDate,
+  contractorId = 'ALL',
+  entries = [],
+  lines = [],
+  labourersById = {},
+  dayStatusMap = {},
+}) {
+  const targetDate = String(workDate || '').slice(0, 10);
+  if (!targetDate) return [];
+
+  const dayEntries = entries.filter(e => {
+    const d = String(e.work_date || '').slice(0, 10);
+    const matchesContractor = contractorId === 'ALL' || e.contractor_id === contractorId;
+    return d === targetDate && matchesContractor;
+  });
+
+  const dayEntryIds = new Set(dayEntries.map(e => e.id));
+  const dayLines = lines.filter(l => dayEntryIds.has(l.work_entry_id));
+
+  // Also collect labourers who worked on this date from lines
+  const labourerMap = new Map();
+
+  dayLines.forEach(line => {
+    const lId = line.labourer_id;
+    if (!labourerMap.has(lId)) {
+      const masterLab = labourersById[lId] || {};
+      const activeOnDay = isLabourerActiveOnDay(
+        dayStatusMap,
+        line.contractor_id || (dayEntries[0]?.contractor_id),
+        targetDate,
+        lId,
+        // If line has allocated_amount === 0 while others have > 0, default to false if not explicitly set
+        dayStatusMap[makeDayStatusKey(line.contractor_id, targetDate, lId)] !== undefined
+          ? dayStatusMap[makeDayStatusKey(line.contractor_id, targetDate, lId)]
+          : (num(line.allocated_amount) > 0 || dayLines.length === 1)
+      );
+
+      labourerMap.set(lId, {
+        id: lId,
+        name: masterLab.name || line.labourer_name || '—',
+        localId: masterLab.local_id || line.labourer_local_id || '',
+        contractorId: line.contractor_id || masterLab.contractor_id || '',
+        workDate: targetDate,
+        currentAmount: 0,
+        originalAmount: 0,
+        isActive: activeOnDay,
+        workEntryIds: new Set(),
+      });
+    }
+
+    const item = labourerMap.get(lId);
+    item.currentAmount = round2(item.currentAmount + num(line.allocated_amount));
+    item.workEntryIds.add(line.work_entry_id);
+  });
+
+  // Compute original amounts across dayEntries
+  for (const entry of dayEntries) {
+    const eLines = dayLines.filter(l => l.work_entry_id === entry.id);
+    const totalCount = eLines.length;
+    if (totalCount > 0) {
+      const eAmount = num(entry.calculated_labour_amount);
+      const equalShare = round2(eAmount / totalCount);
+      eLines.forEach(line => {
+        const item = labourerMap.get(line.labourer_id);
+        if (item) {
+          item.originalAmount = round2(item.originalAmount + equalShare);
+        }
+      });
+    }
+  }
+
+  return [...labourerMap.values()].map(l => ({
+    ...l,
+    workEntryIds: [...l.workEntryIds],
+    status: l.isActive ? 'Active' : 'Inactive',
+  })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Redistributes labour across all (work_date, contractor_id) groups present in entries/lines.
+ */
+export function redistributeAllLines(entriesList = [], linesList = [], dayStatusMap = {}) {
+  if (!entriesList || !entriesList.length || !linesList || !linesList.length) {
+    return linesList || [];
+  }
+
+  // Extract distinct (work_date, contractor_id) pairs
+  const groupKeys = new Set();
+  entriesList.forEach(e => {
+    const d = String(e.work_date || '').slice(0, 10);
+    const c = e.contractor_id || '';
+    if (d && c) {
+      groupKeys.add(`${d}:::${c}`);
+    }
+  });
+
+  let currentLines = [...linesList];
+  groupKeys.forEach(key => {
+    const [wDate, cId] = key.split(':::');
+    const dayEntries = entriesList.filter(e => {
+      return String(e.work_date || '').slice(0, 10) === wDate && e.contractor_id === cId;
+    });
+    currentLines = redistributeDailyLabour({
+      workDate: wDate,
+      contractorId: cId,
+      entries: dayEntries,
+      lines: currentLines,
+      dayStatusMap,
+    });
+  });
+
+  return currentLines;
 }

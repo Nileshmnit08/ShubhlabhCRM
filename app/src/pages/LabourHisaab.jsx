@@ -17,10 +17,14 @@ import {
   commandCenterMetrics, groupedDailyEntries, detailedLabourerLedger, workTypeSummary,
   generateDailyRegisterCsv, generateLabourerBalancesCsv,
   shiftDays, weekStart, lastMonthRange, getDateRangePreset,
-  reconciliationPanelData, contractorSettlementSummaries
+  reconciliationPanelData, contractorSettlementSummaries,
+  makeDayStatusKey, loadDayStatusFromStorage, saveDayStatusToStorage,
+  isLabourerActiveOnDay, getDailyLabourersSummary,
+  redistributeAllLines, num
 } from '../lib/labourHisaabData';
 import LabourEntryAdminDialog from '../components/LabourEntryAdminDialog';
 import LabourPaymentRecordDialog from '../components/LabourPaymentRecordDialog';
+import LabourDailyStatusModal from '../components/LabourDailyStatusModal';
 import { AuthContext } from '../AuthContext';
 
 /**
@@ -75,6 +79,17 @@ export default function LabourHisaab() {
   const [dialog, setDialog] = useState(null); // { mode: 'add' | 'edit' | 'delete', entry? }
   const [paymentDialog, setPaymentDialog] = useState(null); // { open: boolean, contractorId?: string, labourerId?: string }
   const [notice, setNotice] = useState('');
+
+  // MICRO-SPRINT: LH-DAILY-LABOUR-ACTIVE-INACTIVE-01 states
+  const [dayStatusMap, setDayStatusMap] = useState(() => loadDayStatusFromStorage());
+  const [statusModal, setStatusModal] = useState({
+    open: false,
+    labourer: null,
+    dayLabourers: [],
+    totalDayAmount: 0,
+  });
+  const [labourerSubTab, setLabourerSubTab] = useState('daywise'); // 'daywise' | 'ledger'
+  const [selectedDayDate, setSelectedDayDate] = useState('');
 
   // Apply a date range preset
   const applyPreset = (key) => {
@@ -146,6 +161,30 @@ export default function LabourHisaab() {
         deductions.push(...(alloc || []));
       }
 
+      // Fetch day-wise labourer active/inactive status from database (with storage fallback)
+      let dbStatusMap = {};
+      try {
+        const { data: dbStatuses } = await byContractor(
+          supabase.from('labour_daily_labourer_status')
+            .select('contractor_id, work_date, labourer_id, is_active')
+            .gte('work_date', fromDate).lte('work_date', toDate)
+        );
+        if (dbStatuses && Array.isArray(dbStatuses)) {
+          dbStatuses.forEach(s => {
+            dbStatusMap[makeDayStatusKey(s.contractor_id, s.work_date, s.labourer_id)] = !!s.is_active;
+          });
+        }
+      } catch (stErr) {
+        // Table may not yet be provisioned on remote DB; storage fallback applies
+      }
+
+      const activeStatusMap = { ...loadDayStatusFromStorage(), ...dbStatusMap };
+      saveDayStatusToStorage(activeStatusMap);
+      setDayStatusMap(activeStatusMap);
+
+      // Re-allocate daily work lines according to day-wise active status
+      const redistributedLines = redistributeAllLines(entries, lines, activeStatusMap);
+
       let approved;
       if (statusFromDb) {
         const [aEntries, aLines] = await Promise.all([
@@ -154,22 +193,28 @@ export default function LabourHisaab() {
             .select('allocation_id, work_entry_id, contractor_id, work_date, labourer_id, labourer_name, allocated_amount')
             .gte('work_date', fromDate).lte('work_date', toDate)).order('work_date', { ascending: false }).order('allocation_id')),
         ]);
-        approved = { entries: aEntries, lines: aLines };
+        const redistributedALines = redistributeAllLines(aEntries, aLines, activeStatusMap);
+        approved = { entries: aEntries, lines: redistributedALines };
       } else {
-        approved = approvedOnly({ entries, lines });
+        approved = approvedOnly({ entries, lines: redistributedLines });
       }
 
       setData({
         contractors: contractorsRes.data || [],
         labourers: labourersRes.data || [],
         entries,
-        lines,
+        lines: redistributedLines,
         payments,
         deductions,
         expenses,
         approved,
         statusFromDb
       });
+
+      if (entries.length > 0) {
+        setSelectedDayDate(prev => prev || entries[0].work_date);
+      }
+
       setState('ready');
       setRefreshedAt(new Date());
     } catch (e) {
@@ -280,6 +325,95 @@ export default function LabourHisaab() {
     else if (statusFilter === 'Partially Paid') list = list.filter(c => c.status === 'Partially Paid');
     return list;
   }, [contractorSummaries, contractorId, statusFilter]);
+
+  // Available unique working dates from entries
+  const availableWorkDates = useMemo(() => {
+    const dates = new Set();
+    data.entries.forEach(e => {
+      const d = String(e.work_date || '').slice(0, 10);
+      if (d) dates.add(d);
+    });
+    return [...dates].sort().reverse();
+  }, [data.entries]);
+
+  const currentDayDate = selectedDayDate || availableWorkDates[0] || today;
+
+  // Open the Active / Inactive day status modal
+  const openStatusModalForLabourer = (labourerItem, date, cId) => {
+    const targetDate = date || labourerItem.workDate || currentDayDate;
+    const targetCId = cId || labourerItem.contractorId || (contractorId !== 'ALL' ? contractorId : (data.entries[0]?.contractor_id || ''));
+
+    const summary = getDailyLabourersSummary({
+      workDate: targetDate,
+      contractorId: targetCId || 'ALL',
+      entries: data.entries,
+      lines: data.lines,
+      labourersById,
+      dayStatusMap,
+    });
+
+    const dayEntries = data.entries.filter(e => {
+      const d = String(e.work_date || '').slice(0, 10);
+      const matchesC = !targetCId || targetCId === 'ALL' || e.contractor_id === targetCId;
+      return d === targetDate && matchesC;
+    });
+    const totalDayAmt = dayEntries.reduce((sum, e) => sum + num(e.calculated_labour_amount), 0);
+
+    const activeItem = summary.find(l => l.id === labourerItem.id) || {
+      id: labourerItem.id,
+      name: labourerItem.name,
+      localId: labourerItem.localId || labourerItem.local_id || '',
+      contractorId: targetCId,
+      workDate: targetDate,
+      amount: labourerItem.currentAmount ?? labourerItem.amount ?? 0,
+      isActive: labourerItem.isActive ?? (labourerItem.status === 'Active'),
+    };
+
+    setStatusModal({
+      open: true,
+      labourer: {
+        ...activeItem,
+        contractorId: targetCId,
+        workDate: targetDate,
+        amount: activeItem.currentAmount ?? activeItem.amount ?? 0,
+      },
+      dayLabourers: summary.map(s => ({
+        id: s.id,
+        name: s.name,
+        amount: s.currentAmount,
+        isActive: s.isActive,
+      })),
+      totalDayAmount: totalDayAmt,
+    });
+  };
+
+  // Handle save from status modal (storage persistence & live recalculation)
+  const handleSaveLabourerDailyStatus = (labourerId, isActive) => {
+    if (!statusModal.labourer) return;
+    const { contractorId: cId, workDate: wDate, name: lName } = statusModal.labourer;
+
+    const key = makeDayStatusKey(cId, wDate, labourerId);
+    const updatedStatusMap = {
+      ...dayStatusMap,
+      [key]: isActive,
+    };
+    saveDayStatusToStorage(updatedStatusMap);
+    setDayStatusMap(updatedStatusMap);
+
+    const updatedLines = redistributeAllLines(data.entries, data.lines, updatedStatusMap);
+    const updatedApprovedLines = data.approved ? redistributeAllLines(data.approved.entries, data.approved.lines, updatedStatusMap) : [];
+    setData(prev => ({
+      ...prev,
+      lines: updatedLines,
+      approved: prev.approved ? { ...prev.approved, lines: updatedApprovedLines } : prev.approved,
+    }));
+
+    setNotice(
+      isActive
+        ? `${lName} marked Active for ${wDate}. Daily labour amount recalculated among active labourers.`
+        : `${lName} marked Inactive for ${wDate}. Complete amount redistributed equally among remaining active labourers.`
+    );
+  };
 
   // Active filters detection
   const hasActiveFilters = activePreset !== 'thisMonth' || contractorId !== 'ALL' || statusFilter !== 'all' || searchQuery.trim() !== '';
@@ -1012,6 +1146,117 @@ export default function LabourHisaab() {
                         </div>
                       </div>
 
+                      {/* Day Labourers Table with Active / Inactive Status & Redistribution */}
+                      {(() => {
+                        const daySummary = getDailyLabourersSummary({
+                          workDate: group.date,
+                          contractorId: contractorId === 'ALL' ? 'ALL' : contractorId,
+                          entries: data.entries,
+                          lines: data.lines,
+                          labourersById,
+                          dayStatusMap,
+                        });
+
+                        if (daySummary.length === 0) return null;
+
+                        return (
+                          <div style={{
+                            padding: '0.65rem 1rem',
+                            backgroundColor: '#F8FAFC',
+                            borderBottom: '1px solid var(--border)',
+                          }}>
+                            <div style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '0.4rem',
+                              flexWrap: 'wrap',
+                              gap: '0.5rem',
+                            }}>
+                              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0F766E', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Users size={14} />
+                                Day Labourers Hisaab ({daySummary.filter(l => l.isActive).length} Active / {daySummary.length} Total)
+                              </div>
+                              <div style={{ fontSize: '0.74rem', color: '#64748B' }}>
+                                Marking a labourer inactive redistributes their complete amount equally among active labourers.
+                              </div>
+                            </div>
+
+                            <div style={{ overflowX: 'auto' }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#FFFFFF', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                                <thead>
+                                  <tr>
+                                    <th style={{ ...th, fontSize: '0.75rem', padding: '0.45rem 0.65rem' }}>Labourer Name</th>
+                                    <th style={{ ...th, fontSize: '0.75rem', padding: '0.45rem 0.65rem', textAlign: 'right' }}>Current Amount</th>
+                                    <th style={{ ...th, fontSize: '0.75rem', padding: '0.45rem 0.65rem', textAlign: 'center' }}>Status</th>
+                                    <th style={{ ...th, fontSize: '0.75rem', padding: '0.45rem 0.65rem', textAlign: 'center' }}>Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {daySummary.map(l => (
+                                    <tr key={l.id} style={{ backgroundColor: !l.isActive ? '#FEF2F2' : 'transparent' }}>
+                                      <td style={{ ...td, padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                          <span style={{ fontWeight: 600, color: l.isActive ? '#1E293B' : '#94A3B8' }}>{l.name}</span>
+                                          {l.localId ? (
+                                            <span style={{ fontSize: '0.68rem', color: '#64748B', backgroundColor: '#F1F5F9', padding: '1px 4px', borderRadius: 3 }}>
+                                              {l.localId}
+                                            </span>
+                                          ) : null}
+                                          {!l.isActive ? (
+                                            <span style={{ fontSize: '0.68rem', color: '#DC2626', backgroundColor: '#FEE2E2', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>
+                                              Redistributed ({formatInr(0)})
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                      </td>
+                                      <td style={{ ...tdNum, padding: '0.45rem 0.65rem', fontSize: '0.82rem' }}>
+                                        <span style={{ fontWeight: 700, color: l.isActive ? '#0F766E' : '#94A3B8' }}>
+                                          {formatInr(l.currentAmount)}
+                                        </span>
+                                      </td>
+                                      <td style={{ ...td, padding: '0.45rem 0.65rem', textAlign: 'center' }}>
+                                        <span style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 4,
+                                          fontSize: '0.74rem',
+                                          fontWeight: 700,
+                                          padding: '2px 8px',
+                                          borderRadius: 999,
+                                          backgroundColor: l.isActive ? '#ECFDF5' : '#FEE2E2',
+                                          color: l.isActive ? '#047857' : '#DC2626',
+                                          border: `1px solid ${l.isActive ? '#A7F3D0' : '#FECACA'}`,
+                                        }}>
+                                          {l.isActive ? '🟢 Active' : '🔴 Inactive'}
+                                        </span>
+                                      </td>
+                                      <td style={{ ...td, padding: '0.45rem 0.65rem', textAlign: 'center' }}>
+                                        <button
+                                          className="btn btn-secondary"
+                                          onClick={() => openStatusModalForLabourer(l, group.date, contractorId)}
+                                          style={{
+                                            padding: '0.2rem 0.6rem',
+                                            fontSize: '0.75rem',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 4,
+                                            backgroundColor: '#FFFFFF',
+                                          }}
+                                          title={`Edit active/inactive status for ${l.name} on ${group.date}`}
+                                        >
+                                          <Pencil size={12} /> Edit
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
                       {/* Entries Table */}
                       <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -1140,140 +1385,326 @@ export default function LabourHisaab() {
             </div>
           ) : null}
 
-          {/* TAB 2: LABOURER HISAAB (Worker Ledgers & Drill-down) */}
+          {/* TAB 2: LABOURER HISAAB (Worker Ledgers & Day-wise Active/Inactive Redistribution) */}
           {activeTab === 'labourers' ? (
             <div>
-              {/* Filter controls */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  <button
-                    className={`btn ${statusFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setStatusFilter('all')}
-                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
-                  >
-                    All ({detailedLabourers.length})
-                  </button>
-                  <button
-                    className={`btn ${statusFilter === 'Unpaid' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setStatusFilter('Unpaid')}
-                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
-                  >
-                    Unpaid Dues ({detailedLabourers.filter(l => l.paid === 0 && l.approvedEarned > 0).length})
-                  </button>
-                  <button
-                    className={`btn ${statusFilter === 'Partially Paid' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setStatusFilter('Partially Paid')}
-                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
-                  >
-                    Partially Paid ({detailedLabourers.filter(l => l.paid > 0 && l.payableBalance > 0).length})
-                  </button>
-                  <button
-                    className={`btn ${statusFilter === 'Paid' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => setStatusFilter('Paid')}
-                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
-                  >
-                    Fully Cleared ({detailedLabourers.filter(l => l.payableBalance <= 0 && l.approvedEarned > 0).length})
-                  </button>
-                </div>
-
+              {/* Sub-tab view toggle: Day-wise Hisaab vs Period Worker Ledger */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
                 <button
-                  className="btn btn-secondary"
-                  onClick={handleExportLabourerCsv}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.82rem' }}
+                  onClick={() => setLabourerSubTab('daywise')}
+                  className={`btn ${labourerSubTab === 'daywise' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
                 >
-                  <Download size={14} /> Export CSV
+                  <CalendarDays size={15} /> Day-wise Hisaab & Active Status (दैनिक हिसाब)
+                </button>
+                <button
+                  onClick={() => setLabourerSubTab('ledger')}
+                  className={`btn ${labourerSubTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+                >
+                  <Scale size={15} /> Period Worker Ledger (समग्र लेजर)
                 </button>
               </div>
 
-              {filteredLabourers.length === 0 ? (
-                <div className="card" style={{ padding: '2.5rem', textAlign: 'center' }}>
-                  <Users size={32} color="#94A3B8" style={{ margin: '0 auto 0.5rem' }} />
-                  <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>No labourers match this filter.</div>
+              {labourerSubTab === 'daywise' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* Day Selector and Summary Card */}
+                  <div className="card" style={{ padding: '1rem', backgroundColor: '#FFFFFF', borderRadius: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          Select Working Date:
+                        </label>
+                        <select
+                          value={currentDayDate}
+                          onChange={(e) => setSelectedDayDate(e.target.value)}
+                          className="input"
+                          style={{ minWidth: 200, fontWeight: 600, fontSize: '0.9rem' }}
+                        >
+                          {availableWorkDates.length === 0 ? (
+                            <option value={today}>{today} (No work entries)</option>
+                          ) : (
+                            availableWorkDates.map(d => (
+                              <option key={d} value={d}>
+                                📅 {d}
+                              </option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+
+                      {(() => {
+                        const daySummary = getDailyLabourersSummary({
+                          workDate: currentDayDate,
+                          contractorId: contractorId === 'ALL' ? 'ALL' : contractorId,
+                          entries: data.entries,
+                          lines: data.lines,
+                          labourersById,
+                          dayStatusMap,
+                        });
+                        const dayEntries = data.entries.filter(e => {
+                          const d = String(e.work_date || '').slice(0, 10);
+                          const matchesC = contractorId === 'ALL' || e.contractor_id === contractorId;
+                          return d === currentDayDate && matchesC;
+                        });
+                        const totalAmt = dayEntries.reduce((sum, e) => sum + num(e.calculated_labour_amount), 0);
+                        const activeCount = daySummary.filter(l => l.isActive).length;
+                        const inactiveCount = daySummary.filter(l => !l.isActive).length;
+
+                        return (
+                          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <div style={{ backgroundColor: '#F8FAFC', padding: '0.4rem 0.8rem', borderRadius: 6, border: '1px solid #E2E8F0', fontSize: '0.8rem' }}>
+                              <span className="text-secondary">Day Total: </span>
+                              <strong style={{ color: '#0F766E' }}>{formatInr(totalAmt)}</strong>
+                            </div>
+                            <div style={{ backgroundColor: '#ECFDF5', padding: '0.4rem 0.8rem', borderRadius: 6, border: '1px solid #A7F3D0', fontSize: '0.8rem' }}>
+                              <span style={{ color: '#047857' }}>Active: <strong>{activeCount}</strong></span>
+                            </div>
+                            {inactiveCount > 0 ? (
+                              <div style={{ backgroundColor: '#FEF2F2', padding: '0.4rem 0.8rem', borderRadius: 6, border: '1px solid #FECACA', fontSize: '0.8rem' }}>
+                                <span style={{ color: '#DC2626' }}>Inactive ({formatInr(0)}): <strong>{inactiveCount}</strong></span>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Day-wise Labour Hisaab Table */}
+                  {(() => {
+                    const daySummary = getDailyLabourersSummary({
+                      workDate: currentDayDate,
+                      contractorId: contractorId === 'ALL' ? 'ALL' : contractorId,
+                      entries: data.entries,
+                      lines: data.lines,
+                      labourersById,
+                      dayStatusMap,
+                    });
+
+                    if (daySummary.length === 0) {
+                      return (
+                        <div className="card" style={{ padding: '2.5rem', textAlign: 'center' }}>
+                          <Users size={32} color="#94A3B8" style={{ margin: '0 auto 0.5rem' }} />
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>No labourers recorded for {currentDayDate}.</div>
+                          <div className="text-muted" style={{ fontSize: '0.82rem', marginTop: 4 }}>
+                            Choose another date from the dropdown above or record a new daily entry in the Daily Register tab.
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="card" style={{ padding: 0, overflowX: 'auto', borderRadius: '10px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr>
+                              <th style={th}>Labourer Name</th>
+                              <th style={{ ...th, textAlign: 'right' }}>Current Amount</th>
+                              <th style={{ ...th, textAlign: 'center' }}>Status</th>
+                              <th style={{ ...th, textAlign: 'center' }}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {daySummary.map(l => (
+                              <tr key={l.id} style={{ backgroundColor: !l.isActive ? '#FEF2F2' : 'transparent' }}>
+                                <td style={td}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ fontWeight: 600, color: l.isActive ? '#1E293B' : '#64748B' }}>{l.name}</span>
+                                    {l.localId ? (
+                                      <span style={{ fontSize: '0.7rem', color: '#64748B', backgroundColor: '#F1F5F9', padding: '1px 5px', borderRadius: 4 }}>
+                                        {l.localId}
+                                      </span>
+                                    ) : null}
+                                    {!l.isActive ? (
+                                      <span style={{ fontSize: '0.68rem', color: '#DC2626', backgroundColor: '#FEE2E2', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>
+                                        Amount Redistributed ({formatInr(0)})
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </td>
+                                <td style={tdNum}>
+                                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: l.isActive ? '#0F766E' : '#94A3B8' }}>
+                                    {formatInr(l.currentAmount)}
+                                  </span>
+                                </td>
+                                <td style={{ ...td, textAlign: 'center' }}>
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    fontSize: '0.78rem',
+                                    fontWeight: 700,
+                                    padding: '3px 10px',
+                                    borderRadius: 999,
+                                    backgroundColor: l.isActive ? '#ECFDF5' : '#FEE2E2',
+                                    color: l.isActive ? '#047857' : '#DC2626',
+                                    border: `1px solid ${l.isActive ? '#A7F3D0' : '#FECACA'}`,
+                                  }}>
+                                    {l.isActive ? '🟢 Active' : '🔴 Inactive'}
+                                  </span>
+                                </td>
+                                <td style={{ ...td, textAlign: 'center' }}>
+                                  <button
+                                    className="btn btn-secondary"
+                                    onClick={() => openStatusModalForLabourer(l, currentDayDate, contractorId)}
+                                    style={{
+                                      padding: '0.3rem 0.75rem',
+                                      fontSize: '0.8rem',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 6,
+                                      fontWeight: 600,
+                                    }}
+                                    title={`Change Active / Inactive status for ${l.name}`}
+                                  >
+                                    <Pencil size={13} /> Edit
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
-                <div className="card" style={{ padding: 0, overflowX: 'auto', borderRadius: '10px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr>
-                        <th style={th}>Labourer</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Days</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Approved Earned</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Pending Earned</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Total Earned</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Paid</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Deductions</th>
-                        <th style={{ ...th, textAlign: 'right' }}>Payable Balance</th>
-                        <th style={{ ...th, textAlign: 'center' }}>Detail</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredLabourers.map(l => (
-                        <tr key={l.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedLabourer(l)}>
-                          <td style={td}>
-                            <div style={{ fontWeight: 600, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span>{l.name}</span>
-                              {l.localId ? (
-                                <span style={{ fontSize: '0.7rem', color: '#64748B', backgroundColor: '#F1F5F9', padding: '1px 5px', borderRadius: 4 }}>
-                                  {l.localId}
+                /* Period Worker Ledger */
+                <div>
+                  {/* Filter controls */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <button
+                        className={`btn ${statusFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setStatusFilter('all')}
+                        style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+                      >
+                        All ({detailedLabourers.length})
+                      </button>
+                      <button
+                        className={`btn ${statusFilter === 'Unpaid' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setStatusFilter('Unpaid')}
+                        style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+                      >
+                        Unpaid Dues ({detailedLabourers.filter(l => l.paid === 0 && l.approvedEarned > 0).length})
+                      </button>
+                      <button
+                        className={`btn ${statusFilter === 'Partially Paid' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setStatusFilter('Partially Paid')}
+                        style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+                      >
+                        Partially Paid ({detailedLabourers.filter(l => l.paid > 0 && l.payableBalance > 0).length})
+                      </button>
+                      <button
+                        className={`btn ${statusFilter === 'Paid' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setStatusFilter('Paid')}
+                        style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}
+                      >
+                        Fully Cleared ({detailedLabourers.filter(l => l.payableBalance <= 0 && l.approvedEarned > 0).length})
+                      </button>
+                    </div>
+
+                    <button
+                      className="btn btn-secondary"
+                      onClick={handleExportLabourerCsv}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.82rem' }}
+                    >
+                      <Download size={14} /> Export CSV
+                    </button>
+                  </div>
+
+                  {filteredLabourers.length === 0 ? (
+                    <div className="card" style={{ padding: '2.5rem', textAlign: 'center' }}>
+                      <Users size={32} color="#94A3B8" style={{ margin: '0 auto 0.5rem' }} />
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>No labourers match this filter.</div>
+                    </div>
+                  ) : (
+                    <div className="card" style={{ padding: 0, overflowX: 'auto', borderRadius: '10px' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            <th style={th}>Labourer</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Days</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Approved Earned</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Pending Earned</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Total Earned</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Paid</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Deductions</th>
+                            <th style={{ ...th, textAlign: 'right' }}>Payable Balance</th>
+                            <th style={{ ...th, textAlign: 'center' }}>Detail</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredLabourers.map(l => (
+                            <tr key={l.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedLabourer(l)}>
+                              <td style={td}>
+                                <div style={{ fontWeight: 600, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span>{l.name}</span>
+                                  {l.localId ? (
+                                    <span style={{ fontSize: '0.7rem', color: '#64748B', backgroundColor: '#F1F5F9', padding: '1px 5px', borderRadius: 4 }}>
+                                      {l.localId}
+                                    </span>
+                                  ) : null}
+                                  {!l.active ? (
+                                    <span style={{ fontSize: '0.68rem', color: '#DC2626', backgroundColor: '#FEE2E2', padding: '1px 4px', borderRadius: 4 }}>
+                                      inactive
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td style={tdNum}>{l.approvedDays}</td>
+                              <td style={{ ...tdNum, color: '#0F766E', fontWeight: 600 }}>{formatInr(l.approvedEarned)}</td>
+                              <td style={{ ...tdNum, color: '#B45309' }}>
+                                {l.pendingEarned > 0 ? formatInr(l.pendingEarned) : '—'}
+                              </td>
+                              <td style={{ ...tdNum, color: '#1E293B' }}>{formatInr(l.totalEarned)}</td>
+                              <td style={{ ...tdNum, color: '#4338CA' }}>{formatInr(l.paid)}</td>
+                              <td style={{ ...tdNum, color: '#475569' }}>{formatInr(l.deducted)}</td>
+                              <td style={{ ...tdNum, fontWeight: 700 }}>
+                                <span style={{
+                                  color: l.payableBalance > 0 ? '#0F766E' : l.payableBalance < 0 ? '#DC2626' : '#64748B',
+                                  backgroundColor: l.payableBalance > 0 ? '#ECFDF5' : l.payableBalance < 0 ? '#FEE2E2' : '#F1F5F9',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                }}>
+                                  {formatInr(l.payableBalance)}
                                 </span>
-                              ) : null}
-                              {!l.active ? (
-                                <span style={{ fontSize: '0.68rem', color: '#DC2626', backgroundColor: '#FEE2E2', padding: '1px 4px', borderRadius: 4 }}>
-                                  inactive
-                                </span>
-                              ) : null}
-                            </div>
-                          </td>
-                          <td style={tdNum}>{l.approvedDays}</td>
-                          <td style={{ ...tdNum, color: '#0F766E', fontWeight: 600 }}>{formatInr(l.approvedEarned)}</td>
-                          <td style={{ ...tdNum, color: '#B45309' }}>
-                            {l.pendingEarned > 0 ? formatInr(l.pendingEarned) : '—'}
-                          </td>
-                          <td style={{ ...tdNum, color: '#1E293B' }}>{formatInr(l.totalEarned)}</td>
-                          <td style={{ ...tdNum, color: '#4338CA' }}>{formatInr(l.paid)}</td>
-                          <td style={{ ...tdNum, color: '#475569' }}>{formatInr(l.deducted)}</td>
-                          <td style={{ ...tdNum, fontWeight: 700 }}>
-                            <span style={{
-                              color: l.payableBalance > 0 ? '#0F766E' : l.payableBalance < 0 ? '#DC2626' : '#64748B',
-                              backgroundColor: l.payableBalance > 0 ? '#ECFDF5' : l.payableBalance < 0 ? '#FEE2E2' : '#F1F5F9',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                            }}>
-                              {formatInr(l.payableBalance)}
-                            </span>
-                          </td>
-                          <td style={{ ...td, textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                              <button
-                                className="btn btn-secondary"
-                                onClick={(e) => { e.stopPropagation(); setSelectedLabourer(l); }}
-                                style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                              >
-                                <Eye size={12} /> View
-                              </button>
-                              {isAdmin ? (
-                                <button
-                                  className="btn btn-secondary"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setPaymentDialog({
-                                      open: true,
-                                      contractorId: l.contractorId || (contractorId !== 'ALL' ? contractorId : ''),
-                                      labourerId: l.id,
-                                    });
-                                  }}
-                                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4, color: '#047857', borderColor: '#A7F3D0', backgroundColor: '#ECFDF5' }}
-                                  title="Record payment for this labourer"
-                                >
-                                  <CreditCard size={12} /> Pay · भुगतान
-                                </button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                              </td>
+                              <td style={{ ...td, textAlign: 'center' }}>
+                                <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
+                                  <button
+                                    className="btn btn-secondary"
+                                    onClick={(e) => { e.stopPropagation(); setSelectedLabourer(l); }}
+                                    style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                  >
+                                    <Eye size={12} /> View
+                                  </button>
+                                  {isAdmin ? (
+                                    <button
+                                      className="btn btn-secondary"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setPaymentDialog({
+                                          open: true,
+                                          contractorId: l.contractorId || (contractorId !== 'ALL' ? contractorId : ''),
+                                          labourerId: l.id,
+                                        });
+                                      }}
+                                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4, color: '#047857', borderColor: '#A7F3D0', backgroundColor: '#ECFDF5' }}
+                                      title="Record payment for this labourer"
+                                    >
+                                      <CreditCard size={12} /> Pay · भुगतान
+                                    </button>
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1767,29 +2198,76 @@ export default function LabourHisaab() {
                         <th style={th}>Rate</th>
                         <th style={{ ...th, textAlign: 'right' }}>Share Amount</th>
                         <th style={th}>Status</th>
+                        <th style={{ ...th, textAlign: 'center' }}>Day Status</th>
+                        <th style={{ ...th, textAlign: 'center' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedLabourer.workHistory.map((w, idx) => (
-                        <tr key={idx}>
-                          <td style={td}>{w.date}</td>
-                          <td style={td}>{w.workType}</td>
-                          <td style={td}>{w.rate}</td>
-                          <td style={{ ...tdNum, fontWeight: 600, color: '#0F766E' }}>{formatInr(w.allocatedAmount)}</td>
-                          <td style={td}>
-                            <span style={{
-                              fontSize: '0.7rem',
-                              fontWeight: 600,
-                              color: w.status === 'Approved' ? '#047857' : '#B45309',
-                              backgroundColor: w.status === 'Approved' ? '#ECFDF5' : '#FFFBEB',
-                              padding: '1px 6px',
-                              borderRadius: 4,
-                            }}>
-                              {w.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {selectedLabourer.workHistory.map((w, idx) => {
+                        const isDayActive = isLabourerActiveOnDay(
+                          dayStatusMap,
+                          w.contractorId || selectedLabourer.contractorId,
+                          w.date,
+                          selectedLabourer.id,
+                          num(w.allocatedAmount) > 0
+                        );
+
+                        return (
+                          <tr key={idx}>
+                            <td style={td}>{w.date}</td>
+                            <td style={td}>{w.workType}</td>
+                            <td style={td}>{w.rate}</td>
+                            <td style={{ ...tdNum, fontWeight: 600, color: isDayActive ? '#0F766E' : '#94A3B8' }}>{formatInr(w.allocatedAmount)}</td>
+                            <td style={td}>
+                              <span style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                color: w.status === 'Approved' ? '#047857' : '#B45309',
+                                backgroundColor: w.status === 'Approved' ? '#ECFDF5' : '#FFFBEB',
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                              }}>
+                                {w.status}
+                              </span>
+                            </td>
+                            <td style={{ ...td, textAlign: 'center' }}>
+                              <span style={{
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                padding: '1px 6px',
+                                borderRadius: 999,
+                                backgroundColor: isDayActive ? '#ECFDF5' : '#FEE2E2',
+                                color: isDayActive ? '#047857' : '#DC2626',
+                                border: `1px solid ${isDayActive ? '#A7F3D0' : '#FECACA'}`,
+                              }}>
+                                {isDayActive ? '🟢 Active' : '🔴 Inactive'}
+                              </span>
+                            </td>
+                            <td style={{ ...td, textAlign: 'center' }}>
+                              <button
+                                className="btn btn-secondary"
+                                onClick={() => openStatusModalForLabourer(
+                                  {
+                                    id: selectedLabourer.id,
+                                    name: selectedLabourer.name,
+                                    localId: selectedLabourer.localId,
+                                    contractorId: w.contractorId || selectedLabourer.contractorId,
+                                    workDate: w.date,
+                                    amount: w.allocatedAmount,
+                                    isActive: isDayActive
+                                  },
+                                  w.date,
+                                  w.contractorId || selectedLabourer.contractorId
+                                )}
+                                style={{ padding: '0.15rem 0.5rem', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                title="Edit day-wise status"
+                              >
+                                <Pencil size={11} /> Edit
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
@@ -1920,6 +2398,16 @@ export default function LabourHisaab() {
           }}
         />
       ) : null}
+
+      {/* LABOURER DAILY ACTIVE / INACTIVE STATUS MODAL */}
+      <LabourDailyStatusModal
+        isOpen={statusModal.open}
+        labourer={statusModal.labourer}
+        dayLabourers={statusModal.dayLabourers}
+        totalDayAmount={statusModal.totalDayAmount}
+        onClose={() => setStatusModal({ open: false, labourer: null, dayLabourers: [], totalDayAmount: 0 })}
+        onSave={handleSaveLabourerDailyStatus}
+      />
     </div>
   );
 }
