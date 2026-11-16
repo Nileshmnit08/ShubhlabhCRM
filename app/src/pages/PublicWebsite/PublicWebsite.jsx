@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { 
   ChevronDown, Search, Sparkles, ArrowRight, Package, Filter, X,
   BookOpen, ChevronLeft, ChevronRight, Grid3X3, SlidersHorizontal, 
-  Clock, ArrowUpRight, FlaskConical, Calendar, CheckCircle2 
+  Clock, ArrowUpRight, FlaskConical, Calendar, CheckCircle2,
+  MapPin, Phone, Mail
 } from 'lucide-react';
 import { AuthContext } from '../../AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -1592,97 +1593,274 @@ export default function PublicWebsite() {
         {/* 9. Contact & Helpline Section */}
         <section className="contact-section section-padding" id="contact">
           <div className="container">
-            <div className="contact-grid">
-              <div className="contact-intro-column reveal">
-                <div className="section-eyebrow">
-                  <span className="eyebrow-dash"></span>
-                  <span>Connect With Our Team</span>
-                </div>
-                <h2 className="section-heading">
-                  We're here to<br />
-                  <em className="heading-accent">help your dairy thrive.</em>
-                </h2>
-                <p className="lead-text">
-                  For dealership terms, bulk cattle feed supplies, product technical specifications, or general inquiries, reach out to our team directly.
-                </p>
-                <div className="contact-hours-box">
-                  <strong>Operating Hours:</strong>
-                  <span>Monday – Saturday: 9:00 AM to 6:30 PM (IST)</span>
-                </div>
-
-                <div className="contact-direct-channels-list" style={{ marginTop: '1.75rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                  {/* Channel 1: WhatsApp */}
-                  <a
-                    className="contact-card whatsapp-channel"
-                    href={contactSettings.whatsapp
-                      ? `https://wa.me/${contactSettings.whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello Shubh Labh, I would like to enquire about your cattle feed products and dealership opportunities.')}`
-                      : 'https://wa.me/?text=Hello%20Shubh%20Labh'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <div className="channel-icon-box">💬</div>
-                    <div className="channel-details">
-                      <span className="channel-tag">DIRECT MESSAGING</span>
-                      <strong className="channel-title">Chat on WhatsApp</strong>
-                      <span className="channel-info">{contactSettings.whatsapp ? `Message us at ${contactSettings.whatsapp}` : 'Instant response for product & dealer queries'}</span>
-                    </div>
-                    <span className="channel-arrow">↗</span>
-                  </a>
-
-                  {/* Channel 2: Phone */}
-                  {contactSettings.phone && (
-                    <a className="contact-card phone-channel" href={`tel:${contactSettings.phone.replace(/[^0-9+]/g, '')}`}>
-                      <div className="channel-icon-box">☎</div>
-                      <div className="channel-details">
-                        <span className="channel-tag">CUSTOMER HELPLINE</span>
-                        <strong className="channel-title">Call {contactSettings.phone}</strong>
-                        <span className="channel-info">Speak with our regional sales & technical representative</span>
-                      </div>
-                      <span className="channel-arrow">↗</span>
-                    </a>
-                  )}
-
-                  {/* Channel 3: Email */}
-                  {contactSettings.email && (
-                    <a className="contact-card email-channel" href={`mailto:${contactSettings.email}`}>
-                      <div className="channel-icon-box">✉</div>
-                      <div className="channel-details">
-                        <span className="channel-tag">OFFICIAL CORRESPONDENCE</span>
-                        <strong className="channel-title">{contactSettings.email}</strong>
-                        <span className="channel-info">For corporate, institutional, and tender requests</span>
-                      </div>
-                      <span className="channel-arrow">↗</span>
-                    </a>
-                  )}
-
-                  {/* Channel 4: Plant / Office Location */}
-                  {contactSettings.address && (
-                    <div className="contact-card location-channel">
-                      <div className="channel-icon-box">📍</div>
-                      <div className="channel-details">
-                        <span className="channel-tag">MANUFACTURING & OFFICE</span>
-                        <strong className="channel-title">Registered Facility</strong>
-                        <span className="channel-info">{contactSettings.address}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Channel 5: CRM Staff Portal */}
-                  <Link className="contact-card portal-channel" to="/login?destination=crm">
-                    <div className="channel-icon-box">⌘</div>
-                    <div className="channel-details">
-                      <span className="channel-tag">INTERNAL TEAM PORTAL</span>
-                      <strong className="channel-title">Open Shubh Labh CRM</strong>
-                      <span className="channel-info">Secure access for staff, field officers, and administrators</span>
-                    </div>
-                    <span className="channel-arrow">→</span>
-                  </Link>
+            {/* Bilingual Header & Company Banner */}
+            <div className="contact-header-wrap reveal">
+              <div className="section-eyebrow">
+                <span className="eyebrow-dash"></span>
+                <span>SHIV SHANKER PASHU AAHAR UDYOG</span>
+              </div>
+              <h2 className="contact-main-heading">
+                हमसे संपर्क करें | <em className="heading-accent">Contact Shubh Labh</em>
+              </h2>
+              <p className="contact-lead-hindi">
+                शुभ लाभ पशु आहार से संपर्क करें। हमारी फैक्ट्री या कार्यालय आएं, अथवा गाय-भैंस के संतुलित पोषण, डीलरशिप या उत्पाद की सीधी जानकारी के लिए हमें तुरंत कॉल या व्हाट्सएप करें।
+              </p>
+              <div className="contact-company-banner">
+                <span className="company-badge-icon" aria-hidden="true">🏢</span>
+                <div className="company-badge-text">
+                  <strong>Shiv Shanker Pashu Aahar Udyog</strong>
+                  <span className="company-badge-brand">(Shubh Labh Cattle Feed)</span>
                 </div>
               </div>
+            </div>
 
-              {/* Interactive Contact & Inquiries Form */}
-              <div className="contact-form-column reveal">
-                <ContactForm />
+            {/* 4 Dedicated Contact Information Cards */}
+            <div className="contact-locations-wrap reveal" id="locations">
+              <div className="locations-grid contact-four-grid" id="locations-grid">
+                
+                {/* Card 1: Visit Our Factory */}
+                <article className="location-card contact-card-factory">
+                  <div className="location-card-top">
+                    <div className="location-card-header">
+                      <div className="card-title-group">
+                        <span className="card-type-tag">उत्पादन इकाई / FACTORY</span>
+                        <h3 className="location-name">Visit Our Factory</h3>
+                      </div>
+                      <span className="card-header-icon" aria-hidden="true">🏭</span>
+                    </div>
+                    <p className="card-company-name">Shiv Shanker Pashu Aahar Udyog (Shubh Labh Cattle Feed)</p>
+                    
+                    <div className="location-postal">
+                      <MapPin className="location-postal-icon" aria-hidden="true" />
+                      <div className="location-address-block">
+                        <strong className="address-tag-label">Factory Address:</strong>
+                        <span className="location-postal-text">F-772-B, Road No. 6-D, VKI Area, Jaipur, Rajasthan – 302013</span>
+                      </div>
+                    </div>
+
+                    <div className="location-channels">
+                      <div className="location-channel-item">
+                        <Phone className="location-channel-icon" aria-hidden="true" />
+                        <span>Factory Line: <a href="tel:+919352276227" className="location-channel-link">+91 93522 76227</a></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="location-actions">
+                    <a
+                      href="https://maps.google.com/?q=Shiv+Shanker+Pashu+Aahar+Udyog+F-772-B+Road+No+6-D+VKI+Area+Jaipur+Rajasthan+302013"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="location-directions-btn"
+                      aria-label="Get directions to Factory on Google Maps (opens in new tab)"
+                    >
+                      <span>Get Factory Directions</span>
+                      <ArrowUpRight className="directions-arrow-icon" aria-hidden="true" />
+                    </a>
+                  </div>
+                </article>
+
+                {/* Card 2: Office Address */}
+                <article className="location-card contact-card-office is-primary" id="location-primary">
+                  <div className="location-card-top">
+                    <div className="location-card-header">
+                      <div className="card-title-group">
+                        <span className="card-type-tag">मुख्य कार्यालय / OFFICE</span>
+                        <h3 className="location-name">Office Address</h3>
+                      </div>
+                      <span className="location-badge primary">⭐ Primary Office</span>
+                    </div>
+                    <p className="card-company-name">Shiv Shanker Pashu Aahar Udyog</p>
+                    
+                    <div className="location-postal">
+                      <MapPin className="location-postal-icon" aria-hidden="true" />
+                      <div className="location-address-block">
+                        <strong className="address-tag-label">Office Address:</strong>
+                        <span className="location-postal-text">Shop No. 31, Sansar Chandra Road, Chandpole, Jaipur, Rajasthan, India</span>
+                      </div>
+                    </div>
+
+                    <div className="location-channels">
+                      <div className="location-channel-item">
+                        <Phone className="location-channel-icon" aria-hidden="true" />
+                        <span>Office Line: <a href="tel:+919928192696" className="location-channel-link">+91 99281 92696</a></span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="location-actions">
+                    <a
+                      href="https://maps.google.com/?q=Shop+No+31+Sansar+Chandra+Road+Chandpole+Jaipur+Rajasthan"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="location-directions-btn"
+                      aria-label="Get directions to Office on Google Maps (opens in new tab)"
+                    >
+                      <span>Get Office Directions</span>
+                      <ArrowUpRight className="directions-arrow-icon" aria-hidden="true" />
+                    </a>
+                  </div>
+                </article>
+
+                {/* Card 3: Call / WhatsApp Us */}
+                <article className="location-card contact-card-comms">
+                  <div className="location-card-top">
+                    <div className="location-card-header">
+                      <div className="card-title-group">
+                        <span className="card-type-tag">फोन व व्हाट्सएप / PHONE &amp; CHAT</span>
+                        <h3 className="location-name">Call / WhatsApp Us</h3>
+                      </div>
+                      <span className="card-header-icon" aria-hidden="true">📞</span>
+                    </div>
+                    <p className="card-company-name">Direct assistance for orders, nutritional advice &amp; dealership</p>
+
+                    <div className="location-channels comms-channels">
+                      {/* Line 1: 9352276227 */}
+                      <div className="comms-line-group">
+                        <div className="comms-line-header">
+                          <span className="comms-line-title">Contact Line 1:</span>
+                          <strong className="comms-number">+91 93522 76227</strong>
+                        </div>
+                        <div className="comms-actions-row">
+                          <a href="tel:+919352276227" className="comms-pill-btn call-btn" aria-label="Call +91 93522 76227">
+                            <Phone className="comms-pill-icon" aria-hidden="true" />
+                            <span>Call Now</span>
+                          </a>
+                          <a
+                            href="https://wa.me/919352276227?text=Hello%20Shubh%20Labh%2C%20I%20would%20like%20to%20know%20more."
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="comms-pill-btn wa-btn"
+                            aria-label="Chat with 9352276227 on WhatsApp"
+                          >
+                            <svg className="comms-pill-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d={WA_SVG_PATH} />
+                            </svg>
+                            <span>WhatsApp</span>
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Line 2: 9928192696 */}
+                      <div className="comms-line-group">
+                        <div className="comms-line-header">
+                          <span className="comms-line-title">Contact Line 2:</span>
+                          <strong className="comms-number">+91 99281 92696</strong>
+                        </div>
+                        <div className="comms-actions-row">
+                          <a href="tel:+919928192696" className="comms-pill-btn call-btn" aria-label="Call +91 99281 92696">
+                            <Phone className="comms-pill-icon" aria-hidden="true" />
+                            <span>Call Now</span>
+                          </a>
+                          <a
+                            href="https://wa.me/919928192696?text=Hello%20Shubh%20Labh%2C%20I%20would%20like%20to%20know%20more."
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="comms-pill-btn wa-btn"
+                            aria-label="Chat with 9928192696 on WhatsApp"
+                          >
+                            <svg className="comms-pill-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <path d={WA_SVG_PATH} />
+                            </svg>
+                            <span>WhatsApp</span>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="location-actions">
+                    <span className="comms-hours-note">⏰ Working Hours: 9:00 AM – 7:30 PM (Mon–Sat)</span>
+                  </div>
+                </article>
+
+                {/* Card 4: Email Us */}
+                <article className="location-card contact-card-email">
+                  <div className="location-card-top">
+                    <div className="location-card-header">
+                      <div className="card-title-group">
+                        <span className="card-type-tag">ईमेल सहायता / EMAIL US</span>
+                        <h3 className="location-name">Email Us</h3>
+                      </div>
+                      <span className="card-header-icon" aria-hidden="true">✉️</span>
+                    </div>
+                    <p className="card-company-name">Official business correspondence &amp; institutional enquiries</p>
+
+                    <div className="location-channels">
+                      <div className="email-details-box">
+                        <span className="email-label">Official Email ID:</span>
+                        <a href="mailto:shubhlabhfeedinfo@gmail.com" className="email-address-link">
+                          <Mail className="location-channel-icon" aria-hidden="true" />
+                          <span>shubhlabhfeedinfo@gmail.com</span>
+                        </a>
+                        <p className="email-response-time">We typically respond to emails within 24 business hours.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="location-actions">
+                    <a
+                      href="mailto:shubhlabhfeedinfo@gmail.com?subject=Enquiry%20for%20Shubh%20Labh%20Cattle%20Feed"
+                      className="location-directions-btn email-send-btn"
+                      aria-label="Send email to shubhlabhfeedinfo@gmail.com"
+                    >
+                      <span>Send Email</span>
+                      <ArrowUpRight className="directions-arrow-icon" aria-hidden="true" />
+                    </a>
+                  </div>
+                </article>
+
+              </div>
+            </div>
+
+            {/* Quick Enquiry, Portals & Interactive Enquiry Form */}
+            <div className="contact-bottom-row" style={{ marginTop: '2.5rem' }}>
+              <div className="contact-grid">
+                <div className="contact-intro-column reveal">
+                  <div className="section-eyebrow">
+                    <span className="eyebrow-dash"></span>
+                    <span>Direct Access Options</span>
+                  </div>
+                  <h3 className="section-heading" style={{ fontSize: 'clamp(20px, 2.5vw, 28px)' }}>
+                    Instant Enquiry &amp;<br />
+                    <em className="heading-accent">Business Portals</em>
+                  </h3>
+                  <p className="lead-text" style={{ fontSize: '0.95rem' }}>
+                    Connect with our support team immediately or access authenticated business applications.
+                  </p>
+
+                  <div className="contact-direct-channels-list" style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                    <a
+                      className="contact-card whatsapp-channel"
+                      href="https://wa.me/?text=Hello%20Shubh%20Labh%2C%20I%20would%20like%20to%20know%20more."
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="channel-icon-box">💬</div>
+                      <div className="channel-details">
+                        <span className="channel-tag">QUICK ENQUIRY</span>
+                        <strong className="channel-title">Start a WhatsApp conversation</strong>
+                        <span className="channel-info">Opens WhatsApp with a prefilled enquiry message</span>
+                      </div>
+                      <span className="channel-arrow">↗</span>
+                    </a>
+
+                    <Link className="contact-card portal-channel" to="/login?destination=crm">
+                      <div className="channel-icon-box">⌘</div>
+                      <div className="channel-details">
+                        <span className="channel-tag">EXISTING BUSINESS PORTAL</span>
+                        <strong className="channel-title">Open Shubh Labh CRM</strong>
+                        <span className="channel-info">For authorised team access &amp; staff logins</span>
+                      </div>
+                      <span className="channel-arrow">→</span>
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Direct Message Form Column */}
+                <div className="contact-form-column reveal">
+                  <ContactForm />
+                </div>
               </div>
             </div>
           </div>
