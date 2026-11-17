@@ -137,6 +137,14 @@ export function MyWorkScreen({ navigation }) {
           <MaterialIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
         </TouchableOpacity>
 
+        <TouchableOpacity style={styles.secondaryNavCard} onPress={() => navigation.navigate('VisitorRegister')}>
+          <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>
+            <MaterialIcons name="badge" size={20} color={colors.primary} />
+            <Text style={styles.secondaryNavTitle}>Visitor Register</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color={colors.onSurfaceVariant} />
+        </TouchableOpacity>
+
         {/* Sync Status */}
         <TouchableOpacity style={styles.secondaryNavCard} onPress={() => navigation.navigate('Reconciliation')}>
           <View style={{flexDirection: 'row', alignItems: 'center', gap: 8}}>

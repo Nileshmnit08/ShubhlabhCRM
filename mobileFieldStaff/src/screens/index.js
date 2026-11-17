@@ -27,4 +27,5 @@ export { AttendanceScreen } from './AttendanceScreen';
 export { AttendanceHistoryScreen } from './AttendanceHistoryScreen';
 export { LeaveRequestsScreen } from './LeaveRequestsScreen';
 export { LeaveApplicationScreen } from './LeaveApplicationScreen';
+export { VisitorRegisterScreen } from './VisitorRegisterScreen';
 

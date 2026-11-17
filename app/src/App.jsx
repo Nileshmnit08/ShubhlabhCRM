@@ -72,6 +72,7 @@ const LabourHisaabApprovals = lazy(() => import('./pages/LabourHisaabApprovals')
 
 const WebsiteCMS = lazy(() => import('./pages/WebsiteCMS'));
 const WebsiteLeads = lazy(() => import('./pages/WebsiteLeads'));
+const VisitorManagement = lazy(() => import('./pages/VisitorManagement/VisitorManagement'));
 
 // Clean, lightweight workspace module loading fallback
 const WorkspaceLoadingFallback = () => (
@@ -331,6 +332,7 @@ function App() {
                     <Route path="list" element={<DispatchList />} />
                     <Route path=":id" element={<DispatchDetail />} />
                   </Route>
+                  <Route path="visitors/*" element={<VisitorManagement />} />
 
                   {/* Admin-Only Routes */}
                   <Route element={<AdminRoute />}>

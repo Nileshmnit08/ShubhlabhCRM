@@ -32,6 +32,7 @@ const TABLE_LABELS = {
   geofence_events: 'Geofence Event',
   follow_ups: 'Follow-up Task',
   crm_call_events: 'Call Event',
+  visitor_register: 'Visitor Register',
 };
 
 const sanitizeError = (err) => {

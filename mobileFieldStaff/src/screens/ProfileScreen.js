@@ -122,6 +122,12 @@ export function ProfileScreen({ navigation }) {
             title="My Tasks & Follow-ups" 
             onPress={() => navigation.navigate('My Work')} 
           />
+          <View style={styles.divider} />
+          <ShortcutRow 
+            icon="badge" 
+            title="Visitor Register" 
+            onPress={() => navigation.navigate('VisitorRegister')} 
+          />
         </View>
 
         {/* APP & SYNC */}

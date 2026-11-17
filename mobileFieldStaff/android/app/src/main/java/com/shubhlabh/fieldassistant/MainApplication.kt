@@ -23,6 +23,7 @@ class MainApplication : Application(), ReactApplication {
         PackageList(this).packages.apply {
           // Packages that cannot be autolinked yet can be added manually here.
           add(SpeechRecognizerPackage()) // FA-VOICE-TO-TEXT-01: on-device native speech recognizer
+          add(CameraPackage())           // FA-VISITOR-REGISTER-01: native camera capture
         }
     )
   }

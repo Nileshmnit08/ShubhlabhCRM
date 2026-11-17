@@ -51,7 +51,8 @@ import {
   AttendanceScreen,
   AttendanceHistoryScreen,
   LeaveRequestsScreen,
-  LeaveApplicationScreen
+  LeaveApplicationScreen,
+  VisitorRegisterScreen
 } from './src/screens';
 import { NotificationProvider, useNotifications } from './src/context/NotificationContext';
 import { VisitProvider } from './src/context/VisitContext';
@@ -260,6 +261,11 @@ function RootNavigator() {
       <Stack.Screen
         name="LeaveApplication"
         component={LeaveApplicationScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="VisitorRegister"
+        component={VisitorRegisterScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>
