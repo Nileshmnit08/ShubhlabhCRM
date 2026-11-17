@@ -51,6 +51,9 @@ const getErrorExplanation = (err) => {
   ) {
     return 'Recipient user ID does not match an authenticated user account.';
   }
+  if (err.includes('visitor_register') && (err.includes('schema cache') || err.includes('does not exist') || err.includes('relation') || err.includes('PGRST205'))) {
+    return 'Database table public.visitor_register does not exist on Supabase. Awaiting migration 259 approval.';
+  }
   if (err.includes('23503')) {
     return 'Required parent record is missing or not yet synchronized on server.';
   }
@@ -83,6 +86,9 @@ const getNextAction = (op, err) => {
   }
   if (errorStr.includes('jwt') || errorStr.includes('auth') || errorStr.includes('refresh token')) {
     return 'Authentication session expired. Please log out and log back in.';
+  }
+  if (errorStr.includes('visitor_register') || errorStr.includes('schema cache')) {
+    return 'Execute Supabase proposal 259 in SQL Editor, then tap SYNC NOW to sync.';
   }
   if (errorStr.includes('check constraint') || errorStr.includes('req_status_check') || errorStr.includes('23514')) {
     return 'Record format rejected by server schema check. Contact support.';
@@ -196,6 +202,7 @@ export function SyncDetailsModal({ visible, onClose, userId, queueVersion }) {
       parts.push(`#${safeId.slice(0, 8)}`);
     }
     const label =
+      op.payload?.visitor_name ||
       op.payload?.title ||
       op.payload?.customerName ||
       op.payload?.message_text ||

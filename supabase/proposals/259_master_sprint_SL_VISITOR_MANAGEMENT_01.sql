@@ -162,3 +162,25 @@ BEGIN
         END IF;
     END IF;
 END $$;
+
+-- 5. Updated_at Trigger & Defaults Handler
+CREATE OR REPLACE FUNCTION public.handle_visitor_register_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = timezone('utc'::text, now());
+    IF NEW.registration_source IS NULL OR NEW.registration_source = '' THEN
+        NEW.registration_source := 'Field Assist';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_visitor_register_updated_at ON public.visitor_register;
+CREATE TRIGGER trg_visitor_register_updated_at
+    BEFORE UPDATE ON public.visitor_register
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_visitor_register_updated_at();
+
+-- 6. Immediate PostgREST Schema Cache Reload
+NOTIFY pgrst, 'reload schema';
+

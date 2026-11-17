@@ -402,6 +402,13 @@ export class SyncService {
           // Clean out unsupported fields if they accidentally made it into the payload
           let safePayload = { ...pendingOp.payload };
           delete safePayload.customerName; // Never sync ephemeral labels
+
+          // FA-VISITOR-FAILED-QUEUE-RECOVERY-02: Ensure visitor registration_source defaults to 'Field Assist'
+          if (pendingOp.table === 'visitor_register') {
+            if (!safePayload.registration_source) {
+              safePayload.registration_source = 'Field Assist';
+            }
+          }
           
           if (pendingOp.table === 'requirement_items') {
             // weight, gift, other_gift are now canonical columns in requirement_items, so do not delete them.
