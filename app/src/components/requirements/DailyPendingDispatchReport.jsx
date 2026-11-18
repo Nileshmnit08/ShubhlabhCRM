@@ -237,7 +237,11 @@ export default function DailyPendingDispatchReport({ requirements = [], loading 
       }
     } catch (err) {
       console.error('Error updating production status:', err);
-      setMutationError(err.message || 'Failed to update production status. Please try again.');
+      let errMsg = err.message || 'Failed to update production status. Please try again.';
+      if (errMsg.includes('production_done') || errMsg.includes('schema cache')) {
+        errMsg = 'Database column missing: Please execute migration 260_sprint_SL_PRODUCTION_STATUS_01.sql in Supabase Dashboard SQL Editor.';
+      }
+      setMutationError(errMsg);
     } finally {
       setIsMutating(false);
     }
