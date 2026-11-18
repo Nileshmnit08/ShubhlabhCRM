@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 import {
   computeProductionReport,
   generateProductionReportText,
+  generatePendingProductionReportText,
+  generateCompletedProductionReportText,
+  formatCompletionDateTime,
 } from '../productionReport.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -212,4 +215,89 @@ test('UI component wiring: Production Report button sits next to Copy Report and
   assert.match(source, /कॉपी करें/);
   assert.match(source, /बंद करें/);
 });
+
+test('SL-PRODUCTION-STATUS-01: separates pending vs completed production and excludes completed items from pending', () => {
+  const requirements = [
+    {
+      id: 'req-1',
+      demand_ref: 'D-279',
+      status: 'Qualified',
+      owner_email: 'vishnu@shubhlabh.com',
+      requirement_items: [
+        {
+          id: 'item-1',
+          product_name: 'MIX PALLET + KHAL + KAKDE',
+          quantity: 25,
+          weight: 45,
+          production_done: false,
+        },
+      ],
+    },
+    {
+      id: 'req-2',
+      demand_ref: 'D-278',
+      status: 'Qualified',
+      owner_email: 'vishnu@shubhlabh.com',
+      requirement_items: [
+        {
+          id: 'item-2',
+          product_name: '8000',
+          quantity: 10,
+          weight: 45,
+          production_done: true,
+          production_done_at: '2026-11-17T11:24:00+05:30',
+          production_done_by: 'user-vishnu-uuid',
+        },
+      ],
+    },
+  ];
+
+  const usersMap = {
+    'user-vishnu-uuid': { display_name: 'vishnu', email: 'vishnu@shubhlabh.com' },
+  };
+
+  const report = computeProductionReport(requirements, '2026-11-18', { usersMap });
+
+  // 1. Pending view must ONLY contain MIX PALLET + KHAL + KAKDE (item-1)
+  assert.equal(report.pending.totalBags, 25);
+  assert.equal(report.pending.totalKnownWeightKg, 1125);
+  assert.equal(report.pending.products.length, 1);
+  assert.equal(report.pending.products[0].productName, 'MIX PALLET + KHAL + KAKDE');
+  assert.equal(report.pending.products[0].totalBags, 25);
+
+  // Completed item-2 must be EXCLUDED from pending view
+  const pendingProductNames = report.pending.products.map(p => p.productName);
+  assert.equal(pendingProductNames.includes('8000'), false, 'Completed 8000 must be excluded from pending production');
+
+  // 2. Completed view must ONLY contain 8000 (item-2)
+  assert.equal(report.completed.totalBags, 10);
+  assert.equal(report.completed.totalKnownWeightKg, 450);
+  assert.equal(report.completed.products.length, 1);
+  assert.equal(report.completed.products[0].productName, '8000');
+  assert.equal(report.completed.products[0].totalBags, 10);
+  assert.equal(report.completed.items.length, 1);
+  assert.equal(report.completed.items[0].responsibleName, 'vishnu');
+
+  // Pending item-1 must NOT be counted as completed production
+  const completedProductNames = report.completed.products.map(p => p.productName);
+  assert.equal(completedProductNames.includes('MIX PALLET + KHAL + KAKDE'), false, 'Pending item must not count as completed production');
+
+  // 3. Text generation
+  const pendingText = generatePendingProductionReportText(report);
+  assert.match(pendingText, /MIX PALLET \+ KHAL \+ KAKDE/);
+  assert.equal(pendingText.includes('8000'), false);
+
+  const completedText = generateCompletedProductionReportText(report);
+  assert.match(completedText, /✅ \*शुभ लाभ – पूर्ण उत्पादन रिपोर्ट \(Completed Production\)\*/);
+  assert.match(completedText, /8000/);
+  assert.match(completedText, /10 बैग/);
+  assert.match(completedText, /vishnu/);
+  assert.equal(completedText.includes('MIX PALLET + KHAL + KAKDE'), false);
+});
+
+test('SL-PRODUCTION-STATUS-01: formatCompletionDateTime formats ISO timestamp accurately', () => {
+  const formatted = formatCompletionDateTime('2026-11-17T11:24:00+05:30');
+  assert.equal(formatted, '17-11-2026, 11:24 AM');
+});
+
 

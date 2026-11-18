@@ -307,11 +307,17 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
         totalPendingBags += itemPending;
 
         orderObj.products.push({
+          id: item.id || null,
+          requirementId: req.id,
           productName: prodName.toUpperCase(),
           pendingBags: itemPending,
           bagWeightKg: bagWeight,
           itemWeightKg: hasWeight ? itemWeightKg : null,
           hasWeight,
+          productionDone: Boolean(item.production_done),
+          productionDoneAt: item.production_done_at || null,
+          productionDoneBy: item.production_done_by || null,
+          category: item.category || null,
         });
 
         // Gift check
@@ -360,11 +366,17 @@ export function computeDailyPendingReport(pendingRequirements = [], reportDate =
         totalPendingBags += reqPending;
 
         orderObj.products.push({
+          id: null,
+          requirementId: req.id,
           productName: prodName.toUpperCase(),
           pendingBags: reqPending,
           bagWeightKg: bagWeight,
           itemWeightKg: hasWeight ? itemWeightKg : null,
           hasWeight,
+          productionDone: false,
+          productionDoneAt: null,
+          productionDoneBy: null,
+          category: null,
         });
 
         const giftDetails = extractGiftDetails(req, itemExtra);
