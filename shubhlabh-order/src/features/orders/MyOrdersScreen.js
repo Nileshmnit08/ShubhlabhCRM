@@ -8,6 +8,7 @@ import { useTranslation } from '../../shared/localization/i18n';
 import { theme } from '../../shared/theme';
 import SLStatusBadge from '../../shared/components/SLStatusBadge';
 import SLHeader from '../../shared/components/SLHeader';
+import PlaceNewOrderButton from './PlaceNewOrderButton';
 
 export default function MyOrdersScreen({ navigation }) {
   const { t } = useTranslation();
@@ -274,16 +275,7 @@ export default function MyOrdersScreen({ navigation }) {
                       ? (t('profile.language') === 'Language' ? 'New orders being prepared will appear here.' : 'तैयार हो रहे नए ऑर्डर यहाँ दिखाई देंगे।')
                       : (t('profile.language') === 'Language' ? 'Dispatched and completed orders will appear here.' : 'भेजे गए और पूरे हुए ऑर्डर यहाँ दिखाई देंगे।')}
                   </Text>
-                  {activeTab === 'ACTIVE' && (
-                    <TouchableOpacity 
-                      style={styles.primaryCTA} 
-                      onPress={() => navigation.navigate('MainTabs', { screen: 'NewOrderTab', params: { screen: 'NewOrderMain', params: { mode: 'create', ts: Date.now() } } })}
-                    >
-                      <Text style={styles.primaryCTAText}>
-                        {t('profile.language') === 'Language' ? 'Place New Order' : 'नया ऑर्डर करें'}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  {activeTab === 'ACTIVE' && <PlaceNewOrderButton />}
                 </>
               )}
             </View>

@@ -1,166 +1,80 @@
-import React from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { theme } from '../../shared/theme';
 import { useTranslation } from '../../shared/localization/i18n';
 import { useAuth } from '../auth/AuthContext';
+import { useOrderList } from './OrderListContext';
 import { supabase } from '../../core/api/supabase';
 import { CheckCircle } from 'lucide-react-native';
 import SLHeader from '../../shared/components/SLHeader';
+import { submitOrder, singleFlight, resolveDeliveryAddress, currentSavedAddress } from './orderSubmission';
+import { validateDraftItems, describeProblem, newClientReferenceId } from './repeatOrder';
 
 export default function OrderReviewScreen({ route, navigation }) {
   const { t } = useTranslation();
   const { customerProfile, session } = useAuth();
-  const { finalItems, existingOrder } = route.params;
-  const [loading, setLoading] = React.useState(false);
+  const { discardSavedDraft } = useOrderList();
+  const { finalItems, existingOrder, clearCallback } = route.params;
+  // Only an EDIT arrives with the existing order. A new or repeated order is always inserted as a NEW order.
+  const submitMode = route.params.submitMode || (existingOrder ? 'edit' : 'create');
+  const repeatInfo = route.params.repeatInfo || null;
+  const isHindi = t('profile.language') !== 'Language';
+  const [loading, setLoading] = useState(false);
 
-  const handlePlaceOrder = async () => {
-    if (!customerProfile?.id) {
-      Alert.alert('Error', 'Buyer profile not found.');
-      return;
-    }
+  // One idempotency key per draft: a retry (double tap, lost response, partial failure) resumes the order
+  // that was already created instead of creating a second one.
+  const referenceRef = useRef(route.params.clientReferenceId || newClientReferenceId());
 
-    // Validate all items have a real product_id from the database.
-    // Items selected from fallback/default list have product_id = null,
-    // which causes a NOT NULL violation in buyer_order_items.
-    const invalidItems = finalItems.filter(item => !item.product_id);
-    if (invalidItems.length > 0) {
-      const names = invalidItems.map(i => i.product_name).join(', ');
-      Alert.alert(
-        t('common.error') || 'Error',
-        `Product not found in database: ${names}. Please select a product from the live catalogue.`
-      );
-      return;
-    }
+  const savedAddress = currentSavedAddress(session, customerProfile);
+  const previousAddress = repeatInfo?.deliveryAddress || '';
+  const canChooseAddress = !!previousAddress && previousAddress !== savedAddress;
+  const [addressChoice, setAddressChoice] = useState(previousAddress ? 'previous' : 'saved');
+  const address = resolveDeliveryAddress({ preferred: addressChoice === 'previous' ? previousAddress : '', session, customerProfile });
+  const problems = useMemo(() => validateDraftItems(finalItems), [finalItems]);
 
-    if (finalItems.length === 0) {
-      Alert.alert(t('common.error') || 'Error', 'No items in order.');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      // Generate idempotency key
-      const clientRef = 'ref-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
-      
-      const reqPayload = {
-        party_id: customerProfile.id,
-        status: existingOrder ? existingOrder.status : 'New', // Preserve existing status
-        unit: 'Bags',  // Must satisfy NOT NULL constraint on requirements
-        notes: JSON.stringify({
-          address: session?.user?.user_metadata?.deliveryAddress?.address || customerProfile?.city || 'Saved Address',
-          client_reference_id: clientRef
-        })
-      };
+  // The submit function is created once and reads the latest values from this ref.
+  const latest = useRef({});
+  latest.current = { address, customerProfile, session, isHindi, discardSavedDraft };
 
-      console.log('Placing/Updating order with payload:', JSON.stringify(reqPayload));
-
-      let reqData;
-      if (existingOrder) {
-        // Update existing requirement
-        const { data: updateData, error: updateError } = await supabase
-          .from('requirements')
-          .update(reqPayload)
-          .eq('id', existingOrder.id)
-          .select()
-          .single();
-          
-        if (updateError) {
-          console.error('Error updating requirement:', updateError);
-          throw new Error(updateError.message || 'Error updating order');
-        }
-        reqData = updateData;
-        
-        // Delete existing items
-        const { error: delError } = await supabase
-          .from('requirement_items')
-          .delete()
-          .eq('requirement_id', existingOrder.id);
-          
-        if (delError) {
-           console.error('Error deleting old requirement items:', delError);
-           throw new Error(delError.message || 'Error updating order items');
-        }
-
-        // Insert audit log
-        await supabase.from('activity_logs').insert({
-           actor_id: session?.user?.id || null,
-           module: 'Orders',
-           action_type: 'UPDATED',
-           entity_type: 'requirements',
-           entity_id: existingOrder.id,
-           summary: 'Buyer updated order items/details',
-           metadata: { 
-             source: 'buyer_app',
-             field: 'order_items',
-             old_items_count: existingOrder.items?.length || 0,
-             new_items_count: finalItems.length
-           }
+  const placeOnce = useRef(null);
+  if (!placeOnce.current) {
+    // singleFlight: a second tap while the first is running gets the first one's result — never a second request.
+    placeOnce.current = singleFlight(async () => {
+      const { address: addr, customerProfile: profile, session: sess, isHindi: hindi } = latest.current;
+      setLoading(true);
+      try {
+        const result = await submitOrder({
+          client: supabase,
+          session: sess,
+          customerProfile: profile,
+          items: finalItems,
+          mode: submitMode,
+          existingOrder: submitMode === 'edit' ? existingOrder : null,
+          clientReferenceId: referenceRef.current,
+          address: addr,
+          isHindi: hindi,
         });
-      } else {
-        // Insert new requirement
-        const { data: insertData, error: insertError } = await supabase
-          .from('requirements')
-          .insert(reqPayload)
-          .select()
-          .single();
-          
-        if (insertError) {
-          console.error('Error inserting requirement:', insertError);
-          throw new Error(insertError.message || 'Error inserting order');
-        }
-        reqData = insertData;
-      }
-      
-      if (!reqData) throw new Error('Order placement did not return data');
-      
-      const itemsPayload = finalItems.map(item => ({
-        requirement_id: reqData.id,
-        product_name: item.product_name,
-        category: item.category || 'Uncategorized',
-        quantity: item.quantity,
-        unit: item.unit || 'Bags',
-        weight: item.weight,
-        gift: item.gift,
-        other_gift: item.other_gift
-      }));
-      
-      const { error: itemsError } = await supabase
-        .from('requirement_items')
-        .insert(itemsPayload);
-        
-      if (itemsError) {
-         console.error('Error inserting requirement items:', itemsError);
-         throw new Error(itemsError.message || 'Error inserting order items');
-      }
+        // The order is placed: the saved repeat draft must not come back after a restart.
+        latest.current.discardSavedDraft();
+        // Navigate to Success
+        navigation.navigate('OrderSuccess', { orderData: result.orderData });
 
-      const orderData = {
-        id: reqData.id,
-        order_no: reqData.demand_ref || 'PENDING',
-        final_amount: 0,
-        status: reqData.status || 'Order Lag Gaya',
-        updated: !!existingOrder
-      };
-      
-      // Navigate to Success
-      navigation.navigate('OrderSuccess', { orderData });
-      
-      // Use setTimeout to clear it after navigation, so the back stack doesn't visually break before transitioning
-      setTimeout(() => {
-        if (route.params?.clearCallback) {
-          route.params.clearCallback();
-        }
-      }, 500);
-    } catch (error) {
-      console.error('Place order error:', error);
-      const msg = error?.message || 'Failed to place order.';
-      Alert.alert(
-        t('common.error') || 'An error occurred',
-        msg
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Use setTimeout to clear it after navigation, so the back stack doesn't visually break before transitioning
+        setTimeout(() => {
+          if (clearCallback) clearCallback();
+        }, 500);
+      } catch (error) {
+        console.error('Place order error:', error);
+        Alert.alert(
+          t('common.error') || 'An error occurred',
+          error?.message || 'Failed to place order.'
+        );
+      } finally {
+        setLoading(false);
+      }
+    });
+  }
+  const handlePlaceOrder = () => placeOnce.current();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -169,8 +83,38 @@ export default function OrderReviewScreen({ route, navigation }) {
         showBack={true}
         onBackPress={() => navigation.goBack()}
       />
-      
+
       <ScrollView contentContainerStyle={styles.content}>
+        {submitMode === 'reorder' && (
+          <View style={styles.repeatBanner}>
+            <Text style={styles.repeatBannerTitle}>
+              {t('repeat.bannerTitle')}{repeatInfo?.source?.order_no ? ` • ${t('repeat.basedOn')} #${repeatInfo.source.order_no}` : ''}
+            </Text>
+            <Text style={styles.repeatBannerText}>{t('repeat.deliveryTo')}: {address}</Text>
+            {canChooseAddress && (
+              <View style={styles.addressRow}>
+                {[['previous', t('repeat.usePreviousAddress')], ['saved', t('repeat.useSavedAddress')]].map(([key, label]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[styles.addressChip, addressChoice === key && styles.addressChipActive]}
+                    onPress={() => setAddressChoice(key)}
+                    disabled={loading}
+                  >
+                    <Text style={[styles.addressChipText, addressChoice === key && styles.addressChipTextActive]}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+        {problems.length > 0 && (
+          <View style={styles.problemBox}>
+            <Text style={styles.problemTitle}>{t('repeat.blockedTitle')}</Text>
+            {problems.map((p) => (
+              <Text key={p.index} style={styles.problemText}>{describeProblem(p.problems[0], p.product_name, isHindi)}</Text>
+            ))}
+          </View>
+        )}
         <View style={styles.card}>
            {finalItems.map((item, idx) => (
               <View key={idx} style={styles.itemRow}>
@@ -185,9 +129,9 @@ export default function OrderReviewScreen({ route, navigation }) {
            ))}
         </View>
       </ScrollView>
-      
+
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.saveBtn} onPress={handlePlaceOrder} disabled={loading}>
+        <TouchableOpacity style={[styles.saveBtn, (loading || problems.length > 0) && { opacity: 0.6 }]} onPress={handlePlaceOrder} disabled={loading || problems.length > 0}>
           {loading ? (
             <ActivityIndicator color={theme.colors.white} />
           ) : (
@@ -216,4 +160,15 @@ const styles = StyleSheet.create({
   footer: { padding: 16, backgroundColor: theme.colors.surface, borderTopWidth: 1, borderTopColor: theme.colors.border },
   saveBtn: { height: 56, backgroundColor: theme.colors.primary, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, elevation: 2 },
   saveBtnText: { fontSize: 16, fontWeight: 'bold', color: theme.colors.white, textTransform: 'uppercase' },
+  repeatBanner: { backgroundColor: '#EFF6FF', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#BFDBFE' },
+  repeatBannerTitle: { fontSize: 14, fontWeight: '700', color: '#1D4ED8' },
+  repeatBannerText: { fontSize: 14, color: theme.colors.textPrimary, marginTop: 6, lineHeight: 20 },
+  addressRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  addressChip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, justifyContent: 'center' },
+  addressChipActive: { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
+  addressChipText: { fontSize: 13, color: theme.colors.textPrimary },
+  addressChipTextActive: { color: theme.colors.white, fontWeight: '700' },
+  problemBox: { backgroundColor: '#FEE4E2', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#F5B5AF' },
+  problemTitle: { fontSize: 14, fontWeight: '700', color: '#B42318' },
+  problemText: { fontSize: 13, color: '#B42318', marginTop: 6, lineHeight: 18 },
 });

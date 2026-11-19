@@ -8,7 +8,8 @@ import SLHeader from '../../shared/components/SLHeader';
 import { supabase } from '../../core/api/supabase';
 import { getLatestOrder, getOrderSummaryCounts } from '../orders/OrderService';
 import SLCard from '../../shared/components/SLCard';
-import SLButton from '../../shared/components/SLButton';
+import PlaceNewOrderButton from '../orders/PlaceNewOrderButton';
+import { useOrderNavigation } from '../../navigation/useOrderNavigation';
 import SLText from '../../shared/components/SLText';
 import SLScreen from '../../shared/components/SLScreen';
 import SLSectionHeader from '../../shared/components/SLSectionHeader';
@@ -37,6 +38,8 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const { userProfile, customerProfile } = useAuth();
   const navigation = useNavigation();
+  // One shared action for every order-starting button (see src/navigation/orderNavigation.js).
+  const { startNewOrder, reorder } = useOrderNavigation();
   const { notifications, loading: notificationsLoading, error: notificationsError, refreshNotifications } = useNotifications();
 
   const [latestOrder, setLatestOrder] = useState(null);
@@ -134,10 +137,7 @@ export default function HomeScreen() {
 
   const handleReorder = () => {
     if (latestOrder) {
-      navigation.navigate('NewOrderTab', {
-        screen: 'NewOrderMain',
-        params: { previousOrder: latestOrder, mode: 'reorder', ts: Date.now() },
-      });
+      reorder(latestOrder);
     } else {
       alert(t('profile.language') === 'Language' ? 'No previous order found.' : 'कोई पिछला ऑर्डर नहीं मिला।');
     }
@@ -207,7 +207,7 @@ export default function HomeScreen() {
         {/* Primary CTA: Place New Order */}
         <TouchableOpacity 
           style={styles.primaryCta}
-          onPress={() => navigation.navigate("NewOrderTab", { screen: 'NewOrderMain', params: { mode: 'create', ts: Date.now() }})}
+          onPress={startNewOrder}
           activeOpacity={0.9}
         >
           <View style={styles.primaryCtaContent}>
@@ -233,7 +233,7 @@ export default function HomeScreen() {
           <View style={styles.quickActionsGrid}>
             <TouchableOpacity 
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate("NewOrderTab", { screen: 'NewOrderMain', params: { mode: 'create', ts: Date.now() }})}
+              onPress={startNewOrder}
               activeOpacity={0.8}
             >
               <View style={[styles.quickActionIconWrap, { backgroundColor: '#FFF7ED' }]}>
@@ -416,11 +416,7 @@ export default function HomeScreen() {
             <SLText style={styles.emptyOrderSubtitle}>
               {t('profile.language') === 'Language' ? 'Your next order is just a tap away.' : 'आपका अगला ऑर्डर बस एक टैप दूर है।'}
             </SLText>
-            <SLButton 
-              title={t('home.placeNewOrder')} 
-              onPress={() => navigation.navigate("NewOrderTab")} 
-              style={styles.emptyOrderBtn}
-            />
+            <PlaceNewOrderButton />
           </SLCard>
         )}
 
@@ -793,11 +789,6 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginBottom: 14,
     textAlign: 'center',
-  },
-  emptyOrderBtn: {
-    width: 'auto',
-    paddingHorizontal: 20,
-    height: 38,
   },
   updateCard: {
     padding: 14,

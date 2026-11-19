@@ -13,12 +13,12 @@ import { useAuth } from '../auth/AuthContext';
 import { theme } from '../../shared/theme';
 import { SLHeader } from '../../shared/components/SLHeader';
 import { useTranslation } from '../../shared/localization/i18n';
+import SalespersonCard from './SalespersonCard';
 import {
   ChevronRight,
   MapPin,
   Globe,
   HeadphonesIcon,
-  Users,
   Settings,
   LogOut,
   Lock,
@@ -30,7 +30,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
-  ShieldCheck
+  Megaphone
 } from 'lucide-react-native';
 
 export default function ProfileScreen({ navigation }) {
@@ -168,7 +168,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </TouchableOpacity>
 
-        {/* B. CONTEXTUAL COMPLETION BANNER */}
+        {/* B. REGISTERED BUSINESS ADDRESS / COMPLETION ALERT (only while the profile is incomplete) */}
         {!isComplete ? (
           <View style={styles.bannerContainer}>
             <View style={styles.bannerIconBox}>
@@ -192,84 +192,40 @@ export default function ProfileScreen({ navigation }) {
               <ArrowRight size={14} color="#fff" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
           </View>
-        ) : (
-          <View style={styles.verifiedBanner}>
-            <ShieldCheck size={20} color="#138A4B" style={{ marginRight: 8 }} />
-            <Text style={styles.verifiedBannerText}>
-              {t('profile.activeAccount') || 'Active Business Account'}
-            </Text>
-          </View>
-        )}
+        ) : null}
 
-        {/* C. ORGANISED PROFILE MENU */}
-
-        {/* SECTION 1: MY BUSINESS */}
-        <Text style={styles.menuSectionHeader}>{t('profile.myBusiness') || 'My Business'}</Text>
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => navigateToEditor(null)}
-          >
-            <View style={styles.iconBox}>
-              <Store size={22} color={theme.colors.primary} />
-            </View>
-            <View style={styles.rowTitleContainer}>
-              <Text style={styles.rowTitle}>{t('profile.businessProfile') || 'Business Profile'}</Text>
-              <Text style={styles.rowSubtitle}>{shopName}</Text>
-            </View>
-            <ChevronRight size={20} color={theme.colors.textSecondary} />
+        {/* C. BUSINESS SHORTCUTS */}
+        <View style={styles.shortcutRow}>
+          <TouchableOpacity style={styles.shortcut} onPress={() => navigateToEditor(null)} activeOpacity={0.85}>
+            <Store size={30} color={theme.colors.primary} />
+            <Text style={styles.shortcutText}>{t('profile.businessProfile') || 'Business Profile'}</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => navigation.navigate('DeliveryAddress')}
-          >
-            <View style={styles.iconBox}>
-              <MapPin size={22} color={theme.colors.primary} />
-            </View>
-            <View style={styles.rowTitleContainer}>
-              <Text style={styles.rowTitle}>{t('profile.deliveryAddresses') || 'Delivery Addresses'}</Text>
-              <Text style={styles.rowSubtitle}>
-                {isHindi ? 'ऑर्डर डिलीवरी गंतव्य' : 'Drop-off destination'}
-              </Text>
-            </View>
-            <ChevronRight size={20} color={theme.colors.textSecondary} />
+          <TouchableOpacity style={styles.shortcut} onPress={() => navigation.navigate('DeliveryAddress')} activeOpacity={0.85}>
+            <MapPin size={30} color={theme.colors.primary} />
+            <Text style={styles.shortcutText}>{t('profile.deliveryAddresses') || 'Delivery Addresses'}</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => navigateToEditor('gst')}
-          >
-            <View style={styles.iconBox}>
-              <FileText size={22} color={theme.colors.primary} />
-            </View>
-            <View style={styles.rowTitleContainer}>
-              <Text style={styles.rowTitle}>{t('profile.gstDetails') || 'GST & Tax Details'}</Text>
-              <Text style={styles.rowSubtitle}>
-                {customerProfile?.gst_number
-                  ? customerProfile.gst_number
-                  : isHindi
-                    ? 'पंजीकरण स्थिति देखें'
-                    : 'Add or review GSTIN'}
-              </Text>
-            </View>
-            <ChevronRight size={20} color={theme.colors.textSecondary} />
+          <TouchableOpacity style={styles.shortcut} onPress={() => navigateToEditor('gst')} activeOpacity={0.85}>
+            <FileText size={30} color={theme.colors.primary} />
+            <Text style={styles.shortcutText}>{t('profile.gstDetails') || 'GST & Tax Details'}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* SECTION 2: MY ORDERS & REWARDS */}
-        <Text style={styles.menuSectionHeader}>
-          {t('profile.myOrdersAndRewards') || 'My Orders & Rewards'}
-        </Text>
+        {/* D. MY SALESPERSON (the salesperson assigned to this customer) */}
+        <SalespersonCard onOpen={() => navigation.navigate('MySalesperson')} />
+
+        {/* E. MAIN MENU */}
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.row}
             onPress={() => navigation.navigate('OrdersTab', { screen: 'MyOrders' })}
           >
             <View style={styles.iconBox}>
-              <ClipboardList size={22} color={theme.colors.primary} />
+              <ClipboardList size={24} color={theme.colors.primary} />
             </View>
-            <Text style={styles.rowTitle}>{isHindi ? 'मेरे ऑर्डर' : 'My Orders'}</Text>
+            <View style={styles.rowTitleContainer}>
+              <Text style={styles.rowTitle}>{isHindi ? 'मेरे ऑर्डर' : 'My Orders'}</Text>
+              <Text style={styles.rowSubtitle}>{t('profile.ordersSub')}</Text>
+            </View>
             <ChevronRight size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
@@ -278,80 +234,58 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => navigation.navigate('MyRewardSchemes')}
           >
             <View style={styles.iconBox}>
-              <Award size={22} color={theme.colors.primary} />
+              <Award size={24} color={theme.colors.primary} />
             </View>
-            <Text style={styles.rowTitle}>
-              {t('rewards.title') || (isHindi ? 'मेरी रिवॉर्ड योजनाएं' : 'My Reward Schemes')}
-            </Text>
+            <View style={styles.rowTitleContainer}>
+              <Text style={styles.rowTitle}>
+                {t('rewards.title') || (isHindi ? 'मेरी रिवॉर्ड योजनाएं' : 'My Reward Schemes')}
+              </Text>
+              <Text style={styles.rowSubtitle}>{t('profile.rewardsSub')}</Text>
+            </View>
             <ChevronRight size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
-        </View>
 
-        {/* SECTION 3: UPDATES & NOTICES */}
-        <Text style={styles.menuSectionHeader}>{t('profile.updatesSection') || 'Updates & Notices'}</Text>
-        <View style={styles.section}>
+          {/* One Updates entry: the existing updates screen already lists every published update, with its own filters */}
           <TouchableOpacity
             style={styles.row}
-            onPress={() => navigation.navigate('NotificationInbox', { initialFilter: 'BUSINESS' })}
+            onPress={() => navigation.navigate('NotificationInbox', { initialFilter: 'ALL' })}
           >
             <View style={styles.iconBox}>
-              <Globe size={22} color={theme.colors.primary} />
+              <Megaphone size={24} color={theme.colors.primary} />
             </View>
-            <Text style={styles.rowTitle}>{isHindi ? 'व्यावसायिक अपडेट' : 'Business Updates'}</Text>
+            <View style={styles.rowTitleContainer}>
+              <Text style={styles.rowTitle}>{t('profile.updates')}</Text>
+              <Text style={styles.rowSubtitle}>{t('profile.updatesSub')}</Text>
+            </View>
             <ChevronRight size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.row}
-            onPress={() => navigation.navigate('NotificationInbox', { initialFilter: 'SHUBH_LABH' })}
-          >
-            <View style={styles.iconBox}>
-              <Globe size={22} color={theme.colors.primary} />
-            </View>
-            <Text style={styles.rowTitle}>
-              {t('updates.title') || (isHindi ? 'शुभ लाभ अपडेट' : 'Shubh Labh Updates')}
-            </Text>
-            <ChevronRight size={20} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* SECTION 4: HELP & SUPPORT */}
-        <Text style={styles.menuSectionHeader}>{t('profile.supportSection') || 'Help & Support'}</Text>
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.row}
+            style={[styles.row, styles.rowLast]}
             onPress={() => navigation.navigate('ComplaintCenter')}
           >
             <View style={styles.iconBox}>
-              <HeadphonesIcon size={22} color={theme.colors.primary} />
+              <HeadphonesIcon size={24} color={theme.colors.primary} />
             </View>
-            <Text style={styles.rowTitle}>
-              {t('support.title') || (isHindi ? 'सहायता एवं शिकायतें' : 'Support & Complaints')}
-            </Text>
-            <ChevronRight size={20} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.row}
-            onPress={() => navigation.navigate('MySalesperson')}
-          >
-            <View style={styles.iconBox}>
-              <Users size={22} color={theme.colors.primary} />
+            <View style={styles.rowTitleContainer}>
+              <Text style={styles.rowTitle}>
+                {t('support.title') || (isHindi ? 'सहायता एवं शिकायतें' : 'Support & Complaints')}
+              </Text>
+              <Text style={styles.rowSubtitle}>{t('profile.supportSub')}</Text>
             </View>
-            <Text style={styles.rowTitle}>{t('profile.mySalesperson') || 'My Salesperson'}</Text>
             <ChevronRight size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
-        {/* SECTION 5: ACCOUNT */}
-        <Text style={styles.menuSectionHeader}>{t('profile.accountSection') || 'Account'}</Text>
+        {/* F. ACCOUNT */}
         <View style={styles.section}>
+          <Text style={styles.accountHeader}>{t('profile.accountSection') || 'Account'}</Text>
           {/* Language Switch */}
           <View style={styles.row}>
             <View style={styles.iconBox}>
-              <Globe size={22} color={theme.colors.primary} />
+              <Globe size={24} color={theme.colors.primary} />
             </View>
-            <Text style={styles.rowTitle}>{t('profile.language') || 'Language'}</Text>
+            <Text style={[styles.rowTitle, styles.rowTitleFlex]}>{t('profile.language') || 'Language'}</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ marginRight: 8, color: theme.colors.textSecondary, fontSize: 14 }}>
                 {language === 'en' ? 'English' : 'हिंदी'}
@@ -370,21 +304,21 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => navigation.navigate('Settings')}
           >
             <View style={styles.iconBox}>
-              <Settings size={22} color={theme.colors.primary} />
+              <Settings size={24} color={theme.colors.primary} />
             </View>
-            <Text style={styles.rowTitle}>{t('profile.settings') || 'App Settings'}</Text>
+            <Text style={[styles.rowTitle, styles.rowTitleFlex]}>{t('profile.settings') || 'App Settings'}</Text>
             <ChevronRight size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
 
           {/* Change Password */}
           <TouchableOpacity
-            style={styles.row}
+            style={[styles.row, styles.rowLast]}
             onPress={() => navigation.navigate('ChangePassword')}
           >
             <View style={styles.iconBox}>
-              <Lock size={22} color={theme.colors.primary} />
+              <Lock size={24} color={theme.colors.primary} />
             </View>
-            <Text style={styles.rowTitle}>{t('profile.changePassword') || 'Change Password'}</Text>
+            <Text style={[styles.rowTitle, styles.rowTitleFlex]}>{t('profile.changePassword') || 'Change Password'}</Text>
             <ChevronRight size={20} color={theme.colors.textSecondary} />
           </TouchableOpacity>
         </View>
@@ -616,7 +550,49 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginTop: 1
   },
-  logoutBtn: {
+  shortcutRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12
+  },
+  shortcut: {
+    flex: 1,
+    minHeight: 96,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4
+  },
+  shortcutText: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    textAlign: 'center'
+  },
+  accountHeader: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: theme.colors.textPrimary,
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 10
+  },
+  rowLast: {
+    borderBottomWidth: 0
+  },
+  rowTitleFlex: {
+    flex: 1
+  },  logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

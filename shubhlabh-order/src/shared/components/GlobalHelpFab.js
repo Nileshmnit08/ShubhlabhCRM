@@ -8,6 +8,8 @@ import SLButton from './SLButton';
 import { supabase } from '../../core/api/supabase';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '../localization/i18n';
+import { useOrderNavigation } from '../../navigation/useOrderNavigation';
+import { isOrderStartAction } from '../../navigation/orderNavigation';
 
 export const SUPPORT_PHONE_NUMBER = '9461924461';
 
@@ -27,9 +29,10 @@ export const GlobalHelpFab = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [conversation, setConversation] = useState([]);
-  
+
   const { t } = useTranslation();
   const navigation = useNavigation();
+  const { startNewOrder } = useOrderNavigation();
 
   useEffect(() => {
     if (modalVisible && faqs.length === 0) {
@@ -47,11 +50,11 @@ export const GlobalHelpFab = () => {
         .eq('active', true)
         .order('priority', { ascending: false })
         .order('sort_order', { ascending: true });
-        
+
       if (error) {
         throw error;
       }
-      
+
       if (data && data.length > 0) {
         setFaqs(data);
       } else {
@@ -61,7 +64,7 @@ export const GlobalHelpFab = () => {
       console.warn('Failed to load FAQs, using fallback', err);
       // For sprint test, we still show the fallback rather than an error if the table doesn't exist
       // Since we couldn't run the SQL script via CLI in this test environment.
-      setFaqs(FALLBACK_FAQS); 
+      setFaqs(FALLBACK_FAQS);
     } finally {
       setLoading(false);
       setConversation([{
@@ -85,9 +88,9 @@ export const GlobalHelpFab = () => {
 
   return (
     <>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
-          styles.fab, 
+          styles.fab,
           { bottom: insets.bottom + theme.spacing.xxl + theme.spacing.lg + 70 }
         ]}
         onPress={() => setModalVisible(true)}
@@ -103,7 +106,7 @@ export const GlobalHelpFab = () => {
         onRequestClose={() => setModalVisible(false)}
       >
         <SafeAreaView style={styles.modalOverlay}>
-          <KeyboardAvoidingView 
+          <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.bottomSheet}
           >
@@ -125,8 +128,8 @@ export const GlobalHelpFab = () => {
             ) : error ? (
               <View style={styles.errorContainer}>
                 <SLText style={styles.errorText}>Help content is temporarily unavailable.</SLText>
-                <SLButton 
-                  title="CALL SUPPORT" 
+                <SLButton
+                  title="CALL SUPPORT"
                   onPress={handleCallSupport}
                   icon={<Phone size={20} color={theme.colors.white} />}
                 />
@@ -135,21 +138,24 @@ export const GlobalHelpFab = () => {
               <ScrollView style={styles.chatContainer} contentContainerStyle={styles.chatContent}>
                 {conversation.map((msg, idx) => (
                   <View key={idx} style={[
-                    styles.messageBubble, 
+                    styles.messageBubble,
                     msg.type === 'user' ? styles.userBubble : styles.assistantBubble
                   ]}>
                     <SLText style={[
-                      styles.messageText, 
+                      styles.messageText,
                       msg.type === 'user' ? styles.userMessageText : styles.assistantMessageText
                     ]}>
                       {msg.text}
                     </SLText>
                     {msg.action && (
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         style={styles.actionButton}
                         onPress={() => {
                           setModalVisible(false);
-                          if (navigation.navigate) {
+                          if (isOrderStartAction(msg.action)) {
+                            // "How can I place an order?" → the same shared action as every Place New Order button.
+                            startNewOrder();
+                          } else if (navigation.navigate) {
                             navigation.navigate(msg.action);
                           }
                         }}
@@ -165,8 +171,8 @@ export const GlobalHelpFab = () => {
                     <SLText style={styles.contextTitle}>Common Questions</SLText>
                     <View style={styles.faqList}>
                       {faqs.map((faq, idx) => (
-                        <TouchableOpacity 
-                          key={faq.id || idx.toString()} 
+                        <TouchableOpacity
+                          key={faq.id || idx.toString()}
                           style={styles.faqButton}
                           onPress={() => handleAskQuestion(faq)}
                         >
@@ -177,9 +183,9 @@ export const GlobalHelpFab = () => {
                     </View>
                   </View>
                 )}
-                
+
                 {conversation.length > 1 && (
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.moreQuestionsButton}
                     onPress={() => {
                       setConversation([{
@@ -195,8 +201,8 @@ export const GlobalHelpFab = () => {
                 <View style={styles.escalationContainer}>
                   <SLText style={styles.escalationText}>Still need help?</SLText>
                   <SLText style={styles.phoneNumber}>📞 {SUPPORT_PHONE_NUMBER}</SLText>
-                  <SLButton 
-                    title="CALL SUPPORT" 
+                  <SLButton
+                    title="CALL SUPPORT"
                     onPress={handleCallSupport}
                     icon={<Phone size={20} color={theme.colors.white} />}
                     style={styles.callButton}

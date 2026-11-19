@@ -81,7 +81,11 @@ describe('Permanent Bottom Navigation Architecture (SL-ORDER-PERSISTENT-NAV-01)'
 
     const successScreen = fs.readFileSync(path.join(orderAppDir, 'src/features/orders/OrderSuccessScreen.js'), 'utf8');
     assert.doesNotMatch(successScreen, /'OrdersStack'/);
-    assert.match(successScreen, /navigation\.navigate\('MainTabs',\s*\{\s*screen:\s*'OrdersTab'/);
+    // SL-ORDER-REPEAT-ORDER-03: the exit now goes through the shared helper, which targets MainTabs → OrdersTab with pop
+    assert.match(successScreen, /leaveOrderSuccess\(navigation, SUCCESS_EXITS\.ORDERS\)/);
+    const helper = fs.readFileSync(path.join(orderAppDir, 'src/navigation/orderNavigation.js'), 'utf8');
+    assert.match(helper, /params = \{ screen: 'OrdersTab', params: \{ screen: 'MyOrders' \} \}/);
+    assert.match(helper, /name: 'MainTabs'/);
   });
 
   it('9. Validation of Test Journeys A-J routing paths', () => {

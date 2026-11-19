@@ -5,15 +5,15 @@ import { SLButton } from '../../shared/components/SLButton';
 import { SLHeader } from '../../shared/components/SLHeader';
 import { useTranslation } from '../../shared/localization/i18n';
 import { CheckCircle } from 'lucide-react-native';
+import { leaveOrderSuccess, SUCCESS_EXITS } from '../../navigation/orderNavigation';
 
 export default function OrderSuccessScreen({ route, navigation }) {
   const { t } = useTranslation();
   const orderData = route.params?.orderData;
 
-  const navigateToSafeDestination = () => {
-    // Navigate safely to MyOrders, never back to OrderReview
-    navigation.navigate('MainTabs', { screen: 'OrdersTab', params: { screen: 'MyOrders' } });
-  };
+  // Every way out of this screen removes the finished New Order flow from the stack (pop to the original
+  // MainTabs), so no Back press — button, hardware key or gesture — can return to Review / Success.
+  const navigateToSafeDestination = () => leaveOrderSuccess(navigation, SUCCESS_EXITS.ORDERS);
 
   useEffect(() => {
     const onHardwareBack = () => {
@@ -52,25 +52,19 @@ export default function OrderSuccessScreen({ route, navigation }) {
         <View style={styles.actions}>
           <SLButton 
             title={t('order.viewOrder')} 
-            onPress={() => {
-              navigation.navigate('MainTabs', { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: orderData?.id } } });
-            }} 
+            onPress={() => leaveOrderSuccess(navigation, SUCCESS_EXITS.DETAIL, orderData?.id)}
             style={styles.btn}
           />
           <SLButton 
             title={t('profile.language') === 'Language' ? 'My Orders' : 'मेरे ऑर्डर'} 
             variant="outline" 
-            onPress={() => {
-              navigation.navigate('MainTabs', { screen: 'OrdersTab', params: { screen: 'MyOrders' } });
-            }} 
+            onPress={navigateToSafeDestination}
             style={styles.btn}
           />
           <SLButton 
             title={t('common.backToHome')} 
             variant="secondary" 
-            onPress={() => {
-              navigation.navigate('MainTabs', { screen: 'HomeTab' });
-            }} 
+            onPress={() => leaveOrderSuccess(navigation, SUCCESS_EXITS.HOME)}
             style={styles.btn}
           />
         </View>

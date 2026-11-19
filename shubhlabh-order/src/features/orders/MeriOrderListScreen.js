@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, SafeAreaView, Alert } from 'react-native';
 import { useOrderList } from './OrderListContext';
+import { useOrderNavigation } from '../../navigation/useOrderNavigation';
 import { SLHeader } from '../../shared/components/SLHeader';
 import { SLButton } from '../../shared/components/SLButton';
 import { SLCard } from '../../shared/components/SLCard';
@@ -11,6 +12,8 @@ import { Minus, Plus, Trash2 } from 'lucide-react-native';
 export default function MeriOrderListScreen({ navigation }) {
   const { t } = useTranslation();
   const { orderList, updateQuantity, removeFromOrderList, totalAmount, totalBags, clearOrderList } = useOrderList();
+  // Legacy screen (not mounted in any navigator today): its buttons use the shared order-start action.
+  const { startNewOrder } = useOrderNavigation();
 
   const handleConfirm = () => {
     if (orderList.length === 0) return;
@@ -49,10 +52,10 @@ export default function MeriOrderListScreen({ navigation }) {
       {orderList.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>{t('order.emptyList')}</Text>
-          <SLButton 
-            title={t('order.browseProducts')} 
-            onPress={() => navigation.navigate('MainTabs', { screen: 'NewOrderTab' })} 
-            style={{ marginTop: theme.spacing.xl }} 
+          <SLButton
+            title={t('order.browseProducts')}
+            onPress={startNewOrder}
+            style={{ marginTop: theme.spacing.xl }}
           />
         </View>
       ) : (
@@ -94,7 +97,7 @@ export default function MeriOrderListScreen({ navigation }) {
             <SLButton 
               title={t('order.continueShopping')} 
               variant="secondary"
-              onPress={() => navigation.navigate('MainTabs', { screen: 'NewOrderTab' })} 
+              onPress={startNewOrder}
               style={styles.continueBtn}
             />
           </View>

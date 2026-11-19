@@ -9,6 +9,7 @@ import { useAuth } from '../auth/AuthContext';
 import { useTranslation } from '../../shared/localization/i18n';
 import SLStatusBadge from '../../shared/components/SLStatusBadge';
 import SLHeader from '../../shared/components/SLHeader';
+import { useOrderNavigation } from '../../navigation/useOrderNavigation';
 import * as Location from 'expo-location';
 
 export const SUPPORT_PHONE_NUMBER = '9461924461';
@@ -17,6 +18,7 @@ const STATUS_STAGES = ['NEW', 'CONFIRMED', 'PROCESSING', 'DISPATCHED', 'DELIVERE
 export default function OrderDetailScreen({ route, navigation }) {
   const { t } = useTranslation();
   const { session } = useAuth();
+  const { reorder, editOrder } = useOrderNavigation();
   const initialOrder = route.params?.order || {};
   const orderId = route.params?.orderId || initialOrder.id;
 
@@ -129,13 +131,10 @@ export default function OrderDetailScreen({ route, navigation }) {
   const displayItems = itemsExpanded ? items : items.slice(0, 3);
   const hiddenItemsCount = items.length - 3;
 
-  const handleEditOrder = () => {
-    navigation.navigate('MainTabs', { screen: 'NewOrderTab', params: { screen: 'NewOrderMain', params: { previousOrder: order, mode: 'edit', ts: Date.now() } } });
-  };
+  // Both open the shared New Order screen through the one order-start action.
+  const handleEditOrder = () => editOrder(order);
 
-  const handleReorderOrder = () => {
-    navigation.navigate('MainTabs', { screen: 'NewOrderTab', params: { screen: 'NewOrderMain', params: { previousOrder: order, mode: 'reorder', ts: Date.now() } } });
-  };
+  const handleReorderOrder = () => reorder(order);
 
   const handleContact = () => {
     const message = encodeURIComponent(`Query regarding order #${order.order_no}`);
