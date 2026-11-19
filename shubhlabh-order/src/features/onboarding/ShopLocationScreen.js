@@ -6,13 +6,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '../../shared/localization/i18n';
 import SLButton from '../../shared/components/SLButton';
 import SLCard from '../../shared/components/SLCard';
+import SLHeader from '../../shared/components/SLHeader';
 
 export default function ShopLocationScreen() {
-  const { updateData } = useOnboarding();
+  const { onboardingData, updateData } = useOnboarding();
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const [locationStatus, setLocationStatus] = useState('first_request'); // 'first_request', 'loading', 'success', 'denied', 'error'
-  const [locationDetails, setLocationDetails] = useState(null);
+  const [locationStatus, setLocationStatus] = useState(onboardingData?.shopLocation ? 'success' : 'first_request');
+  const [locationDetails, setLocationDetails] = useState(onboardingData?.shopLocation || null);
 
   const requestLocation = async () => {
     setLocationStatus('loading');
@@ -113,16 +114,23 @@ export default function ShopLocationScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>{t('onboarding.shopLocation')}</Text>
-      {renderContent()}
-      <View style={{ height: 32 }} />
-      <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
+    <View style={styles.outerContainer}>
+      <SLHeader
+        title={t('onboarding.shopLocation')}
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
+      <View style={styles.container}>
+        {renderContent()}
+        <View style={{ height: 32 }} />
+        <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: { flex: 1, backgroundColor: '#FFFDF8' },
   container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
   center: { alignItems: 'center', width: '100%' },
   heading: { fontSize: 28, fontWeight: 'bold', color: '#202124', textAlign: 'center', marginBottom: 32 },

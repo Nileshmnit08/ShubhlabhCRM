@@ -5,12 +5,13 @@ import { useOnboarding } from './OnboardingContext';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '../../shared/localization/i18n';
 import SLButton from '../../shared/components/SLButton';
+import SLHeader from '../../shared/components/SLHeader';
 
 export default function ShopPhotoScreen() {
-  const { updateData } = useOnboarding();
+  const { onboardingData, updateData } = useOnboarding();
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const [photoUri, setPhotoUri] = useState(null);
+  const [photoUri, setPhotoUri] = useState(onboardingData?.shopPhoto || null);
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -62,46 +63,52 @@ export default function ShopPhotoScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <Text style={styles.heading}>{t('onboarding.shopPhoto')}</Text>
-      
-      {photoUri ? (
-        <View style={styles.center}>
-          <Image source={{ uri: photoUri }} style={styles.imagePreview} />
-          <SLButton title="Continue" onPress={handleConfirm} style={{width: '100%', marginBottom: 16}} />
-          <SLButton title="Replace Photo" variant="secondary" onPress={() => setPhotoUri(null)} style={{width: '100%'}} />
-        </View>
-      ) : (
-        <View style={styles.center}>
-          <TouchableOpacity style={styles.largeOption} onPress={takePhoto}>
-            <Text style={styles.optionIcon}>📷</Text>
-            <Text style={styles.optionText}>Camera</Text>
-          </TouchableOpacity>
+    <View style={styles.outerContainer}>
+      <SLHeader
+        title={t('onboarding.shopPhoto')}
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        {photoUri ? (
+          <View style={styles.center}>
+            <Image source={{ uri: photoUri }} style={styles.imagePreview} />
+            <SLButton title="Continue" onPress={handleConfirm} style={{width: '100%', marginBottom: 16}} />
+            <SLButton title="Replace Photo" variant="secondary" onPress={() => setPhotoUri(null)} style={{width: '100%'}} />
+          </View>
+        ) : (
+          <View style={styles.center}>
+            <TouchableOpacity style={styles.largeOption} onPress={takePhoto}>
+              <Text style={styles.optionIcon}>📷</Text>
+              <Text style={styles.optionText}>Camera</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.largeOption} onPress={pickImage}>
-            <Text style={styles.optionIcon}>🖼️</Text>
-            <Text style={styles.optionText}>Gallery</Text>
-          </TouchableOpacity>
-          
-          <SLButton 
-            title="Skip for now" 
-            variant="secondary" 
-            onPress={() => {
-              updateData({ shopPhoto: null });
-              navigation.navigate('FinalConfirmation');
-            }} 
-            style={{width: '100%', marginTop: 8}} 
-          />
-        </View>
-      )}
+            <TouchableOpacity style={styles.largeOption} onPress={pickImage}>
+              <Text style={styles.optionIcon}>🖼️</Text>
+              <Text style={styles.optionText}>Gallery</Text>
+            </TouchableOpacity>
+            
+            <SLButton 
+              title="Skip for now" 
+              variant="secondary" 
+              onPress={() => {
+                updateData({ shopPhoto: null });
+                navigation.navigate('FinalConfirmation');
+              }} 
+              style={{width: '100%', marginTop: 8}} 
+            />
+          </View>
+        )}
 
-      <View style={{ height: 32 }} />
-      <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
-    </ScrollView>
+        <View style={{ height: 32 }} />
+        <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: { flex: 1, backgroundColor: '#FFFDF8' },
   scrollContainer: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
   center: { alignItems: 'center', width: '100%' },
   heading: { fontSize: 28, fontWeight: 'bold', color: '#202124', textAlign: 'center', marginBottom: 32 },

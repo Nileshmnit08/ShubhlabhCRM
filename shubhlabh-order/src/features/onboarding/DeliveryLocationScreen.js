@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '../../shared/localization/i18n';
 import SLButton from '../../shared/components/SLButton';
 import SLCard from '../../shared/components/SLCard';
+import SLHeader from '../../shared/components/SLHeader';
 
 export default function DeliveryLocationScreen() {
   const { onboardingData, updateData } = useOnboarding();
@@ -31,39 +32,51 @@ export default function DeliveryLocationScreen() {
 
   if (selectedSame) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.heading}>{t('onboarding.deliveryAddress')}</Text>
-        <SLCard style={styles.card}>
-          <Text style={styles.cardText}>{onboardingData.shopLocation?.address}</Text>
-        </SLCard>
-        <SLButton title="Continue" onPress={handleConfirmSame} />
-        <View style={{ height: 16 }} />
-        <SLButton title={t('common.cancel')} variant="secondary" onPress={() => setSelectedSame(false)} />
+      <View style={styles.outerContainer}>
+        <SLHeader
+          title={t('onboarding.deliveryAddress')}
+          showBack={true}
+          onBackPress={() => setSelectedSame(false)}
+        />
+        <View style={styles.container}>
+          <SLCard style={styles.card}>
+            <Text style={styles.cardText}>{onboardingData.shopLocation?.address}</Text>
+          </SLCard>
+          <SLButton title="Continue" onPress={handleConfirmSame} />
+          <View style={{ height: 16 }} />
+          <SLButton title={t('common.cancel')} variant="secondary" onPress={() => setSelectedSame(false)} />
+        </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>{t('onboarding.deliveryAddress')}</Text>
-      
-      <TouchableOpacity style={styles.largeOption} onPress={handleSameShop}>
-        <Text style={styles.optionIcon}>🏪</Text>
-        <Text style={styles.optionText}>Same as Shop Location</Text>
-      </TouchableOpacity>
+    <View style={styles.outerContainer}>
+      <SLHeader
+        title={t('onboarding.deliveryAddress')}
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
+      <View style={styles.container}>
+        <TouchableOpacity style={styles.largeOption} onPress={handleSameShop}>
+          <Text style={styles.optionIcon}>🏪</Text>
+          <Text style={styles.optionText}>Same as Shop Location</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.largeOption} onPress={handleDifferent}>
-        <Text style={styles.optionIcon}>📍</Text>
-        <Text style={styles.optionText}>Separate Delivery Address</Text>
-      </TouchableOpacity>
-      
-      <View style={{ height: 16 }} />
-      <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
+        <TouchableOpacity style={styles.largeOption} onPress={handleDifferent}>
+          <Text style={styles.optionIcon}>📍</Text>
+          <Text style={styles.optionText}>Separate Delivery Address</Text>
+        </TouchableOpacity>
+        
+        <View style={{ height: 16 }} />
+        <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: { flex: 1, backgroundColor: '#FFFDF8' },
   container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
   heading: { fontSize: 28, fontWeight: 'bold', color: '#202124', textAlign: 'center', marginBottom: 40 },
   largeOption: { backgroundColor: '#F3F4F6', padding: 32, borderRadius: 16, alignItems: 'center', marginBottom: 24, borderWidth: 2, borderColor: '#E5E7EB' },

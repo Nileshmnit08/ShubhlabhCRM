@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, TextInput } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert, TextInput, BackHandler } from 'react-native';
 import { theme } from '../../shared/theme';
 import { useTranslation } from '../../shared/localization/i18n';
 import { useAuth } from '../auth/AuthContext';
@@ -245,6 +245,19 @@ export default function NewOrderScreen({ navigation, route }) {
       else navigation.navigate('MainTabs');
     }
   };
+
+  useEffect(() => {
+    const onHardwareBack = () => {
+      if (items.length > 0) {
+        handleBackPress();
+        return true;
+      }
+      return false;
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    return () => sub.remove();
+  }, [items.length]);
 
   return (
     <SafeAreaView style={styles.safe}>

@@ -4,7 +4,8 @@ import { theme } from '../../shared/theme';
 import { useTranslation } from '../../shared/localization/i18n';
 import { useAuth } from '../auth/AuthContext';
 import { supabase } from '../../core/api/supabase';
-import { ArrowLeft, CheckCircle } from 'lucide-react-native';
+import { CheckCircle } from 'lucide-react-native';
+import SLHeader from '../../shared/components/SLHeader';
 
 export default function OrderReviewScreen({ route, navigation }) {
   const { t } = useTranslation();
@@ -163,13 +164,11 @@ export default function OrderReviewScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft color={theme.colors.textPrimary} size={28} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('profile.language') === 'Language' ? 'Review Order' : 'ऑर्डर की समीक्षा'}</Text>
-        <View style={{ width: 28 }} />
-      </View>
+      <SLHeader
+        title={t('profile.language') === 'Language' ? 'Review Order' : 'ऑर्डर की समीक्षा'}
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
+      />
       
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>

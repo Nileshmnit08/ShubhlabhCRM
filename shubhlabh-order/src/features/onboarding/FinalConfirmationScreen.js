@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, Alert, ScrollView } from 'react-native';
 import { useOnboarding } from './OnboardingContext';
 import { useAuth } from '../auth/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../../core/api/supabase';
 import { useTranslation } from '../../shared/localization/i18n';
 import SLButton from '../../shared/components/SLButton';
 import SLCard from '../../shared/components/SLCard';
+import SLHeader from '../../shared/components/SLHeader';
 
 export default function FinalConfirmationScreen() {
   const { onboardingData } = useOnboarding();
   const { customerProfile, logout } = useAuth();
+  const navigation = useNavigation();
   const { t } = useTranslation();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(false);
@@ -101,37 +104,43 @@ export default function FinalConfirmationScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <Text style={styles.heading}>{t('onboarding.confirmDetails')}</Text>
-      
-      <SLCard style={styles.summaryCard}>
-        <Text style={styles.label}>SHOP</Text>
-        <Text style={styles.value}>{customerProfile?.display_name || customerProfile?.legal_or_core_name}</Text>
-        
-        <Text style={styles.label}>SHOP LOCATION</Text>
-        <Text style={styles.value}>{onboardingData.shopLocation?.address}</Text>
-
-        <Text style={styles.label}>DELIVERY LOCATION</Text>
-        <Text style={styles.value}>{onboardingData.deliveryAddress?.address || onboardingData.shopLocation?.address}</Text>
-
-        <Text style={styles.label}>SHOP PHOTO</Text>
-        {onboardingData.shopPhoto ? (
-          <Image source={{ uri: onboardingData.shopPhoto }} style={styles.thumbnail} />
-        ) : (
-          <Text style={styles.value}>N/A</Text>
-        )}
-      </SLCard>
-
-      <SLButton 
-        title={isSaving ? 'Saving...' : 'Go to Dashboard'} 
-        onPress={handleSave} 
-        disabled={isSaving} 
+    <View style={styles.outerContainer}>
+      <SLHeader
+        title={t('onboarding.confirmDetails')}
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
       />
-    </ScrollView>
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <SLCard style={styles.summaryCard}>
+          <Text style={styles.label}>SHOP</Text>
+          <Text style={styles.value}>{customerProfile?.display_name || customerProfile?.legal_or_core_name}</Text>
+          
+          <Text style={styles.label}>SHOP LOCATION</Text>
+          <Text style={styles.value}>{onboardingData.shopLocation?.address}</Text>
+
+          <Text style={styles.label}>DELIVERY LOCATION</Text>
+          <Text style={styles.value}>{onboardingData.deliveryAddress?.address || onboardingData.shopLocation?.address}</Text>
+
+          <Text style={styles.label}>SHOP PHOTO</Text>
+          {onboardingData.shopPhoto ? (
+            <Image source={{ uri: onboardingData.shopPhoto }} style={styles.thumbnail} />
+          ) : (
+            <Text style={styles.value}>N/A</Text>
+          )}
+        </SLCard>
+
+        <SLButton 
+          title={isSaving ? 'Saving...' : 'Go to Dashboard'} 
+          onPress={handleSave} 
+          disabled={isSaving} 
+        />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: { flex: 1, backgroundColor: '#FFFDF8' },
   scrollContainer: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
   container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
   heading: { fontSize: 28, fontWeight: 'bold', color: '#202124', textAlign: 'center', marginBottom: 24 },

@@ -6,15 +6,16 @@ import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from '../../shared/localization/i18n';
 import SLButton from '../../shared/components/SLButton';
 import SLCard from '../../shared/components/SLCard';
+import SLHeader from '../../shared/components/SLHeader';
 
 export default function DeliveryAddressScreen() {
-  const { updateData } = useOnboarding();
+  const { onboardingData, updateData } = useOnboarding();
   const navigation = useNavigation();
   const { t } = useTranslation();
-  const [address, setAddress] = useState('');
-  const [village, setVillage] = useState('');
+  const [address, setAddress] = useState(onboardingData?.deliveryAddress?.address || '');
+  const [village, setVillage] = useState(onboardingData?.deliveryAddress?.village || '');
   const [isCapturing, setIsCapturing] = useState(false);
-  const [capturedLocation, setCapturedLocation] = useState(null);
+  const [capturedLocation, setCapturedLocation] = useState(onboardingData?.deliveryAddress || null);
   const [isConfirming, setIsConfirming] = useState(false);
 
   const handleCaptureLocation = async () => {
@@ -87,47 +88,53 @@ export default function DeliveryAddressScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.scrollContainer}>
-      <Text style={styles.heading}>{t('onboarding.deliveryAddress')}</Text>
-      
-      <SLButton 
-        title={isCapturing ? t('common.loading') : '📍 Capture Location'} 
-        onPress={handleCaptureLocation} 
-        disabled={isCapturing}
-        variant="secondary"
-        style={{ marginBottom: 32 }}
+    <View style={styles.outerContainer}>
+      <SLHeader
+        title={t('onboarding.deliveryAddress')}
+        showBack={true}
+        onBackPress={() => navigation.goBack()}
       />
-
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Address / Locality</Text>
-        <TextInput
-          style={styles.input}
-          value={address}
-          onChangeText={setAddress}
-          placeholder="Street, locality, etc."
-          placeholderTextColor="#9AA0A6"
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <SLButton 
+          title={isCapturing ? t('common.loading') : '📍 Capture Location'} 
+          onPress={handleCaptureLocation} 
+          disabled={isCapturing}
+          variant="secondary"
+          style={{ marginBottom: 32 }}
         />
-      </View>
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Village / Town</Text>
-        <TextInput
-          style={styles.input}
-          value={village}
-          onChangeText={setVillage}
-          placeholder="City or Town"
-          placeholderTextColor="#9AA0A6"
-        />
-      </View>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Address / Locality</Text>
+          <TextInput
+            style={styles.input}
+            value={address}
+            onChangeText={setAddress}
+            placeholder="Street, locality, etc."
+            placeholderTextColor="#9AA0A6"
+          />
+        </View>
 
-      <SLButton title="Continue" onPress={handleSubmit} style={{ marginTop: 16 }} />
-      <View style={{ height: 16 }} />
-      <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
-    </ScrollView>
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Village / Town</Text>
+          <TextInput
+            style={styles.input}
+            value={village}
+            onChangeText={setVillage}
+            placeholder="City or Town"
+            placeholderTextColor="#9AA0A6"
+          />
+        </View>
+
+        <SLButton title="Continue" onPress={handleSubmit} style={{ marginTop: 16 }} />
+        <View style={{ height: 16 }} />
+        <SLButton title={t('common.cancel')} variant="secondary" onPress={() => navigation.goBack()} />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: { flex: 1, backgroundColor: '#FFFDF8' },
   scrollContainer: { flexGrow: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
   container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#FFFDF8' },
   heading: { fontSize: 28, fontWeight: 'bold', color: '#202124', textAlign: 'center', marginBottom: 24 },

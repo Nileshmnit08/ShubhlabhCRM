@@ -1,12 +1,13 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { ClipboardList, ChevronRight, ArrowLeft, Package, Truck, Calendar } from 'lucide-react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, BackHandler } from 'react-native';
+import { ClipboardList, ChevronRight, Package, Truck, Calendar } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getOrdersByParty } from './OrderService';
 import { useAuth } from '../auth/AuthContext';
 import { useTranslation } from '../../shared/localization/i18n';
 import { theme } from '../../shared/theme';
 import SLStatusBadge from '../../shared/components/SLStatusBadge';
+import SLHeader from '../../shared/components/SLHeader';
 
 export default function MyOrdersScreen({ navigation }) {
   const { t } = useTranslation();
@@ -180,19 +181,31 @@ export default function MyOrdersScreen({ navigation }) {
     );
   };
 
+  const handleBack = () => {
+    if (navigation.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('MainTabs', { screen: 'HomeTab' });
+    }
+  };
+
+  useEffect(() => {
+    const onHardwareBack = () => {
+      handleBack();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    return () => sub.remove();
+  }, [navigation]);
+
   return (
     <View style={styles.container}>
       {/* Top Header */}
-      <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('MainTabs')} 
-          style={styles.backButton}
-        >
-          <ArrowLeft color={theme.colors.textPrimary} size={26} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('profile.language') === 'Language' ? 'My Orders' : 'मेरे ऑर्डर'}</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <SLHeader
+        title={t('profile.language') === 'Language' ? 'My Orders' : 'मेरे ऑर्डर'}
+        showBack={true}
+        onBackPress={handleBack}
+      />
 
       {/* Segmented Tabs: ACTIVE and RECEIVED */}
       <View style={styles.tabContainer}>

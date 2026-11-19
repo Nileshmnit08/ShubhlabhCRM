@@ -1,21 +1,41 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking, Modal, TextInput, Alert } from 'react-native';
-import { ArrowLeft, Package, MapPin, Edit3, MessageCircle, RotateCcw, Truck, Calendar, CheckCircle2, XCircle } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Linking, Modal, TextInput, Alert, BackHandler } from 'react-native';
+import { Package, MapPin, Edit3, MessageCircle, RotateCcw, Truck, Calendar, CheckCircle2, XCircle } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../core/api/supabase';
 import { getOrderById } from './OrderService';
 import { theme } from '../../shared/theme';
 import { useAuth } from '../auth/AuthContext';
+import { useTranslation } from '../../shared/localization/i18n';
 import SLStatusBadge from '../../shared/components/SLStatusBadge';
+import SLHeader from '../../shared/components/SLHeader';
 import * as Location from 'expo-location';
 
 export const SUPPORT_PHONE_NUMBER = '9461924461';
 const STATUS_STAGES = ['NEW', 'CONFIRMED', 'PROCESSING', 'DISPATCHED', 'DELIVERED'];
 
 export default function OrderDetailScreen({ route, navigation }) {
+  const { t } = useTranslation();
   const { session } = useAuth();
   const initialOrder = route.params?.order || {};
   const orderId = route.params?.orderId || initialOrder.id;
+
+  const handleBack = () => {
+    if (navigation.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('OrdersStack', { screen: 'MyOrders' });
+    }
+  };
+
+  useEffect(() => {
+    const onHardwareBack = () => {
+      handleBack();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    return () => sub.remove();
+  }, [navigation]);
   
   const [order, setOrder] = useState(initialOrder);
   const [loading, setLoading] = useState(true);
@@ -245,13 +265,11 @@ export default function OrderDetailScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft color={theme.colors.textPrimary} size={26} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Order Details</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <SLHeader
+        title={t('profile.language') === 'Language' ? 'Order Details' : 'ऑर्डर विवरण'}
+        showBack={true}
+        onBackPress={handleBack}
+      />
 
       {loading ? (
         <View style={styles.centerContainer}>

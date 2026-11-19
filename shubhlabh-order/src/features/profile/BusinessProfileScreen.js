@@ -150,6 +150,14 @@ export default function BusinessProfileScreen({ navigation, route }) {
     return () => backHandler.remove();
   }, [isDirty]);
 
+  const navigateBackSafe = () => {
+    if (navigation.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('ProfileMain');
+    }
+  };
+
   const promptDiscardChanges = () => {
     Alert.alert(
       t('bizProfile.unsavedTitle') || 'Unsaved Changes',
@@ -159,7 +167,10 @@ export default function BusinessProfileScreen({ navigation, route }) {
         {
           text: t('bizProfile.discard') || 'Discard',
           style: 'destructive',
-          onPress: () => navigation.goBack()
+          onPress: () => {
+            setIsDirty(false);
+            navigateBackSafe();
+          }
         }
       ]
     );
@@ -169,7 +180,7 @@ export default function BusinessProfileScreen({ navigation, route }) {
     if (isDirty) {
       promptDiscardChanges();
     } else {
-      navigation.goBack();
+      navigateBackSafe();
     }
   };
 
@@ -353,10 +364,11 @@ export default function BusinessProfileScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <SLHeader
         title={t('bizProfile.title') || 'Business Profile'}
         showBack={true}
+        navigation={navigation}
         onBackPress={handleBackPress}
       />
 
@@ -855,7 +867,7 @@ export default function BusinessProfileScreen({ navigation, route }) {
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

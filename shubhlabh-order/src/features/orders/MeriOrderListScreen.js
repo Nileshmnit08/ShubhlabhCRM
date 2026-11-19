@@ -51,7 +51,7 @@ export default function MeriOrderListScreen({ navigation }) {
           <Text style={styles.emptyText}>{t('order.emptyList')}</Text>
           <SLButton 
             title={t('order.browseProducts')} 
-            onPress={() => navigation.navigate('ProductsTab')} 
+            onPress={() => navigation.navigate('MainTabs', { screen: 'NewOrderTab' })} 
             style={{ marginTop: theme.spacing.xl }} 
           />
         </View>
@@ -94,7 +94,7 @@ export default function MeriOrderListScreen({ navigation }) {
             <SLButton 
               title={t('order.continueShopping')} 
               variant="secondary"
-              onPress={() => navigation.navigate('ProductsTab')} 
+              onPress={() => navigation.navigate('MainTabs', { screen: 'NewOrderTab' })} 
               style={styles.continueBtn}
             />
           </View>

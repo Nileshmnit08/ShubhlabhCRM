@@ -1,7 +1,8 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, BackHandler } from 'react-native';
 import { theme } from '../../shared/theme';
 import { SLButton } from '../../shared/components/SLButton';
+import { SLHeader } from '../../shared/components/SLHeader';
 import { useTranslation } from '../../shared/localization/i18n';
 import { CheckCircle } from 'lucide-react-native';
 
@@ -9,8 +10,28 @@ export default function OrderSuccessScreen({ route, navigation }) {
   const { t } = useTranslation();
   const orderData = route.params?.orderData;
 
+  const navigateToSafeDestination = () => {
+    // Navigate safely to MyOrders, never back to OrderReview
+    navigation.navigate('OrdersStack', { screen: 'MyOrders' });
+  };
+
+  useEffect(() => {
+    const onHardwareBack = () => {
+      navigateToSafeDestination();
+      return true; // prevent default pop back to OrderReview
+    };
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', onHardwareBack);
+    return () => sub.remove();
+  }, [navigation]);
+
   return (
     <SafeAreaView style={styles.safeArea}>
+      <SLHeader
+        title={orderData?.updated ? 'Order Updated' : (t('order.confirmed') || 'Order Confirmed')}
+        showBack={true}
+        onBackPress={navigateToSafeDestination}
+      />
       <View style={styles.container}>
         <CheckCircle size={80} color={theme.colors.green} style={styles.icon} />
         

@@ -1,28 +1,44 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { ArrowLeft, CloudRain, Droplets, MapPin, Thermometer } from 'lucide-react-native';
+import { CloudRain, Droplets, MapPin, Thermometer } from 'lucide-react-native';
 import { theme } from '../../shared/theme';
+import { useTranslation } from '../../shared/localization/i18n';
+import SLHeader from '../../shared/components/SLHeader';
 
 export default function WeatherDetailsScreen({ route, navigation }) {
-  const { weather } = route.params;
+  const { t } = useTranslation();
+  const { weather } = route.params || {};
+
+  const handleBack = () => {
+    if (navigation.canGoBack && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.navigate('MainTabs', { screen: 'HomeTab' });
+    }
+  };
 
   if (!weather) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Weather data unavailable.</Text>
+        <SLHeader
+          title={t('profile.language') === 'Language' ? 'Weather Details' : 'मौसम का विवरण'}
+          showBack={true}
+          onBackPress={handleBack}
+        />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={styles.errorText}>Weather data unavailable.</Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ArrowLeft color={theme.colors.textPrimary} size={28} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Weather Details</Text>
-        <View style={{ width: 28 }} />
-      </View>
+      <SLHeader
+        title={t('profile.language') === 'Language' ? 'Weather Details' : 'मौसम का विवरण'}
+        showBack={true}
+        onBackPress={handleBack}
+      />
 
       <ScrollView contentContainerStyle={styles.content}>
         {/* Main Info */}
