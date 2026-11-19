@@ -73,6 +73,7 @@ const LabourHisaabApprovals = lazy(() => import('./pages/LabourHisaabApprovals')
 const WebsiteCMS = lazy(() => import('./pages/WebsiteCMS'));
 const WebsiteLeads = lazy(() => import('./pages/WebsiteLeads'));
 const VisitorManagement = lazy(() => import('./pages/VisitorManagement/VisitorManagement'));
+const CustomerAccessManagement = lazy(() => import('./pages/CustomerAccess/CustomerAccessManagement'));
 
 // Clean, lightweight workspace module loading fallback
 const WorkspaceLoadingFallback = () => (
@@ -151,6 +152,21 @@ const ProtectedRoute = () => {
         <div className="glass-panel" style={{padding: '3rem', textAlign: 'center', maxWidth: '400px'}}>
           <h2 className="text-danger">Unauthorized</h2>
           <p className="text-secondary" style={{marginTop: '1rem'}}>Your account is currently inactive. Please contact your system administrator for access.</p>
+          <button className="btn btn-secondary" style={{marginTop: '2rem'}} onClick={() => supabase.auth.signOut()}>Sign Out</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Security Barrier: Customer (Buyer) accounts must NEVER access the CRM web portal
+  if (userProfile && userProfile.role === 'Buyer') {
+    return (
+      <div style={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)'}}>
+        <div className="glass-panel" style={{padding: '3rem', textAlign: 'center', maxWidth: '420px'}}>
+          <h2 className="text-danger">Access Restricted</h2>
+          <p className="text-secondary" style={{marginTop: '1rem'}}>
+            Customer (Buyer) accounts do not have access to the Shubh Labh CRM portal. Please use the Shubh Labh Order mobile application.
+          </p>
           <button className="btn btn-secondary" style={{marginTop: '2rem'}} onClick={() => supabase.auth.signOut()}>Sign Out</button>
         </div>
       </div>
@@ -336,6 +352,7 @@ function App() {
 
                   {/* Admin-Only Routes */}
                   <Route element={<AdminRoute />}>
+                    <Route path="customer-access" element={<CustomerAccessManagement />} />
                     <Route path="communication" element={<CommunicationDashboard />} />
                     <Route path="customer-updates">
                       <Route index element={<BusinessUpdatesList />} />

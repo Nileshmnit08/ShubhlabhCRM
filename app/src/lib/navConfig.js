@@ -65,6 +65,7 @@ import {
   Globe,
   CalendarCheck,
   HardHat,
+  Smartphone,
 } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
@@ -247,6 +248,15 @@ export const NAV_SECTIONS = [
         label: 'Customer Updates',
         href: '/customer-updates',
         icon: Send,
+        badgeSource: null,
+        permissionKey: 'admin',
+        pinEligible: true,
+      },
+      {
+        id: 'customer-access',
+        label: 'Customer App Access',
+        href: '/customer-access',
+        icon: Smartphone,
         badgeSource: null,
         permissionKey: 'admin',
         pinEligible: true,
