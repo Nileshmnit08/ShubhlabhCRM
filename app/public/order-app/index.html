@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#143d28" />
+  <meta name="robots" content="index, follow" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="description" content="Shubh Labh Order Mobile App - Download the official Android APK for direct feed orders, live market rates, and order tracking." />
+  <title>Download Shubh Labh Order App | Official Android APK</title>
+
+  <!-- OpenGraph Metadata -->
+  <meta property="og:site_name" content="Shubh Labh" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="hi_IN" />
+  <meta property="og:title" content="Download Shubh Labh Order App | Official Android APK" />
+  <meta property="og:description" content="Official Android app for Shubh Labh registered cattle feed buyers, dealers, and dairy partners." />
+  <meta property="og:image" content="/order-app/assets/app-icon.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Ccircle cx='24' cy='24' r='24' fill='%23143d28'/%3E%3Ctext x='24' y='20' text-anchor='middle' font-family='sans-serif' font-weight='800' font-size='11' fill='%23ffffff'%3E%E0%A4%B6%E0%A5%81%E0%A4%AD%3C/text%3E%3Ctext x='24' y='33' text-anchor='middle' font-family='sans-serif' font-weight='800' font-size='11' fill='%23ffffff'%3E%E0%A4%B2%E0%A4%BE%E0%A4%AD%3C/text%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+
+  <style>
+    .order-page-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--color-cream-primary, #f7f5ee);
+      color: var(--color-text-primary, #18231c);
+      font-family: var(--font, 'DM Sans', sans-serif);
+    }
+    .app-header {
+      background: var(--color-green-primary, #143d28);
+      color: #ffffff;
+      padding: 1rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid var(--color-accent-terracotta, #df742c);
+    }
+    .app-header a {
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    .hero-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem;
+      width: 100%;
+    }
+    .app-card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 2.25rem 2rem;
+      box-shadow: 0 12px 36px rgba(20, 61, 40, 0.08);
+      border: 1px solid var(--color-divider, #e2ddd0);
+      text-align: center;
+    }
+    .app-icon-img {
+      width: 110px;
+      height: 110px;
+      border-radius: 24px;
+      box-shadow: 0 8px 24px rgba(20, 61, 40, 0.15);
+      border: 3px solid #ffffff;
+      margin: 0 auto 1.25rem;
+      display: block;
+      object-fit: cover;
+    }
+    .app-title {
+      font-family: var(--display, 'Manrope', sans-serif);
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: var(--color-green-primary, #143d28);
+      margin: 0 0 0.4rem;
+    }
+    .app-subtitle {
+      font-size: 1rem;
+      color: var(--color-text-secondary, #526054);
+      margin: 0 0 1.5rem;
+      line-height: 1.5;
+    }
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+    }
+    .btn-download-apk {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      background: var(--color-accent-terracotta, #df742c);
+      color: #ffffff !important;
+      padding: 1.1rem 2.25rem;
+      border-radius: 14px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 10px 24px rgba(223, 116, 44, 0.35);
+      transition: all 0.2s ease;
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+    .btn-download-apk:hover {
+      background: var(--color-accent-hover, #c6621f);
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px rgba(223, 116, 44, 0.45);
+    }
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1rem;
+      margin: 2rem 0;
+      text-align: left;
+    }
+    .spec-item {
+      background: var(--color-cream-secondary, #eeebe1);
+      padding: 0.85rem 1rem;
+      border-radius: 10px;
+      border: 1px solid var(--color-divider, #e2ddd0);
+    }
+    .spec-label {
+      font-size: 0.75rem;
+      color: var(--color-text-secondary, #526054);
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .spec-value {
+      font-size: 0.925rem;
+      font-weight: 700;
+      color: var(--color-green-deepest, #0e2a1c);
+      word-break: break-all;
+    }
+    .os-warning-card {
+      background: #fffbeb;
+      border: 1px solid #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 1rem 1.25rem;
+      border-radius: 12px;
+      text-align: left;
+      margin: 1.5rem 0;
+      font-size: 0.875rem;
+      color: #92400e;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .steps-section {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 12px 36px rgba(20, 61, 40, 0.08);
+      border: 1px solid var(--color-divider, #e2ddd0);
+      margin-top: 2rem;
+      text-align: left;
+    }
+    .steps-title {
+      font-family: var(--display, 'Manrope', sans-serif);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--color-green-primary, #143d28);
+      margin: 0 0 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .step-item {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .step-number {
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border-radius: 50%;
+      background: var(--color-green-primary, #143d28);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    .step-text h4 {
+      margin: 0 0 0.25rem;
+      font-size: 1rem;
+      color: var(--color-green-deepest, #0e2a1c);
+    }
+    .step-text p {
+      margin: 0;
+      font-size: 0.875rem;
+      color: var(--color-text-secondary, #526054);
+      line-height: 1.5;
+    }
+    .contact-card {
+      background: var(--color-green-primary, #143d28);
+      color: #ffffff;
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+      text-align: center;
+    }
+    .contact-card h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1.15rem;
+    }
+    .contact-card p {
+      margin: 0 0 1rem;
+      font-size: 0.875rem;
+      opacity: 0.9;
+    }
+    .contact-links {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .contact-pill {
+      background: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .contact-pill:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
+    .app-footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      font-size: 0.8rem;
+      color: var(--color-text-tertiary, #7a887c);
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body class="order-page-wrapper">
+
+  <!-- Header -->
+  <header class="app-header">
+    <a href="/" class="brand" aria-label="Shubh Labh Home" style="display: flex; align-items: center; gap: 0.65rem;">
+      <span class="brand-mark" style="width: 34px; height: 34px; font-size: 9px; line-height: 11px;">
+        <span>शुभ</span><span>लाभ</span>
+      </span>
+      <span class="brand-name" style="font-size: 0.95rem; font-family: 'Manrope', sans-serif; letter-spacing: 0.04em;">
+        SHUBH LABH <small style="display: block; font-size: 0.55rem; letter-spacing: 0.14em; opacity: 0.85;">DAIRY NUTRITION</small>
+      </span>
+    </a>
+    <a href="/" style="display: flex; align-items: center; gap: 0.35rem;">
+      ← मुख्य वेबसाइट
+    </a>
+  </header>
+
+  <!-- Main Hero Card -->
+  <main class="hero-container">
+    <div class="app-card">
+      <img src="/order-app/assets/app-icon.png" alt="Shubh Labh Order App Icon" class="app-icon-img" />
+      <span class="badge-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        आधिकारिक सत्यापित मोबाइल ऐप
+      </span>
+      <h1 class="app-title">Shubh Labh Order</h1>
+      <p class="app-subtitle">
+        पंजीकृत पशु आहार खरीदारों एवं डीलरों के लिए आधिकारिक ऑर्डरिंग ऐप। सीधे अपने मोबाइल से ऑर्डर दर्ज करें, वास्तविक समय में भाव देखें और लेजर स्थिति ट्रैक करें।
+      </p>
+
+      <!-- Direct APK Download Button -->
+      <a href="/order-app/download" class="btn-download-apk" download="shubhlabh-order.apk">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Download APK (89.3 MB)</span>
+      </a>
+
+      <!-- Specifications Grid -->
+      <div class="specs-grid">
+        <div class="spec-item">
+          <span class="spec-label">वर्जन (Version)</span>
+          <span class="spec-value">v1.0.0</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">रिलीज़ दिनांक (Date)</span>
+          <span class="spec-value">12 Oct 2026</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">फाइल साइज (Size)</span>
+          <span class="spec-value">89.3 MB</span>
+        </div>
+        <div class="spec-item">
+          <span class="spec-label">ऑपरेटिंग सिस्टम (OS)</span>
+          <span class="spec-value">Android 6.0+</span>
+        </div>
+      </div>
+
+      <!-- Android OS Notice -->
+      <div class="os-warning-card">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="min-width: 24px; margin-top: 2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <strong>केवल Android फोन के लिए:</strong> यह ऐप आधिकारिक Android APK पैकेज है। यदि आप iPhone (iOS) का उपयोग कर रहे हैं तो यह ऐप समर्थित नहीं है। कृपया इस पेज को अपने Android स्मार्टफोन में खोलें।
+        </div>
+      </div>
+
+      <!-- Security / Checksum Details -->
+      <div style="font-size: 0.75rem; color: var(--color-text-tertiary, #7a887c); background: #fafaf8; padding: 0.75rem; border-radius: 8px; border: 1px dashed var(--color-divider, #e2ddd0); word-break: break-all;">
+        <strong style="color: var(--color-text-secondary, #526054);">SHA-256 Checksum:</strong><br />
+        <code>4EE966F66144F9C2B1D3B7C6E903D98C8997C6294B08A69834CEAF4540655F2B</code>
+      </div>
+    </div>
+
+    <!-- Installation Instructions Section -->
+    <section class="steps-section">
+      <h2 class="steps-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        आसान इंस्टॉलेशन गाइड (Installation Steps)
+      </h2>
+
+      <div class="step-item">
+        <div class="step-number">1</div>
+        <div class="step-text">
+          <h4>APK डाउनलोड करें (Download APK)</h4>
+          <p>ऊपर दिए गए <strong>"Download APK"</strong> बटन पर क्लिक करें। आपके ब्राउज़र में फाइल डाउनलोड होना शुरू हो जाएगी।</p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">2</div>
+        <div class="step-text">
+          <h4>अज्ञात ऐप्स की अनुमति दें (Allow Install from Unknown Sources)</h4>
+          <p>डाउनलोड पूर्ण होने पर फाइल पर टैप करें। यदि आपका फोन "Unknown Sources" या "Install Unknown Apps" चेतावनी दिखाता है, तो "Settings" में जाकर ब्राउज़र (Chrome) को अनुमति दें।</p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">3</div>
+        <div class="step-text">
+          <h4>ऐप इंस्टॉल करें (Install Application)</h4>
+          <p>स्क्रीन पर <strong>"Install"</strong> पर टैप करें। इंस्टॉलेशन पूरा होने के बाद <strong>"Open"</strong> पर क्लिक करें।</p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-number">4</div>
+        <div class="step-text">
+          <h4>लॉगिन क्रेडेंशियल्स दर्ज करें (Sign In with Provided Credentials)</h4>
+          <p>शुभ लाभ टीम / WhatsApp पर प्राप्त अपनी <strong>Login ID</strong> और <strong>Temporary Password</strong> से लॉगिन करें। लॉगिन के बाद अपनी प्रोफाइल में जाकर नया पासवर्ड सेट कर लें।</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Support / Helpline Card -->
+    <div class="contact-card">
+      <h3>सहायता एवं संपर्क (Help & Support)</h3>
+      <p>ऐप डाउनलोड, लॉगिन या पासवर्ड रीसेट में किसी भी सहायता के लिए संपर्क करें:</p>
+      <div class="contact-links">
+        <a href="tel:+919352276227" class="contact-pill">
+          📞 फैक्ट्री: +91 93522 76227
+        </a>
+        <a href="tel:+919928192696" class="contact-pill">
+          📞 ऑफिस: +91 99281 92696
+        </a>
+        <a href="https://wa.me/919928192696" class="contact-pill" target="_blank" rel="noopener noreferrer">
+          💬 WhatsApp चैट
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <p>© 2026 Shubh Labh Poultry & Cattle Feeds. All rights reserved.</p>
+    <p>Factory: Behind Police Station, Parbatsar Road, Makrana, Didwana-Kuchaman, Rajasthan 341505</p>
+  </footer>
+
+</body>
+</html>
