@@ -2,26 +2,28 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Package, ClipboardList, User } from 'lucide-react-native';
 
-import HomeScreen from '../features/home/HomeScreen';
-import ProfileStackNavigator from './ProfileStackNavigator';
-import NewOrderStackNavigator from './NewOrderStackNavigator';
+import HomeStackNavigator from './HomeStackNavigator';
 import MarketPricesStackNavigator from './MarketPricesStackNavigator';
+import OrdersStackNavigator from './OrdersStackNavigator';
+import ProfileStackNavigator from './ProfileStackNavigator';
 import { theme } from '../shared/theme';
 import { useTranslation } from '../shared/localization/i18n';
-import { PlusCircle, LineChart } from 'lucide-react-native';
 
 const Tab = createBottomTabNavigator();
 
 export default function MainTabNavigator() {
   const { t } = useTranslation();
+  const isEnglish = t('profile.language') === 'Language';
 
   return (
     <Tab.Navigator
-      initialRouteName="ProfileTab"
+      initialRouteName="HomeTab"
+      backBehavior="initialRoute"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarHideOnKeyboard: true,
         tabBarStyle: {
           paddingBottom: 8,
           paddingTop: 8,
@@ -38,33 +40,33 @@ export default function MainTabNavigator() {
     >
       <Tab.Screen 
         name="HomeTab" 
-        component={HomeScreen} 
+        component={HomeStackNavigator} 
         options={{
-          tabBarLabel: t('profile.language') === 'Language' ? 'Home' : 'होम',
+          tabBarLabel: isEnglish ? 'Home' : 'होम',
           tabBarIcon: ({ color, size }) => <Home color={color} size={24} />
         }}
       />
       <Tab.Screen 
-        name="MarketPricesTab" 
+        name="ProductsTab" 
         component={MarketPricesStackNavigator} 
         options={{
-          tabBarLabel: t('profile.language') === 'Language' ? 'Market Prices' : 'बाज़ार भाव',
-          tabBarIcon: ({ color, size }) => <LineChart color={color} size={24} />
+          tabBarLabel: isEnglish ? 'Products' : 'उत्पाद',
+          tabBarIcon: ({ color, size }) => <Package color={color} size={24} />
         }}
       />
       <Tab.Screen 
-        name="NewOrderTab" 
-        component={NewOrderStackNavigator} 
+        name="OrdersTab" 
+        component={OrdersStackNavigator} 
         options={{
-          tabBarLabel: t('profile.language') === 'Language' ? 'New Order' : 'नया ऑर्डर',
-          tabBarIcon: ({ color, size }) => <PlusCircle color={color} size={24} />
+          tabBarLabel: isEnglish ? 'My Orders' : 'मेरे ऑर्डर',
+          tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={24} />
         }}
       />
       <Tab.Screen 
         name="ProfileTab" 
         component={ProfileStackNavigator} 
         options={{
-          tabBarLabel: t('profile.language') === 'Language' ? 'Profile' : 'प्रोफ़ाइल',
+          tabBarLabel: isEnglish ? 'Profile' : 'प्रोफ़ाइल',
           tabBarIcon: ({ color, size }) => <User color={color} size={24} />
         }}
       />

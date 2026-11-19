@@ -7,13 +7,8 @@ import LoginScreen from './src/features/auth/LoginScreen';
 import { StatusBar } from 'expo-status-bar';
 
 import OnboardingNavigator from './src/features/onboarding/OnboardingNavigator';
-
 import MainTabNavigator from './src/navigation/MainTabNavigator';
-import OrdersStackNavigator from './src/navigation/OrdersStackNavigator';
-import WeatherDetailsScreen from './src/features/weather/WeatherDetailsScreen';
-import BusinessUpdatesListScreen from './src/features/businessUpdates/BusinessUpdatesListScreen';
-import BusinessUpdateDetailScreen from './src/features/businessUpdates/BusinessUpdateDetailScreen';
-import NotificationInboxScreen from './src/features/notifications/NotificationInboxScreen';
+import NewOrderStackNavigator from './src/navigation/NewOrderStackNavigator';
 import InAppNotificationBanner from './src/features/notifications/InAppNotificationBanner';
 import { NotificationProvider } from './src/features/notifications/NotificationContext';
 import { GlobalHelpFab } from './src/shared/components/GlobalHelpFab';
@@ -67,15 +62,15 @@ function MainNavigator() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator initialRouteName="MainTabs" screenOptions={{ headerShown: false }}>
         {isOnboarded ? (
           <>
+            {/* Primary Main Tab Navigator with persistent bottom navigation */}
             <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-            <Stack.Screen name="OrdersStack" component={OrdersStackNavigator} />
-            <Stack.Screen name="WeatherDetails" component={WeatherDetailsScreen} />
-            <Stack.Screen name="BusinessUpdatesList" component={BusinessUpdatesListScreen} />
-            <Stack.Screen name="BusinessUpdateDetail" component={BusinessUpdateDetailScreen} />
-            <Stack.Screen name="NotificationInbox" component={NotificationInboxScreen} />
+            
+            {/* Full-Screen Dedicated Checkout Flow (Section 5 Exception) */}
+            <Stack.Screen name="NewOrderTab" component={NewOrderStackNavigator} />
+            <Stack.Screen name="NewOrderStack" component={NewOrderStackNavigator} />
           </>
         ) : (
           <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
@@ -86,7 +81,13 @@ function MainNavigator() {
         <InAppNotificationBanner
           onNavigateToNotice={(updateId) => {
             if (navigationRef.isReady()) {
-              navigationRef.navigate('BusinessUpdateDetail', { updateId });
+              navigationRef.navigate('MainTabs', {
+                screen: 'HomeTab',
+                params: {
+                  screen: 'BusinessUpdateDetail',
+                  params: { updateId }
+                }
+              });
             }
           }}
         />
@@ -117,6 +118,15 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 }
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
 });

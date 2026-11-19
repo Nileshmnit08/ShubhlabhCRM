@@ -13,9 +13,9 @@ export const SUPPORT_PHONE_NUMBER = '9461924461';
 
 const FALLBACK_FAQS = [
   { id: '1', question: 'How can I place an order?', answer: 'Open New Order, select the products and quantities you need, review your order and confirm it.', category: 'Orders', action: 'NewOrderTab' },
-  { id: '2', question: 'How can I repeat my last order?', answer: 'Open My Orders, select your previous order and use the reorder option.', category: 'Orders', action: 'OrdersStack' },
+  { id: '2', question: 'How can I repeat my last order?', answer: 'Open My Orders, select your previous order and use the reorder option.', category: 'Orders', action: 'OrdersTab' },
   { id: '3', question: 'Can I edit an order?', answer: 'If the order is still eligible for editing, open the order details and select Edit Order.', category: 'Orders' },
-  { id: '4', question: 'Where is my order?', answer: 'Open My Orders and select the order to view its current status.', category: 'Delivery', action: 'OrdersStack' },
+  { id: '4', question: 'Where is my order?', answer: 'Open My Orders and select the order to view its current status.', category: 'Delivery', action: 'OrdersTab' },
   { id: '5', question: 'How can I see my current scheme?', answer: 'Open the current Shubh Labh scheme/update available in the app.', category: 'Schemes' },
   { id: '6', question: 'How can I change my delivery address?', answer: 'Open your profile or the applicable delivery-address section and update the saved delivery address.', category: 'Account', action: 'ProfileTab' },
 ];

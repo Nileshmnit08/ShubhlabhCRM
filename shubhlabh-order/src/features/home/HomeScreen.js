@@ -247,7 +247,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity 
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate("OrdersStack", { screen: "MyOrders" })}
+              onPress={() => navigation.navigate("OrdersTab", { screen: "MyOrders" })}
               activeOpacity={0.8}
             >
               <View style={[styles.quickActionIconWrap, { backgroundColor: '#EFF6FF' }]}>
@@ -261,7 +261,7 @@ export default function HomeScreen() {
 
             <TouchableOpacity 
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate("MarketPricesTab")}
+              onPress={() => navigation.navigate("ProductsTab")}
               activeOpacity={0.8}
             >
               <View style={[styles.quickActionIconWrap, { backgroundColor: '#F0FDF4' }]}>
@@ -296,7 +296,7 @@ export default function HomeScreen() {
               <SLText style={styles.sectionHeaderTitle}>
                 {t('home.orderSummary') || 'ORDER SUMMARY'}
               </SLText>
-              <TouchableOpacity onPress={() => navigation.navigate("OrdersStack", { screen: "MyOrders" })}>
+              <TouchableOpacity onPress={() => navigation.navigate("OrdersTab", { screen: "MyOrders" })}>
                 <SLText style={styles.viewAllSummaryText}>
                   {t('profile.language') === 'Language' ? 'View All' : 'सभी देखें'} →
                 </SLText>
@@ -306,7 +306,7 @@ export default function HomeScreen() {
             <View style={styles.summaryRow}>
               <TouchableOpacity 
                 style={[styles.summaryCard, { borderLeftColor: '#F59E0B' }]}
-                onPress={() => navigation.navigate("OrdersStack", { screen: "MyOrders", params: { initialTab: 'ACTIVE' } })}
+                onPress={() => navigation.navigate("OrdersTab", { screen: "MyOrders", params: { initialTab: 'ACTIVE' } })}
                 activeOpacity={0.8}
               >
                 <View style={styles.summaryCardTop}>
@@ -320,7 +320,7 @@ export default function HomeScreen() {
 
               <TouchableOpacity 
                 style={[styles.summaryCard, { borderLeftColor: '#10B981' }]}
-                onPress={() => navigation.navigate("OrdersStack", { screen: "MyOrders", params: { initialTab: 'RECEIVED' } })}
+                onPress={() => navigation.navigate("OrdersTab", { screen: "MyOrders", params: { initialTab: 'RECEIVED' } })}
                 activeOpacity={0.8}
               >
                 <View style={styles.summaryCardTop}>
@@ -334,7 +334,7 @@ export default function HomeScreen() {
 
               <TouchableOpacity 
                 style={[styles.summaryCard, { borderLeftColor: '#3B82F6' }]}
-                onPress={() => navigation.navigate("OrdersStack", { screen: "MyOrders", params: { initialTab: 'RECEIVED' } })}
+                onPress={() => navigation.navigate("OrdersTab", { screen: "MyOrders", params: { initialTab: 'RECEIVED' } })}
                 activeOpacity={0.8}
               >
                 <View style={styles.summaryCardTop}>
@@ -396,7 +396,7 @@ export default function HomeScreen() {
             <View style={styles.orderFooter}>
               <TouchableOpacity 
                 style={styles.viewOrderBtn}
-                onPress={() => navigation.navigate("OrdersStack", { screen: "OrderDetail", params: { orderId: latestOrder.id, order: latestOrder } })}
+                onPress={() => navigation.navigate("OrdersTab", { screen: "OrderDetail", params: { orderId: latestOrder.id, order: latestOrder } })}
               >
                 <SLText style={styles.viewOrderLink}>{t('order.viewOrder')} →</SLText>
               </TouchableOpacity>
@@ -434,7 +434,7 @@ export default function HomeScreen() {
         <SLSectionHeader 
           title={t('home.updates')} 
           actionTitle={t('home.viewAll') || 'View All'} 
-          onActionPress={() => navigation.navigate('NotificationInbox')} 
+          onActionPress={() => navigation.navigate('BusinessUpdatesList')} 
           style={{ marginBottom: 8, marginTop: 4 }}
         />
         

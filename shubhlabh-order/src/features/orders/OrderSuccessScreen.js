@@ -12,7 +12,7 @@ export default function OrderSuccessScreen({ route, navigation }) {
 
   const navigateToSafeDestination = () => {
     // Navigate safely to MyOrders, never back to OrderReview
-    navigation.navigate('OrdersStack', { screen: 'MyOrders' });
+    navigation.navigate('MainTabs', { screen: 'OrdersTab', params: { screen: 'MyOrders' } });
   };
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export default function OrderSuccessScreen({ route, navigation }) {
           <SLButton 
             title={t('order.viewOrder')} 
             onPress={() => {
-              navigation.navigate('OrdersStack', { screen: 'OrderDetail', params: { orderId: orderData?.id } });
+              navigation.navigate('MainTabs', { screen: 'OrdersTab', params: { screen: 'OrderDetail', params: { orderId: orderData?.id } } });
             }} 
             style={styles.btn}
           />
@@ -61,7 +61,7 @@ export default function OrderSuccessScreen({ route, navigation }) {
             title={t('profile.language') === 'Language' ? 'My Orders' : 'मेरे ऑर्डर'} 
             variant="outline" 
             onPress={() => {
-              navigation.navigate('OrdersStack', { screen: 'MyOrders' });
+              navigation.navigate('MainTabs', { screen: 'OrdersTab', params: { screen: 'MyOrders' } });
             }} 
             style={styles.btn}
           />

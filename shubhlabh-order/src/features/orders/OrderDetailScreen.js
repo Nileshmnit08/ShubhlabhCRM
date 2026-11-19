@@ -24,7 +24,7 @@ export default function OrderDetailScreen({ route, navigation }) {
     if (navigation.canGoBack && navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.navigate('OrdersStack', { screen: 'MyOrders' });
+      navigation.navigate('OrdersTab', { screen: 'MyOrders' });
     }
   };
 

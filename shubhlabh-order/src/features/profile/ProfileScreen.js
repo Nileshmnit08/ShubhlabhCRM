@@ -264,7 +264,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.section}>
           <TouchableOpacity
             style={styles.row}
-            onPress={() => navigation.navigate('OrdersStack', { screen: 'MyOrders' })}
+            onPress={() => navigation.navigate('OrdersTab', { screen: 'MyOrders' })}
           >
             <View style={styles.iconBox}>
               <ClipboardList size={22} color={theme.colors.primary} />
