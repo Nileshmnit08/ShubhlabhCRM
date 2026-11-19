@@ -12,6 +12,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import PublicWebsite from './pages/PublicWebsite/PublicWebsite';
 import ProductDetailPage from './pages/PublicWebsite/ProductDetailPage';
 import LaboratoryPage from './pages/PublicWebsite/LaboratoryPage';
+import OrderAppPage from './pages/PublicWebsite/OrderAppPage';
+import OrderAppDownloadTrigger from './pages/PublicWebsite/OrderAppDownloadTrigger';
 import LoginPortal from './pages/Login/LoginPortal';
 import NotFound from './components/NotFound';
 
@@ -315,6 +317,8 @@ function App() {
               <Route path="products/:slug" element={<ProductDetailPage />} />
               <Route path="laboratory" element={<LaboratoryPage />} />
               <Route path="lab" element={<Navigate to="/laboratory" replace />} />
+              <Route path="order-app" element={<OrderAppPage />} />
+              <Route path="order-app/download" element={<OrderAppDownloadTrigger />} />
 
               {/* Workspace Destination Selector & Auth */}
               <Route path="/login" element={<LoginPortal />} />
