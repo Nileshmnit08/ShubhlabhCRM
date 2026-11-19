@@ -108,7 +108,7 @@ export default function BusinessUpdateDetailScreen({ route, navigation }) {
         .maybeSingle();
 
       if (fetchErr) throw fetchErr;
-      if (!data) {
+      if (!data || data.is_active === false || data.is_visible_in_app === false) {
         setError('NOT_FOUND');
         setUpdate(null);
       } else {

@@ -150,17 +150,26 @@ export default function BusinessUpdatesList() {
                   <tr key={u.id}>
                     <td>
                       <div style={{fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px'}}>{u.title}</div>
-                      {u.status === 'DRAFT' && <span className="badge badge-warning" style={{fontSize: '0.7rem'}}>Draft</span>}
-                      {u.status === 'PUBLISHED' && <span className="badge badge-success" style={{fontSize: '0.7rem'}}>Published</span>}
+                      <div style={{display: 'flex', gap: '4px', flexWrap: 'wrap'}}>
+                        {u.status === 'DRAFT' && <span className="badge badge-warning" style={{fontSize: '0.7rem'}}>Draft</span>}
+                        {u.status === 'PUBLISHED' && <span className="badge badge-success" style={{fontSize: '0.7rem'}}>Published</span>}
+                        {u.is_visible_in_app === false && <span className="badge badge-secondary" style={{fontSize: '0.7rem'}}>Hidden in App</span>}
+                        {u.is_active === false && <span className="badge badge-danger" style={{fontSize: '0.7rem'}}>Deactivated</span>}
+                      </div>
                     </td>
                     <td>{displayType}</td>
                     <td>{u.audience_type === 'ALL' ? 'All Customers' : `${recipients.length} Customers`}</td>
                     <td>{u.published_at ? new Date(u.published_at).toLocaleDateString() : '-'}</td>
                     <td>{readCount}</td>
                     <td style={{textAlign: 'right'}}>
-                      <Link to={`/customer-updates/${u.id}`} className="btn btn-secondary" style={{padding: '0.25rem 0.75rem', fontSize: '0.8rem'}}>
-                        View
-                      </Link>
+                      <div style={{display: 'inline-flex', gap: '0.5rem', justifyContent: 'flex-end'}}>
+                        <Link to={`/customer-updates/${u.id}`} className="btn btn-secondary" style={{padding: '0.25rem 0.65rem', fontSize: '0.8rem'}}>
+                          View
+                        </Link>
+                        <Link to={`/customer-updates/${u.id}/edit`} className="btn btn-primary" style={{padding: '0.25rem 0.65rem', fontSize: '0.8rem'}}>
+                          Edit
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );

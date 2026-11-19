@@ -101,30 +101,71 @@ export async function fetchCustomerNotifications(customerId) {
       };
     }
 
-    // RLS policy "Buyers view published updates" ensures only PUBLISHED notices
-    // where audience_type = 'ALL' or buyer is in business_update_recipients are returned.
-    const { data, error } = await supabase
-      .from('business_updates')
-      .select(`
+    // RLS policy "Buyers view published updates" ensures only PUBLISHED/CLOSED notices
+    // where is_active = true, is_visible_in_app = true, and targeted to ALL or buyer are returned.
+    let data;
+    let error;
+
+    const fullSelect = `
+      id,
+      title,
+      message,
+      type,
+      status,
+      audience_type,
+      published_at,
+      created_at,
+      image_url,
+      attachment_url,
+      is_visible_in_app,
+      is_active,
+      business_update_recipients (
         id,
-        title,
-        message,
-        type,
-        status,
-        audience_type,
-        published_at,
-        created_at,
-        image_url,
-        attachment_url,
-        business_update_recipients (
-          id,
-          customer_id,
-          read_at,
-          delivered_at
-        )
-      `)
-      .eq('status', 'PUBLISHED')
+        customer_id,
+        read_at,
+        delivered_at
+      )
+    `;
+
+    // Attempt query filtering for active, visible updates
+    const primaryRes = await supabase
+      .from('business_updates')
+      .select(fullSelect)
+      .in('status', ['PUBLISHED', 'CLOSED'])
+      .eq('is_active', true)
+      .eq('is_visible_in_app', true)
       .order('published_at', { ascending: false });
+
+    if (primaryRes.error && (primaryRes.error.code === '42703' || primaryRes.error.message?.includes('is_active') || primaryRes.error.message?.includes('is_visible_in_app'))) {
+      // Fallback if migration 263 columns are pending application in Supabase SQL editor
+      const fallbackRes = await supabase
+        .from('business_updates')
+        .select(`
+          id,
+          title,
+          message,
+          type,
+          status,
+          audience_type,
+          published_at,
+          created_at,
+          image_url,
+          attachment_url,
+          business_update_recipients (
+            id,
+            customer_id,
+            read_at,
+            delivered_at
+          )
+        `)
+        .in('status', ['PUBLISHED', 'CLOSED'])
+        .order('published_at', { ascending: false });
+      data = fallbackRes.data;
+      error = fallbackRes.error;
+    } else {
+      data = primaryRes.data;
+      error = primaryRes.error;
+    }
 
     if (error) {
       console.warn('Error fetching customer notifications:', error);
@@ -136,7 +177,9 @@ export async function fetchCustomerNotifications(customerId) {
       };
     }
 
-    const formatted = (data || []).map(item => sanitizeCustomerNotice(item, customerId));
+    // Exclude any notice explicitly marked inactive or hidden
+    const activeItems = (data || []).filter(item => item.is_active !== false && item.is_visible_in_app !== false);
+    const formatted = activeItems.map(item => sanitizeCustomerNotice(item, customerId));
 
     return {
       success: true,

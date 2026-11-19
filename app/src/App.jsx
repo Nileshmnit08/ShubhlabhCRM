@@ -362,6 +362,7 @@ function App() {
                       <Route index element={<BusinessUpdatesList />} />
                       <Route path="new" element={<BusinessUpdateForm />} />
                       <Route path=":id" element={<BusinessUpdateDetail />} />
+                      <Route path=":id/edit" element={<BusinessUpdateForm />} />
                     </Route>
                     <Route path="system-requirements" element={<SystemRequirementsBoard />} />
                     <Route path="leads" element={<WebsiteLeads />} />

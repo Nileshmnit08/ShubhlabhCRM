@@ -55,31 +55,63 @@ export default function BusinessUpdatesListScreen({ navigation }) {
       }
 
       // 2. Fetch updates based on RLS (which guarantees buyer isolation)
-      let query = supabase.from('business_updates')
+      // Active and App Visible filters with published & closed status support
+      let data;
+      let error;
+
+      let primaryQuery = supabase.from('business_updates')
         .select(`
-          id, title, message, type, published_at,
+          id, title, message, type, published_at, is_visible_in_app, is_active,
           business_update_recipients ( read_at )
         `)
-        .eq('status', 'PUBLISHED')
+        .in('status', ['PUBLISHED', 'CLOSED'])
+        .eq('is_active', true)
+        .eq('is_visible_in_app', true)
         .order('published_at', { ascending: false });
 
-      // In real scenario, type filtering might need to match exact enum string 
-      // but let's use the display label for now if they are stored as such.
-      // If type !== 'All', filter by type
       if (selectedType !== 'All') {
-        query = query.eq('type', selectedType.toUpperCase().replace(/ /g, '_'));
+        primaryQuery = primaryQuery.eq('type', selectedType.toUpperCase().replace(/ /g, '_'));
       }
-
       if (fromDate) {
-        query = query.gte('published_at', fromDate.toISOString());
+        primaryQuery = primaryQuery.gte('published_at', fromDate.toISOString());
       }
       if (toDate) {
-        query = query.lte('published_at', toDate.toISOString());
+        primaryQuery = primaryQuery.lte('published_at', toDate.toISOString());
       }
 
-      const { data, error } = await query;
+      const primaryRes = await primaryQuery;
+
+      if (primaryRes.error && (primaryRes.error.code === '42703' || primaryRes.error.message?.includes('is_active') || primaryRes.error.message?.includes('is_visible_in_app'))) {
+        // Fallback if migration 263 columns are pending
+        let fallbackQuery = supabase.from('business_updates')
+          .select(`
+            id, title, message, type, published_at,
+            business_update_recipients ( read_at )
+          `)
+          .in('status', ['PUBLISHED', 'CLOSED'])
+          .order('published_at', { ascending: false });
+
+        if (selectedType !== 'All') {
+          fallbackQuery = fallbackQuery.eq('type', selectedType.toUpperCase().replace(/ /g, '_'));
+        }
+        if (fromDate) {
+          fallbackQuery = fallbackQuery.gte('published_at', fromDate.toISOString());
+        }
+        if (toDate) {
+          fallbackQuery = fallbackQuery.lte('published_at', toDate.toISOString());
+        }
+
+        const fallbackRes = await fallbackQuery;
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      } else {
+        data = primaryRes.data;
+        error = primaryRes.error;
+      }
+
       if (error) throw error;
-      setUpdates(data || []);
+      const filtered = (data || []).filter(item => item.is_active !== false && item.is_visible_in_app !== false);
+      setUpdates(filtered);
     } catch (e) {
       console.error(e);
     } finally {
