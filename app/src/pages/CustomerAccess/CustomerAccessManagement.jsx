@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
+import { logActivity } from '../../lib/activityLogger';
 import { Smartphone, RefreshCw, Sliders, ShieldCheck } from 'lucide-react';
 import SummaryCards from './components/SummaryCards';
 import CustomerTable from './components/CustomerTable';
@@ -93,6 +94,22 @@ export default function CustomerAccessManagement() {
 
       setAllCustomers(partiesData || []);
       setBuyerAccountsMap(bMap);
+
+      // 4. Fetch authoritative release configuration from crm_settings
+      try {
+        const { data: settingsData } = await supabase
+          .from('crm_settings')
+          .select('customer_app_release_config')
+          .eq('id', 1)
+          .maybeSingle();
+
+        if (settingsData?.customer_app_release_config) {
+          setReleaseConfig(settingsData.customer_app_release_config);
+          saveStoredReleaseConfig(settingsData.customer_app_release_config);
+        }
+      } catch (settingsFetchErr) {
+        console.warn('Could not load customer_app_release_config from crm_settings:', settingsFetchErr);
+      }
     } catch (err) {
       console.error('Failed to load customer access data:', err);
       setError(err.message || 'Error loading live customer access records.');
@@ -186,6 +203,34 @@ export default function CustomerAccessManagement() {
       account: { email: loginId, is_active: true },
       temporaryPassword,
     });
+  };
+
+  const handleSaveReleaseConfig = async (updated) => {
+    setReleaseConfig(updated);
+    saveStoredReleaseConfig(updated);
+
+    try {
+      // Persist to central authoritative crm_settings in Supabase
+      const { error: settingsErr } = await supabase
+        .from('crm_settings')
+        .update({
+          customer_app_release_config: updated,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', 1);
+
+      if (settingsErr) {
+        console.warn('Failed to persist release config to crm_settings in DB:', settingsErr);
+      } else {
+        await logActivity({
+          module: 'CustomerAccess',
+          actionType: 'UPDATED',
+          summary: `Updated Order App Release Config: version ${updated.appVersion}, URL: ${updated.downloadUrl}`,
+        });
+      }
+    } catch (e) {
+      console.error('Error saving release config to database:', e);
+    }
   };
 
   return (
@@ -331,7 +376,7 @@ export default function CustomerAccessManagement() {
           isOpen={releaseModalOpen}
           onClose={() => setReleaseModalOpen(false)}
           releaseConfig={releaseConfig}
-          onSaveConfig={(updated) => setReleaseConfig(updated)}
+          onSaveConfig={handleSaveReleaseConfig}
         />
       )}
 

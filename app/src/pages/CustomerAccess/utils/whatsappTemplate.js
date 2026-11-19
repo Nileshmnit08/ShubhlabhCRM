@@ -1,12 +1,12 @@
 /**
  * WhatsApp Invitation Template Generator for Customer App Access
- * Formats an inviting, clear Hindi message with app credentials and download link.
+ * Formats an inviting, clear Hindi message with app credentials and official download link.
  */
 
 export const DEFAULT_RELEASE_CONFIG = {
-  downloadUrl: 'https://shubhlabh.in/download',
-  appVersion: 'v1.2.0',
-  releaseDate: '2026-11-17',
+  downloadUrl: 'https://www.shubhlabhfeeds.in/order-app',
+  appVersion: 'v1.0.0',
+  releaseDate: '2026-10-12',
   isActive: true,
 };
 
@@ -63,7 +63,9 @@ export function buildHindiInviteMessage({
 }) {
   const safeName = customerName || 'ग्राहक';
   const headerAction = isPasswordReset ? 'पासवर्ड रीसेट क्रेडेंशियल्स' : 'Shubh Labh Order App में आपका स्वागत है!';
-  
+  const finalDownloadUrl = downloadUrl || DEFAULT_RELEASE_CONFIG.downloadUrl;
+  const finalAppVersion = appVersion || DEFAULT_RELEASE_CONFIG.appVersion;
+
   let passwordBlock = '';
   if (temporaryPassword) {
     passwordBlock = `🔑 अस्थायी पासवर्ड: ${temporaryPassword}`;
@@ -71,7 +73,7 @@ export function buildHindiInviteMessage({
     passwordBlock = `🔑 पासवर्ड: (आपका पूर्व निर्धारित पासवर्ड — यदि भूल गए हैं तो CRM से नया पासवर्ड रीसेट करें)`;
   }
 
-  const versionText = appVersion ? ` (वर्जन: ${appVersion})` : '';
+  const versionText = finalAppVersion ? ` (वर्जन: ${finalAppVersion})` : '';
 
   return `नमस्ते ${safeName} जी,
 
@@ -83,14 +85,14 @@ export function buildHindiInviteMessage({
 📱 लॉगिन आईडी: ${loginId}
 ${passwordBlock}
 
-📲 ऐप डाउनलोड लिंक: ${downloadUrl}${versionText}
+📲 ऐप डाउनलोड लिंक: ${finalDownloadUrl}${versionText}
 
 निर्देश:
 1. ऊपर दिए गए लिंक से ऐप डाउनलोड और इनस्टॉल करें।
 2. अपनी लॉगिन आईडी और दिए गए पासवर्ड से लॉगिन करें।
 3. पहले लॉगिन के बाद सुरक्षा हेतु ऐप की प्रोफ़ाइल सेटिंग में जाकर अपना नया पासवर्ड अवश्य सेट कर लें।
 
-किसी भी सहायता के लिए संपर्क करें: +91 98260 00000
+किसी भी सहायता के लिए संपर्क करें: +91 93522 76227 / +91 99281 92696
 शुभ लाभ पोल्ट्री एंड कैटल फीड्स, अजमेर`;
 }
 
