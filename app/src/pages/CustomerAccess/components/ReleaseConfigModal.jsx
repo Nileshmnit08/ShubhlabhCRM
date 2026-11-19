@@ -24,7 +24,7 @@ export default function ReleaseConfigModal({ isOpen, onClose, releaseConfig, onS
     try {
       new URL(downloadUrl);
     } catch {
-      setError('Please provide a valid URL format (e.g. https://shubhlabh.in/download).');
+      setError('Please provide a valid URL format (e.g. https://www.shubhlabhfeeds.in/order-app).');
       return;
     }
 
@@ -158,7 +158,7 @@ export default function ReleaseConfigModal({ isOpen, onClose, releaseConfig, onS
               className="input"
               value={downloadUrl}
               onChange={(e) => setDownloadUrl(e.target.value)}
-              placeholder="https://shubhlabh.in/download"
+              placeholder="https://www.shubhlabhfeeds.in/order-app"
               required
               style={{ width: '100%' }}
             />

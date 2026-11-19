@@ -57,8 +57,8 @@ describe('Customer App Access – Phase 5 Validation', () => {
       customerName: 'राजेश पटेल',
       loginId: '9826012345@shubhlabh.app',
       temporaryPassword: 'SL#8291@4kL',
-      downloadUrl: 'https://shubhlabh.in/download',
-      appVersion: 'v1.2.0',
+      downloadUrl: DEFAULT_RELEASE_CONFIG.downloadUrl,
+      appVersion: DEFAULT_RELEASE_CONFIG.appVersion,
       isPasswordReset: false,
     });
 
@@ -66,7 +66,7 @@ describe('Customer App Access – Phase 5 Validation', () => {
     assert.ok(msg.includes('Shubh Labh Order App में आपका स्वागत है!'), 'Must include welcome text');
     assert.ok(msg.includes('लॉगिन आईडी: 9826012345@shubhlabh.app'), 'Must contain Login ID');
     assert.ok(msg.includes('अस्थायी पासवर्ड: SL#8291@4kL'), 'Must contain temporary password');
-    assert.ok(msg.includes('ऐप डाउनलोड लिंक: https://shubhlabh.in/download (वर्जन: v1.2.0)'), 'Must contain download link and version');
+    assert.ok(msg.includes(`ऐप डाउनलोड लिंक: ${DEFAULT_RELEASE_CONFIG.downloadUrl} (वर्जन: ${DEFAULT_RELEASE_CONFIG.appVersion})`), 'Must contain download link and version');
     assert.ok(msg.includes('पहले लॉगिन के बाद सुरक्षा हेतु ऐप की प्रोफ़ाइल सेटिंग में जाकर अपना नया पासवर्ड अवश्य सेट कर लें'), 'Must contain first-login password instruction');
   });
 
@@ -76,8 +76,8 @@ describe('Customer App Access – Phase 5 Validation', () => {
       customerName: 'अमित कुमार',
       loginId: 'amit@shubhlabh.app',
       temporaryPassword: 'SL#4120@xP2',
-      downloadUrl: 'https://shubhlabh.in/download',
-      appVersion: 'v1.2.0',
+      downloadUrl: DEFAULT_RELEASE_CONFIG.downloadUrl,
+      appVersion: DEFAULT_RELEASE_CONFIG.appVersion,
       isPasswordReset: true,
     });
 

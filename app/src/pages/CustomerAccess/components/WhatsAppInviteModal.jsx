@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Send, Copy, Check, MessageSquare, AlertCircle, Info, ExternalLink } from 'lucide-react';
-import { buildHindiInviteMessage, buildWhatsAppLink, normalizeIndianPhone } from '../utils/whatsappTemplate';
+import { buildHindiInviteMessage, buildWhatsAppLink, normalizeIndianPhone, DEFAULT_RELEASE_CONFIG } from '../utils/whatsappTemplate';
 import { logActivity } from '../../../lib/activityLogger';
 
 export default function WhatsAppInviteModal({
@@ -22,8 +22,8 @@ export default function WhatsAppInviteModal({
         customerName: customer.display_name,
         loginId,
         temporaryPassword: temporaryPassword || '',
-        downloadUrl: releaseConfig?.downloadUrl || 'https://shubhlabh.in/download',
-        appVersion: releaseConfig?.appVersion || 'v1.2.0',
+        downloadUrl: releaseConfig?.downloadUrl || DEFAULT_RELEASE_CONFIG.downloadUrl,
+        appVersion: releaseConfig?.appVersion || DEFAULT_RELEASE_CONFIG.appVersion,
         isPasswordReset: Boolean(account && temporaryPassword),
       });
       setCustomMessage(initialMsg);
