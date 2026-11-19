@@ -1,10 +1,13 @@
 {
   "cleanUrls": true,
-  "rewrites": [
+  "redirects": [
     {
       "source": "/order-app/download",
-      "destination": "/downloads/shubhlabh-order-v1.0.0.apk"
-    },
+      "destination": "/downloads/shubhlabh-order-v1.0.0.apk",
+      "statusCode": 307
+    }
+  ],
+  "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/index.html"
@@ -13,23 +16,6 @@
   "headers": [
     {
       "source": "/downloads/(.*)",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/vnd.android.package-archive"
-        },
-        {
-          "key": "Content-Disposition",
-          "value": "attachment; filename=\"shubhlabh-order-v1.0.0.apk\""
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=86400, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/order-app/download",
       "headers": [
         {
           "key": "Content-Type",
