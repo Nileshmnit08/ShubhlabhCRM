@@ -7,6 +7,11 @@ import {
   buildWhatsAppLink,
   DEFAULT_RELEASE_CONFIG,
 } from '../utils/whatsappTemplate.js';
+import {
+  isSessionOnline,
+  aggregateCustomerPresence,
+  buildCustomerPresenceMap,
+} from '../utils/presenceUtils.js';
 
 describe('Customer App Access – Phase 5 Validation', () => {
   // Test 1: Temporary password generation
@@ -247,5 +252,67 @@ describe('Customer App Access – Phase 5 Validation', () => {
     assert.equal(allPartiesData.length, 1024, 'Must load all 1024 customers without truncation');
     const yashika = allPartiesData.find(c => c.display_name === 'Yashika Agro Indsutries - Merta');
     assert.ok(yashika, 'Yashika Agro Industries must be present in ingested dataset');
+  });
+
+  // Test 13: Customer Presence Filter Logic
+  test('Presence filtering (ALL, ONLINE, OFFLINE) correctly subsets customers', () => {
+    const customers = [
+      { id: 'c1', display_name: 'Customer 1' },
+      { id: 'c2', display_name: 'Customer 2' },
+      { id: 'c3', display_name: 'Customer 3' },
+    ];
+
+    const presenceMap = {
+      c1: { isOnline: true, activeDurationFormatted: '12m' },
+      c2: { isOnline: false, lastActiveFormatted: '20 Nov 2026, 11:30 AM' },
+      // c3 has no presence record (never logged in)
+    };
+
+    const filterByPresence = (list, filter) => {
+      if (filter === 'ONLINE') return list.filter(c => presenceMap[c.id]?.isOnline === true);
+      if (filter === 'OFFLINE') return list.filter(c => !presenceMap[c.id]?.isOnline);
+      return list;
+    };
+
+    assert.equal(filterByPresence(customers, 'ALL').length, 3);
+    assert.equal(filterByPresence(customers, 'ONLINE').length, 1);
+    assert.equal(filterByPresence(customers, 'ONLINE')[0].id, 'c1');
+    assert.equal(filterByPresence(customers, 'OFFLINE').length, 2);
+    assert.deepEqual(filterByPresence(customers, 'OFFLINE').map(c => c.id), ['c2', 'c3']);
+  });
+
+  // Test 14: Multi-device aggregation in customer access
+  test('Multi-device simultaneous sessions are aggregated properly per crm_party_id', () => {
+    const now = 1700000000000;
+    const rawSessions = [
+      {
+        crm_party_id: 'p1',
+        session_id: 'devA',
+        app_state: 'active',
+        ended_at: null,
+        foreground_entered_at: new Date(now - 10 * 60000).toISOString(),
+        last_seen_at: new Date(now - 20000).toISOString(),
+      },
+      {
+        crm_party_id: 'p1',
+        session_id: 'devB',
+        app_state: 'terminated',
+        ended_at: new Date(now - 5000).toISOString(),
+        foreground_entered_at: new Date(now - 30 * 60000).toISOString(),
+        last_seen_at: new Date(now - 5000).toISOString(),
+      },
+      {
+        crm_party_id: 'p2',
+        session_id: 'devC',
+        app_state: 'active',
+        ended_at: null,
+        last_seen_at: new Date(now - 160000).toISOString(), // > 150s expired
+      }
+    ];
+
+    const map = buildCustomerPresenceMap(rawSessions, now);
+    assert.equal(map['p1'].isOnline, true, 'Customer p1 must stay Online while devA is active');
+    assert.equal(map['p1'].activeDurationFormatted, '10m');
+    assert.equal(map['p2'].isOnline, false, 'Customer p2 must be Offline due to heartbeat expiry (> 150s)');
   });
 });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
 import { Smartphone, RefreshCw, Sliders, ShieldCheck } from 'lucide-react';
@@ -9,6 +9,7 @@ import ManageAccountModal from './components/ManageAccountModal';
 import ReleaseConfigModal from './components/ReleaseConfigModal';
 import WhatsAppInviteModal from './components/WhatsAppInviteModal';
 import { getStoredReleaseConfig } from './utils/whatsappTemplate';
+import { buildCustomerPresenceMap } from './utils/presenceUtils';
 
 export default function CustomerAccessManagement() {
   // Live Metrics
@@ -18,6 +19,7 @@ export default function CustomerAccessManagement() {
     accountsPending: 0,
     activeAccounts: 0,
     disabledAccounts: 0,
+    onlineNow: 0,
   });
 
   // Data & State
@@ -29,6 +31,9 @@ export default function CustomerAccessManagement() {
   // Filters & Pagination
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [presenceFilter, setPresenceFilter] = useState('ALL'); // 'ALL' | 'ONLINE' | 'OFFLINE'
+  const [presenceMap, setPresenceMap] = useState({});
+  const rawSessionsRef = useRef([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
 
@@ -114,7 +119,22 @@ export default function CustomerAccessManagement() {
       setAllCustomers(allPartiesData);
       setBuyerAccountsMap(bMap);
 
-      // 4. Fetch authoritative release configuration from crm_settings
+      // 4. Fetch customer presence sessions from customer_app_sessions
+      try {
+        const { data: presBatch, error: presErr } = await supabase
+          .from('customer_app_sessions')
+          .select('*')
+          .order('last_seen_at', { ascending: false });
+
+        if (!presErr && presBatch) {
+          rawSessionsRef.current = presBatch;
+          setPresenceMap(buildCustomerPresenceMap(presBatch, Date.now()));
+        }
+      } catch (presFetchErr) {
+        console.warn('Could not load customer presence sessions:', presFetchErr);
+      }
+
+      // 5. Fetch authoritative release configuration from crm_settings
       try {
         const { data: settingsData } = await supabase
           .from('crm_settings')
@@ -141,11 +161,46 @@ export default function CustomerAccessManagement() {
     loadData();
   }, [loadData]);
 
+  // Real-time Supabase Presence Subscription & Dynamic 10s Ticker
+  useEffect(() => {
+    const channel = supabase
+      .channel('customer_presence_feed')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'customer_app_sessions' },
+        (payload) => {
+          let updated = [...rawSessionsRef.current];
+          if (payload.eventType === 'INSERT') {
+            updated = [payload.new, ...updated.filter((s) => s.session_id !== payload.new?.session_id)];
+          } else if (payload.eventType === 'UPDATE') {
+            updated = updated.map((s) => (s.session_id === payload.new?.session_id ? payload.new : s));
+          } else if (payload.eventType === 'DELETE') {
+            updated = updated.filter((s) => s.session_id !== payload.old?.session_id);
+          }
+          rawSessionsRef.current = updated;
+          setPresenceMap(buildCustomerPresenceMap(updated, Date.now()));
+        }
+      )
+      .subscribe();
+
+    // 10-second ticker: refreshes continuous active duration and automatically marks stale heartbeats as offline
+    const ticker = setInterval(() => {
+      if (rawSessionsRef.current && rawSessionsRef.current.length > 0) {
+        setPresenceMap(buildCustomerPresenceMap(rawSessionsRef.current, Date.now()));
+      }
+    }, 10000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(ticker);
+    };
+  }, []);
+
   // Client-side filtering & search
   const filteredCustomers = useMemo(() => {
     let list = allCustomers;
 
-    // Filter by Status
+    // Filter by Account Status
     if (statusFilter === 'PENDING') {
       list = list.filter((c) => !buyerAccountsMap[c.id]);
     } else if (statusFilter === 'CREATED') {
@@ -154,6 +209,15 @@ export default function CustomerAccessManagement() {
       list = list.filter((c) => buyerAccountsMap[c.id]?.is_active === true);
     } else if (statusFilter === 'DISABLED') {
       list = list.filter((c) => buyerAccountsMap[c.id] && buyerAccountsMap[c.id]?.is_active === false);
+    } else if (statusFilter === 'ONLINE') {
+      list = list.filter((c) => presenceMap[c.id]?.isOnline === true);
+    }
+
+    // Filter by App Presence (ALL / ONLINE / OFFLINE)
+    if (presenceFilter === 'ONLINE') {
+      list = list.filter((c) => presenceMap[c.id]?.isOnline === true);
+    } else if (presenceFilter === 'OFFLINE') {
+      list = list.filter((c) => !presenceMap[c.id]?.isOnline);
     }
 
     // Filter by Search Term
@@ -183,7 +247,20 @@ export default function CustomerAccessManagement() {
     }
 
     return list;
-  }, [allCustomers, buyerAccountsMap, statusFilter, searchTerm]);
+  }, [allCustomers, buyerAccountsMap, statusFilter, presenceFilter, presenceMap, searchTerm]);
+
+  // Count online customers
+  const onlineCount = useMemo(() => {
+    return Object.values(presenceMap).filter((p) => p.isOnline).length;
+  }, [presenceMap]);
+
+  // Keep metrics.onlineNow in sync with live presence state
+  useEffect(() => {
+    setMetrics((prev) => ({
+      ...prev,
+      onlineNow: onlineCount,
+    }));
+  }, [onlineCount]);
 
   // Pagination calculation
   const totalItems = filteredCustomers.length;
@@ -196,7 +273,7 @@ export default function CustomerAccessManagement() {
   // Reset to page 1 on filter or search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, presenceFilter]);
 
   // Handlers
   const handleProvisionClick = (customer) => {
@@ -352,6 +429,10 @@ export default function CustomerAccessManagement() {
       <CustomerTable
         customers={paginatedCustomers}
         buyerAccountsMap={buyerAccountsMap}
+        presenceMap={presenceMap}
+        presenceFilter={presenceFilter}
+        onPresenceFilterChange={setPresenceFilter}
+        onlineCount={onlineCount}
         loading={loading}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}

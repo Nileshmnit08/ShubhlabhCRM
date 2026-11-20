@@ -5,6 +5,10 @@ import { normalizeIndianPhone } from '../utils/whatsappTemplate';
 export default function CustomerTable({
   customers,
   buyerAccountsMap,
+  presenceMap = {},
+  presenceFilter = 'ALL',
+  onPresenceFilterChange,
+  onlineCount = 0,
   loading,
   searchTerm,
   onSearchChange,
@@ -71,39 +75,81 @@ export default function CustomerTable({
           />
         </div>
 
-        {/* Status Filter Tabs */}
-        <div style={{
-          display: 'flex',
-          gap: '0.4rem',
-          backgroundColor: '#e2e8f0',
-          padding: '0.25rem',
-          borderRadius: '10px',
-        }}>
-          {[
-            { id: 'ALL', label: 'All Customers' },
-            { id: 'PENDING', label: 'Pending Access' },
-            { id: 'ACTIVE', label: 'Active App' },
-            { id: 'DISABLED', label: 'Disabled' },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => onStatusFilterChange(tab.id)}
-              style={{
-                border: 'none',
-                background: statusFilter === tab.id ? '#ffffff' : 'transparent',
-                color: statusFilter === tab.id ? '#0f172a' : '#64748b',
-                fontWeight: statusFilter === tab.id ? 600 : 500,
-                fontSize: '0.8rem',
-                padding: '0.35rem 0.75rem',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                boxShadow: statusFilter === tab.id ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+        {/* Filter Controls Group */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem' }}>
+          {/* Presence Filter Tabs */}
+          <div style={{
+            display: 'flex',
+            gap: '0.3rem',
+            backgroundColor: '#e2e8f0',
+            padding: '0.25rem',
+            borderRadius: '10px',
+          }}>
+            {[
+              { id: 'ALL', label: 'All Presence' },
+              { id: 'ONLINE', label: `● Online ${onlineCount > 0 ? `(${onlineCount})` : ''}`, color: '#16a34a' },
+              { id: 'OFFLINE', label: '● Offline', color: '#64748b' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onPresenceFilterChange && onPresenceFilterChange(tab.id)}
+                style={{
+                  border: 'none',
+                  background: presenceFilter === tab.id ? '#ffffff' : 'transparent',
+                  color: presenceFilter === tab.id ? (tab.color || '#0f172a') : '#64748b',
+                  fontWeight: presenceFilter === tab.id ? 600 : 500,
+                  fontSize: '0.8rem',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  boxShadow: presenceFilter === tab.id ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Status Filter Tabs */}
+          <div style={{
+            display: 'flex',
+            gap: '0.3rem',
+            backgroundColor: '#e2e8f0',
+            padding: '0.25rem',
+            borderRadius: '10px',
+          }}>
+            {[
+              { id: 'ALL', label: 'All Accounts' },
+              { id: 'PENDING', label: 'Pending Access' },
+              { id: 'ACTIVE', label: 'Active App' },
+              { id: 'DISABLED', label: 'Disabled' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => onStatusFilterChange(tab.id)}
+                style={{
+                  border: 'none',
+                  background: statusFilter === tab.id ? '#ffffff' : 'transparent',
+                  color: statusFilter === tab.id ? '#0f172a' : '#64748b',
+                  fontWeight: statusFilter === tab.id ? 600 : 500,
+                  fontSize: '0.8rem',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  boxShadow: statusFilter === tab.id ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -123,6 +169,7 @@ export default function CustomerTable({
               <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Customer Code</th>
               <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Registered Mobile</th>
               <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>App Status</th>
+              <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>App Presence</th>
               <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Login ID</th>
               <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600, textAlign: 'right' }}>Actions</th>
             </tr>
@@ -130,7 +177,7 @@ export default function CustomerTable({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
+                <td colSpan={7} style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                   <div style={{ display: 'inline-block', width: '28px', height: '28px', border: '3px solid #cbd5e1', borderTopColor: '#123d26', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: '0.75rem' }} />
                   <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                   <div>Loading live customer directory...</div>
@@ -138,7 +185,7 @@ export default function CustomerTable({
               </tr>
             ) : customers.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
+                <td colSpan={7} style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                   <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#475569', marginBottom: '0.35rem' }}>
                     No Customers Found
                   </div>
@@ -150,6 +197,7 @@ export default function CustomerTable({
             ) : (
               customers.map((c) => {
                 const account = buyerAccountsMap[c.id];
+                const presence = presenceMap[c.id];
                 const hasAccount = Boolean(account);
                 const isActive = account?.is_active ?? false;
                 const cleanMobile = normalizeIndianPhone(c.mobile || c.whatsapp || '');
@@ -284,6 +332,71 @@ export default function CustomerTable({
                         }}>
                           <ShieldAlert size={13} /> Disabled
                         </span>
+                      )}
+                    </td>
+
+                    {/* App Presence */}
+                    <td style={{ padding: '0.95rem 1rem' }}>
+                      {!hasAccount ? (
+                        <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>—</span>
+                      ) : presence?.isOnline ? (
+                        <div>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '9999px',
+                            backgroundColor: 'rgba(22, 163, 74, 0.1)',
+                            color: '#15803d',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                          }}>
+                            <span style={{
+                              width: '7px',
+                              height: '7px',
+                              borderRadius: '50%',
+                              backgroundColor: '#16a34a',
+                              boxShadow: '0 0 0 2px rgba(22, 163, 74, 0.25)',
+                              display: 'inline-block',
+                            }} />
+                            Online
+                          </span>
+                          {presence.activeDurationFormatted && (
+                            <div style={{ fontSize: '0.72rem', color: '#15803d', fontWeight: 500, marginTop: '0.2rem' }}>
+                              Active {presence.activeDurationFormatted}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '9999px',
+                            backgroundColor: 'rgba(100, 116, 139, 0.1)',
+                            color: '#64748b',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                          }}>
+                            <span style={{
+                              width: '7px',
+                              height: '7px',
+                              borderRadius: '50%',
+                              backgroundColor: '#94a3b8',
+                              display: 'inline-block',
+                            }} />
+                            Offline
+                          </span>
+                          <div 
+                            style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem' }}
+                            title={presence?.lastActiveFormatted || 'Never logged in'}
+                          >
+                            {presence?.lastActiveRelative || 'Never logged in'}
+                          </div>
+                        </div>
                       )}
                     </td>
 

@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/features/auth/AuthContext';
+import { PresenceProvider } from './src/features/presence/PresenceContext';
 import LoginScreen from './src/features/auth/LoginScreen';
 import { StatusBar } from 'expo-status-bar';
 
@@ -102,14 +103,16 @@ export default function App() {
       <ThemeProvider>
         <I18nProvider>
           <AuthProvider>
-            <NotificationProvider>
-              <OrderListProvider>
-                <NavigationContainer ref={navigationRef}>
-                  <StatusBar style="auto" />
-                  <MainNavigator />
-                </NavigationContainer>
-              </OrderListProvider>
-            </NotificationProvider>
+            <PresenceProvider>
+              <NotificationProvider>
+                <OrderListProvider>
+                  <NavigationContainer ref={navigationRef}>
+                    <StatusBar style="auto" />
+                    <MainNavigator />
+                  </NavigationContainer>
+                </OrderListProvider>
+              </NotificationProvider>
+            </PresenceProvider>
           </AuthProvider>
         </I18nProvider>
       </ThemeProvider>

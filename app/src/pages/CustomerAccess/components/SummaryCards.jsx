@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, CheckCircle2, Clock, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Users, CheckCircle2, Clock, ShieldCheck, ShieldAlert, Activity } from 'lucide-react';
 
 export default function SummaryCards({ metrics, loading, onFilterSelect, activeFilter }) {
   const cards = [
@@ -46,6 +46,17 @@ export default function SummaryCards({ metrics, loading, onFilterSelect, activeF
       borderColor: '#16a34a',
       bgLight: 'rgba(22, 163, 74, 0.08)',
       textClass: 'text-green-600',
+    },
+    {
+      id: 'ONLINE',
+      title: 'Online Now',
+      hindi: 'अभी ऑनलाइन',
+      count: metrics.onlineNow || 0,
+      icon: Activity,
+      color: 'emerald',
+      borderColor: '#10b981',
+      bgLight: 'rgba(16, 185, 129, 0.1)',
+      textClass: 'text-emerald-600',
     },
     {
       id: 'DISABLED',

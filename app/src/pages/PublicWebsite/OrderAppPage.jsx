@@ -29,13 +29,13 @@ export default function OrderAppPage() {
 
   const releaseInfo = {
     appName: 'Shubh Labh Order',
-    version: 'v1.0.1',
+    version: 'v1.0.2',
     releaseDate: '20 November 2026',
-    fileSize: '89.3 MB (93,689,353 bytes)',
+    fileSize: '89.4 MB (93,699,877 bytes)',
     minSdk: 'Android 6.0 (Marshmallow) and above',
-    sha256: '42F2CCD46D0F86A589818A3A80550066C1CCD1761FC76EF01BC959A64F54853A',
+    sha256: '688D46E18F7EEEFE7772DFE5FDA2FD98F0FC011ACD7214CFA9B261F99F77C205',
     downloadPath: '/order-app/download',
-    directApkPath: '/downloads/shubhlabh-order-v1.0.1.apk',
+    directApkPath: '/downloads/shubhlabh-order-v1.0.2.apk',
   };
 
   return (
