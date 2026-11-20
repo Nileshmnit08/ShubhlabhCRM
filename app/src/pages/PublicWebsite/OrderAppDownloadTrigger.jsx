@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Download, ArrowLeft, RefreshCw, Smartphone } from 'lucide-react';
 
 export default function OrderAppDownloadTrigger() {
-  const downloadUrl = '/downloads/shubhlabh-order-v1.0.2.apk';
+  const downloadUrl = '/downloads/shubhlabh-order-v1.0.4.apk';
 
   useEffect(() => {
     document.title = 'Downloading Shubh Labh Order APK...';
@@ -65,7 +65,7 @@ export default function OrderAppDownloadTrigger() {
           margin: '0 0 1.75rem',
           lineHeight: 1.5,
         }}>
-          Shubh Labh Order APK (v1.0.2) का डाउनलोड कुछ ही सेकंड में अपने आप शुरू हो जाएगा।
+          Shubh Labh Order APK (v1.0.4) का डाउनलोड कुछ ही सेकंड में अपने आप शुरू हो जाएगा।
         </p>
 
         <a

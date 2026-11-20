@@ -5,7 +5,7 @@
 
 export const DEFAULT_RELEASE_CONFIG = {
   downloadUrl: 'https://www.shubhlabhfeeds.in/order-app',
-  appVersion: 'v1.0.2',
+  appVersion: 'v1.0.4',
   releaseDate: '2026-11-20',
   isActive: true,
 };

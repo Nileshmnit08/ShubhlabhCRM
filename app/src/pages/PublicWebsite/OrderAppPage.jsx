@@ -29,13 +29,13 @@ export default function OrderAppPage() {
 
   const releaseInfo = {
     appName: 'Shubh Labh Order',
-    version: 'v1.0.2',
+    version: 'v1.0.4',
     releaseDate: '20 November 2026',
-    fileSize: '89.4 MB (93,699,877 bytes)',
-    minSdk: 'Android 6.0 (Marshmallow) and above',
-    sha256: '688D46E18F7EEEFE7772DFE5FDA2FD98F0FC011ACD7214CFA9B261F99F77C205',
+    fileSize: '89.2 MB (93,549,157 bytes)',
+    minSdk: 'Android 7.0 (Nougat) and above',
+    sha256: '5A07FB350CCD610B30434F63FDABC920ED1FA044F99CCF15395DA747A83DD6DD',
     downloadPath: '/order-app/download',
-    directApkPath: '/downloads/shubhlabh-order-v1.0.2.apk',
+    directApkPath: '/downloads/shubhlabh-order-v1.0.4.apk',
   };
 
   return (
@@ -208,7 +208,7 @@ export default function OrderAppPage() {
                 }}
               >
                 <Download size={24} />
-                <span>Download APK ({releaseInfo.version} • 89.3 MB)</span>
+                <span>Download APK ({releaseInfo.version} • {releaseInfo.fileSize.split(' ')[0]} MB)</span>
               </a>
             </div>
 
@@ -227,7 +227,7 @@ export default function OrderAppPage() {
                 border: '1px solid var(--color-divider, #e2ddd0)',
               }}>
                 <span style={{ fontSize: '0.75rem', color: '#526054', display: 'block', marginBottom: '0.2rem' }}>
-                  वर्जन (Version)
+                  नवीनतम वर्जन (Latest Version)
                 </span>
                 <strong style={{ fontSize: '1rem', color: '#0e2a1c' }}>{releaseInfo.version}</strong>
               </div>
@@ -265,7 +265,7 @@ export default function OrderAppPage() {
                 <span style={{ fontSize: '0.75rem', color: '#526054', display: 'block', marginBottom: '0.2rem' }}>
                   संगतता (Compatibility)
                 </span>
-                <strong style={{ fontSize: '0.95rem', color: '#0e2a1c' }}>Android 6.0+</strong>
+                <strong style={{ fontSize: '0.95rem', color: '#0e2a1c' }}>Android 7.0+</strong>
               </div>
             </div>
 
@@ -290,8 +290,23 @@ export default function OrderAppPage() {
               </div>
             </div>
 
-            {/* Checksum Card */}
+            {/* Update notice for existing customers */}
             <div style={{
+              backgroundColor: '#eef7ee',
+              border: '1px solid #cfe5cf',
+              borderLeft: '4px solid #2f7d4f',
+              padding: '1rem 1.25rem',
+              borderRadius: '12px',
+              textAlign: 'left',
+              margin: '1.5rem 0',
+              fontSize: '0.9rem',
+              color: '#14532d',
+            }}>
+              <strong>Existing customers can install this update directly.</strong> Uninstalling the previous app is not required.<br />
+              <strong>मौजूदा ग्राहक इस अपडेट को सीधे इंस्टॉल कर सकते हैं।</strong> पुराने ऐप को अनइंस्टॉल करना आवश्यक नहीं है।
+            </div>
+
+            {/* Checksum Card */}            <div style={{
               fontSize: '0.75rem',
               color: 'var(--color-text-tertiary, #7a887c)',
               backgroundColor: '#fafaf8',
