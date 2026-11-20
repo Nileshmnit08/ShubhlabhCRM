@@ -7,7 +7,6 @@ import { PresenceProvider } from './src/features/presence/PresenceContext';
 import LoginScreen from './src/features/auth/LoginScreen';
 import { StatusBar } from 'expo-status-bar';
 
-import OnboardingNavigator from './src/features/onboarding/OnboardingNavigator';
 import MainTabNavigator from './src/navigation/MainTabNavigator';
 import NewOrderStackNavigator from './src/navigation/NewOrderStackNavigator';
 import InAppNotificationBanner from './src/features/notifications/InAppNotificationBanner';
@@ -17,6 +16,7 @@ import { OrderListProvider } from './src/features/orders/OrderListContext';
 import { I18nProvider } from './src/shared/localization/i18n';
 import { ThemeProvider } from './src/shared/theme/ThemeProvider';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import ErrorBoundary from './src/shared/components/ErrorBoundary';
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -37,7 +37,7 @@ function OnboardingScreen() {
 }
 
 function MainNavigator() {
-  const { session, customerProfile, loading, authError } = useAuth();
+  const { session, loading, authError } = useAuth();
 
   if (loading) {
     return (
@@ -58,65 +58,58 @@ function MainNavigator() {
     );
   }
 
-  // Onboarding Routing Decision
-  const isOnboarded = session?.user?.user_metadata?.onboarding_completed || customerProfile?.is_onboarded;
-
+  // SL-ONBOARDING-SKIP-01: a signed-in customer ALWAYS gets the main app. Customers are provisioned in the CRM, so
+  // there is no mandatory onboarding; an incomplete profile only shows an optional reminder on the Dashboard.
+  // MainTabs is registered unconditionally, so it is always a valid initial route.
   return (
     <View style={{ flex: 1 }}>
       <Stack.Navigator initialRouteName="MainTabs" screenOptions={{ headerShown: false }}>
-        {isOnboarded ? (
-          <>
-            {/* Primary Main Tab Navigator with persistent bottom navigation */}
-            <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-            
-            {/* Full-Screen Dedicated Checkout Flow (Section 5 Exception) */}
-            <Stack.Screen name="NewOrderTab" component={NewOrderStackNavigator} />
-            <Stack.Screen name="NewOrderStack" component={NewOrderStackNavigator} />
-          </>
-        ) : (
-          <Stack.Screen name="Onboarding" component={OnboardingNavigator} />
-        )}
+        {/* Primary Main Tab Navigator with persistent bottom navigation */}
+        <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+
+        {/* Full-Screen Dedicated Checkout Flow (Section 5 Exception) */}
+        <Stack.Screen name="NewOrderTab" component={NewOrderStackNavigator} />
+        <Stack.Screen name="NewOrderStack" component={NewOrderStackNavigator} />
       </Stack.Navigator>
-      {isOnboarded && <GlobalHelpFab />}
-      {isOnboarded && (
-        <InAppNotificationBanner
-          onNavigateToNotice={(updateId) => {
-            if (navigationRef.isReady()) {
-              navigationRef.navigate('MainTabs', {
-                screen: 'HomeTab',
-                params: {
-                  screen: 'BusinessUpdateDetail',
-                  params: { updateId }
-                }
-              });
-            }
-          }}
-        />
-      )}
+      <GlobalHelpFab />
+      <InAppNotificationBanner
+        onNavigateToNotice={(updateId) => {
+          if (navigationRef.isReady()) {
+            navigationRef.navigate('MainTabs', {
+              screen: 'HomeTab',
+              params: {
+                screen: 'BusinessUpdateDetail',
+                params: { updateId }
+              }
+            });
+          }
+        }}
+      />
     </View>
   );
 }
-
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <I18nProvider>
-          <AuthProvider>
-            <PresenceProvider>
-              <NotificationProvider>
-                <OrderListProvider>
-                  <NavigationContainer ref={navigationRef}>
-                    <StatusBar style="auto" />
-                    <MainNavigator />
-                  </NavigationContainer>
-                </OrderListProvider>
-              </NotificationProvider>
-            </PresenceProvider>
-          </AuthProvider>
-        </I18nProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <I18nProvider>
+            <AuthProvider>
+              <PresenceProvider>
+                <NotificationProvider>
+                  <OrderListProvider>
+                    <NavigationContainer ref={navigationRef}>
+                      <StatusBar style="auto" />
+                      <MainNavigator />
+                    </NavigationContainer>
+                  </OrderListProvider>
+                </NotificationProvider>
+              </PresenceProvider>
+            </AuthProvider>
+          </I18nProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 

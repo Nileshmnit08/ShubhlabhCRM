@@ -8,6 +8,7 @@ describe('Permanent Bottom Navigation Architecture (SL-ORDER-PERSISTENT-NAV-01)'
 
   it('1. App.js mounts MainTabs with persistent 4-tab navigator and keeps NewOrder as full-screen modal', () => {
     const appJs = fs.readFileSync(path.join(orderAppDir, 'App.js'), 'utf8');
+    // SL-ONBOARDING-SKIP-01: MainTabs is registered unconditionally, so it is always a valid initial route
     assert.match(appJs, /initialRouteName="MainTabs"/);
     assert.match(appJs, /<Stack\.Screen name="MainTabs" component=\{MainTabNavigator\} \/>/);
     assert.match(appJs, /<Stack\.Screen name="NewOrderTab" component=\{NewOrderStackNavigator\} \/>/);

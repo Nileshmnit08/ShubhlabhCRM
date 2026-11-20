@@ -1,6 +1,6 @@
 {
   "name": "shubhlabh-order",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "main": "index.js",
   "dependencies": {
     "@react-native-async-storage/async-storage": "^3.1.1",
@@ -9,9 +9,9 @@
     "@react-navigation/native-stack": "^7.20.0",
     "@supabase/supabase-js": "^2.117.2",
     "date-fns": "^4.4.0",
-    "expo": "~57.0.26",
-    "expo-image-picker": "^57.0.20",
-    "expo-location": "^57.0.20",
+    "expo": "~57.0.33",
+    "expo-image-picker": "~57.0.21",
+    "expo-location": "~57.0.23",
     "expo-secure-store": "^57.0.4",
     "expo-status-bar": "~57.0.1",
     "jimp": "^1.6.1",
@@ -20,8 +20,8 @@
     "react-native": "0.86.3",
     "react-native-chart-kit": "^7.0.4",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "^4.28.0",
-    "react-native-svg": "^15.15.5",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "^4.0.0"
   },
   "scripts": {
@@ -33,5 +33,12 @@
   "private": true,
   "devDependencies": {
     "babel-preset-expo": "^57.0.13"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "@react-native-async-storage/async-storage"
+      ]
+    }
   }
 }

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Shubh Labh Order",
     "slug": "shubhlabh-order",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -11,11 +11,20 @@
     },
     "android": {
       "package": "com.shubhlabh.order",
+      "versionCode": 5,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#FCF6EA",
         "foregroundImage": "./assets/android-icon-foreground.png"
       }
     },
+    "plugins": [
+      "expo-secure-store",
+      "./plugins/withReleaseSigning"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }

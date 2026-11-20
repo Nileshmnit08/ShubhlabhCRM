@@ -14,6 +14,7 @@ import { theme } from '../../shared/theme';
 import { SLHeader } from '../../shared/components/SLHeader';
 import { useTranslation } from '../../shared/localization/i18n';
 import SalespersonCard from './SalespersonCard';
+import { getProfileCompletion } from './profileCompletion.js';
 import {
   ChevronRight,
   MapPin,
@@ -62,21 +63,12 @@ export default function ProfileScreen({ navigation }) {
   // 3. Primary Mobile
   // 4. City
   // 5. State
-  const hasShop = Boolean(customerProfile?.display_name?.trim());
-  const hasOwner = Boolean(
-    customerProfile?.legal_or_core_name?.trim() || userProfile?.display_name?.trim()
-  );
-  const hasMobile = Boolean(
-    (customerProfile?.mobile || userProfile?.mobile)?.trim()
-  );
-  const hasCity = Boolean(customerProfile?.city?.trim());
-  const hasState = Boolean(customerProfile?.state?.trim());
-  const hasGst = Boolean(customerProfile?.gst_number?.trim());
-
-  const coreFields = [hasShop, hasOwner, hasMobile, hasCity, hasState];
-  const completedCount = coreFields.filter(Boolean).length;
-  const completionPercent = Math.round((completedCount / coreFields.length) * 100);
-  const isComplete = completionPercent === 100;
+  // Same rule as the Dashboard's optional reminder (profileCompletion.js is the single source).
+  const completion = getProfileCompletion(customerProfile, userProfile);
+  const { hasCity, hasState } = { hasCity: completion.has.city, hasState: completion.has.state };
+  const hasGst = completion.hasGst;
+  const completionPercent = completion.percent;
+  const isComplete = completion.isComplete;
 
   // Contextual Banner Details
   let bannerCtaText = t('profile.completeCta') || 'Complete your business profile';

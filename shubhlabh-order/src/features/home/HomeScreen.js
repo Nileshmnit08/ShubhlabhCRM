@@ -29,6 +29,7 @@ import {
   RefreshCw 
 } from 'lucide-react-native';
 import HomeWeatherWidget from '../weather/HomeWeatherWidget';
+import ProfileCompletionCard from '../profile/ProfileCompletionCard';
 import NotificationBell from '../notifications/NotificationBell';
 import { useNotifications } from '../notifications/NotificationContext';
 
@@ -224,6 +225,11 @@ export default function HomeScreen() {
             </View>
           </View>
         </TouchableOpacity>
+
+        {/* Optional, dismissible reminder; hidden once the profile is complete (never blocks anything) */}
+        <ProfileCompletionCard
+          onUpdate={(section) => navigation.navigate('ProfileTab', { screen: 'BusinessProfile', params: { initialSection: section } })}
+        />
 
         {/* Quick Actions Grid */}
         <View style={styles.quickActionsSection}>

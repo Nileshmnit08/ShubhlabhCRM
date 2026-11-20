@@ -4,6 +4,9 @@ import { Alert } from 'react-native';
 
 const AuthContext = createContext();
 
+// Longest the app waits at "Loading..." for the saved login to be read before it moves on (see startup safety net).
+export const STARTUP_WATCHDOG_MS = 15000;
+
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -14,6 +17,16 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null); // Used to show errors like "not a buyer"
 
   useEffect(() => {
+    // Startup safety net: whatever happens to the saved-login read or the first profile request (slow storage or
+    // network, a rejected promise), the "Loading" state ends and the next screen can appear. It stays armed until
+    // it fires or the provider unmounts. Genuine errors are still logged below.
+    const startupWatchdog = setTimeout(() => {
+      setLoading((stillLoading) => {
+        if (stillLoading) console.warn('[Auth] startup took too long; showing the next screen');
+        return false;
+      });
+    }, STARTUP_WATCHDOG_MS);
+
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         handleSessionExpired();
@@ -25,6 +38,9 @@ export const AuthProvider = ({ children }) => {
           setLoading(false);
         }
       }
+    }).catch((err) => {
+      console.error('[Auth] getSession failed:', err);
+      clearState(); // no readable saved login: start at the login screen instead of waiting forever
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -40,6 +56,7 @@ export const AuthProvider = ({ children }) => {
     });
 
     return () => {
+      clearTimeout(startupWatchdog);
       subscription.unsubscribe();
     };
   }, []);
