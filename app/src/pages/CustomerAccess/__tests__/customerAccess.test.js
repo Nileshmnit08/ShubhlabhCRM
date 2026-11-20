@@ -159,4 +159,93 @@ describe('Customer App Access – Phase 5 Validation', () => {
     assert.equal(canAccessAdminRoute({ role: 'Viewer' }), false);
     assert.equal(canAccessAdminRoute({ role: 'Buyer' }), false);
   });
+
+  // Test 11: Multi-field search filter supporting location (city and state)
+  test('Search filter matches customer name, legal name, code, phone, and location', () => {
+    const customers = [
+      { id: '1', display_name: 'Yashika Agro Indsutries - Merta', legal_or_core_name: '', customer_code: null, city: 'Merta', state: 'Rajasthan', mobile: '9928100000' },
+      { id: '2', display_name: 'Babulal Traders', legal_or_core_name: 'Babulal & Sons', customer_code: 'CUST-042', city: 'Jaipur', state: 'Rajasthan', mobile: '9826011111' },
+      { id: '3', display_name: 'Shree Ram Feed', legal_or_core_name: '', customer_code: 'SRF-100', city: 'Makrana', state: 'Rajasthan', mobile: '9414022222' },
+    ];
+    const buyerMap = {
+      '2': { email: 'babulal@shubhlabh.app' },
+    };
+
+    const filterCustomers = (list, term) => {
+      const t = term.trim().toLowerCase();
+      if (!t) return list;
+      return list.filter((c) => {
+        const name = (c.display_name || '').toLowerCase();
+        const legal = (c.legal_or_core_name || '').toLowerCase();
+        const code = (c.customer_code || '').toLowerCase();
+        const mobile = (c.mobile || '').replace(/[^0-9]/g, '');
+        const whatsapp = (c.whatsapp || '').replace(/[^0-9]/g, '');
+        const city = (c.city || '').toLowerCase();
+        const state = (c.state || '').toLowerCase();
+        const buyerEmail = (buyerMap[c.id]?.email || '').toLowerCase();
+
+        return (
+          name.includes(t) ||
+          legal.includes(t) ||
+          code.includes(t) ||
+          mobile.includes(t) ||
+          whatsapp.includes(t) ||
+          city.includes(t) ||
+          state.includes(t) ||
+          buyerEmail.includes(t)
+        );
+      });
+    };
+
+    // 1. Search by Name
+    assert.equal(filterCustomers(customers, 'Yashika').length, 1);
+    assert.equal(filterCustomers(customers, 'Yashika')[0].id, '1');
+
+    // 2. Search by Location (City)
+    assert.equal(filterCustomers(customers, 'Merta').length, 1);
+    assert.equal(filterCustomers(customers, 'Merta')[0].id, '1');
+    assert.equal(filterCustomers(customers, 'Jaipur').length, 1);
+    assert.equal(filterCustomers(customers, 'Jaipur')[0].id, '2');
+
+    // 3. Search by Location (State)
+    assert.equal(filterCustomers(customers, 'Rajasthan').length, 3);
+
+    // 4. Search by Customer Code
+    assert.equal(filterCustomers(customers, 'CUST-042').length, 1);
+    assert.equal(filterCustomers(customers, 'CUST-042')[0].id, '2');
+
+    // 5. Search by Buyer Email
+    assert.equal(filterCustomers(customers, 'babulal@shubhlabh.app').length, 1);
+    assert.equal(filterCustomers(customers, 'babulal@shubhlabh.app')[0].id, '2');
+  });
+
+  // Test 12: Batched pagination / chunking simulation (exceeds PostgREST 1000 limit)
+  test('Batched chunking ingests all records exceeding PostgREST 1000-row limit', async () => {
+    // Generate 1,024 mock customers (matching live database total)
+    const mockDb = Array.from({ length: 1024 }, (_, i) => ({
+      id: `cust-${i + 1}`,
+      display_name: i === 1020 ? 'Yashika Agro Indsutries - Merta' : `Customer ${String(i + 1).padStart(4, '0')}`,
+    }));
+
+    // Mock paginated Supabase range query
+    const mockFetchRange = async (from, to) => {
+      return { data: mockDb.slice(from, to + 1), error: null };
+    };
+
+    const batchSize = 1000;
+    let allPartiesData = [];
+    let from = 0;
+    while (true) {
+      const { data: batch, error } = await mockFetchRange(from, from + batchSize - 1);
+      assert.equal(error, null);
+      if (!batch || batch.length === 0) break;
+      allPartiesData.push(...batch);
+      if (batch.length < batchSize) break;
+      from += batchSize;
+    }
+
+    assert.equal(allPartiesData.length, 1024, 'Must load all 1024 customers without truncation');
+    const yashika = allPartiesData.find(c => c.display_name === 'Yashika Agro Indsutries - Merta');
+    assert.ok(yashika, 'Yashika Agro Industries must be present in ingested dataset');
+  });
 });

@@ -61,7 +61,7 @@ export default function CustomerTable({
             className="input"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search by name, customer code, or mobile..."
+            placeholder="Search by name, customer code, mobile, or location..."
             style={{
               paddingLeft: '2.5rem',
               width: '100%',
@@ -176,6 +176,18 @@ export default function CustomerTable({
                         )}
                         {c.legal_or_core_name && c.legal_or_core_name !== c.display_name && (
                           <span>• {c.legal_or_core_name}</span>
+                        )}
+                        {c.crm_status && c.crm_status !== 'Active' && (
+                          <span style={{
+                            padding: '0.1rem 0.4rem',
+                            borderRadius: '4px',
+                            backgroundColor: '#f1f5f9',
+                            color: '#64748b',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                          }}>
+                            {c.crm_status}
+                          </span>
                         )}
                       </div>
                     </td>
