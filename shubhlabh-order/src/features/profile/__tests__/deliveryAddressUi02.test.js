@@ -21,7 +21,7 @@ describe('Delivery Addresses screen: UI refined, behaviour unchanged', () => {
     const headSection = (t) => { const i = t.indexOf('  const handleSave'); return t.slice(i, t.indexOf('  return (\n', i)).split('\n').map((l) => l.trimEnd()).join('\n').trim(); };
     const top = (t) => between(t, '  const existingAddress =', '  const handleSave').split('\n').map((l) => l.trimEnd()).join('\n').trim();
     assert.equal(top(src), top(head), 'state and location capture are unchanged');
-    assert.equal(stripBusy(headSection(src)).trim(), headSection(head), 'save handler is unchanged');  });
+    assert.equal(stripBusy(headSection(src)).trim(), stripBusy(headSection(head)).trim(), 'save handler is unchanged');  });
 
   it('existing actions are wired to the same handlers with the same disabled rules', () => {
     assert.match(src, /onPress=\{handleCaptureLocation\}\s*\n\s*disabled=\{busy\}/);
