@@ -7,3 +7,4 @@ ShubhLabhWebsite/
 screenshots/
 scratch/
 *.apk
+!app/public/downloads/*.apk
