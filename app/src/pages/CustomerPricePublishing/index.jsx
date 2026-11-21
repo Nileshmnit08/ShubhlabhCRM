@@ -19,9 +19,11 @@ import {
   Calendar,
   Send,
   Eye,
-  RotateCcw
+  RotateCcw,
+  MessageCircle
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import WhatsAppPriceRequestModal from './components/WhatsAppPriceRequestModal';
 
 const INITIAL_MATERIALS = [
   'Khal', 'Makka Daliya', 'Jaggery', 'Oil', 'Chana Churi', 
@@ -74,6 +76,7 @@ export default function CustomerPricePublishing() {
   const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'changed', 'drafts', 'selected'
   const [showHistory, setShowHistory] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [pendingPublishItems, setPendingPublishItems] = useState([]);
   const [batchDate, setBatchDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
@@ -523,6 +526,32 @@ export default function CustomerPricePublishing() {
 
         {/* Header Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <button
+            type="button"
+            onClick={() => setShowWhatsAppModal(true)}
+            style={{
+              backgroundColor: '#25D366',
+              color: '#ffffff',
+              padding: '0.625rem 1.15rem',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              border: '1px solid #1ebe5d',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1ebc59'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#25D366'}
+            title="आज के बाजार भाव मंगवाएं (Request Today's Market Prices via WhatsApp)"
+          >
+            <MessageCircle size={16} />
+            <span>Request Today's Market Prices</span>
+          </button>
+
           <button
             onClick={() => executeSave(false)}
             disabled={saving}
@@ -1693,6 +1722,15 @@ export default function CustomerPricePublishing() {
           </div>
         </div>
       )}
+
+      {/* ─── WHATSAPP PRICE REQUEST MODAL ────────────────────────────── */}
+      <WhatsAppPriceRequestModal
+        isOpen={showWhatsAppModal}
+        onClose={() => setShowWhatsAppModal(false)}
+        materials={materials}
+        latestPrices={latestPrices}
+        userProfile={userProfile}
+      />
 
     </div>
   );
