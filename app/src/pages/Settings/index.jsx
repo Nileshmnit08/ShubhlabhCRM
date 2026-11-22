@@ -1,10 +1,33 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { AuthContext } from '../../AuthContext';
 import { LanguageContext } from '../../LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
-import { User, Bell, Users, Settings as SettingsIcon, Save, Palette, Image as ImageIcon, Shield, AlertTriangle, UserPlus, X, MessageCircle, Map, Gift, Phone, Video } from 'lucide-react';
-import { CallContext } from '../Calling/CallProvider';
+import {
+  User,
+  Bell,
+  Users,
+  Settings as SettingsIcon,
+  Save,
+  Palette,
+  Monitor,
+  Layers,
+  Shield,
+  AlertTriangle,
+  UserPlus,
+  X,
+  MessageCircle,
+  Map,
+  Gift,
+  Phone,
+  Mail,
+  Search,
+  Key,
+  MoreVertical,
+  History,
+  CheckCircle,
+  Clock
+} from 'lucide-react';
 import TerritoriesTab from './Territories';
 import DealerSchemes from './DealerSchemes';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -18,7 +41,11 @@ export default function Settings() {
   const getInitialTab = () => {
     const searchParams = new URLSearchParams(location.search);
     const tabParam = searchParams.get('tab');
-    const validTabs = ['profile', 'security', 'appearance', 'personalization', 'notifications', 'brand', 'team', 'territories', 'templates', 'dealer_schemes', 'defaults', 'notification_history'];
+    const validTabs = [
+      'profile', 'security', 'brand', 'appearance', 'personalization',
+      'notifications', 'team', 'notification_history', 'territories',
+      'templates', 'dealer_schemes', 'defaults'
+    ];
     if (tabParam && validTabs.includes(tabParam)) return tabParam;
     return 'profile';
   };
@@ -27,6 +54,12 @@ export default function Settings() {
   const [loading, setLoading] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
   
+  // Team Management Filter & Search state
+  const [teamSearch, setTeamSearch] = useState('');
+  const [teamRoleFilter, setTeamRoleFilter] = useState('All');
+  const [teamStatusFilter, setTeamStatusFilter] = useState('All');
+  const [activeActionMenuId, setActiveActionMenuId] = useState(null);
+
   // States for each section
   const [profileData, setProfileData] = useState({});
   const [securityData, setSecurityData] = useState({ password: '', confirmPassword: '' });
@@ -62,6 +95,15 @@ export default function Settings() {
   const [initialNotifications, setInitialNotifications] = useState({});
   const [initialDefaults, setInitialDefaults] = useState({});
 
+  // Sync tab with URL search parameter
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const tabParam = searchParams.get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [location.search]);
+
   useEffect(() => {
     if (userProfile) {
       const pData = {
@@ -75,7 +117,7 @@ export default function Settings() {
       
       const appData = {
         theme_mode: userProfile.theme_mode || 'system',
-        accent_color: userProfile.accent_color || '#2563eb',
+        accent_color: userProfile.accent_color || '#078B54',
         sidebar_style: userProfile.sidebar_style || 'default',
         card_density: userProfile.card_density || 'comfortable',
       };
@@ -98,8 +140,8 @@ export default function Settings() {
   useEffect(() => {
     if (crmSettings && userProfile?.role === 'Admin') {
       const bData = {
-        crm_name: crmSettings.crm_name || 'Feed CRM',
-        company_name: crmSettings.company_name || '',
+        crm_name: crmSettings.crm_name || 'Shubh Labh CRM',
+        company_name: crmSettings.company_name || 'Shubh Labh Cattle Feeds',
         app_logo_url: crmSettings.app_logo_url || '',
         favicon_url: crmSettings.favicon_url || '',
       };
@@ -118,7 +160,7 @@ export default function Settings() {
 
   const fetchNotificationHistory = async () => {
     if (userProfile?.role !== 'Admin') return;
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('crm_notifications')
       .select('*')
       .order('created_at', { ascending: false });
@@ -137,7 +179,7 @@ export default function Settings() {
     }
   }, [activeTab, userProfile]);
 
-  // Check for unsaved changes whenever state changes
+  // Check for unsaved changes
   useEffect(() => {
     const pDirty = JSON.stringify(profileData) !== JSON.stringify(initialProfile);
     const sDirty = securityData.password !== '';
@@ -162,6 +204,13 @@ export default function Settings() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
+  // Close open action menu on window click
+  useEffect(() => {
+    const handleClickOutside = () => setActiveActionMenuId(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+
   const handleTabChange = (newTab) => {
     if (isDirty) {
       if (!window.confirm(t('settings.unsavedWarning') || 'You have unsaved changes. Are you sure you want to leave?')) {
@@ -170,7 +219,7 @@ export default function Settings() {
     }
     resetForm();
     setActiveTab(newTab);
-    navigate(`/settings?tab=${newTab}`, { replace: true });
+    navigate(`/settings?tab=${newTab}`, { replace: false });
   };
 
   const resetForm = () => {
@@ -208,19 +257,16 @@ export default function Settings() {
       let userUpdates = {};
       let crmUpdates = {};
       
-      // Collect user updates
       if (JSON.stringify(profileData) !== JSON.stringify(initialProfile)) userUpdates = { ...userUpdates, ...profileData };
       if (JSON.stringify(appearanceData) !== JSON.stringify(initialAppearance)) userUpdates = { ...userUpdates, ...appearanceData };
       if (JSON.stringify(personalizationData) !== JSON.stringify(initialPersonalization)) userUpdates = { ...userUpdates, ...personalizationData };
       if (JSON.stringify(notificationsData) !== JSON.stringify(initialNotifications)) userUpdates = { ...userUpdates, notification_rules: notificationsData };
       
-      // Collect CRM updates
       if (userProfile?.role === 'Admin') {
         if (JSON.stringify(brandData) !== JSON.stringify(initialBrand)) crmUpdates = { ...crmUpdates, ...brandData };
         if (JSON.stringify(defaultsData) !== JSON.stringify(initialDefaults)) crmUpdates = { ...crmUpdates, ...defaultsData };
       }
 
-      // Execute updates
       if (Object.keys(userUpdates).length > 0) {
         const { error } = await supabase.from('app_users').update(userUpdates).eq('id', userProfile.id);
         if (error) throw error;
@@ -245,10 +291,9 @@ export default function Settings() {
       await logActivity({
         module: 'Settings',
         actionType: 'UPDATED',
-        summary: `User updated settings and preferences.`
+        summary: 'User updated settings and preferences.'
       });
       
-      // Update initials
       if (Object.keys(userUpdates).length > 0) {
         setInitialProfile({ ...initialProfile, ...profileData });
         setInitialAppearance({ ...initialAppearance, ...appearanceData });
@@ -261,9 +306,6 @@ export default function Settings() {
       }
       
       setIsDirty(false);
-      // We simulate a reload by force-applying the personalization to DOM if we wanted to, 
-      // but App.jsx will catch the setUserProfile and apply it instantly!
-      
       alert('Settings saved successfully!');
     } catch (err) {
       console.error(err);
@@ -285,7 +327,7 @@ export default function Settings() {
     const { error } = await supabase.from('app_users').update({ is_active: !isActive }).eq('id', userId);
     if (!error) {
       fetchTeam();
-      logActivity({ module: 'Settings', actionType: 'UPDATED', summary: `Toggled user active status` });
+      logActivity({ module: 'Settings', actionType: 'UPDATED', summary: 'Toggled user active status' });
     }
   };
 
@@ -298,7 +340,7 @@ export default function Settings() {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('admin_create_user', {
+      const { error } = await supabase.rpc('admin_create_user', {
         new_email: newUserData.email,
         new_password: newUserData.password,
         new_display_name: newUserData.display_name,
@@ -442,767 +484,2047 @@ export default function Settings() {
     }
   };
 
-  const tabs = [
-    { id: 'profile', label: t('settings.tabs.profile') || 'Profile', icon: User },
-    { id: 'security', label: t('settings.tabs.security') || 'Security', icon: Shield },
-    { id: 'appearance', label: t('settings.tabs.appearance') || 'Appearance', icon: Palette },
-    { id: 'personalization', label: t('settings.tabs.personalization') || 'Workspace Personalization', icon: ImageIcon },
-    { id: 'notifications', label: t('settings.tabs.notifications') || 'Notifications', icon: Bell },
-  ];
-  if (userProfile?.role === 'Admin') {
-    tabs.splice(2, 0, { id: 'brand', label: t('settings.tabs.brand') || 'Brand & Identity', icon: SettingsIcon });
-    tabs.push({ id: 'team', label: t('settings.tabs.team') || 'Team Management', icon: Users });
-    tabs.push({ id: 'notification_history', label: 'Notification History', icon: Bell });
-    tabs.push({ id: 'territories', label: 'Territories', icon: Map });
-    tabs.push({ id: 'templates', label: 'WhatsApp Templates', icon: MessageCircle });
-    tabs.push({ id: 'dealer_schemes', label: 'Dealer Schemes', icon: Gift });
-    tabs.push({ id: 'defaults', label: t('settings.tabs.defaults') || 'CRM Defaults', icon: SettingsIcon });
-  }
+  // Define nine primary horizontal tabs
+  const tabs = useMemo(() => {
+    const baseTabs = [
+      { id: 'profile', label: 'Profile', icon: User },
+      { id: 'security', label: 'Security', icon: Shield },
+    ];
+
+    if (userProfile?.role === 'Admin') {
+      baseTabs.push({ id: 'brand', label: 'Brand & Identity', icon: Layers });
+    }
+
+    baseTabs.push(
+      { id: 'appearance', label: 'Appearance', icon: Palette },
+      { id: 'personalization', label: 'Workspace Personalization', icon: Monitor },
+      { id: 'notifications', label: 'Notifications', icon: Bell }
+    );
+
+    if (userProfile?.role === 'Admin') {
+      baseTabs.push(
+        { id: 'team', label: 'Team Management', icon: Users },
+        { id: 'notification_history', label: 'Notification History', icon: History },
+        { id: 'territories', label: 'Territories', icon: Map }
+      );
+    }
+
+    // Secondary fallback tabs to avoid broken routes
+    if (activeTab === 'templates' && !baseTabs.find(t => t.id === 'templates')) {
+      baseTabs.push({ id: 'templates', label: 'WhatsApp Templates', icon: MessageCircle });
+    }
+    if (activeTab === 'dealer_schemes' && !baseTabs.find(t => t.id === 'dealer_schemes')) {
+      baseTabs.push({ id: 'dealer_schemes', label: 'Dealer Schemes', icon: Gift });
+    }
+    if (activeTab === 'defaults' && !baseTabs.find(t => t.id === 'defaults')) {
+      baseTabs.push({ id: 'defaults', label: 'CRM Defaults', icon: SettingsIcon });
+    }
+
+    return baseTabs;
+  }, [userProfile?.role, activeTab]);
+
+  // Filtered team list
+  const filteredTeam = useMemo(() => {
+    return team.filter(member => {
+      // Role filter
+      if (teamRoleFilter !== 'All' && member.role !== teamRoleFilter) return false;
+      // Status filter
+      if (teamStatusFilter === 'Active' && !member.is_active) return false;
+      if (teamStatusFilter === 'Inactive' && member.is_active) return false;
+      // Search text
+      if (teamSearch.trim()) {
+        const query = teamSearch.trim().toLowerCase();
+        const name = (member.display_name || '').toLowerCase();
+        const email = (member.email || '').toLowerCase();
+        const phone = (member.whatsapp || member.mobile || member.contact_details || '').toLowerCase();
+        const role = (member.role || '').toLowerCase();
+        return name.includes(query) || email.includes(query) || phone.includes(query) || role.includes(query);
+      }
+      return true;
+    });
+  }, [team, teamSearch, teamRoleFilter, teamStatusFilter]);
+
+  // Helper for User Avatar Initials and Colors
+  const getInitials = (name, email) => {
+    if (name && name.trim()) {
+      const parts = name.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return parts[0].substring(0, 2).toUpperCase();
+    }
+    if (email) {
+      return email.substring(0, 2).toUpperCase();
+    }
+    return 'U';
+  };
+
+  const getAvatarColor = (name = '', role = '') => {
+    const combined = (name + role).toLowerCase();
+    if (combined.includes('admin')) return { bg: '#E8F5E9', text: '#078B54' }; // Green
+    if (combined.includes('vishnu') || combined.includes('operations')) return { bg: '#EDE9FE', text: '#7C3AED' }; // Purple
+    if (combined.includes('pradeep') || combined.includes('production')) return { bg: '#FEF3C7', text: '#D97706' }; // Amber
+    if (combined.includes('vijay') || combined.includes('sales')) return { bg: '#E0F2FE', text: '#0284C7' }; // Blue
+    return { bg: '#F1F5F9', text: '#475569' }; // Slate
+  };
 
   return (
-    <div className="animate-fade-in" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '80px'}}>
-      <div className="page-header" style={{marginBottom: '2rem'}}>
+    <div
+      className="settings-workspace animate-fade-in"
+      style={{
+        width: '100%',
+        maxWidth: '1600px',
+        margin: '0 auto',
+        padding: '1.25rem 1.5rem 5rem 1.5rem',
+        boxSizing: 'border-box',
+        backgroundColor: '#F5F7FA',
+        minHeight: 'calc(100vh - 70px)'
+      }}
+    >
+      {/* ─── B. SETTINGS PAGE HEADER ───────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          marginBottom: '1.25rem'
+        }}
+      >
+        <div
+          style={{
+            width: '46px',
+            height: '46px',
+            borderRadius: '12px',
+            backgroundColor: '#E8F5E9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#078B54',
+            flexShrink: 0,
+            border: '1px solid rgba(7, 139, 84, 0.15)'
+          }}
+        >
+          <SettingsIcon size={24} />
+        </div>
         <div>
-          <h1 style={{margin: 0}}>{t('settings.title') || 'Settings & Preferences'}</h1>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: '1.625rem',
+              fontWeight: 700,
+              color: '#172D4F',
+              letterSpacing: '-0.02em',
+              lineHeight: 1.2
+            }}
+          >
+            Settings & Preferences
+          </h1>
+          <p
+            style={{
+              margin: '0.25rem 0 0 0',
+              fontSize: '0.875rem',
+              color: '#64748B',
+              fontWeight: 400
+            }}
+          >
+            Manage your workspace, team, security and preferences for Shubh Labh CRM.
+          </p>
         </div>
       </div>
 
-      <div style={{display: 'flex', gap: '2rem', flexWrap: 'wrap'}}>
-        {/* Sidebar Nav */}
-        <div style={{flex: '1 1 250px'}}>
-          <div className="glass-panel" style={{display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0}}>
-            {tabs.map(tab => (
-              <button 
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.75rem', 
-                  padding: '1.25rem 1rem', textAlign: 'left', border: 'none',
-                  background: activeTab === tab.id ? 'var(--bg-surface-hover)' : 'transparent',
-                  color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-primary)',
-                  fontWeight: activeTab === tab.id ? 600 : 400,
-                  borderLeft: activeTab === tab.id ? '4px solid var(--primary)' : '4px solid transparent',
-                  borderBottom: '1px solid var(--border)'
-                }}
-              >
-                <tab.icon size={18} />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* ─── C. HORIZONTAL SETTINGS NAVIGATION (9 TABS) ────────────────── */}
+      <div
+        className="horizontal-tabs-container"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.35rem',
+          borderBottom: '1px solid #E2E8F0',
+          marginBottom: '1.5rem',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: '2px',
+          scrollbarWidth: 'none'
+        }}
+      >
+        {tabs.map(tab => {
+          const isActive = activeTab === tab.id;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => handleTabChange(tab.id)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem 1rem',
+                fontSize: '0.875rem',
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? '#078B54' : '#64748B',
+                backgroundColor: isActive ? '#E8F5E9' : 'transparent',
+                border: 'none',
+                borderRadius: '8px 8px 0 0',
+                borderBottom: isActive ? '3px solid #078B54' : '3px solid transparent',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+                flexShrink: 0
+              }}
+              onMouseOver={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = '#F1F5F9';
+                  e.currentTarget.style.color = '#172D4F';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#64748B';
+                }
+              }}
+            >
+              <Icon size={17} style={{ color: isActive ? '#078B54' : '#64748B', flexShrink: 0 }} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-        {/* Content Area */}
-        <div style={{flex: '3 1 600px'}}>
-          
-          {/* PROFILE TAB */}
-          {activeTab === 'profile' && (
-            <div className="glass-panel" style={{padding: '2.5rem'}}>
-              <h2 style={{marginBottom: '2rem'}}>{t('settings.tabs.profile') || 'Profile'}</h2>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem'}}>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.profile.displayName') || 'Display Name'}</label>
-                    <input type="text" value={profileData.display_name} onChange={e => setProfileData({...profileData, display_name: e.target.value})} placeholder="Jane Doe" style={{width: '100%', padding: '0.75rem'}} />
-                  </div>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.profile.mobile') || 'Mobile Number'}</label>
-                    <input type="text" value={profileData.mobile} onChange={e => setProfileData({...profileData, mobile: e.target.value})} placeholder="+91..." style={{width: '100%', padding: '0.75rem'}} />
-                  </div>
+      {/* ─── FULL-WIDTH SETTINGS WORKSPACE CONTENT ─────────────────────── */}
+      <div style={{ width: '100%' }}>
+
+        {/* ─── D. TEAM MANAGEMENT TAB (REFERENCE IMPLEMENTATION) ────────── */}
+        {activeTab === 'team' && userProfile?.role === 'Admin' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                marginBottom: '1.5rem',
+                paddingBottom: '1.25rem',
+                borderBottom: '1px solid #E2E8F0'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    backgroundColor: '#E8F5E9',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#078B54'
+                  }}
+                >
+                  <Users size={22} />
                 </div>
-
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem'}}>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.profile.language') || 'Preferred Language'}</label>
-                    <select value={profileData.preferred_language} onChange={e => setProfileData({...profileData, preferred_language: e.target.value})} style={{width: '100%', padding: '0.75rem'}}>
-                      <option value="en">English</option>
-                      <option value="hi">हिंदी (Hindi)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.profile.timezone') || 'Timezone'}</label>
-                    <select value={profileData.timezone} onChange={e => setProfileData({...profileData, timezone: e.target.value})} style={{width: '100%', padding: '0.75rem'}}>
-                      <option value="UTC">UTC</option>
-                      <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-                    </select>
-                  </div>
+                <div>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: '1.25rem',
+                      fontWeight: 700,
+                      color: '#172D4F',
+                      lineHeight: 1.2
+                    }}
+                  >
+                    Team Management
+                  </h2>
+                  <p
+                    style={{
+                      margin: '0.2rem 0 0 0',
+                      fontSize: '0.85rem',
+                      color: '#64748B'
+                    }}
+                  >
+                    Manage team members, access levels and roles across the CRM.
+                  </p>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* SECURITY TAB */}
-          {activeTab === 'security' && (
-            <div className="glass-panel" style={{padding: '2.5rem'}}>
-              <h2 style={{marginBottom: '2rem'}}>{t('settings.security.title') || 'Security'}</h2>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '400px'}}>
-                <div>
-                  <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.security.newPassword') || 'New Password'}</label>
-                  <input type="password" value={securityData.password} onChange={e => setSecurityData({...securityData, password: e.target.value})} placeholder="••••••••" style={{width: '100%', padding: '0.75rem'}} />
-                </div>
-                <div>
-                  <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.security.confirmPassword') || 'Confirm Password'}</label>
-                  <input type="password" value={securityData.confirmPassword} onChange={e => setSecurityData({...securityData, confirmPassword: e.target.value})} placeholder="••••••••" style={{width: '100%', padding: '0.75rem'}} />
-                  {securityData.password && securityData.password !== securityData.confirmPassword && (
-                    <span className="text-danger" style={{fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.5rem'}}>
-                      <AlertTriangle size={14} /> {t('settings.security.passwordMismatch') || 'Passwords do not match'}
-                    </span>
-                  )}
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowNotificationModal(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.55rem 1rem',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    color: '#263448',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <Bell size={16} />
+                  <span>Send Notification</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddUserModal(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.55rem 1.15rem',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    backgroundColor: '#078B54',
+                    border: '1px solid #078B54',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 2px rgba(7, 139, 84, 0.2)'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#067547'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#078B54'}
+                >
+                  <UserPlus size={16} />
+                  <span>Add Team Member</span>
+                </button>
               </div>
             </div>
-          )}
 
-          {/* BRAND & IDENTITY TAB */}
-          {activeTab === 'brand' && userProfile?.role === 'Admin' && (
-            <div className="glass-panel" style={{padding: '2.5rem'}}>
-              <h2 style={{marginBottom: '2rem'}}>{t('settings.brand.title') || 'Brand & Identity'}</h2>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem'}}>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.brand.appName') || 'App/CRM Name'}</label>
-                    <input type="text" value={brandData.crm_name} onChange={e => setBrandData({...brandData, crm_name: e.target.value})} style={{width: '100%', padding: '0.75rem'}} />
-                  </div>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.brand.companyName') || 'Company Name'}</label>
-                    <input type="text" value={brandData.company_name} onChange={e => setBrandData({...brandData, company_name: e.target.value})} style={{width: '100%', padding: '0.75rem'}} />
-                  </div>
+            {/* Filter and Search Bar */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                marginBottom: '1.25rem'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', flex: '1 1 500px' }}>
+                {/* Search Input */}
+                <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
+                  <Search
+                    size={16}
+                    style={{
+                      position: 'absolute',
+                      left: '0.75rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#94A3B8'
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={teamSearch}
+                    onChange={(e) => setTeamSearch(e.target.value)}
+                    placeholder="Search by name, email or mobile..."
+                    style={{
+                      width: '100%',
+                      height: '38px',
+                      padding: '0 0.75rem 0 2.25rem',
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '0.875rem',
+                      color: '#263448',
+                      backgroundColor: '#FFFFFF',
+                      boxSizing: 'border-box'
+                    }}
+                  />
                 </div>
 
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem'}}>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.brand.logoUrl') || 'App Logo URL'}</label>
-                    <input type="text" value={brandData.app_logo_url} onChange={e => setBrandData({...brandData, app_logo_url: e.target.value})} placeholder="https://..." style={{width: '100%', padding: '0.75rem', marginBottom: '1rem'}} />
-                    {brandData.app_logo_url && (
-                      <div style={{padding: '1rem', background: 'var(--bg-base)', borderRadius: '8px', display: 'inline-block'}}>
-                        <img src={brandData.app_logo_url} alt="Logo Preview" style={{height: '40px', objectFit: 'contain'}} />
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Role Filter */}
+                <select
+                  value={teamRoleFilter}
+                  onChange={(e) => setTeamRoleFilter(e.target.value)}
+                  style={{
+                    height: '38px',
+                    padding: '0 1.75rem 0 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '0.875rem',
+                    color: '#263448',
+                    backgroundColor: '#FFFFFF',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="All">All Roles</option>
+                  <option value="Admin">Admin</option>
+                  <option value="Operations">Operations</option>
+                  <option value="Production">Production</option>
+                  <option value="Sales">Sales</option>
+                  <option value="Staff">Staff</option>
+                  <option value="Operator">Operator</option>
+                </select>
+
+                {/* Status Filter */}
+                <select
+                  value={teamStatusFilter}
+                  onChange={(e) => setTeamStatusFilter(e.target.value)}
+                  style={{
+                    height: '38px',
+                    padding: '0 1.75rem 0 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '0.875rem',
+                    color: '#263448',
+                    backgroundColor: '#FFFFFF',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="All">All Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+
+              {/* Counter Badge */}
+              <div>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '9999px',
+                    backgroundColor: '#E8F5E9',
+                    color: '#078B54',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    border: '1px solid rgba(7, 139, 84, 0.2)'
+                  }}
+                >
+                  Total Members: <strong style={{ marginLeft: '0.3rem' }}>{filteredTeam.length}</strong>
+                </span>
               </div>
             </div>
-          )}
 
-          {/* APPEARANCE TAB */}
-          {activeTab === 'appearance' && (
-            <div className="glass-panel" style={{padding: '2.5rem'}}>
-              <h2 style={{marginBottom: '2rem'}}>{t('settings.appearance.title') || 'Appearance'}</h2>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
-                
-                <div>
-                  <label style={{fontWeight: 500, display: 'block', marginBottom: '1rem'}}>{t('settings.appearance.theme') || 'Theme Mode'}</label>
-                  <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
-                    {['light', 'dark', 'system'].map(mode => (
-                      <button 
-                        key={mode}
-                        onClick={() => setAppearanceData({...appearanceData, theme_mode: mode})}
-                        className="glass-panel"
+            {/* Team Members Table */}
+            <div
+              style={{
+                width: '100%',
+                overflowX: 'auto',
+                border: '1px solid #E2E8F0',
+                borderRadius: '8px'
+              }}
+            >
+              <table style={{ width: '100%', minWidth: '780px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                    <th style={{ padding: '0.75rem 1rem', width: '45px', textAlign: 'center', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: '#64748B' }}>
+                      #
+                    </th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: '#64748B' }}>
+                      User
+                    </th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: '#64748B' }}>
+                      Contact
+                    </th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: '#64748B' }}>
+                      Role
+                    </th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: '#64748B' }}>
+                      Status
+                    </th>
+                    <th style={{ padding: '0.75rem 1rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', color: '#64748B' }}>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTeam.map((member, index) => {
+                    const initials = getInitials(member.display_name, member.email);
+                    const avatarColor = getAvatarColor(member.display_name, member.role);
+                    const contactPhone = member.whatsapp || member.mobile;
+                    const contactDisplay = contactPhone || member.email;
+                    const isSelf = member.id === userProfile?.id;
+
+                    return (
+                      <tr
+                        key={member.id}
                         style={{
-                          flex: 1, minWidth: '120px', padding: '1rem', textAlign: 'center', cursor: 'pointer',
-                          border: appearanceData.theme_mode === mode ? '2px solid var(--primary)' : '2px solid transparent',
-                          background: mode === 'dark' ? '#1e293b' : mode === 'light' ? '#f8fafc' : 'var(--bg-surface)'
+                          borderBottom: index < filteredTeam.length - 1 ? '1px solid #E2E8F0' : 'none',
+                          backgroundColor: '#FFFFFF',
+                          transition: 'background-color 0.15s ease'
                         }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
                       >
-                        <span style={{color: mode === 'dark' ? '#f8fafc' : mode === 'light' ? '#0f172a' : 'inherit', fontWeight: 600}}>
-                          {t(`settings.appearance.theme.${mode}`) || mode}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{fontWeight: 500, display: 'block', marginBottom: '1rem'}}>{t('settings.appearance.accentColor') || 'Accent Color'}</label>
-                  <div style={{display: 'flex', gap: '1rem', flexWrap: 'wrap'}}>
-                    {['#2563eb', '#16a34a', '#dc2626', '#9333ea', '#ea580c', '#0d9488'].map(color => (
-                      <button 
-                        key={color}
-                        onClick={() => setAppearanceData({...appearanceData, accent_color: color})}
-                        style={{
-                          width: '40px', height: '40px', borderRadius: '50%', background: color, cursor: 'pointer',
-                          border: appearanceData.accent_color === color ? '3px solid white' : 'none',
-                          boxShadow: appearanceData.accent_color === color ? '0 0 0 2px var(--text-primary)' : 'none'
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem'}}>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.appearance.density') || 'Card Density'}</label>
-                    <select value={appearanceData.card_density} onChange={e => setAppearanceData({...appearanceData, card_density: e.target.value})} style={{width: '100%', padding: '0.75rem'}}>
-                      <option value="compact">{t('settings.appearance.density.compact') || 'Compact'}</option>
-                      <option value="comfortable">{t('settings.appearance.density.comfortable') || 'Comfortable'}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.appearance.sidebar') || 'Sidebar Style'}</label>
-                    <select value={appearanceData.sidebar_style} onChange={e => setAppearanceData({...appearanceData, sidebar_style: e.target.value})} style={{width: '100%', padding: '0.75rem'}}>
-                      <option value="default">Default</option>
-                      <option value="floating">Floating</option>
-                    </select>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          )}
-
-          {/* WORKSPACE PERSONALIZATION TAB */}
-          {activeTab === 'personalization' && (
-            <div className="glass-panel" style={{padding: '2.5rem'}}>
-              <h2 style={{marginBottom: '2rem'}}>{t('settings.personalization.title') || 'Workspace Personalization'}</h2>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
-                <div>
-                  <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>{t('settings.personalization.wallpaperUrl') || 'Wallpaper URL'}</label>
-                  <input type="text" value={personalizationData.wallpaper_url} onChange={e => setPersonalizationData({...personalizationData, wallpaper_url: e.target.value})} placeholder="https://... (.jpg, .png)" style={{width: '100%', padding: '0.75rem', marginBottom: '1rem'}} />
-                  {personalizationData.wallpaper_url && (
-                    <div style={{
-                      width: '100%', height: '200px', borderRadius: '12px', 
-                      backgroundImage: `url(${personalizationData.wallpaper_url})`,
-                      backgroundSize: 'cover', backgroundPosition: 'center',
-                      border: '1px solid var(--border)'
-                    }} />
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* NOTIFICATIONS TAB */}
-          {activeTab === 'notifications' && (
-            <div className="glass-panel" style={{padding: '2.5rem'}}>
-              <h2 style={{marginBottom: '2rem'}}>{t('settings.tabs.notifications') || 'Notifications'}</h2>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-                {Object.keys(notificationsData).map(key => (
-                  <label key={key} style={{display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer', padding: '1rem', background: 'var(--bg-base)', borderRadius: '8px'}}>
-                    <input 
-                      type="checkbox" 
-                      checked={notificationsData[key]} 
-                      onChange={e => setNotificationsData({...notificationsData, [key]: e.target.checked})}
-                      style={{width: '20px', height: '20px', cursor: 'pointer'}}
-                    />
-                    <span style={{fontWeight: 500}}>{t(`settings.notifications.${key}`) || key}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TEAM TAB */}
-          {activeTab === 'team' && userProfile?.role === 'Admin' && (
-            <div className="glass-panel" style={{padding: '0', overflow: 'hidden'}}>
-              <div style={{padding: '2rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <div>
-                  <h2 style={{margin: 0}}>{t('settings.tabs.team') || 'Team Management'}</h2>
-                  <p className="text-secondary" style={{marginTop: '0.5rem', fontSize: '0.95rem'}}>Manage access and roles across the CRM.</p>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button className="btn btn-secondary" onClick={() => setShowNotificationModal(true)}>
-                    <Bell size={18} /> Send Notification
-                  </button>
-                  <button className="btn btn-primary" onClick={() => setShowAddUserModal(true)}>
-                    <UserPlus size={18} /> Add Team Member
-                  </button>
-                </div>
-              </div>
-              <div style={{overflowX: 'auto'}}>
-                <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                  <thead>
-                    <tr style={{borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)'}}>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>User</th>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Contact</th>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Role</th>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {team.map(member => (
-                      <tr key={member.id} style={{borderBottom: '1px solid var(--border)'}}>
-                        <td style={{padding: '1.25rem 2rem'}}>
-                          <div style={{fontWeight: 600}}>{member.display_name || 'Unnamed User'}</div>
-                          <div className="text-secondary" style={{fontSize: '0.9rem'}}>{member.email}</div>
+                        {/* # Index */}
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontSize: '0.85rem', color: '#64748B', fontWeight: 500 }}>
+                          {index + 1}
                         </td>
-                        <td style={{padding: '1.25rem 2rem'}}>
-                          <div style={{fontSize: '0.9rem'}}>{member.whatsapp || member.mobile || '-'}</div>
-                          <div className="text-secondary" style={{fontSize: '0.85rem'}}>{member.contact_details || ''}</div>
-                        </td>
-                        <td style={{padding: '1.25rem 2rem'}}>
-                          <select 
-                            value={member.role} 
-                            onChange={(e) => toggleUserRole(member.id, e.target.value)}
-                            disabled={member.id === userProfile.id}
-                            style={{padding: '0.5rem'}}
-                          >
-                            <option value="Admin">Admin</option>
-                            <option value="Operator">Operator</option>
-                            <option value="Staff">Staff</option>
-                          </select>
-                        </td>
-                        <td style={{padding: '1.25rem 2rem'}}>
-                          <div style={{display: 'flex', gap: '0.5rem', alignItems: 'center'}}>
-                            <button 
-                              className={`badge ${member.is_active ? 'badge-success' : 'badge-danger'}`} 
-                              style={{border: 'none', cursor: member.id === userProfile.id ? 'default' : 'pointer'}}
-                              onClick={() => toggleUserStatus(member.id, member.is_active)}
-                              disabled={member.id === userProfile.id}
+
+                        {/* User Column */}
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div
+                              style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                backgroundColor: avatarColor.bg,
+                                color: avatarColor.text,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                flexShrink: 0
+                              }}
                             >
-                              {member.is_active ? 'Active' : 'Inactive'}
-                            </button>
-                            {member.id !== userProfile.id && (
-                              <button 
-                                className="btn btn-outline"
-                                style={{padding: '0.25rem 0.5rem', fontSize: '0.8rem'}}
-                                onClick={() => {
-                                  setPasswordTarget(member);
-                                  setShowChangePasswordModal(true);
-                                }}
-                              >
-                                Change Password
-                              </button>
+                              {initials}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600, color: '#172D4F', fontSize: '0.9rem', lineHeight: 1.2 }}>
+                                {member.display_name || 'Unnamed User'}
+                              </div>
+                              <div style={{ color: '#64748B', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                                {member.email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Contact Column */}
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#263448', fontSize: '0.85rem' }}>
+                            {contactPhone ? (
+                              <>
+                                <Phone size={14} style={{ color: '#64748B' }} />
+                                <span>{contactPhone}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Mail size={14} style={{ color: '#64748B' }} />
+                                <span>{member.email}</span>
+                              </>
                             )}
                           </div>
                         </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
-          {/* ADMIN CHANGE PASSWORD MODAL */}
-          {showChangePasswordModal && passwordTarget && (
-            <div style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-              background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', 
-              alignItems: 'center', justifyContent: 'center', padding: '1rem'
-            }}>
-              <div className="glass-panel" style={{width: '100%', maxWidth: '400px', padding: '2rem', position: 'relative'}}>
-                <button 
-                  onClick={() => setShowChangePasswordModal(false)}
-                  style={{position: 'absolute', right: '1.5rem', top: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}
-                >
-                  <X size={24} />
-                </button>
-                <h2 style={{marginBottom: '0.5rem'}}>Change Password</h2>
-                <p className="text-secondary" style={{marginBottom: '1.5rem', fontSize: '0.9rem'}}>
-                  Set new password for <strong>{passwordTarget.display_name}</strong>
-                </p>
-                
-                <form onSubmit={handleAdminChangePassword} style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '0.5rem'}}>New Password *</label>
-                    <input 
-                      type="password" 
-                      className="input" 
-                      value={adminChangePasswordData.newPassword} 
-                      onChange={e => setAdminChangePasswordData({...adminChangePasswordData, newPassword: e.target.value})} 
-                      required 
-                    />
-                  </div>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '0.5rem'}}>Confirm Password *</label>
-                    <input 
-                      type="password" 
-                      className="input" 
-                      value={adminChangePasswordData.confirmPassword} 
-                      onChange={e => setAdminChangePasswordData({...adminChangePasswordData, confirmPassword: e.target.value})} 
-                      required 
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary" disabled={loading} style={{marginTop: '1rem'}}>
-                    {loading ? 'Saving...' : 'Set Password'}
-                  </button>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* ADD USER MODAL */}
-          {showAddUserModal && (
-            <div style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-              background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', 
-              alignItems: 'center', justifyContent: 'center', padding: '1rem'
-            }}>
-              <div className="glass-panel" style={{width: '100%', maxWidth: '500px', padding: '2rem', position: 'relative'}}>
-                <button 
-                  onClick={() => setShowAddUserModal(false)}
-                  style={{position: 'absolute', right: '1.5rem', top: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}
-                >
-                  <X size={24} />
-                </button>
-                <h2 style={{marginBottom: '1.5rem'}}>Add Team Member</h2>
-                
-                <form onSubmit={handleAddUser} style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Full Name *</label>
-                    <input type="text" value={newUserData.display_name} onChange={e => setNewUserData({...newUserData, display_name: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} />
-                  </div>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Email *</label>
-                    <input type="email" value={newUserData.email} onChange={e => setNewUserData({...newUserData, email: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} />
-                  </div>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Temporary Password *</label>
-                    <input type="password" value={newUserData.password} onChange={e => setNewUserData({...newUserData, password: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} minLength={6} />
-                  </div>
-                  <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem'}}>
-                    <div>
-                      <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Role</label>
-                      <select value={newUserData.role} onChange={e => setNewUserData({...newUserData, role: e.target.value})} style={{width: '100%', padding: '0.75rem'}}>
-                        <option value="Operator">Operator</option>
-                        <option value="Admin">Admin</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>WhatsApp Number</label>
-                      <input type="text" value={newUserData.whatsapp} onChange={e => setNewUserData({...newUserData, whatsapp: e.target.value})} placeholder="+91..." style={{width: '100%', padding: '0.75rem'}} />
-                    </div>
-                  </div>
-                  <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem'}}>
-                    <button type="button" className="btn btn-secondary" onClick={() => setShowAddUserModal(false)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Creating...' : 'Create User'}</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* TEMPLATES TAB */}
-          {activeTab === 'templates' && userProfile?.role === 'Admin' && (
-            <div className="glass-panel" style={{padding: '0', overflow: 'hidden'}}>
-              <div style={{padding: '2rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <div>
-                  <h2 style={{margin: 0}}>WhatsApp Templates</h2>
-                  <p className="text-secondary" style={{marginTop: '0.5rem', fontSize: '0.95rem'}}>Manage reusable message templates with variable substitution.</p>
-                </div>
-                <button className="btn btn-primary" onClick={() => setShowAddTemplateModal(true)}>
-                  <MessageCircle size={18} /> Add Template
-                </button>
-              </div>
-              <div style={{overflowX: 'auto'}}>
-                <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                  <thead>
-                    <tr style={{borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)'}}>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Template Name</th>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Purpose</th>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {whatsappTemplates.map(t => (
-                      <tr key={t.id} style={{borderBottom: '1px solid var(--border)'}}>
-                        <td style={{padding: '1.25rem 2rem'}}>
-                          <div style={{fontWeight: 600}}>{t.name}</div>
-                          <div className="text-secondary" style={{fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '300px'}}>{t.body}</div>
-                        </td>
-                        <td style={{padding: '1.25rem 2rem'}}>
-                          <div style={{fontSize: '0.9rem'}}>{t.purpose}</div>
-                        </td>
-                        <td style={{padding: '1.25rem 2rem'}}>
-                          <button 
-                            className={`badge ${t.is_active ? 'badge-success' : 'badge-danger'}`} 
-                            style={{border: 'none', cursor: 'pointer'}}
-                            onClick={() => toggleTemplateStatus(t.id, t.is_active)}
+                        {/* Role Column */}
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <select
+                            value={member.role || 'Staff'}
+                            onChange={(e) => toggleUserRole(member.id, e.target.value)}
+                            disabled={isSelf}
+                            style={{
+                              height: '32px',
+                              padding: '0 0.5rem',
+                              borderRadius: '6px',
+                              border: '1px solid #E2E8F0',
+                              fontSize: '0.85rem',
+                              color: '#263448',
+                              backgroundColor: '#FFFFFF',
+                              cursor: isSelf ? 'not-allowed' : 'pointer'
+                            }}
                           >
-                            {t.is_active ? 'Active' : 'Inactive'}
+                            <option value="Admin">Admin</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Production">Production</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Staff">Staff</option>
+                            <option value="Operator">Operator</option>
+                          </select>
+                        </td>
+
+                        {/* Status Column */}
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => !isSelf && toggleUserStatus(member.id, member.is_active)}
+                            disabled={isSelf}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.25rem 0.65rem',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              letterSpacing: '0.04em',
+                              backgroundColor: member.is_active ? '#ECFDF5' : '#FEF2F2',
+                              color: member.is_active ? '#059669' : '#DC2626',
+                              border: `1px solid ${member.is_active ? 'rgba(5, 150, 105, 0.2)' : 'rgba(220, 38, 38, 0.2)'}`,
+                              cursor: isSelf ? 'default' : 'pointer'
+                            }}
+                            title={isSelf ? 'Cannot deactivate self' : 'Click to toggle status'}
+                          >
+                            <span
+                              style={{
+                                width: '6px',
+                                height: '6px',
+                                borderRadius: '50%',
+                                backgroundColor: member.is_active ? '#059669' : '#DC2626'
+                              }}
+                            />
+                            <span>{member.is_active ? 'ACTIVE' : 'INACTIVE'}</span>
                           </button>
                         </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
-          {/* ADD TEMPLATE MODAL */}
-          {showAddTemplateModal && (
-            <div style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-              background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', 
-              alignItems: 'center', justifyContent: 'center', padding: '1rem'
-            }}>
-              <div className="glass-panel" style={{width: '100%', maxWidth: '500px', padding: '2rem', position: 'relative'}}>
-                <button 
-                  onClick={() => setShowAddTemplateModal(false)}
-                  style={{position: 'absolute', right: '1.5rem', top: '1.5rem', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}
-                >
-                  <X size={24} />
-                </button>
-                <h2 style={{marginBottom: '1.5rem'}}>Add WhatsApp Template</h2>
-                
-                <form onSubmit={handleAddTemplate} style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Template Name *</label>
-                    <input type="text" value={newTemplateData.name} onChange={e => setNewTemplateData({...newTemplateData, name: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} placeholder="e.g. Payment Reminder" />
-                  </div>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Purpose *</label>
-                    <select value={newTemplateData.purpose} onChange={e => setNewTemplateData({...newTemplateData, purpose: e.target.value})} style={{width: '100%', padding: '0.75rem'}}>
-                      <option value="">-- Select Purpose --</option>
-                      <option value="General Check-in">General Check-in</option>
-                      <option value="Payment Reminder">Payment Reminder</option>
-                      <option value="Requirement Check">Requirement Check</option>
-                      <option value="Follow-up">Follow-up</option>
-                      <option value="Custom">Custom</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 500}}>Message Body *</label>
-                    <p style={{fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem'}}>Available variables: {'{{customer_name}}, {{city}}, {{state}}, {{salesperson_name}}'}</p>
-                    <textarea value={newTemplateData.body} onChange={e => setNewTemplateData({...newTemplateData, body: e.target.value})} required style={{width: '100%', padding: '0.75rem'}} rows={4} placeholder="Hello {{customer_name}}, this is a reminder..." />
-                  </div>
-                  <div style={{display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem'}}>
-                    <button type="button" className="btn btn-secondary" onClick={() => setShowAddTemplateModal(false)}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Saving...' : 'Save Template'}</button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
+                        {/* Actions Column */}
+                        <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPasswordTarget(member);
+                                setShowChangePasswordModal(true);
+                              }}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: '6px',
+                                border: '1px solid #E2E8F0',
+                                backgroundColor: '#FFFFFF',
+                                color: '#263448',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}
+                            >
+                              <Key size={13} style={{ color: '#64748B' }} />
+                              <span>Change Password</span>
+                            </button>
 
-          {/* CRM DEFAULTS TAB */}
-          {activeTab === 'defaults' && userProfile?.role === 'Admin' && (
-            <div className="glass-panel" style={{padding: '2.5rem'}}>
-              <h2 style={{marginBottom: '2rem'}}>{t('settings.tabs.defaults') || 'CRM Defaults'}</h2>
-              <div style={{display: 'flex', flexDirection: 'column', gap: '2rem'}}>
-                <div>
-                  <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>Default Follow-up Reminder (Minutes before Due Time)</label>
-                  <input 
-                    type="number" 
-                    value={defaultsData.default_reminder_minutes} 
-                    onChange={e => setDefaultsData({...defaultsData, default_reminder_minutes: parseInt(e.target.value)})}
-                    style={{maxWidth: '200px', padding: '0.75rem'}}
-                  />
-                </div>
+                            {/* More Options */}
+                            <div style={{ position: 'relative' }}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveActionMenuId(activeActionMenuId === member.id ? null : member.id);
+                                }}
+                                style={{
+                                  padding: '0.35rem',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  backgroundColor: activeActionMenuId === member.id ? '#F1F5F9' : 'transparent',
+                                  color: '#64748B',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                                title="More options"
+                              >
+                                <MoreVertical size={16} />
+                              </button>
 
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem'}}>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>Work Hours Start</label>
-                    <input 
-                      type="time" 
-                      value={defaultsData.work_hours_start} 
-                      onChange={e => setDefaultsData({...defaultsData, work_hours_start: e.target.value})}
-                      style={{width: '100%', padding: '0.75rem'}}
-                    />
-                  </div>
-                  <div>
-                    <label style={{fontWeight: 500, display: 'block', marginBottom: '0.5rem'}}>Work Hours End</label>
-                    <input 
-                      type="time" 
-                      value={defaultsData.work_hours_end} 
-                      onChange={e => setDefaultsData({...defaultsData, work_hours_end: e.target.value})}
-                      style={{width: '100%', padding: '0.75rem'}}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* TERRITORIES TAB */}
-          {activeTab === 'territories' && userProfile?.role === 'Admin' && (
-            <TerritoriesTab />
-          )}
-
-          {/* DEALER SCHEMES TAB */}
-          {activeTab === 'dealer_schemes' && userProfile?.role === 'Admin' && (
-            <DealerSchemes />
-          )}
-
-          {/* NOTIFICATION HISTORY TAB */}
-          {activeTab === 'notification_history' && userProfile?.role === 'Admin' && (
-            <div className="glass-panel" style={{padding: '0', overflow: 'hidden'}}>
-              <div style={{padding: '2rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem'}}>
-                <div>
-                  <h2 style={{margin: 0}}>Notification History</h2>
-                  <p className="text-secondary" style={{marginTop: '0.5rem', fontSize: '0.95rem'}}>View all internal notifications sent to Field Staff.</p>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <select className="form-control" value={historyFilter} onChange={e => setHistoryFilter(e.target.value)} style={{padding: '0.5rem'}}>
-                    <option value="All">All Statuses</option>
-                    <option value="Read">Read</option>
-                    <option value="Unread">Unread</option>
-                  </select>
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Search messages..." 
-                    value={historySearch}
-                    onChange={e => setHistorySearch(e.target.value)}
-                  />
-                  <button className="btn btn-secondary" onClick={() => fetchNotificationHistory()}>Refresh</button>
-                </div>
-              </div>
-              
-              <div style={{overflowX: 'auto'}}>
-                <table style={{width: '100%', borderCollapse: 'collapse'}}>
-                  <thead>
-                    <tr style={{borderBottom: '1px solid var(--border)', background: 'var(--bg-surface-hover)'}}>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Date & Time</th>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Recipient</th>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Message</th>
-                      <th style={{padding: '1.25rem 2rem', textAlign: 'left', fontWeight: 600}}>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {historyData
-                      .filter(n => historyFilter === 'All' ? true : historyFilter === 'Read' ? n.is_read : !n.is_read)
-                      .filter(n => {
-                        if (historySearch === '') return true;
-                        const u = team.find(m => m.id === n.user_id);
-                        const dName = u ? u.display_name : 'Unknown User';
-                        return (
-                          n.title.toLowerCase().includes(historySearch.toLowerCase()) || 
-                          n.message.toLowerCase().includes(historySearch.toLowerCase()) || 
-                          dName.toLowerCase().includes(historySearch.toLowerCase())
-                        );
-                      })
-                      .map(notif => {
-                        const u = team.find(m => m.id === notif.user_id);
-                        const dName = u ? u.display_name : 'Unknown User';
-                        return (
-                      <tr key={notif.id} style={{borderBottom: '1px solid var(--border)'}}>
-                        <td style={{padding: '1.25rem 2rem', whiteSpace: 'nowrap'}}>
-                          <div style={{fontWeight: 500}}>{new Date(notif.created_at).toLocaleDateString()}</div>
-                          <div className="text-secondary" style={{fontSize: '0.85rem'}}>{new Date(notif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                        </td>
-                        <td style={{padding: '1.25rem 2rem', whiteSpace: 'nowrap'}}>
-                          <div style={{fontWeight: 600}}>{dName}</div>
-                          <div className="text-secondary" style={{fontSize: '0.85rem'}}>{notif.notification_type}</div>
-                        </td>
-                        <td style={{padding: '1.25rem 2rem'}}>
-                          <div style={{fontWeight: 600, marginBottom: '0.25rem'}}>{notif.title}</div>
-                          <div className="text-secondary" style={{fontSize: '0.95rem'}}>{notif.message}</div>
-                          {notif.entity_type && notif.entity_type !== 'null' && (
-                            <div style={{marginTop: '0.5rem', fontSize: '0.85rem'}}>
-                              <span className="badge badge-info" style={{marginRight: '0.5rem'}}>{notif.entity_type}</span>
+                              {activeActionMenuId === member.id && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    right: 0,
+                                    top: '100%',
+                                    marginTop: '4px',
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid #E2E8F0',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                    zIndex: 50,
+                                    minWidth: '160px',
+                                    padding: '0.35rem 0',
+                                    textAlign: 'left'
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(member.email);
+                                      setActiveActionMenuId(null);
+                                      alert(`Copied email: ${member.email}`);
+                                    }}
+                                    style={{
+                                      width: '100%',
+                                      padding: '0.5rem 0.85rem',
+                                      border: 'none',
+                                      backgroundColor: 'transparent',
+                                      textAlign: 'left',
+                                      fontSize: '0.85rem',
+                                      color: '#263448',
+                                      cursor: 'pointer'
+                                    }}
+                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                  >
+                                    Copy Email
+                                  </button>
+                                  {contactPhone && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(contactPhone);
+                                        setActiveActionMenuId(null);
+                                        alert(`Copied phone: ${contactPhone}`);
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        padding: '0.5rem 0.85rem',
+                                        border: 'none',
+                                        backgroundColor: 'transparent',
+                                        textAlign: 'left',
+                                        fontSize: '0.85rem',
+                                        color: '#263448',
+                                        cursor: 'pointer'
+                                      }}
+                                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                    >
+                                      Copy Phone
+                                    </button>
+                                  )}
+                                  {!isSelf && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        toggleUserStatus(member.id, member.is_active);
+                                        setActiveActionMenuId(null);
+                                      }}
+                                      style={{
+                                        width: '100%',
+                                        padding: '0.5rem 0.85rem',
+                                        border: 'none',
+                                        backgroundColor: 'transparent',
+                                        textAlign: 'left',
+                                        fontSize: '0.85rem',
+                                        color: member.is_active ? '#DC2626' : '#059669',
+                                        cursor: 'pointer',
+                                        borderTop: '1px solid #F1F5F9'
+                                      }}
+                                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#F8FAFC'}
+                                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                    >
+                                      {member.is_active ? 'Deactivate Member' : 'Activate Member'}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </td>
-                        <td style={{padding: '1.25rem 2rem'}}>
-                          <span className={`badge ${notif.is_read ? 'badge-success' : 'badge-warning'}`}>
-                            {notif.is_read ? 'Read' : 'Unread'}
-                          </span>
+                          </div>
                         </td>
                       </tr>
                     );
-                    })}
-                    {historyData.length === 0 && (
-                      <tr>
-                        <td colSpan="4" style={{padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)'}}>
-                          No notifications found.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                  })}
+                  {filteredTeam.length === 0 && (
+                    <tr>
+                      <td colSpan="6" style={{ padding: '2.5rem', textAlign: 'center', color: '#64748B' }}>
+                        No team members found matching your search.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 1. PROFILE TAB ────────────────────────────────────────────── */}
+        {activeTab === 'profile' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Personal Profile
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                    Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.display_name || ''}
+                    onChange={e => setProfileData({ ...profileData, display_name: e.target.value })}
+                    placeholder="Enter your full name"
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '0.875rem',
+                      color: '#263448',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                    Mobile Number
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.mobile || ''}
+                    onChange={e => setProfileData({ ...profileData, mobile: e.target.value })}
+                    placeholder="+91..."
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '0.875rem',
+                      color: '#263448',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                    Preferred Language
+                  </label>
+                  <select
+                    value={profileData.preferred_language || 'en'}
+                    onChange={e => setProfileData({ ...profileData, preferred_language: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '0.875rem',
+                      color: '#263448',
+                      backgroundColor: '#FFFFFF',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="en">English</option>
+                    <option value="hi">हिंदी (Hindi)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                    Timezone
+                  </label>
+                  <select
+                    value={profileData.timezone || 'Asia/Kolkata'}
+                    onChange={e => setProfileData({ ...profileData, timezone: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '0.875rem',
+                      color: '#263448',
+                      backgroundColor: '#FFFFFF',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="Asia/Kolkata">Asia/Kolkata (IST - UTC+05:30)</option>
+                    <option value="UTC">UTC (Coordinated Universal Time)</option>
+                  </select>
+                </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-        </div>
+        {/* ─── 2. SECURITY TAB ───────────────────────────────────────────── */}
+        {activeTab === 'security' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Account Security & Password
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', maxWidth: '420px' }}>
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={securityData.password}
+                  onChange={e => setSecurityData({ ...securityData, password: e.target.value })}
+                  placeholder="••••••••"
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={securityData.confirmPassword}
+                  onChange={e => setSecurityData({ ...securityData, confirmPassword: e.target.value })}
+                  placeholder="••••••••"
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {securityData.password && securityData.password !== securityData.confirmPassword && (
+                  <span style={{ fontSize: '0.85rem', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.5rem' }}>
+                    <AlertTriangle size={14} /> Passwords do not match
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 3. BRAND & IDENTITY TAB ──────────────────────────────────── */}
+        {activeTab === 'brand' && userProfile?.role === 'Admin' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Brand & Identity Configuration
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '800px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem' }}>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                    Application / CRM Name
+                  </label>
+                  <input
+                    type="text"
+                    value={brandData.crm_name || ''}
+                    onChange={e => setBrandData({ ...brandData, crm_name: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '0.875rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                    Company Name
+                  </label>
+                  <input
+                    type="text"
+                    value={brandData.company_name || ''}
+                    onChange={e => setBrandData({ ...brandData, company_name: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      border: '1px solid #E2E8F0',
+                      fontSize: '0.875rem',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                  Application Logo URL
+                </label>
+                <input
+                  type="text"
+                  value={brandData.app_logo_url || ''}
+                  onChange={e => setBrandData({ ...brandData, app_logo_url: e.target.value })}
+                  placeholder="https://..."
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '0.875rem',
+                    marginBottom: '0.75rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {brandData.app_logo_url && (
+                  <div style={{ padding: '0.75rem', backgroundColor: '#F8FAFC', borderRadius: '8px', display: 'inline-block', border: '1px solid #E2E8F0' }}>
+                    <img src={brandData.app_logo_url} alt="Logo Preview" style={{ height: '36px', objectFit: 'contain' }} />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 4. APPEARANCE TAB ────────────────────────────────────────── */}
+        {activeTab === 'appearance' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Interface Appearance
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '700px' }}>
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem', color: '#263448' }}>
+                  Theme Mode
+                </label>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'light', label: 'Light' },
+                    { id: 'dark', label: 'Dark' },
+                    { id: 'system', label: 'System Default' }
+                  ].map(mode => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setAppearanceData({ ...appearanceData, theme_mode: mode.id })}
+                      style={{
+                        padding: '0.75rem 1.25rem',
+                        borderRadius: '8px',
+                        border: appearanceData.theme_mode === mode.id ? '2px solid #078B54' : '1px solid #E2E8F0',
+                        backgroundColor: appearanceData.theme_mode === mode.id ? '#E8F5E9' : '#FFFFFF',
+                        color: appearanceData.theme_mode === mode.id ? '#078B54' : '#263448',
+                        fontWeight: 600,
+                        fontSize: '0.875rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.75rem', color: '#263448' }}>
+                  Card & Content Density
+                </label>
+                <select
+                  value={appearanceData.card_density || 'comfortable'}
+                  onChange={e => setAppearanceData({ ...appearanceData, card_density: e.target.value })}
+                  style={{
+                    maxWidth: '300px',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '0.875rem',
+                    color: '#263448',
+                    backgroundColor: '#FFFFFF'
+                  }}
+                >
+                  <option value="comfortable">Comfortable</option>
+                  <option value="compact">Compact</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 5. WORKSPACE PERSONALIZATION TAB ─────────────────────────── */}
+        {activeTab === 'personalization' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Workspace Personalization
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '700px' }}>
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                  Custom Wallpaper URL (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={personalizationData.wallpaper_url || ''}
+                  onChange={e => setPersonalizationData({ ...personalizationData, wallpaper_url: e.target.value })}
+                  placeholder="https://... (.jpg, .png)"
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    fontSize: '0.875rem',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {personalizationData.wallpaper_url && (
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '160px',
+                      borderRadius: '8px',
+                      marginTop: '0.75rem',
+                      backgroundImage: `url(${personalizationData.wallpaper_url})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      border: '1px solid #E2E8F0'
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 6. NOTIFICATIONS TAB ─────────────────────────────────────── */}
+        {activeTab === 'notifications' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Notification Rules & Preferences
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '600px' }}>
+              {Object.keys(notificationsData).map(key => (
+                <label
+                  key={key}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    padding: '0.85rem 1rem',
+                    backgroundColor: '#F8FAFC',
+                    borderRadius: '8px',
+                    border: '1px solid #E2E8F0',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={notificationsData[key]}
+                    onChange={e => setNotificationsData({ ...notificationsData, [key]: e.target.checked })}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#078B54' }}
+                  />
+                  <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#263448', textTransform: 'capitalize' }}>
+                    {key.replace('_', ' ')} Notifications
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── 8. NOTIFICATION HISTORY TAB ──────────────────────────────── */}
+        {activeTab === 'notification_history' && userProfile?.role === 'Admin' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                marginBottom: '1.25rem',
+                paddingBottom: '1rem',
+                borderBottom: '1px solid #E2E8F0'
+              }}
+            >
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+                  Notification History
+                </h2>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>
+                  View log of all internal alerts dispatched to field staff.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <select
+                  value={historyFilter}
+                  onChange={e => setHistoryFilter(e.target.value)}
+                  style={{ height: '36px', padding: '0 0.75rem', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '0.85rem' }}
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Read">Read</option>
+                  <option value="Unread">Unread</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Search messages..."
+                  value={historySearch}
+                  onChange={e => setHistorySearch(e.target.value)}
+                  style={{ height: '36px', padding: '0 0.75rem', borderRadius: '6px', border: '1px solid #E2E8F0', fontSize: '0.85rem', width: '220px' }}
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={fetchNotificationHistory}
+                  style={{ height: '36px', padding: '0 0.85rem', fontSize: '0.85rem' }}
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '8px' }}>
+              <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748B' }}>Date & Time</th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748B' }}>Recipient</th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748B' }}>Message</th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748B' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {historyData
+                    .filter(n => historyFilter === 'All' ? true : historyFilter === 'Read' ? n.is_read : !n.is_read)
+                    .filter(n => {
+                      if (!historySearch.trim()) return true;
+                      const q = historySearch.toLowerCase();
+                      const u = team.find(m => m.id === n.user_id);
+                      const dName = u ? u.display_name : 'Unknown User';
+                      return (
+                        (n.title && n.title.toLowerCase().includes(q)) ||
+                        (n.message && n.message.toLowerCase().includes(q)) ||
+                        dName.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((notif, idx) => {
+                      const u = team.find(m => m.id === notif.user_id);
+                      const dName = u ? u.display_name : 'Unknown User';
+                      return (
+                        <tr key={notif.id || idx} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontWeight: 600, color: '#172D4F' }}>{new Date(notif.created_at).toLocaleDateString()}</div>
+                            <div style={{ color: '#64748B', fontSize: '0.75rem' }}>{new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem' }}>
+                            <div style={{ fontWeight: 600, color: '#172D4F' }}>{dName}</div>
+                            <div style={{ color: '#64748B', fontSize: '0.75rem' }}>{notif.notification_type}</div>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem' }}>
+                            <div style={{ fontWeight: 600, color: '#172D4F' }}>{notif.title}</div>
+                            <div style={{ color: '#64748B' }}>{notif.message}</div>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.85rem' }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '9999px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                backgroundColor: notif.is_read ? '#ECFDF5' : '#FEF3C7',
+                                color: notif.is_read ? '#059669' : '#D97706'
+                              }}
+                            >
+                              {notif.is_read ? 'Read' : 'Unread'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {historyData.length === 0 && (
+                    <tr>
+                      <td colSpan="4" style={{ padding: '2.5rem', textAlign: 'center', color: '#64748B' }}>
+                        No notifications found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ─── 9. TERRITORIES TAB ───────────────────────────────────────── */}
+        {activeTab === 'territories' && userProfile?.role === 'Admin' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <TerritoriesTab />
+          </div>
+        )}
+
+        {/* ─── FALLBACK: WHATSAPP TEMPLATES ─────────────────────────────── */}
+        {activeTab === 'templates' && userProfile?.role === 'Admin' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>WhatsApp Templates</h2>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.85rem', color: '#64748B' }}>Manage reusable message templates with variable substitution.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddTemplateModal(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.55rem 1.15rem',
+                  borderRadius: '8px',
+                  backgroundColor: '#078B54',
+                  color: '#FFFFFF',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <MessageCircle size={16} /> Add Template
+              </button>
+            </div>
+            <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '8px' }}>
+              <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748B' }}>Template Name</th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748B' }}>Purpose</th>
+                    <th style={{ padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: '#64748B' }}>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {whatsappTemplates.map(t => (
+                    <tr key={t.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <div style={{ fontWeight: 600, color: '#172D4F' }}>{t.name}</div>
+                        <div style={{ color: '#64748B', fontSize: '0.8rem', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.body}</div>
+                      </td>
+                      <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: '#263448' }}>{t.purpose}</td>
+                      <td style={{ padding: '0.85rem 1rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => toggleTemplateStatus(t.id, t.is_active)}
+                          style={{
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            backgroundColor: t.is_active ? '#ECFDF5' : '#FEF2F2',
+                            color: t.is_active ? '#059669' : '#DC2626',
+                            border: 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {t.is_active ? 'Active' : 'Inactive'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {whatsappTemplates.length === 0 && (
+                    <tr>
+                      <td colSpan="3" style={{ padding: '2rem', textAlign: 'center', color: '#64748B' }}>No templates created.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ─── FALLBACK: DEALER SCHEMES ─────────────────────────────────── */}
+        {activeTab === 'dealer_schemes' && userProfile?.role === 'Admin' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <DealerSchemes />
+          </div>
+        )}
+
+        {/* ─── FALLBACK: CRM DEFAULTS ───────────────────────────────────── */}
+        {activeTab === 'defaults' && userProfile?.role === 'Admin' && (
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E2E8F0',
+              borderRadius: '12px',
+              padding: '2rem',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+            }}
+          >
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>CRM Defaults</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '600px' }}>
+              <div>
+                <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                  Default Follow-up Reminder (Minutes before Due Time)
+                </label>
+                <input
+                  type="number"
+                  value={defaultsData.default_reminder_minutes || 15}
+                  onChange={e => setDefaultsData({ ...defaultsData, default_reminder_minutes: parseInt(e.target.value) })}
+                  style={{ width: '180px', padding: '0.65rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                    Work Hours Start
+                  </label>
+                  <input
+                    type="time"
+                    value={defaultsData.work_hours_start || '09:00:00'}
+                    onChange={e => setDefaultsData({ ...defaultsData, work_hours_start: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontWeight: 600, fontSize: '0.875rem', display: 'block', marginBottom: '0.5rem', color: '#263448' }}>
+                    Work Hours End
+                  </label>
+                  <input
+                    type="time"
+                    value={defaultsData.work_hours_end || '18:00:00'}
+                    onChange={e => setDefaultsData({ ...defaultsData, work_hours_end: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem', borderRadius: '8px', border: '1px solid #E2E8F0' }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
 
-      {/* STICKY ACTION BAR */}
+      {/* ─── STICKY ACTION BAR FOR UNSAVED CHANGES ─────────────────────── */}
       {isDirty && (
-        <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, 
-          background: 'var(--bg-surface)', borderTop: '1px solid var(--border)',
-          padding: '1rem 2rem', display: 'flex', justifyContent: 'center', zIndex: 100,
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.1)'
-        }}>
-          <div style={{display: 'flex', alignItems: 'center', gap: '1rem', maxWidth: '1000px', width: '100%', justifyContent: 'flex-end'}}>
-            <span className="text-secondary" style={{marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500}}>
-              <AlertTriangle size={18} className="text-warning" /> Unsaved changes
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: '#FFFFFF',
+            borderTop: '1px solid #E2E8F0',
+            padding: '1rem 2rem',
+            display: 'flex',
+            justifyContent: 'center',
+            zIndex: 100,
+            boxShadow: '0 -4px 12px rgba(0,0,0,0.06)'
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              maxWidth: '1200px',
+              width: '100%',
+              justifyContent: 'flex-end'
+            }}
+          >
+            <span
+              style={{
+                marginRight: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                color: '#D97706'
+              }}
+            >
+              <AlertTriangle size={18} /> You have unsaved changes
             </span>
-            <button className="btn btn-secondary" onClick={resetForm} disabled={loading}>
-              {t('settings.reset') || 'Reset'}
+            <button
+              type="button"
+              onClick={resetForm}
+              disabled={loading}
+              style={{
+                padding: '0.6rem 1.15rem',
+                borderRadius: '8px',
+                border: '1px solid #E2E8F0',
+                backgroundColor: '#FFFFFF',
+                color: '#263448',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: 'pointer'
+              }}
+            >
+              Reset
             </button>
-            <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
-              <Save size={18} /> {loading ? 'Saving...' : (t('settings.save') || 'Save Changes')}
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={loading}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.6rem 1.35rem',
+                borderRadius: '8px',
+                border: '1px solid #078B54',
+                backgroundColor: '#078B54',
+                color: '#FFFFFF',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(7, 139, 84, 0.25)'
+              }}
+            >
+              <Save size={16} />
+              <span>{loading ? 'Saving...' : 'Save Changes'}</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* SEND NOTIFICATION MODAL */}
+      {/* ─── MODAL: CHANGE PASSWORD ────────────────────────────────────── */}
+      {showChangePasswordModal && passwordTarget && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '420px',
+              padding: '2rem',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+              position: 'relative'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowChangePasswordModal(false)}
+              style={{
+                position: 'absolute',
+                right: '1.25rem',
+                top: '1.25rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748B'
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            <h2 style={{ margin: '0 0 0.25rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Change Password
+            </h2>
+            <p style={{ margin: '0 0 1.5rem 0', fontSize: '0.875rem', color: '#64748B' }}>
+              Set a new password for <strong>{passwordTarget.display_name}</strong>.
+            </p>
+
+            <form onSubmit={handleAdminChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  New Password *
+                </label>
+                <input
+                  type="password"
+                  value={adminChangePasswordData.newPassword}
+                  onChange={e => setAdminChangePasswordData({ ...adminChangePasswordData, newPassword: e.target.value })}
+                  required
+                  placeholder="••••••••"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Confirm Password *
+                </label>
+                <input
+                  type="password"
+                  value={adminChangePasswordData.confirmPassword}
+                  onChange={e => setAdminChangePasswordData({ ...adminChangePasswordData, confirmPassword: e.target.value })}
+                  required
+                  placeholder="••••••••"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowChangePasswordModal(false)}
+                  style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#FFFFFF', color: '#263448', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #078B54', backgroundColor: '#078B54', color: '#FFFFFF', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {loading ? 'Saving...' : 'Set Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: ADD TEAM MEMBER ────────────────────────────────────── */}
+      {showAddUserModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '520px',
+              padding: '2rem',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+              position: 'relative'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowAddUserModal(false)}
+              style={{
+                position: 'absolute',
+                right: '1.25rem',
+                top: '1.25rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748B'
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            <h2 style={{ margin: '0 0 1.5rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Add Team Member
+            </h2>
+
+            <form onSubmit={handleAddUser} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={newUserData.display_name}
+                  onChange={e => setNewUserData({ ...newUserData, display_name: e.target.value })}
+                  required
+                  placeholder="e.g. Rahul Sharma"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  value={newUserData.email}
+                  onChange={e => setNewUserData({ ...newUserData, email: e.target.value })}
+                  required
+                  placeholder="rahul@shubhlabh.com"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Temporary Password *
+                </label>
+                <input
+                  type="password"
+                  value={newUserData.password}
+                  onChange={e => setNewUserData({ ...newUserData, password: e.target.value })}
+                  required
+                  minLength={6}
+                  placeholder="••••••••"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                    Role
+                  </label>
+                  <select
+                    value={newUserData.role}
+                    onChange={e => setNewUserData({ ...newUserData, role: e.target.value })}
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }}
+                  >
+                    <option value="Operator">Operator</option>
+                    <option value="Staff">Staff</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Production">Production</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                    WhatsApp Mobile
+                  </label>
+                  <input
+                    type="text"
+                    value={newUserData.whatsapp}
+                    onChange={e => setNewUserData({ ...newUserData, whatsapp: e.target.value })}
+                    placeholder="+91..."
+                    style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddUserModal(false)}
+                  style={{ padding: '0.65rem 1.25rem', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#FFFFFF', color: '#263448', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{ padding: '0.65rem 1.5rem', borderRadius: '8px', border: '1px solid #078B54', backgroundColor: '#078B54', color: '#FFFFFF', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {loading ? 'Creating...' : 'Create Member'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: SEND NOTIFICATION ──────────────────────────────────── */}
       {showNotificationModal && (
-        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000}}>
-          <div className="glass-panel" style={{width: '90%', maxWidth: '500px', padding: '2rem'}}>
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem'}}>
-              <h2 style={{margin: 0}}>Send Notification</h2>
-              <button onClick={() => setShowNotificationModal(false)} style={{background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)'}}><X size={20}/></button>
-            </div>
-            
-            <form onSubmit={handleSendNotification} style={{display: 'flex', flexDirection: 'column', gap: '1.25rem'}}>
-              <div className="form-group">
-                <label>Recipient(s)</label>
-                <small className="text-secondary" style={{display: 'block', marginBottom: '0.5rem'}}>Hold Ctrl/Cmd to select multiple staff.</small>
-                <select 
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '520px',
+              padding: '2rem',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+              position: 'relative'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowNotificationModal(false)}
+              style={{
+                position: 'absolute',
+                right: '1.25rem',
+                top: '1.25rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748B'
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            <h2 style={{ margin: '0 0 1.25rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Send In-App Notification
+            </h2>
+
+            <form onSubmit={handleSendNotification} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Recipients
+                </label>
+                <select
                   multiple
-                  className="form-control" 
-                  style={{ minHeight: '120px' }}
+                  style={{ width: '100%', minHeight: '110px', padding: '0.5rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
                   value={notificationData.recipients}
                   onChange={e => {
                     const selected = Array.from(e.target.selectedOptions, option => option.value);
-                    setNotificationData({...notificationData, recipients: selected});
+                    setNotificationData({ ...notificationData, recipients: selected });
                   }}
                 >
-                  <option value="ALL_ACTIVE">All Active Field Staff</option>
-                  <optgroup label="Individual Staff">
+                  <option value="ALL_ACTIVE">All Active Staff</option>
+                  <optgroup label="Individual Members">
                     {team.filter(m => m.is_active && m.role !== 'Admin').map(m => (
                       <option key={m.id} value={m.id}>{m.display_name} ({m.email})</option>
                     ))}
                   </optgroup>
                 </select>
+                <small style={{ color: '#64748B', display: 'block', marginTop: '0.35rem' }}>Hold Ctrl/Cmd to multi-select staff.</small>
               </div>
 
-              <div className="form-group">
-                <label>Title</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="E.g. Important Update"
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Title *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Price Revision Notice"
                   value={notificationData.title}
-                  onChange={e => setNotificationData({...notificationData, title: e.target.value})}
+                  onChange={e => setNotificationData({ ...notificationData, title: e.target.value })}
                   required
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
                 />
               </div>
 
-              <div className="form-group">
-                <label>Message</label>
-                <textarea 
-                  className="form-control" 
-                  placeholder="Enter notification message..."
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Message *
+                </label>
+                <textarea
                   rows="3"
+                  placeholder="Enter notification message..."
                   value={notificationData.message}
-                  onChange={e => setNotificationData({...notificationData, message: e.target.value})}
+                  onChange={e => setNotificationData({ ...notificationData, message: e.target.value })}
                   required
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
                 />
               </div>
 
-              <div className="form-group">
-                <label>Action Link (Optional)</label>
-                <select 
-                  className="form-control" 
-                  value={notificationData.link_url}
-                  onChange={e => setNotificationData({...notificationData, link_url: e.target.value})}
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowNotificationModal(false)}
+                  style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#FFFFFF', color: '#263448', fontWeight: 600, cursor: 'pointer' }}
                 >
-                  <option value="">None</option>
-                  <option value="/my-work">My Work Screen</option>
-                </select>
-                <small className="text-secondary" style={{marginTop: '0.25rem', display: 'block'}}>When tapped, the Field Assistant will navigate to this screen.</small>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #078B54', backgroundColor: '#078B54', color: '#FFFFFF', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Send Alert
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: ADD TEMPLATE ───────────────────────────────────────── */}
+      {showAddTemplateModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '520px',
+              padding: '2rem',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)',
+              position: 'relative'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowAddTemplateModal(false)}
+              style={{
+                position: 'absolute',
+                right: '1.25rem',
+                top: '1.25rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748B'
+              }}
+            >
+              <X size={20} />
+            </button>
+
+            <h2 style={{ margin: '0 0 1.25rem 0', fontSize: '1.25rem', fontWeight: 700, color: '#172D4F' }}>
+              Add WhatsApp Template
+            </h2>
+
+            <form onSubmit={handleAddTemplate} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Template Name *
+                </label>
+                <input
+                  type="text"
+                  value={newTemplateData.name}
+                  onChange={e => setNewTemplateData({ ...newTemplateData, name: e.target.value })}
+                  required
+                  placeholder="e.g. Payment Reminder"
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
+                />
               </div>
 
-              <div style={{display: 'flex', gap: '1rem', marginTop: '1rem'}}>
-                <button type="button" className="btn btn-secondary" style={{flex: 1}} onClick={() => setShowNotificationModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" style={{flex: 1}}>Send Notification</button>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Purpose *
+                </label>
+                <select
+                  value={newTemplateData.purpose}
+                  onChange={e => setNewTemplateData({ ...newTemplateData, purpose: e.target.value })}
+                  required
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }}
+                >
+                  <option value="">-- Select Purpose --</option>
+                  <option value="General Check-in">General Check-in</option>
+                  <option value="Payment Reminder">Payment Reminder</option>
+                  <option value="Requirement Check">Requirement Check</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Custom">Custom</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600, fontSize: '0.85rem', color: '#263448' }}>
+                  Message Body *
+                </label>
+                <textarea
+                  rows="4"
+                  value={newTemplateData.body}
+                  onChange={e => setNewTemplateData({ ...newTemplateData, body: e.target.value })}
+                  required
+                  placeholder="Hello {{customer_name}}, this is a reminder..."
+                  style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddTemplateModal(false)}
+                  style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#FFFFFF', color: '#263448', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{ flex: 1, padding: '0.65rem', borderRadius: '8px', border: '1px solid #078B54', backgroundColor: '#078B54', color: '#FFFFFF', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {loading ? 'Saving...' : 'Save Template'}
+                </button>
               </div>
             </form>
           </div>

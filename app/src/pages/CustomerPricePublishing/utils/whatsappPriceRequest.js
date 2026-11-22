@@ -100,7 +100,7 @@ export function generatePriceRequestId(date = new Date()) {
  * Formats a currency value with commas in Indian formatting.
  */
 export function formatINRValue(val) {
-  if (val === null || val === undefined || val === '' || isNaN(val)) return null;
+  if (val === null || val === undefined || val === '' || isNaN(val)) return '-';
   const num = Number(val);
   return '₹' + num.toLocaleString('en-IN', {
     maximumFractionDigits: 2,
@@ -114,49 +114,98 @@ export function formatINRValue(val) {
 export function buildPriceRequestMessage({
   dateStr = getIndiaDateFormatted(),
   requestId = generatePriceRequestId(),
-  selectedCommodities = [],
-  managerName = 'Procurement Manager'
+  selectedCommodities = null,
+  commodities = null,
+  latestSavedPrices = null,
+  managerName = 'Procurement Manager',
+  userProfile = null,
+  customNotes = ''
 } = {}) {
-  const commodityListText = selectedCommodities.map((item, index) => {
+  // Normalize commodities list
+  let items = [];
+  if (Array.isArray(selectedCommodities)) {
+    items = selectedCommodities;
+  } else if (Array.isArray(commodities)) {
+    items = commodities.map(c => {
+      const saved = latestSavedPrices && latestSavedPrices[c.id];
+      return {
+        id: c.id,
+        name_en: c.name_en,
+        name_hi: c.name_hi,
+        savedPrice: saved ? saved.price : (c.savedPrice || c.price || null),
+        savedUnit: saved ? saved.unit : (c.savedUnit || c.unit || 'Quintal')
+      };
+    });
+  }
+
+  if (items.length === 0) {
+    return '';
+  }
+
+  const commodityLines = items.map((item, index) => {
     const hindiName = item.name_hi || item.name_en;
     const englishName = item.name_en && item.name_en !== hindiName ? ` (${item.name_en})` : '';
     const formattedPrice = formatINRValue(item.savedPrice);
     const unitText = item.savedUnit || 'Quintal';
-    const refText = formattedPrice ? ` [पिछला भाव: ${formattedPrice} / ${unitText}]` : ' [पिछला भाव: उपलब्ध नहीं]';
-    return `${index + 1}. ${hindiName}${englishName}${refText}`;
+    
+    let benchmarkText = '';
+    if (formattedPrice && formattedPrice !== '-') {
+      benchmarkText = ` - पिछला प्रकाशित भाव: ${formattedPrice} / ${unitText}`;
+    } else {
+      benchmarkText = ' - [नया आइटम - पूर्व भाव उपलब्ध नहीं]';
+    }
+
+    return `${index + 1}. ${hindiName}${englishName}${benchmarkText}`;
   }).join('\n');
 
-  return `नमस्कार,
+  const greeting = managerName && managerName.trim()
+    ? `आदरणीय ${managerName.trim()} जी,`
+    : 'आदरणीय खरीद प्रबंधक (Procurement Manager) जी,';
 
-कृपया आज की तारीख के अनुसार नीचे दी गई कमोडिटीज़ के ताज़ा बाजार भाव संबंधित Brokers से कन्फर्म करके साझा करें।
+  const senderName = userProfile?.full_name || userProfile?.display_name || userProfile?.email || 'CRM एडमिनिस्ट्रेटर';
+  const senderRole = userProfile?.role || 'Shubh Labh Management';
 
-अनुरोध संदर्भ: #${requestId}
-तारीख: ${dateStr}
+  const notesSection = customNotes && customNotes.trim()
+    ? `\n📌 विशेष टिप्पणी:\n${customNotes.trim()}\n`
+    : '';
 
-चयनित कमोडिटीज़ (${selectedCommodities.length}):
-${commodityListText}
+  return `*शुभ लाभ कैटल फीड्स (Shubh Labh Cattle Feeds)*
+*दैनिक कच्चा माल बाजार भाव पूछताछ*
 
-प्रत्येक कमोडिटी के लिए कृपया निम्न जानकारी दें:
+${greeting}
 
-1. आज का वास्तविक खरीद भाव।
-2. यूनिट (₹/किलो या ₹/क्विंटल)।
-3. मंडी / लोकेशन।
-4. क्वालिटी एवं उपलब्धता।
-5. Broker का नाम / संपर्क।
+आज के बाजार भाव एवं आवक की ताज़ा स्थिति जानने हेतु नीचे दी गई कमोडिटीज़ की जानकारी प्रदान करने का कष्ट करें।
 
-कृपया पुराने भाव के बजाय आज का कन्फर्म रेट साझा करें, ताकि हम Customer Price Publishing अपडेट कर सकें।
+📋 *अनुरोध संदर्भ (Request ID):* #${requestId}
+📅 *दिनांक:* ${dateStr}
 
-धन्यवाद।
+*चयनित कच्चा माल सूची (${items.length}):*
+${commodityLines}
 
-Shubh Labh – Procurement Team`;
+❓ *कृपया निम्न 5 बिंदुओं पर जानकारी साझा करें:*
+1. आज के भाव क्या हैं? (प्रति क्विंटल / प्रति किलो दर)
+2. आवक (Arrived Supply) कैसी है? (सामान्य / कम / भरपूर)
+3. बाजार का रुझान (Market Trend) क्या है? (मंदी / तेजी / स्थिर)
+4. क्या किसी माल में तुरंत लिवाली (Buy Now) करनी चाहिए?
+5. कोई विशेष निर्देश या आपूर्ति (Quality / Payment / Loading) शर्त?
+${notesSection}
+कृपया जल्द से जल्द कन्फर्म भाव साझा करें ताकि हम कस्टमर रेट्स अपडेट और पब्लिश कर सकें।
+
+सादर धन्यवाद,
+*${senderName}*
+${senderRole}
+Shubh Labh Feeds Management`;
 }
 
 /**
  * Builds standard WhatsApp click-to-chat links with mobile and web fallback.
  */
 export function buildWhatsAppLink(rawPhone, message) {
+  if (!isValidIndianPhone(rawPhone)) {
+    throw new Error('Invalid Indian phone number: must be an operable 10-digit number starting with 6-9');
+  }
   const cleanPhone = normalizeIndianPhone(rawPhone);
-  const fullPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+  const fullPhone = `91${cleanPhone}`;
   const encodedText = encodeURIComponent(message);
   return {
     phone: fullPhone,
@@ -215,7 +264,12 @@ export function loadPriceRequestHistory() {
 export function recordPriceRequest(record) {
   try {
     const history = loadPriceRequestHistory();
-    const updated = [record, ...history].slice(0, 50);
+    const entry = {
+      ...record,
+      status: record.status || 'WhatsApp Opened',
+      createdAt: record.createdAt || new Date().toISOString()
+    };
+    const updated = [entry, ...history].slice(0, 50);
     localStorage.setItem(PRICE_REQUEST_HISTORY_STORAGE_KEY, JSON.stringify(updated));
     return updated;
   } catch (err) {
@@ -223,4 +277,3 @@ export function recordPriceRequest(record) {
     return [];
   }
 }
-
