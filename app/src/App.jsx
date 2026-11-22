@@ -161,7 +161,7 @@ const ProtectedRoute = () => {
   }
 
   // Security Barrier: Customer (Buyer) accounts must NEVER access the CRM web portal
-  if (userProfile && userProfile.role === 'Buyer') {
+  if (userProfile && (userProfile.role === 'Buyer' || userProfile.role === 'Customer')) {
     return (
       <div style={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)'}}>
         <div className="glass-panel" style={{padding: '3rem', textAlign: 'center', maxWidth: '420px'}}>

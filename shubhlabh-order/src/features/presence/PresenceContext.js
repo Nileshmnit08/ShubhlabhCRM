@@ -25,7 +25,7 @@ export function PresenceProvider({ children }) {
 
   const isEligibleBuyer = Boolean(
     session?.user?.id &&
-    userProfile?.role === 'Buyer' &&
+    ['Buyer', 'Customer'].includes(userProfile?.role) &&
     userProfile?.crm_party_id
   );
 

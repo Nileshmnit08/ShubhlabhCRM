@@ -100,8 +100,8 @@ export const AuthProvider = ({ children }) => {
 
       if (userError) throw userError;
 
-      // Verify Buyer Role
-      if (user.role !== 'Buyer' || !user.is_active) {
+      // Verify Buyer/Customer Role
+      if (!['Buyer', 'Customer'].includes(user.role) || !user.is_active) {
         setAuthError('ROLE_INVALID');
         setLoading(false);
         return;

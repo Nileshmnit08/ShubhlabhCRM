@@ -71,6 +71,10 @@ export default function Settings() {
   const [team, setTeam] = useState([]);
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUserData, setNewUserData] = useState({ email: '', password: '', display_name: '', role: 'Operator', whatsapp: '', contact_details: '', is_active: true });
+  const [partiesList, setPartiesList] = useState([]);
+  const [loadingParties, setLoadingParties] = useState(false);
+  const [selectedPartyId, setSelectedPartyId] = useState('');
+  const [partySearchTerm, setPartySearchTerm] = useState('');
 
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [passwordTarget, setPasswordTarget] = useState(null);
@@ -234,9 +238,35 @@ export default function Settings() {
   };
 
   const fetchTeam = async () => {
-    const { data } = await supabase.from('app_users').select('*').order('created_at');
+    const { data } = await supabase
+      .from('app_users')
+      .select('*, crm_parties!crm_party_id(id, display_name, legal_or_core_name, customer_code, mobile)')
+      .order('created_at');
     if (data) setTeam(data);
   };
+
+  const fetchParties = async () => {
+    setLoadingParties(true);
+    try {
+      const { data } = await supabase
+        .from('crm_parties')
+        .select('id, display_name, legal_or_core_name, mobile, whatsapp, customer_code, city')
+        .order('display_name');
+      if (data) setPartiesList(data);
+    } catch (err) {
+      console.error('Failed to fetch customer parties:', err);
+    } finally {
+      setLoadingParties(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'team' || showAddUserModal) {
+      if (partiesList.length === 0) {
+        fetchParties();
+      }
+    }
+  }, [activeTab, showAddUserModal]);
 
   const fetchTemplates = async () => {
     const { data } = await supabase.from('whatsapp_templates').select('*').order('name');
@@ -316,7 +346,9 @@ export default function Settings() {
   };
 
   const toggleUserRole = async (userId, newRole) => {
-    const { error } = await supabase.from('app_users').update({ role: newRole }).eq('id', userId);
+    // If set to Customer, store as Buyer in database for backward compatibility with mobile APK & RLS
+    const dbRole = newRole === 'Customer' ? 'Buyer' : newRole;
+    const { error } = await supabase.from('app_users').update({ role: dbRole }).eq('id', userId);
     if (!error) {
       fetchTeam();
       logActivity({ module: 'Settings', actionType: 'UPDATED', summary: `Changed user role to ${newRole}` });
@@ -337,13 +369,58 @@ export default function Settings() {
       alert("Please fill required fields (Email, Password, Display Name)");
       return;
     }
+
+    if (newUserData.role === 'Customer' && !selectedPartyId) {
+      alert("Please select a linked Customer (Party) for this customer account.");
+      return;
+    }
     
     setLoading(true);
     try {
+      if (newUserData.role === 'Customer') {
+        // 1. Check if this customer already has an active buyer account
+        const { data: existing, error: checkErr } = await supabase
+          .from('app_users')
+          .select('id, email')
+          .eq('crm_party_id', selectedPartyId)
+          .in('role', ['Buyer', 'Customer']);
+
+        if (!checkErr && existing && existing.length > 0) {
+          alert(`This customer already has an active Order App account registered with Login ID: ${existing[0].email}`);
+          setLoading(false);
+          return;
+        }
+
+        // 2. Call admin_create_buyer RPC (sets role = 'Buyer' and crm_party_id)
+        const { data: newUserId, error } = await supabase.rpc('admin_create_buyer', {
+          new_email: newUserData.email.trim(),
+          new_password: newUserData.password,
+          new_display_name: newUserData.display_name.trim(),
+          new_crm_party_id: selectedPartyId,
+          new_is_active: newUserData.is_active !== false
+        });
+
+        if (error) throw error;
+
+        await logActivity({
+          module: 'Settings',
+          actionType: 'CREATED',
+          summary: `Created Customer Order App account for ${newUserData.display_name}`
+        });
+
+        alert('Customer account created successfully! They can now log in to the Shubh Labh Order App with their mobile number and password.');
+        setShowAddUserModal(false);
+        setSelectedPartyId('');
+        setPartySearchTerm('');
+        setNewUserData({ email: '', password: '', display_name: '', role: 'Operator', whatsapp: '', contact_details: '', is_active: true });
+        fetchTeam();
+        return;
+      }
+
       const { error } = await supabase.rpc('admin_create_user', {
-        new_email: newUserData.email,
+        new_email: newUserData.email.trim(),
         new_password: newUserData.password,
-        new_display_name: newUserData.display_name,
+        new_display_name: newUserData.display_name.trim(),
         new_role: newUserData.role,
         new_whatsapp: newUserData.whatsapp,
         new_contact_details: newUserData.contact_details,
@@ -360,11 +437,13 @@ export default function Settings() {
       
       alert('Team member created successfully!');
       setShowAddUserModal(false);
+      setSelectedPartyId('');
+      setPartySearchTerm('');
       setNewUserData({ email: '', password: '', display_name: '', role: 'Operator', whatsapp: '', contact_details: '', is_active: true });
       fetchTeam();
     } catch (err) {
       console.error(err);
-      alert('Error creating user: ' + (err.message || 'Unknown error. Make sure you applied the Sprint 15 SQL migration.'));
+      alert('Error creating user: ' + (err.message || 'Unknown error.'));
     } finally {
       setLoading(false);
     }
@@ -527,7 +606,13 @@ export default function Settings() {
   const filteredTeam = useMemo(() => {
     return team.filter(member => {
       // Role filter
-      if (teamRoleFilter !== 'All' && member.role !== teamRoleFilter) return false;
+      if (teamRoleFilter !== 'All') {
+        if (teamRoleFilter === 'Customer') {
+          if (member.role !== 'Buyer' && member.role !== 'Customer') return false;
+        } else if (member.role !== teamRoleFilter) {
+          return false;
+        }
+      }
       // Status filter
       if (teamStatusFilter === 'Active' && !member.is_active) return false;
       if (teamStatusFilter === 'Inactive' && member.is_active) return false;
@@ -538,7 +623,9 @@ export default function Settings() {
         const email = (member.email || '').toLowerCase();
         const phone = (member.whatsapp || member.mobile || member.contact_details || '').toLowerCase();
         const role = (member.role || '').toLowerCase();
-        return name.includes(query) || email.includes(query) || phone.includes(query) || role.includes(query);
+        const partyName = (member.crm_parties?.display_name || member.crm_parties?.legal_or_core_name || '').toLowerCase();
+        const partyCode = (member.crm_parties?.customer_code || '').toLowerCase();
+        return name.includes(query) || email.includes(query) || phone.includes(query) || role.includes(query) || partyName.includes(query) || partyCode.includes(query);
       }
       return true;
     });
@@ -562,6 +649,7 @@ export default function Settings() {
   const getAvatarColor = (name = '', role = '') => {
     const combined = (name + role).toLowerCase();
     if (combined.includes('admin')) return { bg: '#E8F5E9', text: '#078B54' }; // Green
+    if (combined.includes('customer') || combined.includes('buyer')) return { bg: '#E0F7FA', text: '#00838F' }; // Cyan/Teal
     if (combined.includes('vishnu') || combined.includes('operations')) return { bg: '#EDE9FE', text: '#7C3AED' }; // Purple
     if (combined.includes('pradeep') || combined.includes('production')) return { bg: '#FEF3C7', text: '#D97706' }; // Amber
     if (combined.includes('vijay') || combined.includes('sales')) return { bg: '#E0F2FE', text: '#0284C7' }; // Blue
@@ -872,6 +960,7 @@ export default function Settings() {
                   <option value="Sales">Sales</option>
                   <option value="Staff">Staff</option>
                   <option value="Operator">Operator</option>
+                  <option value="Customer">Customer</option>
                 </select>
 
                 {/* Status Filter */}
@@ -992,9 +1081,29 @@ export default function Settings() {
                               {initials}
                             </div>
                             <div>
-                              <div style={{ fontWeight: 600, color: '#172D4F', fontSize: '0.9rem', lineHeight: 1.2 }}>
-                                {member.display_name || 'Unnamed User'}
+                              <div style={{ fontWeight: 600, color: '#172D4F', fontSize: '0.9rem', lineHeight: 1.2, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span>{member.display_name || member.crm_parties?.display_name || 'Unnamed User'}</span>
+                                {(member.role === 'Buyer' || member.role === 'Customer') && (
+                                  <span
+                                    style={{
+                                      display: 'inline-block',
+                                      fontSize: '0.68rem',
+                                      padding: '0.1rem 0.4rem',
+                                      borderRadius: '4px',
+                                      backgroundColor: '#E0F7FA',
+                                      color: '#00838F',
+                                      fontWeight: 700
+                                    }}
+                                  >
+                                    ORDER APP
+                                  </span>
+                                )}
                               </div>
+                              {member.crm_parties && (
+                                <div style={{ color: '#078B54', fontSize: '0.75rem', fontWeight: 600, marginTop: '0.2rem' }}>
+                                  🏢 {member.crm_parties.display_name || member.crm_parties.legal_or_core_name} {member.crm_parties.customer_code ? `(${member.crm_parties.customer_code})` : ''}
+                                </div>
+                              )}
                               <div style={{ color: '#64748B', fontSize: '0.8rem', marginTop: '0.2rem' }}>
                                 {member.email}
                               </div>
@@ -1021,28 +1130,36 @@ export default function Settings() {
 
                         {/* Role Column */}
                         <td style={{ padding: '0.85rem 1rem' }}>
-                          <select
-                            value={member.role || 'Staff'}
-                            onChange={(e) => toggleUserRole(member.id, e.target.value)}
-                            disabled={isSelf}
-                            style={{
-                              height: '32px',
-                              padding: '0 0.5rem',
-                              borderRadius: '6px',
-                              border: '1px solid #E2E8F0',
-                              fontSize: '0.85rem',
-                              color: '#263448',
-                              backgroundColor: '#FFFFFF',
-                              cursor: isSelf ? 'not-allowed' : 'pointer'
-                            }}
-                          >
-                            <option value="Admin">Admin</option>
-                            <option value="Operations">Operations</option>
-                            <option value="Production">Production</option>
-                            <option value="Sales">Sales</option>
-                            <option value="Staff">Staff</option>
-                            <option value="Operator">Operator</option>
-                          </select>
+                          {(() => {
+                            const isCustomerRole = member.role === 'Buyer' || member.role === 'Customer';
+                            const roleValue = isCustomerRole ? 'Customer' : (member.role || 'Staff');
+                            return (
+                              <select
+                                value={roleValue}
+                                onChange={(e) => toggleUserRole(member.id, e.target.value)}
+                                disabled={isSelf}
+                                style={{
+                                  height: '32px',
+                                  padding: '0 0.5rem',
+                                  borderRadius: '6px',
+                                  border: isCustomerRole ? '1px solid #00838F' : '1px solid #E2E8F0',
+                                  fontSize: '0.85rem',
+                                  color: isCustomerRole ? '#00838F' : '#263448',
+                                  backgroundColor: isCustomerRole ? '#E0F7FA' : '#FFFFFF',
+                                  fontWeight: isCustomerRole ? 600 : 500,
+                                  cursor: isSelf ? 'not-allowed' : 'pointer'
+                                }}
+                              >
+                                <option value="Admin">Admin</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Production">Production</option>
+                                <option value="Sales">Sales</option>
+                                <option value="Staff">Staff</option>
+                                <option value="Operator">Operator</option>
+                                <option value="Customer">Customer</option>
+                              </select>
+                            );
+                          })()}
                         </td>
 
                         {/* Status Column */}
@@ -2246,7 +2363,13 @@ export default function Settings() {
                   </label>
                   <select
                     value={newUserData.role}
-                    onChange={e => setNewUserData({ ...newUserData, role: e.target.value })}
+                    onChange={e => {
+                      const nextRole = e.target.value;
+                      setNewUserData({ ...newUserData, role: nextRole });
+                      if (nextRole === 'Customer' && partiesList.length === 0) {
+                        fetchParties();
+                      }
+                    }}
                     style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '8px', border: '1px solid #E2E8F0', backgroundColor: '#FFFFFF', boxSizing: 'border-box' }}
                   >
                     <option value="Operator">Operator</option>
@@ -2255,6 +2378,7 @@ export default function Settings() {
                     <option value="Production">Production</option>
                     <option value="Operations">Operations</option>
                     <option value="Admin">Admin</option>
+                    <option value="Customer">Customer (Order App)</option>
                   </select>
                 </div>
                 <div>
@@ -2270,6 +2394,89 @@ export default function Settings() {
                   />
                 </div>
               </div>
+
+              {/* Customer Party Picker (only visible when Customer role is selected) */}
+              {newUserData.role === 'Customer' && (
+                <div style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                    <label style={{ fontWeight: 700, fontSize: '0.85rem', color: '#166534' }}>
+                      Linked Customer (Party) *
+                    </label>
+                    {loadingParties && (
+                      <span style={{ fontSize: '0.75rem', color: '#166534' }}>Loading parties...</span>
+                    )}
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Search customer by name or code..."
+                    value={partySearchTerm}
+                    onChange={(e) => setPartySearchTerm(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.45rem 0.65rem',
+                      borderRadius: '6px',
+                      border: '1px solid #86EFAC',
+                      fontSize: '0.8rem',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#FFFFFF',
+                      marginBottom: '0.5rem'
+                    }}
+                  />
+
+                  <select
+                    value={selectedPartyId}
+                    onChange={(e) => {
+                      const pId = e.target.value;
+                      setSelectedPartyId(pId);
+                      const found = partiesList.find(p => p.id === pId);
+                      if (found) {
+                        const rawMobile = found.mobile || found.whatsapp || '';
+                        const cleanMobile = rawMobile.replace(/\D/g, '').slice(-10);
+                        setNewUserData(prev => ({
+                          ...prev,
+                          display_name: found.display_name || found.legal_or_core_name || prev.display_name,
+                          whatsapp: cleanMobile || prev.whatsapp,
+                          email: cleanMobile ? `${cleanMobile}@shubhlabh.app` : prev.email
+                        }));
+                      }
+                    }}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '6px',
+                      border: '1px solid #86EFAC',
+                      backgroundColor: '#FFFFFF',
+                      boxSizing: 'border-box',
+                      fontSize: '0.85rem',
+                      color: '#166534',
+                      fontWeight: 500
+                    }}
+                  >
+                    <option value="">-- Choose Customer from Master ({partiesList.length} available) --</option>
+                    {partiesList
+                      .filter(p => {
+                        if (!partySearchTerm.trim()) return true;
+                        const term = partySearchTerm.toLowerCase();
+                        return (
+                          (p.display_name || '').toLowerCase().includes(term) ||
+                          (p.legal_or_core_name || '').toLowerCase().includes(term) ||
+                          (p.customer_code || '').toLowerCase().includes(term) ||
+                          (p.mobile || '').includes(term)
+                        );
+                      })
+                      .map(party => (
+                        <option key={party.id} value={party.id}>
+                          {party.display_name || party.legal_or_core_name} {party.customer_code ? `(${party.customer_code})` : ''} {party.mobile ? `• ${party.mobile}` : ''}
+                        </option>
+                      ))}
+                  </select>
+                  <p style={{ margin: '0.4rem 0 0 0', fontSize: '0.75rem', color: '#166534' }}>
+                    This customer account will be linked to the Shubh Labh Order App. The customer can sign in using their mobile number and temporary password.
+                  </p>
+                </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button
