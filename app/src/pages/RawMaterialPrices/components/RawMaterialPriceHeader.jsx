@@ -20,22 +20,22 @@ const RawMaterialPriceHeader = () => {
   const activeConfigTab = subRouteId ? CONFIGURATION_TABS.find(tab => tab.id === subRouteId) : null;
 
   return (
-    <div className="page-header" style={{ marginBottom: '2rem' }}>
+    <div className="page-header" style={{ marginBottom: '1.5rem' }}>
       <div>
         {isConfiguration && (
-          <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem', display: 'flex', alignItems: 'center' }}>
-            <span className="hover:text-primary cursor-pointer transition-colors" onClick={() => navigate('/raw-material-prices')}>Raw Material Prices</span>
-            <ChevronRight size={14} className="mx-1 opacity-50" />
+          <div style={{ fontSize: '0.8125rem', fontWeight: 500, color: '#64748B', marginBottom: '0.375rem', display: 'flex', alignItems: 'center' }}>
+            <span className="hover:text-slate-900 cursor-pointer transition-colors" onClick={() => navigate('/raw-material-prices')}>Raw Material Prices</span>
+            <ChevronRight size={14} className="mx-1.5 text-slate-400" />
             <span 
-               className={activeConfigTab ? "hover:text-primary cursor-pointer transition-colors" : "text-primary"}
+               className={activeConfigTab ? "hover:text-slate-900 cursor-pointer transition-colors" : "text-slate-900 font-semibold"}
                onClick={() => activeConfigTab && navigate('/raw-material-prices/configuration')}
             >
               Configuration
             </span>
             {activeConfigTab && (
               <>
-                <ChevronRight size={14} className="mx-1 opacity-50" />
-                <span className="text-primary">{activeConfigTab.label}</span>
+                <ChevronRight size={14} className="mx-1.5 text-slate-400" />
+                <span className="text-slate-900 font-semibold">{activeConfigTab.label}</span>
               </>
             )}
           </div>
@@ -45,14 +45,14 @@ const RawMaterialPriceHeader = () => {
             <span className="text-primary">RAW MATERIAL PRICES</span>
           </div>
         )}
-        <h1 style={{ margin: 0, fontSize: '2rem', tracking: 'tight' }}>
-          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Configuration' : (isDailyEntry ? 'Daily Price Entry' : (isWhatsApp ? 'WhatsApp Price Update' : (isAnalysis ? 'Price Analysis' : 'Dashboard'))))}
+        <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em' }}>
+          {activeConfigTab ? activeConfigTab.label : (isConfiguration ? 'Raw Materials' : (isDailyEntry ? 'Daily Price Entry' : (isWhatsApp ? 'WhatsApp Price Update' : (isAnalysis ? 'Price Analysis' : 'Dashboard'))))}
         </h1>
-        <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>
+        <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#64748B' }}>
           {activeConfigTab 
-            ? activeConfigTab.description 
+            ? (activeConfigTab.description || 'Manage raw materials, quality parameters, brokers, units and price types.')
             : (isConfiguration 
-               ? 'Manage raw materials, quality parameters, brokers, units, price types, and operational settings.'
+               ? 'Add, edit and manage raw materials with category, unit and status.'
                : (isDailyEntry
                   ? 'Add and manage daily raw material market prices.'
                   : (isWhatsApp

@@ -21,12 +21,12 @@ import PriceTypeFormPage from './components/PriceTypeFormPage';
 import GeneralSettingsTab from './components/GeneralSettingsTab';
 
 export const CONFIGURATION_TABS = [
-  { id: 'raw-materials', label: 'Raw Materials', icon: Package },
-  { id: 'quality-parameters', label: 'Quality Parameters', icon: Sliders },
-  { id: 'brokers', label: 'Brokers', icon: Users },
-  { id: 'units', label: 'Units', icon: Ruler },
-  { id: 'price-types', label: 'Price Types', icon: IndianRupee },
-  { id: 'general-settings', label: 'General Settings', icon: Settings },
+  { id: 'raw-materials', label: 'Raw Materials', icon: Package, description: 'Add, edit and manage raw materials with category, unit and status.' },
+  { id: 'quality-parameters', label: 'Quality Parameters', icon: Sliders, description: 'Define quality parameters, deduction scales and acceptable moisture limits.' },
+  { id: 'brokers', label: 'Brokers', icon: Users, description: 'Manage broker contacts, active status, commission terms and commodities.' },
+  { id: 'units', label: 'Units', icon: Ruler, description: 'Configure measurement units (Quintal, MT, Kg) and conversion factors.' },
+  { id: 'price-types', label: 'Price Types', icon: IndianRupee, description: 'Manage pricing quotation types: Delivered, Ex-mandi, Indicative and Purchase.' },
+  { id: 'general-settings', label: 'General Settings', icon: Settings, description: 'Configure operational defaults, price alerts and update schedules.' },
 ];
 
 const Configuration = () => {
@@ -79,7 +79,7 @@ const Configuration = () => {
   };
 
   return (
-    <div className="animate-fade-in" style={{maxWidth: '1200px', margin: '0 auto', paddingBottom: '80px'}}>
+    <div className="animate-fade-in" style={{ maxWidth: '1280px', margin: '0 auto', paddingBottom: '60px' }}>
       {message && (
         <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 border shadow-sm ${
           message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
@@ -89,44 +89,60 @@ const Configuration = () => {
         </div>
       )}
 
-      <div className="page-header" style={{marginBottom: '2rem'}}>
-        <div>
-          <h1 style={{margin: 0}}>Configuration</h1>
-          <p className="text-secondary" style={{marginTop: '0.5rem', fontSize: '0.95rem'}}>Manage settings, lists, and parameters for Raw Material Prices.</p>
-        </div>
-      </div>
-
-      <div style={{display: 'flex', gap: '2rem', flexWrap: 'wrap'}}>
-        {/* Sidebar Nav */}
-        <div style={{flex: '1 1 250px'}}>
-          <div className="glass-panel" style={{display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0}}>
-            {CONFIGURATION_TABS.map(tab => {
+      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        {/* Left Panel – Configuration Navigation */}
+        <div style={{ flex: '0 0 240px', width: '240px' }}>
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: '0.75rem',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            overflow: 'hidden'
+          }}>
+            {CONFIGURATION_TABS.map((tab, idx) => {
               const Icon = tab.icon;
               return (
                 <NavLink 
                   key={tab.id}
                   to={`/raw-material-prices/configuration/${tab.id}`}
                   style={({ isActive }) => ({
-                    display: 'flex', alignItems: 'center', gap: '0.75rem', 
-                    padding: '1.25rem 1rem', textAlign: 'left', border: 'none',
-                    background: isActive ? 'var(--bg-surface-hover)' : 'transparent',
-                    color: isActive ? 'var(--primary)' : 'var(--text-primary)',
-                    fontWeight: isActive ? 600 : 400,
-                    borderLeft: isActive ? '4px solid var(--primary)' : '4px solid transparent',
-                    borderBottom: '1px solid var(--border)',
-                    textDecoration: 'none'
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem', 
+                    padding: '0.875rem 1.125rem',
+                    textAlign: 'left',
+                    background: isActive ? '#FFF7ED' : 'transparent',
+                    color: isActive ? '#EA580C' : '#475569',
+                    fontWeight: isActive ? 600 : 500,
+                    fontSize: '0.875rem',
+                    borderLeft: isActive ? '3px solid #EA580C' : '3px solid transparent',
+                    borderBottom: idx === CONFIGURATION_TABS.length - 1 ? 'none' : '1px solid #F1F5F9',
+                    textDecoration: 'none',
+                    transition: 'all 0.15s ease'
                   })}
+                  onMouseEnter={(e) => {
+                    if (!e.currentTarget.classList.contains('active')) {
+                      e.currentTarget.style.backgroundColor = '#F8FAFC';
+                      e.currentTarget.style.color = '#0F172A';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!e.currentTarget.classList.contains('active')) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.color = '#475569';
+                    }
+                  }}
                 >
-                  <Icon size={18} />
-                  {tab.label}
+                  <Icon size={18} style={{ flexShrink: 0 }} />
+                  <span>{tab.label}</span>
                 </NavLink>
               );
             })}
           </div>
         </div>
 
-        {/* Content Area */}
-        <div style={{flex: '3 1 600px'}}>
+        {/* Right Panel – Configuration Content */}
+        <div style={{ flex: '1 1 700px', minWidth: '320px' }}>
           <Routes>
             <Route index element={<Navigate to="raw-materials" replace />} />
             
@@ -135,6 +151,7 @@ const Configuration = () => {
               <RawMaterialsTab 
                 materials={materials} 
                 units={units} 
+                priceTypes={priceTypes}
                 loading={loading} 
                 onRefresh={fetchData} 
                 showMessage={showMessage} 
