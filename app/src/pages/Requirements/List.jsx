@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare, Undo2, FileText } from 'lucide-react';
+import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare, Undo2, FileText, Truck, Check } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
@@ -10,6 +10,12 @@ import {
   INACTIVE_DISPATCH_STATUSES, UNDISPATCH_REASON, activeDispatches, checkUndispatch, restoreStatus, needsStatusRestore,
 } from '../../lib/requirementUndispatch';
 import DailyPendingDispatchReport from '../../components/requirements/DailyPendingDispatchReport';
+import {
+  validateTransportDetails,
+  confirmRequirementDispatch,
+  findTransporterByMobile,
+  normalizeIndianMobile
+} from '../../lib/transporterDispatch';
 
 const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, openDispatchModal, openUndispatchModal, isAdmin, menuPosition }) => {
   const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
@@ -68,6 +74,11 @@ export default function RequirementList() {
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
   const [reqToDispatch, setReqToDispatch] = useState(null);
   const [isDispatching, setIsDispatching] = useState(false);
+  const [transporterName, setTransporterName] = useState('');
+  const [transporterMobile, setTransporterMobile] = useState('');
+  const [transporterError, setTransporterError] = useState('');
+  const [transporterOptions, setTransporterOptions] = useState([]);
+  const [detectedTransporter, setDetectedTransporter] = useState(null);
 
   const [reqToUndispatch, setReqToUndispatch] = useState(null);
   const [isUndispatching, setIsUndispatching] = useState(false);
@@ -403,7 +414,46 @@ export default function RequirementList() {
     }
   };
 
-  // --- Dispatch Flow ---
+  // --- Transporter Options & Dispatch Flow ---
+  const loadTransporterOptions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('transporter_metadata')
+        .select('transporter_name, contact_number, is_fraud')
+        .eq('is_fraud', false)
+        .order('transporter_name');
+      if (!error && data) {
+        setTransporterOptions(data);
+      }
+    } catch (err) {
+      console.warn('Error fetching transporters:', err);
+    }
+  };
+
+  const handleTransporterNameChange = (val) => {
+    setTransporterName(val);
+    setTransporterError('');
+    const matched = transporterOptions.find(t => (t.transporter_name || '').toLowerCase() === val.trim().toLowerCase());
+    if (matched && matched.contact_number && !transporterMobile) {
+      setTransporterMobile(matched.contact_number);
+      setDetectedTransporter(matched);
+    }
+  };
+
+  const handleTransporterMobileChange = (val) => {
+    const cleanDigits = val.replace(/[^\d+]/g, '').slice(0, 13);
+    setTransporterMobile(cleanDigits);
+    setTransporterError('');
+    const matched = findTransporterByMobile(transporterOptions, cleanDigits);
+    if (matched) {
+      setDetectedTransporter(matched);
+      if (!transporterName) {
+        setTransporterName(matched.transporter_name);
+      }
+    } else {
+      setDetectedTransporter(null);
+    }
+  };
   const openDispatchModal = (e, reqOrId) => {
     e.preventDefault();
     e.stopPropagation();
@@ -427,6 +477,11 @@ export default function RequirementList() {
     }
     
     setReqToDispatch(selected || (typeof reqOrId === 'object' ? reqOrId : null));
+    setTransporterName('');
+    setTransporterMobile('');
+    setTransporterError('');
+    setDetectedTransporter(null);
+    loadTransporterOptions();
     setDispatchModalOpen(true);
     setOpenMenuId(null);
   };
@@ -434,45 +489,46 @@ export default function RequirementList() {
   const closeDispatchModal = () => {
     setDispatchModalOpen(false);
     setReqToDispatch(null);
+    setTransporterName('');
+    setTransporterMobile('');
+    setTransporterError('');
+    setDetectedTransporter(null);
     if (triggerRef.current) triggerRef.current.focus();
   };
 
   const executeDispatch = async () => {
     if (!reqToDispatch) return;
+
+    // Validate transport details before proceeding
+    const validation = validateTransportDetails({
+      transporterName,
+      mobileNumber: transporterMobile
+    });
+
+    if (!validation.isValid) {
+      setTransporterError(validation.error);
+      return;
+    }
+
     setIsDispatching(true);
+    setTransporterError('');
+
     try {
       const { data: session } = await supabase.auth.getSession();
-      
-      // 1. Create a minimal dispatch record for the Dispatch Board
-      const dispatchPayload = {
-        requirement_id: reqToDispatch.id,
-        dispatch_date: new Date().toISOString().split('T')[0],
-        quantity: reqToDispatch.required_quantity || reqToDispatch.quantity || 0,
-        unit: reqToDispatch.unit || 'Bags',
-        truck_number: '',
-        status: 'Dispatched',
-        created_by: session?.session?.user?.id || null
-      };
-      
-      const { error: dispatchErr } = await supabase.from('requirement_dispatches').insert(dispatchPayload);
-      if (dispatchErr) throw dispatchErr;
 
-      // 2. Update requirement status to Closed (canonical CRM status permitted by req_status_check)
-      const { error } = await supabase.from('requirements').update({ status: 'Closed' }).eq('id', reqToDispatch.id);
-      if (error) throw error;
-      
-      if (userProfile?.id) {
-         await supabase.from('requirement_status_history').insert({
-            requirement_id: reqToDispatch.id,
-            old_status: reqToDispatch.status,
-            new_status: 'Closed',
-            note: 'Marked as dispatched from requirements list.',
-            changed_by: userProfile.id
-         });
-      }
-      
-      setToast({ type: 'success', message: 'Requirement marked as dispatched.' });
-      
+      const result = await confirmRequirementDispatch(supabase, {
+        requirement: reqToDispatch,
+        transporterName: validation.sanitized.transporterName,
+        mobileNumber: validation.sanitized.mobileNumber,
+        userProfile,
+        sessionUser: session?.session?.user
+      });
+
+      setToast({
+        type: 'success',
+        message: `Requirement marked as dispatched via ${result.transporter.transporter_name}.`
+      });
+
       // Update local state immediately so UI refreshes without delay
       setRequirements(prev => prev.map(r => {
         if (r.id === reqToDispatch.id) {
@@ -492,7 +548,9 @@ export default function RequirementList() {
       fetchRequirements();
     } catch (err) {
       console.error("Dispatch Error:", err);
-      setToast({ type: 'error', message: err.message || 'Could not mark as dispatched. Please try again.' });
+      const errMsg = err.message || 'Could not mark as dispatched. Please try again.';
+      setTransporterError(errMsg);
+      setToast({ type: 'error', message: errMsg });
     } finally {
       setIsDispatching(false);
     }
@@ -1259,19 +1317,112 @@ export default function RequirementList() {
       {/* Dispatch Modal */}
       {dispatchModalOpen && reqToDispatch && createPortal(
         <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={closeDispatchModal}>
-          <div style={{ background: 'var(--bg-card)', padding: '2rem', borderRadius: '8px', maxWidth: '400px', width: '90%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') closeDispatchModal(); }} tabIndex={-1} ref={el => el && el.focus()}>
-            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--success)', fontSize: '1.25rem' }}>Mark this order as dispatched?</h3>
-            <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
-              <div><strong>Customer:</strong> {reqToDispatch.customer_name}</div>
-              <div><strong>Product:</strong> {getProductName(reqToDispatch)}</div>
+          <div style={{ background: 'var(--bg-card)', padding: '1.75rem', borderRadius: '8px', maxWidth: '440px', width: '92%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') closeDispatchModal(); }} tabIndex={-1} ref={el => el && el.focus()}>
+            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--success)', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Truck size={22} /> Mark this order as dispatched?
+            </h3>
+            
+            {/* Order Summary */}
+            <div style={{ background: 'var(--bg-base)', padding: '0.85rem 1rem', borderRadius: '6px', marginBottom: '1.25rem', fontSize: '0.88rem', border: '1px solid var(--border)' }}>
+              <div style={{ marginBottom: '4px' }}><strong>Customer:</strong> {reqToDispatch.customer_name}</div>
+              <div style={{ marginBottom: '4px' }}><strong>Product:</strong> {getProductName(reqToDispatch)}</div>
               <div><strong>Quantity:</strong> {getProductQuantity(reqToDispatch)} {getProductUnit(reqToDispatch)}</div>
             </div>
-            <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
-              You can add logistics details later.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={closeDispatchModal} disabled={isDispatching}>Cancel</button>
-              <button type="button" className="btn btn-primary" style={{ background: 'var(--success)', borderColor: 'var(--success)', color: '#fff' }} onClick={executeDispatch} disabled={isDispatching}>
+
+            {/* Transport Details Section */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  Transport Details
+                </h4>
+                {detectedTransporter && (
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.1)', color: '#059669', padding: '2px 8px', borderRadius: '12px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <Check size={12} /> Existing Transporter
+                  </span>
+                )}
+              </div>
+
+              {/* Field 1: Transporter Name */}
+              <div style={{ marginBottom: '0.85rem' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '4px', color: 'var(--text-primary)' }}>
+                  Transporter Name <span style={{ color: 'var(--danger)' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  list="transporter-list-options"
+                  placeholder="Enter transporter name"
+                  value={transporterName}
+                  onChange={(e) => handleTransporterNameChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-base)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.88rem'
+                  }}
+                  autoFocus
+                />
+                <datalist id="transporter-list-options">
+                  {transporterOptions.map(t => (
+                    <option key={t.transporter_name} value={t.transporter_name}>
+                      {t.contact_number ? `${t.transporter_name} (${t.contact_number})` : t.transporter_name}
+                    </option>
+                  ))}
+                </datalist>
+              </div>
+
+              {/* Field 2: Mobile Number */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '4px', color: 'var(--text-primary)' }}>
+                  Mobile Number <span style={{ color: 'var(--danger)' }}>*</span>
+                </label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="Enter 10-digit mobile number"
+                  value={transporterMobile}
+                  onChange={(e) => handleTransporterMobileChange(e.target.value)}
+                  maxLength={10}
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg-base)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.88rem'
+                  }}
+                />
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  {detectedTransporter
+                    ? `Matching record for "${detectedTransporter.transporter_name}" will be reused.`
+                    : 'New transporter will be automatically saved to Transporter List.'}
+                </div>
+              </div>
+
+              {/* Error Message */}
+              {transporterError && (
+                <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                  <span>{transporterError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={closeDispatchModal} disabled={isDispatching}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ background: 'var(--success)', borderColor: 'var(--success)', color: '#fff' }}
+                onClick={executeDispatch}
+                disabled={isDispatching}
+              >
                 {isDispatching ? 'Marking...' : 'Mark as Dispatched'}
               </button>
             </div>

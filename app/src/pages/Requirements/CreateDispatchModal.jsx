@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { X, Save, AlertCircle } from 'lucide-react';
+import { findOrCreateTransporter } from '../../lib/transporterDispatch';
 
 export default function CreateDispatchModal({ requirement, onClose, onComplete }) {
   const [formData, setFormData] = useState({
@@ -54,6 +55,22 @@ export default function CreateDispatchModal({ requirement, onClose, onComplete }
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       
+      // Sync transporter to master list if provided
+      let finalTransporterName = formData.transporter_name?.trim() || null;
+      if (finalTransporterName && formData.driver_mobile?.trim()) {
+        try {
+          const synced = await findOrCreateTransporter(supabase, {
+            transporterName: finalTransporterName,
+            mobileNumber: formData.driver_mobile.trim()
+          });
+          if (synced?.transporter_name) {
+            finalTransporterName = synced.transporter_name;
+          }
+        } catch (syncErr) {
+          console.warn('Transporter master sync notice:', syncErr);
+        }
+      }
+
       const payload = {
         requirement_id: requirement.id,
         dispatch_date: formData.dispatch_date,
@@ -62,7 +79,7 @@ export default function CreateDispatchModal({ requirement, onClose, onComplete }
         truck_number: formData.truck_number,
         driver_name: formData.driver_name || null,
         driver_mobile: formData.driver_mobile || null,
-        transporter_name: formData.transporter_name || null,
+        transporter_name: finalTransporterName,
         lr_bilty_number: formData.lr_bilty_number || null,
         invoice_number: formData.invoice_number || null,
         invoice_date: formData.invoice_date || null,
