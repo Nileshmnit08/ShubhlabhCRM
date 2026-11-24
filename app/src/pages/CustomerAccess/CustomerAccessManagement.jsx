@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { logActivity } from '../../lib/activityLogger';
-import { Smartphone, RefreshCw, Sliders, ShieldCheck } from 'lucide-react';
+import { Smartphone, RefreshCw, Sliders } from 'lucide-react';
 import SummaryCards from './components/SummaryCards';
 import CustomerTable from './components/CustomerTable';
 import ProvisionModal from './components/ProvisionModal';
@@ -10,6 +10,7 @@ import ReleaseConfigModal from './components/ReleaseConfigModal';
 import WhatsAppInviteModal from './components/WhatsAppInviteModal';
 import { getStoredReleaseConfig } from './utils/whatsappTemplate';
 import { buildCustomerPresenceMap } from './utils/presenceUtils';
+import { sortCustomers, getNextSortState } from './utils/customerSortUtils';
 
 export default function CustomerAccessManagement() {
   // Live Metrics
@@ -36,6 +37,7 @@ export default function CustomerAccessManagement() {
   const rawSessionsRef = useRef([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: null });
 
   // App Release Config
   const [releaseConfig, setReleaseConfig] = useState(getStoredReleaseConfig());
@@ -262,18 +264,30 @@ export default function CustomerAccessManagement() {
     }));
   }, [onlineCount]);
 
+  // Sort filtered customer records across all pages
+  const sortedCustomers = useMemo(() => {
+    return sortCustomers(filteredCustomers, sortConfig.key, sortConfig.direction, {
+      buyerAccountsMap,
+      presenceMap,
+    });
+  }, [filteredCustomers, sortConfig, buyerAccountsMap, presenceMap]);
+
   // Pagination calculation
-  const totalItems = filteredCustomers.length;
+  const totalItems = sortedCustomers.length;
   const totalPages = Math.ceil(totalItems / pageSize) || 1;
   const paginatedCustomers = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredCustomers.slice(start, start + pageSize);
-  }, [filteredCustomers, currentPage, pageSize]);
+    return sortedCustomers.slice(start, start + pageSize);
+  }, [sortedCustomers, currentPage, pageSize]);
 
-  // Reset to page 1 on filter or search change
+  // Reset to page 1 on filter, search or sort change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, statusFilter, presenceFilter]);
+  }, [searchTerm, statusFilter, presenceFilter, sortConfig]);
+
+  const handleSort = (columnKey) => {
+    setSortConfig((prev) => getNextSortState(prev.key, prev.direction, columnKey));
+  };
 
   // Handlers
   const handleProvisionClick = (customer) => {
@@ -443,6 +457,8 @@ export default function CustomerAccessManagement() {
         onPageChange={setCurrentPage}
         totalItems={totalItems}
         pageSize={pageSize}
+        sortConfig={sortConfig}
+        onSort={handleSort}
         onProvisionClick={handleProvisionClick}
         onManageClick={handleManageClick}
         onWhatsAppClick={handleOpenWhatsAppInvite}

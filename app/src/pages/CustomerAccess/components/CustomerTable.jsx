@@ -1,6 +1,76 @@
 import React from 'react';
-import { Search, UserPlus, Settings, MessageSquare, Copy, Check, ShieldCheck, ShieldAlert, Clock, Phone, MapPin } from 'lucide-react';
+import { Search, UserPlus, Settings, MessageSquare, Copy, Check, ShieldCheck, ShieldAlert, Clock, MapPin, ArrowUp, ArrowDown, ArrowUpDown, X } from 'lucide-react';
 import { normalizeIndianPhone } from '../utils/whatsappTemplate';
+import { SORTABLE_COLUMNS } from '../utils/customerSortUtils';
+
+function SortableHeader({
+  columnKey,
+  label,
+  sortConfig,
+  onSort,
+  padding = '0.85rem 1rem',
+  align = 'left',
+}) {
+  const isSorted = sortConfig?.key === columnKey;
+  const direction = isSorted ? sortConfig.direction : null;
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  const getSortTooltip = () => {
+    if (!direction) return `Click to sort by ${label} ascending`;
+    if (direction === 'asc') return `Sorted by ${label} ascending. Click to sort descending`;
+    return `Sorted by ${label} descending. Click to return to default`;
+  };
+
+  return (
+    <th
+      scope="col"
+      aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none'}
+      onClick={() => onSort && onSort(columnKey)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        padding,
+        fontWeight: isSorted ? 700 : 600,
+        color: isSorted ? '#123d26' : (isHovered ? '#0f172a' : 'var(--text-secondary, #64748b)'),
+        backgroundColor: isSorted ? 'rgba(18, 61, 38, 0.05)' : (isHovered ? 'rgba(241, 245, 249, 0.85)' : 'transparent'),
+        cursor: 'pointer',
+        userSelect: 'none',
+        transition: 'all 0.15s ease',
+        textAlign: align,
+        whiteSpace: 'nowrap',
+      }}
+      title={getSortTooltip()}
+    >
+      <div style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.45rem',
+        justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
+      }}>
+        <span>{label}</span>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: isSorted ? '#123d26' : '#94a3b8',
+            opacity: isSorted ? 1 : (isHovered ? 0.75 : 0.35),
+            transition: 'all 0.15s ease',
+          }}
+          aria-hidden="true"
+        >
+          {direction === 'asc' ? (
+            <ArrowUp size={14} strokeWidth={2.5} />
+          ) : direction === 'desc' ? (
+            <ArrowDown size={14} strokeWidth={2.5} />
+          ) : (
+            <ArrowUpDown size={13} strokeWidth={1.75} />
+          )}
+        </span>
+      </div>
+    </th>
+  );
+}
 
 export default function CustomerTable({
   customers,
@@ -19,6 +89,8 @@ export default function CustomerTable({
   onPageChange,
   totalItems,
   pageSize,
+  sortConfig = { key: null, direction: null },
+  onSort,
   onProvisionClick,
   onManageClick,
   onWhatsAppClick,
@@ -150,6 +222,49 @@ export default function CustomerTable({
               </button>
             ))}
           </div>
+          {/* Active Sort Indicator / Reset Pill */}
+          {sortConfig?.key && sortConfig?.direction && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              backgroundColor: 'rgba(18, 61, 38, 0.08)',
+              color: '#123d26',
+              border: '1px solid rgba(18, 61, 38, 0.2)',
+              borderRadius: '8px',
+              padding: '0.25rem 0.6rem',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+            }}>
+              <span>
+                Sorted: {
+                  sortConfig.key === SORTABLE_COLUMNS.NAME ? 'Customer Name' :
+                  sortConfig.key === SORTABLE_COLUMNS.CODE ? 'Customer Code' :
+                  sortConfig.key === SORTABLE_COLUMNS.MOBILE ? 'Registered Mobile' :
+                  sortConfig.key === SORTABLE_COLUMNS.STATUS ? 'App Status' :
+                  sortConfig.key === SORTABLE_COLUMNS.PRESENCE ? 'App Presence' :
+                  sortConfig.key === SORTABLE_COLUMNS.LOGIN_ID ? 'Login ID' : sortConfig.key
+                } ({sortConfig.direction === 'asc' ? '↑ Asc' : '↓ Desc'})
+              </span>
+              <button
+                type="button"
+                onClick={() => onSort && onSort(sortConfig.key)}
+                title="Reset to default order"
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: '#123d26',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  borderRadius: '4px',
+                }}
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -165,13 +280,46 @@ export default function CustomerTable({
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
             }}>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600 }}>Customer Name</th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Customer Code</th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Registered Mobile</th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>App Status</th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>App Presence</th>
-              <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Login ID</th>
-              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600, textAlign: 'right' }}>Actions</th>
+              <SortableHeader
+                columnKey={SORTABLE_COLUMNS.NAME}
+                label="Customer Name"
+                sortConfig={sortConfig}
+                onSort={onSort}
+                padding="0.85rem 1.25rem"
+              />
+              <SortableHeader
+                columnKey={SORTABLE_COLUMNS.CODE}
+                label="Customer Code"
+                sortConfig={sortConfig}
+                onSort={onSort}
+              />
+              <SortableHeader
+                columnKey={SORTABLE_COLUMNS.MOBILE}
+                label="Registered Mobile"
+                sortConfig={sortConfig}
+                onSort={onSort}
+              />
+              <SortableHeader
+                columnKey={SORTABLE_COLUMNS.STATUS}
+                label="App Status"
+                sortConfig={sortConfig}
+                onSort={onSort}
+              />
+              <SortableHeader
+                columnKey={SORTABLE_COLUMNS.PRESENCE}
+                label="App Presence"
+                sortConfig={sortConfig}
+                onSort={onSort}
+              />
+              <SortableHeader
+                columnKey={SORTABLE_COLUMNS.LOGIN_ID}
+                label="Login ID"
+                sortConfig={sortConfig}
+                onSort={onSort}
+              />
+              <th style={{ padding: '0.85rem 1.25rem', fontWeight: 600, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
