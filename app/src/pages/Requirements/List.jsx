@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare, Undo2, FileText, Truck, Check } from 'lucide-react';
+import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare, Undo2, FileText, Truck, Check, Phone, Calendar, Info, Package } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
@@ -11,11 +11,231 @@ import {
 } from '../../lib/requirementUndispatch';
 import DailyPendingDispatchReport from '../../components/requirements/DailyPendingDispatchReport';
 import {
-  validateTransportDetails,
-  confirmRequirementDispatch,
-  findTransporterByMobile,
-  normalizeIndianMobile
+  confirmRequirementDispatch
 } from '../../lib/transporterDispatch';
+import {
+  isRequirementDispatched,
+  resolveTransportDetails,
+  filterRequirements,
+  formatDisplayDate,
+  formatDisplayPhone,
+  buildCustomerLatestDispatchMap,
+  resolveRequirementTransporter
+} from '../../lib/dispatchedTransportSummary';
+import MarkDispatchedModal from './MarkDispatchedModal';
+
+// --- SL-DISPATCHED-TRANSPORT-SUMMARY-03: Transport Details Display ---
+const TransportDetailsBox = ({ details, compact = false }) => {
+  const truckIcon = <Truck size={16} style={{ color: '#F97316', flexShrink: 0 }} />;
+  const phoneIcon = <Phone size={13} style={{ color: '#16A34A', flexShrink: 0 }} />;
+  const calendarIcon = <Calendar size={13} style={{ color: '#2563EB', flexShrink: 0 }} />;
+
+  const formatDateDisplay = (dateString) => {
+    if (!dateString) return '-';
+    try {
+      const options = { day: '2-digit', month: 'short', year: 'numeric' };
+      return new Date(dateString).toLocaleDateString('en-GB', options);
+    } catch {
+      return dateString;
+    }
+  };
+
+  if (!details || !details.hasDetails) {
+    return (
+      <div className="transport-details-box" style={{
+        marginTop: '10px',
+        padding: compact ? '8px 10px' : '10px 14px',
+        background: '#F8FAFC',
+        border: '1px solid #E2E8F0',
+        borderRadius: '8px',
+        fontSize: '0.82rem',
+        color: 'var(--text-secondary)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '3px' }}>
+          {truckIcon} <span>Transport Details</span>
+        </div>
+        <div style={{ fontStyle: 'italic', color: '#94A3B8', fontSize: '0.8rem' }}>
+          Transport details not available
+        </div>
+        {details?.dispatchDate && (
+          <div style={{ marginTop: '3px', fontSize: '0.76rem', color: '#64748B' }}>
+            Dispatch Date: {formatDateDisplay(details.dispatchDate)}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const { transporterName, mobileNumber, dispatchDate } = details;
+
+  return (
+    <div className="transport-details-box" style={{
+      marginTop: '10px',
+      padding: compact ? '10px 12px' : '12px 14px',
+      background: '#EFF6FF',
+      border: '1.5px solid #BFDBFE',
+      borderRadius: '8px',
+      color: '#1E40AF',
+      fontSize: '0.86rem',
+      textAlign: 'left'
+    }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '8px',
+        borderBottom: '1px solid #DBEAFE',
+        paddingBottom: '5px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#1D4ED8', fontSize: '0.88rem' }}>
+          {truckIcon} <span>Transport Details</span>
+        </div>
+        {dispatchDate && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#2563EB', fontSize: '0.78rem', fontWeight: 600 }}>
+            {calendarIcon} {formatDateDisplay(dispatchDate)}
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+        {/* Field 1: Transporter Name */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ color: '#4B5563', fontSize: '0.8rem', minWidth: '82px' }}>Transporter:</span>
+          <strong style={{ color: '#0F172A', fontSize: '0.92rem', fontWeight: 700 }}>
+            {transporterName || 'Transport details not available'}
+          </strong>
+        </div>
+
+        {/* Field 2: Mobile Number (Clickable Phone Link) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <span style={{ color: '#4B5563', fontSize: '0.8rem', minWidth: '82px' }}>Mobile:</span>
+          {mobileNumber ? (
+            <a
+              href={`tel:${mobileNumber}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                color: '#15803D',
+                background: '#DCFCE7',
+                border: '1px solid #BBF7D0',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                fontWeight: 600,
+                textDecoration: 'none',
+                fontSize: '0.84rem'
+              }}
+              title="Click to call transporter"
+            >
+              {phoneIcon} <span>{mobileNumber}</span>
+            </a>
+          ) : (
+            <span style={{ color: '#94A3B8', fontStyle: 'italic', fontSize: '0.8rem' }}>Not recorded</span>
+          )}
+        </div>
+
+        {/* Field 3: Dispatch Date */}
+        {dispatchDate && (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ color: '#4B5563', fontSize: '0.8rem', minWidth: '82px' }}>Dispatch Date:</span>
+            <span style={{ color: '#334155', fontWeight: 500, fontSize: '0.85rem' }}>
+              {formatDateDisplay(dispatchDate)}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+// --- SL-REQUIREMENTS-TRANSPORTER-COLUMN-01: Transporter (Last Used) Cell Component ---
+const TransporterCell = ({ info }) => {
+  if (!info || !info.hasDetails) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+        <Truck size={14} style={{ opacity: 0.45 }} />
+        <span>{info?.fallbackMessage || (info?.isDispatched ? 'Transport details unavailable' : 'No transporter history')}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', minWidth: '220px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+        <div style={{
+          width: '28px',
+          height: '28px',
+          borderRadius: '50%',
+          backgroundColor: '#E8F5E9',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0
+        }}>
+          <Truck size={14} style={{ color: '#16A34A' }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <span style={{
+            fontWeight: 600,
+            fontSize: '0.88rem',
+            color: 'var(--text-primary)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {info.transporterName || 'Transporter'}
+          </span>
+          {info.mobileNumber ? (
+            <a
+              href={`tel:${info.mobileNumber}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                color: 'var(--text-secondary)',
+                fontSize: '0.78rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                textDecoration: 'none',
+                marginTop: '1px',
+                width: 'fit-content'
+              }}
+              title={`Call ${info.transporterName || ''} at ${info.mobileNumber}`}
+            >
+              <Phone size={11} style={{ color: 'var(--text-secondary)' }} />
+              <span>{formatDisplayPhone(info.mobileNumber)}</span>
+            </a>
+          ) : null}
+        </div>
+      </div>
+
+      {/* For non-dispatched requirements: show small "Last used: DD MMM YYYY" pill badge */}
+      {!info.isDispatched && info.date && (
+        <div style={{
+          background: '#F1F5F9',
+          border: '1px solid #E2E8F0',
+          borderRadius: '6px',
+          padding: '2px 7px',
+          fontSize: '0.70rem',
+          color: '#475569',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          lineHeight: 1.25,
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontWeight: 500, color: '#2563EB' }}>
+            <Info size={10} /> Last used
+          </div>
+          <div style={{ fontWeight: 500, marginTop: '1px' }}>
+            {formatDisplayDate(info.date)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal, openDeleteModal, openDispatchModal, openUndispatchModal, isAdmin, menuPosition }) => {
   const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
@@ -33,7 +253,7 @@ const ActionMenu = ({ req, openMenuId, setOpenMenuId, navigate, openCancelModal,
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ClipboardList size={14} /> View details</button>
         <button onClick={() => { setOpenMenuId(null); navigate(`/requirements/${req.id}/edit`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><Edit size={14} /> Edit requirement</button>
         {actualPending > 0 && req.status !== 'Closed' && !isDispatched ? (
-          <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req.id); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
+          <button onClick={(e) => { setOpenMenuId(null); openDispatchModal(e, req); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--success)'}}><CheckCircle size={14} /> Mark as Dispatched</button>
         ) : (
           <button onClick={() => { setOpenMenuId(null); navigate(`/dispatches/list?requirement_id=${req.id}`); }} style={{width: '100%', padding: '8px 16px', background: 'none', border: 'none', textAlign: 'left', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)'}}><ListIcon size={14} /> View Dispatches</button>
         )}
@@ -74,11 +294,7 @@ export default function RequirementList() {
   const [dispatchModalOpen, setDispatchModalOpen] = useState(false);
   const [reqToDispatch, setReqToDispatch] = useState(null);
   const [isDispatching, setIsDispatching] = useState(false);
-  const [transporterName, setTransporterName] = useState('');
-  const [transporterMobile, setTransporterMobile] = useState('');
-  const [transporterError, setTransporterError] = useState('');
   const [transporterOptions, setTransporterOptions] = useState([]);
-  const [detectedTransporter, setDetectedTransporter] = useState(null);
 
   const [reqToUndispatch, setReqToUndispatch] = useState(null);
   const [isUndispatching, setIsUndispatching] = useState(false);
@@ -176,21 +392,27 @@ export default function RequirementList() {
         .order('created_at', { ascending: false });
 
       if (statusFilter === 'Dispatched') {
-        query = query.or('dispatch_progress.eq.Fully Dispatched,total_dispatched_quantity.gt.0');
+        query = query.or('dispatch_progress.eq.Fully Dispatched,total_dispatched_quantity.gt.0,status.eq.Dispatched');
       } else if (statusFilter === 'Not Dispatched') {
         query = query.eq('dispatch_progress', 'Not Dispatched').eq('total_dispatched_quantity', 0).neq('status', 'Dispatched');
         if (!includeCompleted) {
           query = query.not('status', 'in', '(Closed,Fulfilled,Completed,Cancelled,Lost,Won)');
         }
+      } else if (statusFilter === 'Overdue') {
+        const today = new Date().toISOString().split('T')[0];
+        query = query.lt('expected_date', today)
+          .eq('is_pending', true)
+          .not('status', 'in', '(Closed,Fulfilled,Completed,Cancelled,Lost,Won,Dispatched)')
+          .neq('dispatch_progress', 'Fully Dispatched');
+      } else if (statusFilter === 'All Open') {
+        query = query.eq('is_pending', true)
+          .not('status', 'in', '(Closed,Fulfilled,Completed,Cancelled,Lost,Won,Dispatched)')
+          .neq('dispatch_progress', 'Fully Dispatched');
       } else {
         if (!includeCompleted) {
-          query = query.or('dispatch_progress.eq.Fully Dispatched,status.not.in.(Closed,Fulfilled,Completed,Cancelled,Lost,Won)');
+          query = query.not('status', 'in', '(Closed,Fulfilled,Completed,Cancelled,Lost,Won)');
         }
-
-        if (statusFilter === 'Overdue') {
-          const today = new Date().toISOString().split('T')[0];
-          query = query.lt('expected_date', today);
-        } else if (statusFilter !== 'All Open' && statusFilter !== 'All') {
+        if (statusFilter !== 'All') {
           query = query.eq('status', statusFilter);
         }
       }
@@ -247,35 +469,107 @@ export default function RequirementList() {
       if (data && data.length > 0) {
         const reqIds = data.map(r => r.id);
         
+        // 1. Fetch line items and active dispatch records in parallel chunks
         let allItems = [];
+        let allDispatches = [];
         let itemsFetchFailed = false;
         const chunkSize = 100;
         
         for (let i = 0; i < reqIds.length; i += chunkSize) {
           const chunk = reqIds.slice(i, i + chunkSize);
-          const { data: chunkData, error: chunkError } = await supabase
-            .from('requirement_items')
-            .select('*')
-            .in('requirement_id', chunk);
+          
+          const [itemsRes, dispatchesRes] = await Promise.all([
+            supabase
+              .from('requirement_items')
+              .select('*')
+              .in('requirement_id', chunk),
+            supabase
+              .from('requirement_dispatches')
+              .select('id, requirement_id, transporter_name, driver_mobile, dispatch_date, quantity, unit, status, created_at')
+              .in('requirement_id', chunk)
+              .not('status', 'in', '("Cancelled","Voided","Deleted","Reversed")')
+              .order('dispatch_date', { ascending: false })
+              .order('created_at', { ascending: false })
+          ]);
             
-          if (chunkError) {
-            console.error("fetchRequirements: Error fetching requirement_items chunk:", chunkError);
+          if (itemsRes.error) {
+            console.error("fetchRequirements: Error fetching requirement_items chunk:", itemsRes.error);
             itemsFetchFailed = true;
           }
-          if (chunkData) {
-            allItems.push(...chunkData);
+          if (itemsRes.data) {
+            allItems.push(...itemsRes.data);
+          }
+
+          if (dispatchesRes.data) {
+            allDispatches.push(...dispatchesRes.data);
           }
         }
         
+        // 2. Fetch transporter metadata map once for phone number fallback
+        const metaMap = {};
+        try {
+          const { data: transMeta } = await supabase
+            .from('transporter_metadata')
+            .select('transporter_name, contact_number');
+          if (transMeta) {
+            transMeta.forEach(m => {
+              if (m.transporter_name) metaMap[m.transporter_name] = m;
+            });
+          }
+        } catch (mErr) {
+          console.warn('Could not load transporter metadata:', mErr);
+        }
+
         const itemsMap = {};
         allItems.forEach(item => {
           if (!itemsMap[item.requirement_id]) itemsMap[item.requirement_id] = [];
           itemsMap[item.requirement_id].push(item);
         });
+
+        const dispatchesMap = {};
+        allDispatches.forEach(d => {
+          if (!dispatchesMap[d.requirement_id]) dispatchesMap[d.requirement_id] = [];
+          dispatchesMap[d.requirement_id].push(d);
+        });
         
+        // 2b. Batch query customer dispatch history for customer-wise suggestions
+        const partyIds = [...new Set(data.map(r => r.party_id).filter(Boolean))];
+        let allCustomerDispatches = [];
+        if (partyIds.length > 0) {
+          for (let i = 0; i < partyIds.length; i += chunkSize) {
+            const pChunk = partyIds.slice(i, i + chunkSize);
+            try {
+              const { data: cDisp, error: cErr } = await supabase
+                .from('requirement_dispatches')
+                .select('id, requirement_id, transporter_name, driver_mobile, dispatch_date, status, created_at, requirements!inner(id, party_id)')
+                .in('requirements.party_id', pChunk)
+                .not('status', 'in', '("Cancelled","Voided","Deleted","Reversed")')
+                .order('dispatch_date', { ascending: false })
+                .order('created_at', { ascending: false });
+              if (!cErr && cDisp) {
+                allCustomerDispatches.push(...cDisp);
+              }
+            } catch (cErr) {
+              console.warn("Could not batch load customer dispatches:", cErr);
+            }
+          }
+        }
+
+        // Combine dispatches to build customer latest successful dispatch map
+        const combinedDispatches = [...allDispatches, ...allCustomerDispatches];
+        const customerDispatchMap = buildCustomerLatestDispatchMap(combinedDispatches, data, metaMap);
+
         data.forEach(req => {
           req.requirement_items = itemsMap[req.id] || [];
           req.items_fetch_failed = itemsFetchFailed && !itemsMap[req.id];
+
+          // Associate dispatches and compute structured transport details
+          const reqDispatches = dispatchesMap[req.id] || [];
+          req.dispatches = reqDispatches;
+          req.transport_details = resolveTransportDetails(reqDispatches, metaMap, req.latest_dispatch_date);
+
+          // SL-REQUIREMENTS-TRANSPORTER-COLUMN-01: Resolve transporter info (suggested for pending, actual for dispatched)
+          req.transporter_info = resolveRequirementTransporter(req, customerDispatchMap, metaMap);
         });
         
         if (itemsFetchFailed) {
@@ -285,17 +579,22 @@ export default function RequirementList() {
 
       setRequirements(data || []);
       
-      // Auto-expand customers with overdue requirements
+      // Auto-expand customers when viewing Dispatched or with overdue requirements
       if (data && data.length > 0) {
         const newExpanded = new Set();
         data.forEach(req => {
-          const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
-          const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
-          const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status);
-          
-          const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
-          if (isOverdue) {
+          if (statusFilter === 'Dispatched') {
             newExpanded.add(req.party_id || req.customer_name);
+          } else {
+            const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
+            const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
+            const isDispatched = isRequirementDispatched(req);
+            const isActualPending = actualPending > 0 && !isDispatched;
+            
+            const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
+            if (isOverdue) {
+              newExpanded.add(req.party_id || req.customer_name);
+            }
           }
         });
         setExpandedCustomers(newExpanded);
@@ -430,30 +729,6 @@ export default function RequirementList() {
     }
   };
 
-  const handleTransporterNameChange = (val) => {
-    setTransporterName(val);
-    setTransporterError('');
-    const matched = transporterOptions.find(t => (t.transporter_name || '').toLowerCase() === val.trim().toLowerCase());
-    if (matched && matched.contact_number && !transporterMobile) {
-      setTransporterMobile(matched.contact_number);
-      setDetectedTransporter(matched);
-    }
-  };
-
-  const handleTransporterMobileChange = (val) => {
-    const cleanDigits = val.replace(/[^\d+]/g, '').slice(0, 13);
-    setTransporterMobile(cleanDigits);
-    setTransporterError('');
-    const matched = findTransporterByMobile(transporterOptions, cleanDigits);
-    if (matched) {
-      setDetectedTransporter(matched);
-      if (!transporterName) {
-        setTransporterName(matched.transporter_name);
-      }
-    } else {
-      setDetectedTransporter(null);
-    }
-  };
   const openDispatchModal = (e, reqOrId) => {
     e.preventDefault();
     e.stopPropagation();
@@ -476,11 +751,8 @@ export default function RequirementList() {
       selected = requirements.find(r => r.id === reqId);
     }
     
-    setReqToDispatch(selected || (typeof reqOrId === 'object' ? reqOrId : null));
-    setTransporterName('');
-    setTransporterMobile('');
-    setTransporterError('');
-    setDetectedTransporter(null);
+    const targetReq = selected || (typeof reqOrId === 'object' ? reqOrId : null);
+    setReqToDispatch(targetReq);
     loadTransporterOptions();
     setDispatchModalOpen(true);
     setOpenMenuId(null);
@@ -489,37 +761,20 @@ export default function RequirementList() {
   const closeDispatchModal = () => {
     setDispatchModalOpen(false);
     setReqToDispatch(null);
-    setTransporterName('');
-    setTransporterMobile('');
-    setTransporterError('');
-    setDetectedTransporter(null);
     if (triggerRef.current) triggerRef.current.focus();
   };
 
-  const executeDispatch = async () => {
+  const handleConfirmDispatch = async (sanitizedTransport, setModalError) => {
     if (!reqToDispatch) return;
-
-    // Validate transport details before proceeding
-    const validation = validateTransportDetails({
-      transporterName,
-      mobileNumber: transporterMobile
-    });
-
-    if (!validation.isValid) {
-      setTransporterError(validation.error);
-      return;
-    }
-
     setIsDispatching(true);
-    setTransporterError('');
 
     try {
       const { data: session } = await supabase.auth.getSession();
 
       const result = await confirmRequirementDispatch(supabase, {
         requirement: reqToDispatch,
-        transporterName: validation.sanitized.transporterName,
-        mobileNumber: validation.sanitized.mobileNumber,
+        transporterName: sanitizedTransport.transporterName,
+        mobileNumber: sanitizedTransport.mobileNumber,
         userProfile,
         sessionUser: session?.session?.user
       });
@@ -549,7 +804,9 @@ export default function RequirementList() {
     } catch (err) {
       console.error("Dispatch Error:", err);
       const errMsg = err.message || 'Could not mark as dispatched. Please try again.';
-      setTransporterError(errMsg);
+      if (typeof setModalError === 'function') {
+        setModalError(errMsg);
+      }
       setToast({ type: 'error', message: errMsg });
     } finally {
       setIsDispatching(false);
@@ -641,25 +898,17 @@ export default function RequirementList() {
     return req.product_type === 'General Requirement' ? '' : (req.unit || 'Bags');
   };
 
-  // --- Filtering ---
-  const filteredRequirements = requirements.filter(req => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    
-    // Check if any requirement item product name matches
-    const itemsMatch = req.requirement_items?.some(item => 
-      item.product_name?.toLowerCase().includes(q)
-    );
-    
-    return (
-      req.customer_name?.toLowerCase().includes(q) ||
-      (req.product_type && req.product_type !== 'General Requirement' && req.product_type.toLowerCase().includes(q)) ||
-      req.customer_city?.toLowerCase().includes(q) ||
-      itemsMatch
-    );
+  // --- Filtering (SL-DISPATCHED-TRANSPORT-SUMMARY-03) ---
+  const filteredRequirements = filterRequirements(requirements, {
+    statusFilter,
+    dateRange,
+    searchQuery,
+    ownerFilter,
+    includeCompleted,
+    userProfileId: userProfile?.id
   });
 
-  // --- Grouping for Customer View ---
+    // --- Grouping for Customer View ---
   const groupedCustomers = [];
   if (viewMode === 'customer') {
     const map = new Map();
@@ -984,6 +1233,50 @@ export default function RequirementList() {
                     <div className="text-muted" style={{fontSize: '0.85rem'}}>
                       Products: <strong style={{color: 'var(--text-primary)'}}>{productDisplay}</strong>
                     </div>
+
+                    {/* SL-DISPATCHED-TRANSPORT-SUMMARY-03: Transport Details Preview on Customer Card */}
+                    {group.requirements.some(r => isRequirementDispatched(r)) && (
+                      <div style={{
+                        marginTop: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        flexWrap: 'wrap',
+                        fontSize: '0.82rem',
+                        background: '#EFF6FF',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid #BFDBFE'
+                      }}>
+                        <strong style={{ color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Truck size={15} style={{ color: '#F97316' }} /> Transport Details:
+                        </strong>
+                        {group.requirements.filter(r => isRequirementDispatched(r)).map((r, idx) => {
+                          const td = r.transport_details;
+                          if (!td || !td.hasDetails) return (
+                            <span key={r.id || idx} style={{ fontStyle: 'italic', color: '#64748B' }}>
+                              Transport details not available
+                            </span>
+                          );
+                          return (
+                            <span key={r.id || idx} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#1E3A8A' }}>
+                              <span><strong>{td.transporterName}</strong></span>
+                              {td.mobileNumber && (
+                                <a
+                                  href={`tel:${td.mobileNumber}`}
+                                  onClick={e => e.stopPropagation()}
+                                  style={{ color: '#15803D', fontWeight: 600, textDecoration: 'none', background: '#DCFCE7', border: '1px solid #BBF7D0', padding: '1px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                  title="Click to call transporter"
+                                >
+                                  <Phone size={12} /> {td.mobileNumber}
+                                </a>
+                              )}
+                              {td.dispatchDate && <span style={{ color: '#2563EB', fontSize: '0.78rem' }}>({formatDate(td.dispatchDate)})</span>}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                   <div style={{paddingLeft: '16px', color: 'var(--text-muted)'}}>
                     {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
@@ -1020,6 +1313,7 @@ export default function RequirementList() {
                             <th style={{padding: '8px 12px', fontWeight: 600}}>Target Rate</th>
                             <th style={{padding: '8px 12px', fontWeight: 600}}>Required By</th>
                             <th style={{padding: '8px 12px', fontWeight: 600}}>Stage</th>
+                            <th style={{padding: '8px 12px', fontWeight: 600, background: '#ECFDF5', color: '#166534', borderRadius: '4px 4px 0 0'}}>Transporter (Last Used)</th>
                             <th style={{padding: '8px 12px', fontWeight: 600}}>Priority</th>
                             <th style={{padding: '8px 12px', fontWeight: 600, textAlign: 'right'}}>Actions</th>
                           </tr>
@@ -1059,14 +1353,28 @@ export default function RequirementList() {
                                 <td style={{padding: '12px'}}>{formatRate(req.expected_rate)}</td>
                                 <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>{getFriendlyDate(req.expected_date)}</td>
                                 <td style={{padding: '12px'}}>
-                                  <span className={isDispatched ? 'badge badge-dispatched' : getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '3px 8px'}}>{isDispatched ? 'Dispatched' : req.status}</span>
-                                  {isDispatched && (
-                                    <div style={{fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '4px', lineHeight: 1.3}}>
-                                      {req.latest_dispatch_date && <div>📅 {formatDate(req.latest_dispatch_date)}</div>}
-                                      {req.latest_truck_number && <div>🚚 {req.latest_truck_number}</div>}
-                                      {req.total_dispatched_quantity > 0 && <div>📦 {req.total_dispatched_quantity} {getProductUnit(req)}</div>}
+                                  {isDispatched ? (
+                                    <div style={{display: 'flex', flexDirection: 'column', gap: '3px'}}>
+                                      <span className="badge badge-dispatched" style={{fontSize: '0.75rem', padding: '3px 8px', width: 'fit-content'}}>
+                                        DISPATCHED
+                                      </span>
+                                      {(req.transporter_info?.date || req.latest_dispatch_date) && (
+                                        <div style={{fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                          <Calendar size={12} /> {formatDisplayDate(req.transporter_info?.date || req.latest_dispatch_date)}
+                                        </div>
+                                      )}
+                                      <div style={{fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                        <Package size={12} /> {getProductQuantity(req)} {getProductUnit(req)}
+                                      </div>
                                     </div>
+                                  ) : (
+                                    <span className={getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '3px 8px'}}>
+                                      {req.status}
+                                    </span>
                                   )}
+                                </td>
+                                <td style={{padding: '12px'}}>
+                                  <TransporterCell info={req.transporter_info} />
                                 </td>
                                 <td style={{padding: '12px'}}>
                                   <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
@@ -1200,19 +1508,24 @@ export default function RequirementList() {
                        {req.intent_type || 'Product Interest'}
                      </span>
                   </div>
-                  {isDispatched && (
-                    <div style={{ fontSize: '0.8rem', padding: '10px 12px', background: '#EFF6FF', borderRadius: '6px', border: '1px solid #BFDBFE', color: '#1E40AF', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                        <strong style={{color: '#1D4ED8', letterSpacing: '0.03em', fontSize: '0.75rem'}}>DISPATCH INFORMATION</strong>
-                        <span style={{fontWeight: 600, color: '#1E40AF'}}>{req.total_dispatched_quantity || getProductQuantity(req)} {getProductUnit(req)}</span>
-                      </div>
-                      <div style={{display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '0.75rem', marginTop: '2px', color: '#2563EB'}}>
-                        {req.latest_dispatch_date && <span>📅 Date: {formatDate(req.latest_dispatch_date)}</span>}
-                        {req.latest_truck_number && <span>🚚 Vehicle: {req.latest_truck_number}</span>}
-                        {req.latest_driver_mobile && <span>📞 Driver: {req.latest_driver_mobile}</span>}
-                      </div>
+                  {/* Requirement Date */}
+                  <div style={{ fontSize: '0.8rem', color: '#4B5563', marginTop: '2px' }}>
+                    Requirement Date: <strong style={{ color: '#0F172A' }}>{formatDate(req.expected_date)}</strong>
+                  </div>
+
+                  {/* SL-REQUIREMENTS-TRANSPORTER-COLUMN-01: Transporter (Last Used) Section on Card */}
+                  <div style={{
+                    marginTop: '10px',
+                    padding: '8px 12px',
+                    background: isDispatched ? '#EFF6FF' : '#F9FAFB',
+                    border: isDispatched ? '1px solid #BFDBFE' : '1px solid #E5E7EB',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 600, color: isDispatched ? '#1E40AF' : '#166534', marginBottom: '3px' }}>
+                      Transporter {req.transporter_info?.isSuggested ? '(Last Used)' : ''}
                     </div>
-                  )}
+                    <TransporterCell info={req.transporter_info} />
+                  </div>
                   {isPartiallyDispatched && !isDispatched && (
                     <div style={{ fontSize: '0.8rem', padding: '6px 10px', background: '#ECFDF5', borderRadius: '4px', border: '1px solid #D1FAE5', color: '#065F46', display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
                       <span>Dispatched: {req.total_dispatched_quantity}</span>
@@ -1315,120 +1628,18 @@ export default function RequirementList() {
         </div>
       )}
       {/* Dispatch Modal */}
-      {dispatchModalOpen && reqToDispatch && createPortal(
-        <div role="dialog" aria-modal="true" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={closeDispatchModal}>
-          <div style={{ background: 'var(--bg-card)', padding: '1.75rem', borderRadius: '8px', maxWidth: '440px', width: '92%', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') closeDispatchModal(); }} tabIndex={-1} ref={el => el && el.focus()}>
-            <h3 style={{ margin: '0 0 1rem 0', color: 'var(--success)', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Truck size={22} /> Mark this order as dispatched?
-            </h3>
-            
-            {/* Order Summary */}
-            <div style={{ background: 'var(--bg-base)', padding: '0.85rem 1rem', borderRadius: '6px', marginBottom: '1.25rem', fontSize: '0.88rem', border: '1px solid var(--border)' }}>
-              <div style={{ marginBottom: '4px' }}><strong>Customer:</strong> {reqToDispatch.customer_name}</div>
-              <div style={{ marginBottom: '4px' }}><strong>Product:</strong> {getProductName(reqToDispatch)}</div>
-              <div><strong>Quantity:</strong> {getProductQuantity(reqToDispatch)} {getProductUnit(reqToDispatch)}</div>
-            </div>
-
-            {/* Transport Details Section */}
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', marginBottom: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  Transport Details
-                </h4>
-                {detectedTransporter && (
-                  <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.1)', color: '#059669', padding: '2px 8px', borderRadius: '12px', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                    <Check size={12} /> Existing Transporter
-                  </span>
-                )}
-              </div>
-
-              {/* Field 1: Transporter Name */}
-              <div style={{ marginBottom: '0.85rem' }}>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '4px', color: 'var(--text-primary)' }}>
-                  Transporter Name <span style={{ color: 'var(--danger)' }}>*</span>
-                </label>
-                <input
-                  type="text"
-                  list="transporter-list-options"
-                  placeholder="Enter transporter name"
-                  value={transporterName}
-                  onChange={(e) => handleTransporterNameChange(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-base)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.88rem'
-                  }}
-                  autoFocus
-                />
-                <datalist id="transporter-list-options">
-                  {transporterOptions.map(t => (
-                    <option key={t.transporter_name} value={t.transporter_name}>
-                      {t.contact_number ? `${t.transporter_name} (${t.contact_number})` : t.transporter_name}
-                    </option>
-                  ))}
-                </datalist>
-              </div>
-
-              {/* Field 2: Mobile Number */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 500, marginBottom: '4px', color: 'var(--text-primary)' }}>
-                  Mobile Number <span style={{ color: 'var(--danger)' }}>*</span>
-                </label>
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  placeholder="Enter 10-digit mobile number"
-                  value={transporterMobile}
-                  onChange={(e) => handleTransporterMobileChange(e.target.value)}
-                  maxLength={10}
-                  style={{
-                    width: '100%',
-                    padding: '0.6rem 0.75rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--bg-base)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.88rem'
-                  }}
-                />
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                  {detectedTransporter
-                    ? `Matching record for "${detectedTransporter.transporter_name}" will be reused.`
-                    : 'New transporter will be automatically saved to Transporter List.'}
-                </div>
-              </div>
-
-              {/* Error Message */}
-              {transporterError && (
-                <div style={{ marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <AlertCircle size={15} style={{ flexShrink: 0 }} />
-                  <span>{transporterError}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={closeDispatchModal} disabled={isDispatching}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ background: 'var(--success)', borderColor: 'var(--success)', color: '#fff' }}
-                onClick={executeDispatch}
-                disabled={isDispatching}
-              >
-                {isDispatching ? 'Marking...' : 'Mark as Dispatched'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
+      {dispatchModalOpen && reqToDispatch && (
+        <MarkDispatchedModal
+          isOpen={dispatchModalOpen}
+          req={reqToDispatch}
+          onClose={closeDispatchModal}
+          onConfirm={handleConfirmDispatch}
+          isDispatching={isDispatching}
+          transporterOptions={transporterOptions}
+          productName={getProductName(reqToDispatch)}
+          quantity={getProductQuantity(reqToDispatch)}
+          unit={getProductUnit(reqToDispatch)}
+        />
       )}
       {/* Undispatch Modal */}
       {reqToUndispatch && createPortal(
