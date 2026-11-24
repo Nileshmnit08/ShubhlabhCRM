@@ -49,6 +49,16 @@ const mockPriceTypes = [
   { id: 'p4', type_name: 'Purchase', type_code: 'PUR', display_order: 4 }
 ];
 
+const mockBrokers = [
+  { id: 'b1', broker_name: 'Om Prakash & Sons', contact_person: 'Om Prakash', mobile: '+91 98290 12345', active: true },
+  { id: 'b2', broker_name: 'Khandelwal Trading Co', contact_person: 'Ramesh Khandelwal', mobile: '+91 94140 54321', active: true }
+];
+
+const mockGrades = [
+  { id: 'g1', raw_material_id: '1', grade_name: 'Grade A - Premium', max_moisture: 7, active: true, raw_materials: { name_en: 'Mustard Oil Cake' } },
+  { id: 'g2', raw_material_id: '2', grade_name: 'Standard Feeds', max_moisture: 10, active: true, raw_materials: { name_en: 'Makka Daliya' } }
+];
+
 const mockAdminUser = {
   id: '1',
   email: 'admin@shubhlabh.com',
@@ -66,10 +76,8 @@ const mockCrmSettings = {
 };
 
 async function run() {
-  console.log('--- Starting Raw Materials UI Automation & Snapshot Capture ---');
+  console.log('--- Starting Raw Materials Horizontal Tabs UI Automation ---');
 
-  // 1. Start Vite Preview server
-  console.log('Starting Vite preview server...');
   const server = await preview({
     root: appRoot,
     preview: { port: 4174 }
@@ -165,12 +173,20 @@ async function run() {
         }
 
         if (url.includes('material_quality_grades')) {
-          req.respond({ status: 200, headers: corsHeaders, body: JSON.stringify([]) });
+          req.respond({
+            status: 200,
+            headers: corsHeaders,
+            body: JSON.stringify(mockGrades)
+          });
           return;
         }
 
         if (url.includes('brokers')) {
-          req.respond({ status: 200, headers: corsHeaders, body: JSON.stringify([]) });
+          req.respond({
+            status: 200,
+            headers: corsHeaders,
+            body: JSON.stringify(mockBrokers)
+          });
           return;
         }
 
@@ -211,7 +227,9 @@ async function run() {
       window.localStorage.setItem('sb-fwkjddflpzkowlawkmka-auth-token', JSON.stringify(mockSession));
     });
 
-    // 1. Desktop Viewport
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. DESKTOP VIEWPORT & HORIZONTAL TABS VALIDATION
+    // ─────────────────────────────────────────────────────────────────────────
     console.log('Navigating to Raw Materials Configuration page...');
     await page.setViewport({ width: 1440, height: 900 });
     await page.goto(`${baseUrl}raw-material-prices/configuration/raw-materials`, {
@@ -219,11 +237,19 @@ async function run() {
       timeout: 30000
     });
 
+    // Verify Horizontal Tabs Container exists
+    await page.waitForSelector('.horizontal-tabs-container', { timeout: 15000 });
+    console.log('✓ Horizontal tabs container located on page!');
+
+    // Verify exactly 6 tabs
+    const tabLinks = await page.$$('.horizontal-tabs-container a');
+    console.log(`Found ${tabLinks.length} horizontal tabs in container.`);
+    if (tabLinks.length !== 6) {
+      throw new Error(`Expected exactly 6 horizontal tabs, but found ${tabLinks.length}`);
+    }
+
     // Wait for the master table to appear
     await page.waitForFunction(() => document.body.innerText.includes('Raw Material Master'), { timeout: 15000 });
-    console.log('✓ Raw Material Master loaded successfully in browser!');
-
-    // Wait for data rows
     await page.waitForFunction(() => document.body.innerText.includes('Mustard Oil Cake'), { timeout: 10000 });
     await new Promise(r => setTimeout(r, 1500));
 
@@ -234,8 +260,69 @@ async function run() {
     fs.copyFileSync(desktopPath, brainDesktopPath);
     console.log(`✓ Saved desktop screenshot: ${desktopPath}`);
 
-    // 2. Open Add Material Modal
-    console.log('Clicking "+ Add Material" button to open modal...');
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. TAB SWITCHING VALIDATION ACROSS ALL 6 TABS
+    // ─────────────────────────────────────────────────────────────────────────
+    console.log('Testing navigation across all 6 configuration tabs...');
+
+    // Tab 2: Quality Parameters
+    await tabLinks[1].click();
+    await page.waitForFunction(() => document.body.innerText.includes('Quality Parameters'), { timeout: 10000 });
+    if (!page.url().includes('/quality-parameters')) {
+      throw new Error(`Expected URL to include /quality-parameters, got: ${page.url()}`);
+    }
+    console.log('✓ Quality Parameters tab clicked and loaded URL:', page.url());
+    const qualityPath = path.join(artifactsDir, 'quality-parameters-tab.png');
+    await page.screenshot({ path: qualityPath, fullPage: false });
+    fs.copyFileSync(qualityPath, path.join(brainArtifactsDir, 'quality-parameters-tab.png'));
+
+    // Tab 3: Brokers
+    await tabLinks[2].click();
+    await page.waitForFunction(() => document.body.innerText.includes('Brokers'), { timeout: 10000 });
+    if (!page.url().includes('/brokers')) {
+      throw new Error(`Expected URL to include /brokers, got: ${page.url()}`);
+    }
+    console.log('✓ Brokers tab clicked and loaded URL:', page.url());
+    const brokersPath = path.join(artifactsDir, 'brokers-tab.png');
+    await page.screenshot({ path: brokersPath, fullPage: false });
+    fs.copyFileSync(brokersPath, path.join(brainArtifactsDir, 'brokers-tab.png'));
+
+    // Tab 4: Units
+    await tabLinks[3].click();
+    await page.waitForFunction(() => document.body.innerText.includes('Units'), { timeout: 10000 });
+    if (!page.url().includes('/units')) {
+      throw new Error(`Expected URL to include /units, got: ${page.url()}`);
+    }
+    console.log('✓ Units tab clicked and loaded URL:', page.url());
+
+    // Tab 5: Price Types
+    await tabLinks[4].click();
+    await page.waitForFunction(() => document.body.innerText.includes('Price Types'), { timeout: 10000 });
+    if (!page.url().includes('/price-types')) {
+      throw new Error(`Expected URL to include /price-types, got: ${page.url()}`);
+    }
+    console.log('✓ Price Types tab clicked and loaded URL:', page.url());
+
+    // Tab 6: General Settings
+    await tabLinks[5].click();
+    await page.waitForFunction(() => document.body.innerText.includes('General Settings'), { timeout: 10000 });
+    if (!page.url().includes('/general-settings')) {
+      throw new Error(`Expected URL to include /general-settings, got: ${page.url()}`);
+    }
+    console.log('✓ General Settings tab clicked and loaded URL:', page.url());
+
+    // Return to Tab 1: Raw Materials
+    await tabLinks[0].click();
+    await page.waitForFunction(() => document.body.innerText.includes('Raw Material Master'), { timeout: 10000 });
+    if (!page.url().includes('/raw-materials')) {
+      throw new Error(`Expected URL to include /raw-materials, got: ${page.url()}`);
+    }
+    console.log('✓ Switched back to Raw Materials tab successfully!');
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. IN-PAGE ADD MODAL VALIDATION
+    // ─────────────────────────────────────────────────────────────────────────
+    console.log('Testing "+ Add Material" modal...');
     await page.evaluate(() => {
       const btns = Array.from(document.querySelectorAll('button'));
       const addBtn = btns.find(b => b.innerText.includes('Add Material'));
@@ -244,7 +331,6 @@ async function run() {
     await page.waitForFunction(() => document.body.innerText.includes('Add Raw Material'), { timeout: 5000 });
     await new Promise(r => setTimeout(r, 1000));
 
-    // Save Modal Open Screenshot
     const modalPath = path.join(artifactsDir, 'raw-materials-add-modal.png');
     const brainModalPath = path.join(brainArtifactsDir, 'raw-materials-add-modal.png');
     await page.screenshot({ path: modalPath, fullPage: false });
@@ -259,14 +345,15 @@ async function run() {
     });
     await new Promise(r => setTimeout(r, 600));
 
-    // 3. Test Filter and Search
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. FILTERING & SEARCH VALIDATION
+    // ─────────────────────────────────────────────────────────────────────────
     console.log('Testing search and category filter...');
     const searchInput = await page.$('input[placeholder="Search by material name or code..."]');
     if (searchInput) {
       await searchInput.type('खल');
       await new Promise(r => setTimeout(r, 800));
 
-      // Save Filtered Screenshot
       const filteredPath = path.join(artifactsDir, 'raw-materials-filtered.png');
       const brainFilteredPath = path.join(brainArtifactsDir, 'raw-materials-filtered.png');
       await page.screenshot({ path: filteredPath, fullPage: false });
@@ -282,7 +369,9 @@ async function run() {
       await new Promise(r => setTimeout(r, 600));
     }
 
-    // 4. Tablet Viewport (768 x 1024)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 5. TABLET VIEWPORT (768 x 1024)
+    // ─────────────────────────────────────────────────────────────────────────
     console.log('Testing tablet viewport 768 × 1024...');
     await page.setViewport({ width: 768, height: 1024 });
     await new Promise(r => setTimeout(r, 1000));
@@ -292,7 +381,9 @@ async function run() {
     fs.copyFileSync(tabletPath, brainTabletPath);
     console.log(`✓ Saved tablet screenshot: ${tabletPath}`);
 
-    // 5. Mobile Viewport (390 x 844)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6. MOBILE VIEWPORT (390 x 844)
+    // ─────────────────────────────────────────────────────────────────────────
     console.log('Testing mobile viewport 390 × 844...');
     await page.setViewport({ width: 390, height: 844 });
     await new Promise(r => setTimeout(r, 1000));

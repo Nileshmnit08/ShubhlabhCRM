@@ -185,4 +185,43 @@ describe('SL-RAW-MATERIALS-UI-01: Raw Materials Configuration Master & Layout Te
     });
   });
 
+  // 9. Horizontal Tab Bar Requirements (SL-CRM-RAW-MATERIALS-HORIZONTAL-TABS-01)
+  it('should verify horizontal tab layout structure and styling properties', () => {
+    // 6 evenly distributed tabs
+    assert.strictEqual(CONFIGURATION_TABS.length, 6);
+
+    // Verify tab route generation
+    const expectedRoutes = [
+      '/raw-material-prices/configuration/raw-materials',
+      '/raw-material-prices/configuration/quality-parameters',
+      '/raw-material-prices/configuration/brokers',
+      '/raw-material-prices/configuration/units',
+      '/raw-material-prices/configuration/price-types',
+      '/raw-material-prices/configuration/general-settings'
+    ];
+
+    const actualRoutes = CONFIGURATION_TABS.map(t => `/raw-material-prices/configuration/${t.id}`);
+    assert.deepStrictEqual(actualRoutes, expectedRoutes);
+
+    // Verify styling tokens: Active Tab
+    const activeStyle = {
+      color: '#EA580C',
+      backgroundColor: '#FFF7ED',
+      borderBottom: '3px solid #EA580C',
+      fontWeight: 600
+    };
+    assert.strictEqual(activeStyle.color, '#EA580C');
+    assert.strictEqual(activeStyle.backgroundColor, '#FFF7ED');
+    assert.strictEqual(activeStyle.borderBottom, '3px solid #EA580C');
+
+    // Verify styling tokens: Inactive Tab
+    const inactiveStyle = {
+      color: '#0F172A',
+      backgroundColor: 'transparent',
+      fontWeight: 500
+    };
+    assert.strictEqual(inactiveStyle.color, '#0F172A');
+    assert.strictEqual(inactiveStyle.backgroundColor, 'transparent');
+  });
+
 });

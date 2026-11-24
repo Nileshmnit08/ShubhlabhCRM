@@ -89,61 +89,71 @@ const Configuration = () => {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {/* Left Panel – Configuration Navigation */}
-        <div style={{ flex: '0 0 240px', width: '240px' }}>
-          <div style={{
-            background: '#FFFFFF',
-            borderRadius: '0.75rem',
-            border: '1px solid #E2E8F0',
-            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-            overflow: 'hidden'
-          }}>
-            {CONFIGURATION_TABS.map((tab, idx) => {
-              const Icon = tab.icon;
-              return (
-                <NavLink 
-                  key={tab.id}
-                  to={`/raw-material-prices/configuration/${tab.id}`}
-                  style={({ isActive }) => ({
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem', 
-                    padding: '0.875rem 1.125rem',
-                    textAlign: 'left',
-                    background: isActive ? '#FFF7ED' : 'transparent',
-                    color: isActive ? '#EA580C' : '#475569',
-                    fontWeight: isActive ? 600 : 500,
-                    fontSize: '0.875rem',
-                    borderLeft: isActive ? '3px solid #EA580C' : '3px solid transparent',
-                    borderBottom: idx === CONFIGURATION_TABS.length - 1 ? 'none' : '1px solid #F1F5F9',
-                    textDecoration: 'none',
-                    transition: 'all 0.15s ease'
-                  })}
-                  onMouseEnter={(e) => {
-                    if (!e.currentTarget.classList.contains('active')) {
-                      e.currentTarget.style.backgroundColor = '#F8FAFC';
-                      e.currentTarget.style.color = '#0F172A';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!e.currentTarget.classList.contains('active')) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                      e.currentTarget.style.color = '#475569';
-                    }
-                  }}
-                >
-                  <Icon size={18} style={{ flexShrink: 0 }} />
-                  <span>{tab.label}</span>
-                </NavLink>
-              );
-            })}
-          </div>
-        </div>
+      {/* ─── HORIZONTAL CONFIGURATION NAVIGATION (6 TABS) ─── */}
+      <div
+        className="horizontal-tabs-container"
+        style={{
+          display: 'flex',
+          alignItems: 'stretch',
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          borderRadius: '0.75rem',
+          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+          marginBottom: '1.5rem',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          width: '100%'
+        }}
+      >
+        {CONFIGURATION_TABS.map((tab, idx) => {
+          const Icon = tab.icon;
+          return (
+            <NavLink 
+              key={tab.id}
+              to={`/raw-material-prices/configuration/${tab.id}`}
+              style={({ isActive }) => ({
+                flex: '1 1 0',
+                minWidth: '150px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem', 
+                padding: '0.875rem 1rem',
+                fontSize: '0.875rem',
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? '#EA580C' : '#0F172A',
+                backgroundColor: isActive ? '#FFF7ED' : 'transparent',
+                border: 'none',
+                borderBottom: isActive ? '3px solid #EA580C' : '3px solid transparent',
+                borderRight: idx === CONFIGURATION_TABS.length - 1 ? 'none' : '1px solid #F1F5F9',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                textDecoration: 'none',
+                transition: 'all 0.15s ease',
+                boxSizing: 'border-box'
+              })}
+              onMouseEnter={(e) => {
+                if (!e.currentTarget.classList.contains('active')) {
+                  e.currentTarget.style.backgroundColor = '#F8FAFC';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!e.currentTarget.classList.contains('active')) {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }
+              }}
+            >
+              <Icon size={18} style={{ flexShrink: 0 }} />
+              <span>{tab.label}</span>
+            </NavLink>
+          );
+        })}
+      </div>
 
-        {/* Right Panel – Configuration Content */}
-        <div style={{ flex: '1 1 700px', minWidth: '320px' }}>
-          <Routes>
+      {/* ─── FULL-WIDTH CONFIGURATION CONTENT ─── */}
+      <div style={{ width: '100%' }}>
+        <Routes>
             <Route index element={<Navigate to="raw-materials" replace />} />
             
             {/* RAW MATERIALS TAB */}
@@ -280,8 +290,7 @@ const Configuration = () => {
           </Routes>
         </div>
       </div>
-    </div>
-  );
+    );
 };
 
 export default Configuration;
