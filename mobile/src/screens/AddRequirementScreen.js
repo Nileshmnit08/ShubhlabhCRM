@@ -320,7 +320,7 @@ export default function AddRequirementScreen({ route, navigation }) {
         unit,
         priority,
         intent_type: intentType,
-        status: 'Open',
+        status: 'New', // Complies with req_status_check
         assigned_to: userProfile?.id ?? null,
         expected_date: expectedDate.trim() || null,
         expected_rate: expectedRate ? parseFloat(expectedRate) : null,

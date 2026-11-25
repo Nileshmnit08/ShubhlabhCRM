@@ -42,10 +42,44 @@ export const currentSavedAddress = (session, customerProfile) =>
 export const resolveDeliveryAddress = ({ preferred, session, customerProfile }) =>
   (typeof preferred === 'string' && preferred.trim()) || currentSavedAddress(session, customerProfile);
 
+export const PERMITTED_REQUIREMENT_STATUSES = new Set([
+  'New',
+  'Quotation Required',
+  'Quotation Sent',
+  'Negotiation',
+  'Confirmed',
+  'Lost',
+  'Closed'
+]);
+
+/**
+ * Normalizes any requirement status into one strictly permitted by req_status_check.
+ * Guarantees that neither uppercase UI labels (e.g., 'NEW') nor invalid legacy defaults
+ * (e.g., 'Open', 'Draft', 'Pending') can cause a 23514 check constraint violation.
+ */
+export function normalizeRequirementStatus(status) {
+  if (!status || typeof status !== 'string') return 'New';
+  const trimmed = status.trim();
+  if (PERMITTED_REQUIREMENT_STATUSES.has(trimmed)) return trimmed;
+  const upper = trimmed.toUpperCase();
+  if (upper === 'NEW') return 'New';
+  if (upper === 'CONFIRMED') return 'Confirmed';
+  if (upper === 'CLOSED') return 'Closed';
+  if (upper === 'QUOTATION REQUIRED') return 'Quotation Required';
+  if (upper === 'QUOTATION SENT') return 'Quotation Sent';
+  if (upper === 'NEGOTIATION') return 'Negotiation';
+  if (upper === 'LOST') return 'Lost';
+  return 'New';
+}
+
 export function buildRequirementPayload({ mode, customerProfile, existingOrder, address, clientReferenceId }) {
+  const resolvedStatus = mode === 'edit' && existingOrder
+    ? normalizeRequirementStatus(existingOrder.raw_status || existingOrder.status)
+    : 'New';
+
   return {
     party_id: customerProfile.id,
-    status: mode === 'edit' && existingOrder ? existingOrder.status : 'New', // a new order starts as New; only an edit keeps its status
+    status: resolvedStatus,
     unit: 'Bags', // NOT NULL on requirements
     notes: JSON.stringify({ address, client_reference_id: clientReferenceId }),
   };
