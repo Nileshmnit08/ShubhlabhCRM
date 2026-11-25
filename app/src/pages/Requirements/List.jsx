@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare, Undo2, FileText, Truck, Check, Phone, Calendar, Info, Package } from 'lucide-react';
+import { ClipboardList, Search, Filter, ChevronRight, AlertCircle, RefreshCw, XCircle, Trash2, MoreVertical, LayoutGrid, List as ListIcon, ChevronDown, ChevronUp, Plus, Edit, CheckCircle, XSquare, Undo2, FileText, Truck, Check, Phone, Calendar, Info, Package, Share2 } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
 import { AuthContext } from '../../AuthContext';
@@ -23,6 +23,7 @@ import {
   resolveRequirementTransporter
 } from '../../lib/dispatchedTransportSummary';
 import MarkDispatchedModal from './MarkDispatchedModal';
+import ShareDispatchListModal from './ShareDispatchListModal';
 
 // --- SL-DISPATCHED-TRANSPORT-SUMMARY-03: Transport Details Display ---
 const TransportDetailsBox = ({ details, compact = false }) => {
@@ -298,6 +299,7 @@ export default function RequirementList() {
 
   const [reqToUndispatch, setReqToUndispatch] = useState(null);
   const [isUndispatching, setIsUndispatching] = useState(false);
+  const [shareDispatchModalOpen, setShareDispatchModalOpen] = useState(false);
   const isAdmin = userProfile?.role === 'Admin';
 
   const [toast, setToast] = useState(null);
@@ -1078,6 +1080,30 @@ export default function RequirementList() {
               <FileText size={14} /> Daily Report
             </button>
           </div>
+          <button 
+            onClick={() => setShareDispatchModalOpen(true)}
+            className="btn btn-secondary"
+            title="Share consolidated dispatch list"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              border: '1.5px solid #10B981',
+              background: '#ffffff',
+              color: '#065F46',
+              cursor: 'pointer',
+              boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#ECFDF5'; e.currentTarget.style.borderColor = '#059669'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#10B981'; }}
+          >
+            <Share2 size={15} style={{ color: '#059669' }} /> Share Dispatch List
+          </button>
           <Link to="/customers" className="btn btn-primary">
             <Plus size={16}/> Add Requirement
           </Link>
@@ -1351,7 +1377,9 @@ export default function RequirementList() {
                                   )}
                                 </td>
                                 <td style={{padding: '12px'}}>{formatRate(req.expected_rate)}</td>
-                                <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>{getFriendlyDate(req.expected_date)}</td>
+                                <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>
+                                  {isDispatched ? formatDate(req.expected_date) : getFriendlyDate(req.expected_date)}
+                                </td>
                                 <td style={{padding: '12px'}}>
                                   {isDispatched ? (
                                     <div style={{display: 'flex', flexDirection: 'column', gap: '3px'}}>
@@ -1663,6 +1691,16 @@ export default function RequirementList() {
           </div>
         </div>,
         document.body
+      )}
+      {/* Share Dispatch List Modal */}
+      {shareDispatchModalOpen && (
+        <ShareDispatchListModal
+          isOpen={shareDispatchModalOpen}
+          onClose={() => setShareDispatchModalOpen(false)}
+          requirements={filteredRequirements}
+          statusFilter={statusFilter}
+          includeCompleted={includeCompleted}
+        />
       )}
     </div>
   );
