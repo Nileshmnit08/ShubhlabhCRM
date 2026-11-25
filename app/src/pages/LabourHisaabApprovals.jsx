@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardCheck, RefreshCw, AlertCircle, PlugZap, CheckCircle2, XCircle, ArrowLeft, History } from 'lucide-react';
+import { ClipboardCheck, RefreshCw, AlertCircle, PlugZap, CheckCircle2, XCircle, ArrowLeft, History, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatInr, monthStart, quantityLabel, workTypeLabel, isPermissionError } from '../lib/labourHisaabData';
-import { formatIst, formatIstTime, sortRegisters, registerTimeline, registerTotals, decideRegister, singleFlight, EVENT_LABELS, isRegisterNotInstalled, diffAgainstApproved } from '../lib/labourApprovals';
+import { formatIst, formatIstTime, sortRegisters, registerTimeline, registerTotals, decideRegister, deleteWorkEntry, singleFlight, EVENT_LABELS, isRegisterNotInstalled, diffAgainstApproved } from '../lib/labourApprovals';
 
 /**
  * LH-DAILY-REGISTER-APPROVAL-01: approve or reject LabourHisaab daily registers (admin only).
@@ -40,6 +40,8 @@ export default function LabourHisaabApprovals() {
   const [detail, setDetail] = useState(null); // { register, entries, lines, events, users }
   const [detailError, setDetailError] = useState('');
   const [confirm, setConfirm] = useState(null); // { decision }
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // entry
+  const [deleting, setDeleting] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { kind: 'success' | 'error', text }
@@ -155,6 +157,61 @@ export default function LabourHisaabApprovals() {
     }
   });
   const decide = () => decideOnce.current();
+
+  const handleDeleteEntry = async () => {
+    if (!deleteConfirm || !detail) return;
+    setDeleting(true);
+    setNotice(null);
+    const toDeleteId = deleteConfirm.id;
+    try {
+      const out = await deleteWorkEntry({
+        rpc: (name, args) => supabase.rpc(name, args),
+        workEntryId: toDeleteId,
+        reason: 'Deleted incorrect entry',
+      });
+      if (out.ok) {
+        const remainingEntries = detail.entries.filter(e => e.id !== toDeleteId);
+        const remainingLines = detail.lines.filter(l => l.work_entry_id !== toDeleteId);
+        const newTotals = registerTotals(remainingEntries, remainingLines);
+        setDetail(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            entries: remainingEntries,
+            lines: remainingLines,
+            register: {
+              ...prev.register,
+              status: 'Pending',
+              revision: (Number(prev.register.revision) || 0) + 1,
+              entry_count: newTotals.entries,
+              labourer_count: newTotals.labourers,
+              total_bags: newTotals.bags,
+              total_amount: newTotals.amount,
+            },
+          };
+        });
+        setRegisters(prev => prev.map(r => r.id === detail.register.id ? {
+          ...r,
+          status: 'Pending',
+          revision: (Number(r.revision) || 0) + 1,
+          entry_count: newTotals.entries,
+          labourer_count: newTotals.labourers,
+          total_bags: newTotals.bags,
+          total_amount: newTotals.amount,
+        } : r));
+        setDeleteConfirm(null);
+        await reloadRegister(detail.register, { kind: 'success', text: 'Work entry deleted successfully.' });
+      } else {
+        setNotice({ kind: 'error', text: out.message });
+        setDeleteConfirm(null);
+      }
+    } catch (e) {
+      setNotice({ kind: 'error', text: `Could not delete entry: ${e?.message || e}` });
+      setDeleteConfirm(null);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const timeline = useMemo(() => (detail ? registerTimeline(detail.entries, detail.lines) : []), [detail]);
   const totals = useMemo(() => (detail ? registerTotals(detail.entries, detail.lines) : null), [detail]);
@@ -348,6 +405,32 @@ export default function LabourHisaabApprovals() {
               </div>
             </div>
           ) : null}
+          {deleteConfirm ? (
+            <div className="card" style={{ padding: '0.85rem 1rem', marginBottom: '0.75rem', border: '1px solid var(--danger, #D92D20)', background: 'rgba(217, 45, 32, 0.04)', borderRadius: 8 }} role="dialog" aria-label="Confirm entry deletion">
+              <div style={{ fontWeight: 700, fontSize: '0.98rem', color: 'var(--danger, #D92D20)', marginBottom: 4 }}>
+                Delete this entry?
+              </div>
+              <div className="text-secondary" style={{ fontSize: '0.88rem', marginBottom: 10 }}>
+                This will permanently remove the selected work entry from this labour record.
+              </div>
+              <div style={{ background: 'var(--surface, #fff)', padding: '0.55rem 0.75rem', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.85rem', marginBottom: 12, display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                <div><strong>Work:</strong> {workTypeLabel(deleteConfirm.work_type)}</div>
+                <div><strong>Quantity:</strong> {quantityLabel(deleteConfirm)}</div>
+                <div><strong>Amount:</strong> {formatInr(deleteConfirm.calculated_labour_amount)}</div>
+                {deleteConfirm.labourers?.length ? (
+                  <div><strong>Labourers:</strong> {deleteConfirm.labourers.map(l => l.name).join(', ')}</div>
+                ) : null}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="btn" disabled={deleting} onClick={handleDeleteEntry} style={{ background: 'var(--danger, #D92D20)', color: '#fff', border: 'none', padding: '0.45rem 0.9rem', borderRadius: 6, fontWeight: 600, cursor: deleting ? 'not-allowed' : 'pointer' }}>
+                  {deleting ? 'Deleting…' : 'Delete Entry'}
+                </button>
+                <button type="button" className="btn btn-secondary" disabled={deleting} onClick={() => setDeleteConfirm(null)} style={{ padding: '0.45rem 0.9rem', borderRadius: 6, fontWeight: 500 }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : null}
           {notice ? (
             <div role={notice.kind === 'error' ? 'alert' : 'status'} style={{ fontSize: '0.9rem', marginBottom: '0.75rem', padding: '0.6rem 0.75rem', borderRadius: 8, fontWeight: 600,
               border: `1px solid ${notice.kind === 'error' ? STATUS_COLORS.Rejected : STATUS_COLORS.Approved}`, color: notice.kind === 'error' ? STATUS_COLORS.Rejected : STATUS_COLORS.Approved }}>
@@ -363,6 +446,7 @@ export default function LabourHisaabApprovals() {
                 <thead><tr>
                   <th style={th}>Completed</th><th style={th}>Recorded</th><th style={th}>Work</th><th style={th}>Quantity</th>
                   <th style={{ ...th, textAlign: 'right' }}>Amount</th><th style={th}>Labourers</th><th style={th}>Entered by</th>
+                  <th style={{ ...th, textAlign: 'center', width: 60 }}>Action</th>
                 </tr></thead>
                 <tbody>
                   {timeline.map(e => (
@@ -374,11 +458,23 @@ export default function LabourHisaabApprovals() {
                       <td style={tdNum}>{formatInr(e.calculated_labour_amount)}</td>
                       <td style={td}>{e.labourers.length ? e.labourers.map(l => `${l.name} (${formatInr(l.amount)})`).join(', ') : '—'}</td>
                       <td style={td}>{who(e.created_by)}{e.updated_by && e.updated_by !== e.created_by ? ` · edited by ${who(e.updated_by)}` : ''}</td>
+                      <td style={{ ...td, textAlign: 'center', verticalAlign: 'middle' }}>
+                        <button
+                          type="button"
+                          className="btn-icon"
+                          onClick={() => { setDeleteConfirm(e); setNotice(null); }}
+                          title="Delete this work entry"
+                          aria-label={`Delete ${workTypeLabel(e.work_type)} entry`}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger, #D92D20)', padding: '4px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   <tr>
                     <td style={{ ...td, fontWeight: 600 }} colSpan={4}>Total · {totals.entries} entries · {totals.labourers} labourers · {totals.bags} bags</td>
-                    <td style={{ ...tdNum, fontWeight: 700 }}>{formatInr(totals.amount)}</td><td style={td} colSpan={2} />
+                    <td style={{ ...tdNum, fontWeight: 700 }}>{formatInr(totals.amount)}</td><td style={td} colSpan={3} />
                   </tr>
                 </tbody>
               </table>

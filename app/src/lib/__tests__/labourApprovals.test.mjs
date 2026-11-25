@@ -149,7 +149,7 @@ test('not-installed detection for proposal 252', () => {
   assert.equal(isRegisterNotInstalled({ code: '42501', message: 'permission denied for view v_lh_daily_registers' }), false);
 });
 
-test('approvals page: admin route, only write is lh_decide_daily_register with the reviewed revision; real data only', () => {
+test('approvals page: admin route, writes use authorized RPCs; real data only', () => {
   const app = read('../../App.jsx');
   assert.match(app, /const LabourHisaabApprovals = lazy\(\(\) => import\('\.\/pages\/LabourHisaabApprovals'\)\);/);
   const route = app.indexOf('<Route path="labour-hisaab/approvals" element={<LabourHisaabApprovals />} />');
@@ -162,15 +162,51 @@ test('approvals page: admin route, only write is lh_decide_daily_register with t
   }
   const page = read('../../pages/LabourHisaabApprovals.jsx');
   assert.ok(!/\.(insert|update|upsert|delete)\(/.test(page), 'no direct table writes');
-  // LH-CRM-APPROVAL-ACTION-FIX-10: the page's only RPC is the pass-through used by decideRegister,
-  // which calls lh_decide_daily_register with the reviewed revision (and nothing else).
-  assert.deepEqual([...page.matchAll(/\.rpc\(([^)]*)\)/g)].map(m => m[1].trim()), ['name, args'], 'the decision is the only write');
-  assert.match(page, /decideRegister\(\{ rpc: \(name, args\) => supabase\.rpc\(name, args\), register: reg/);
+  // Writes are routed through authorized RPCs
+  assert.ok([...page.matchAll(/\.rpc\(([^)]*)\)/g)].every(m => m[1].trim() === 'name, args'));
+  assert.match(page, /decideRegister\(\{\s*rpc:\s*\(name, args\)\s*=>\s*supabase\.rpc\(name, args\),\s*register:\s*reg/);
+  assert.match(page, /deleteWorkEntry\(\{\s*rpc:\s*\(name, args\)\s*=>\s*supabase\.rpc\(name, args\),\s*workEntryId:/);
   const lib = read('../labourApprovals.js');
-  assert.deepEqual([...lib.matchAll(/rpc\('([^']+)'/g)].map(m => m[1]), ['lh_decide_daily_register']);
+  assert.deepEqual([...lib.matchAll(/rpc\('([^']+)'/g)].map(m => m[1]), ['lh_decide_daily_register', 'lh_admin_delete_work_entry']);
   assert.match(lib, /p_revision: register\.revision/, 'decides the revision that was reviewed');
   assert.match(page, /role="dialog" aria-label="Confirm decision"/, 'confirmation step before deciding');
+  assert.match(page, /role="dialog" aria-label="Confirm entry deletion"/, 'confirmation step before deleting entry');
   assert.ok(!/initialData|INITIAL_|demo/i.test(page.replace(/no demo entries/gi, '')), 'no sample data');
   const main = read('../../pages/LabourHisaab.jsx');
   assert.match(main, /to="\/labour-hisaab\/approvals"/, 'linked from Labour Hisaab');
+});
+
+test('deleteWorkEntry: validates workEntryId, sends correct RPC payload and maps errors', async () => {
+  const { deleteWorkEntry } = await import('../labourApprovals.js');
+  const calls = [];
+  const rpcOk = async (name, args) => { calls.push([name, args]); return { data: { success: true }, error: null }; };
+  
+  // Validation
+  const noId = await deleteWorkEntry({ rpc: rpcOk, workEntryId: '' });
+  assert.deepEqual(noId, { ok: false, message: 'Invalid work entry ID.' });
+
+  // Successful deletion with default reason
+  const res1 = await deleteWorkEntry({ rpc: rpcOk, workEntryId: 'entry-123' });
+  assert.deepEqual(res1, { ok: true, message: 'Work entry deleted successfully.' });
+  assert.deepEqual(calls[0], ['lh_admin_delete_work_entry', { p_id: 'entry-123', p_reason: 'Deleted incorrect entry' }]);
+
+  // Successful deletion with custom reason
+  const res2 = await deleteWorkEntry({ rpc: rpcOk, workEntryId: 'entry-456', reason: 'Operator recorded double count' });
+  assert.deepEqual(res2, { ok: true, message: 'Work entry deleted successfully.' });
+  assert.deepEqual(calls[1], ['lh_admin_delete_work_entry', { p_id: 'entry-456', p_reason: 'Operator recorded double count' }]);
+
+  // Error mappings
+  const rpcFail = (message, code) => async () => ({ data: null, error: { message, code } });
+  
+  const errAdmin = await deleteWorkEntry({ rpc: rpcFail('Only a Shubh Labh CRM admin can delete a labour work entry', '42501'), workEntryId: 'e1' });
+  assert.equal(errAdmin.ok, false);
+  assert.match(errAdmin.message, /Only CRM admins/);
+
+  const errSettled = await deleteWorkEntry({ rpc: rpcFail('Cannot delete entries for a month that is closed and settled', 'P0001'), workEntryId: 'e1' });
+  assert.equal(errSettled.ok, false);
+  assert.match(errSettled.message, /closed and settled/);
+
+  const errNotFound = await deleteWorkEntry({ rpc: rpcFail('Labour entry not found', 'P0002'), workEntryId: 'e1' });
+  assert.equal(errNotFound.ok, false);
+  assert.match(errNotFound.message, /not found or already deleted/);
 });

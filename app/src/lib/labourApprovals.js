@@ -108,6 +108,34 @@ export async function decideRegister({ rpc, register, decision, reason }) {
 }
 
 /**
+ * LH-APPROVAL-DELETE-ROW-01: deletes an individual labour work entry via the database RPC lh_admin_delete_work_entry.
+ * Requires CRM admin authorization. Logs to lh_work_entry_history with reason; recalculates daily register.
+ * → { ok, message }
+ */
+export async function deleteWorkEntry({ rpc, workEntryId, reason = 'Deleted incorrect entry' }) {
+  if (!workEntryId) return { ok: false, message: 'Invalid work entry ID.' };
+  const r = String(reason || '').trim() || 'Deleted incorrect entry';
+  const { data, error } = await rpc('lh_admin_delete_work_entry', {
+    p_id: workEntryId,
+    p_reason: r,
+  });
+  if (error) {
+    const msg = String(error.message || error);
+    if (/Only a Shubh Labh CRM admin/i.test(msg) || String(error.code) === '42501') {
+      return { ok: false, message: 'Only CRM admins can delete labour work entries.' };
+    }
+    if (/closed and settled/i.test(msg)) {
+      return { ok: false, message: msg };
+    }
+    if (/not found/i.test(msg) || String(error.code) === 'P0002') {
+      return { ok: false, message: 'Labour work entry not found or already deleted.' };
+    }
+    return { ok: false, message: `Could not delete entry: ${msg}` };
+  }
+  return { ok: true, message: 'Work entry deleted successfully.' };
+}
+
+/**
  * Runs `fn` at most once at a time: calls made while it is running are ignored (resolve to
  * undefined), so a double click can never send a second approve/reject request.
  */
