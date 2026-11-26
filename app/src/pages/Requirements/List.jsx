@@ -24,6 +24,12 @@ import {
 } from '../../lib/dispatchedTransportSummary';
 import MarkDispatchedModal from './MarkDispatchedModal';
 import ShareDispatchListModal from './ShareDispatchListModal';
+import {
+  getCanonicalRequirementItems,
+  formatItemQtyAndWeight,
+  formatCompatibleUnitTotals,
+  getDistinctProductNames
+} from '../../lib/canonicalRequirements';
 
 // --- SL-DISPATCHED-TRANSPORT-SUMMARY-03: Transport Details Display ---
 const TransportDetailsBox = ({ details, compact = false }) => {
@@ -924,7 +930,9 @@ export default function RequirementList() {
           customer_mobile: req.customer_mobile,
           customer_whatsapp: req.customer_whatsapp,
           requirements: [],
-          total_qty: 0,
+          active_items: [],
+          total_qty_display: '',
+          product_names: [],
           earliest_date: null,
           has_overdue: false,
           has_high_priority: false,
@@ -935,28 +943,20 @@ export default function RequirementList() {
       const group = map.get(pid);
       group.requirements.push(req);
       
-      const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
+      const canonicalItems = getCanonicalRequirementItems(req);
+      const actualTotalRequired = canonicalItems.reduce((acc, i) => acc + (i.quantity || 0), 0);
       const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
       const isDispatched = req.status === 'Dispatched' || req.dispatch_progress === 'Fully Dispatched' || (Number(req.total_dispatched_quantity) > 0 && actualPending === 0);
 
       if (statusFilter === 'Dispatched') {
-        if (req.requirement_items && req.requirement_items.length > 0) {
-          group.total_qty += req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
-        } else if (req.product_type !== 'General Requirement') {
-          group.total_qty += Number(req.total_dispatched_quantity || req.required_quantity) || 0;
-        }
+        group.active_items.push(...canonicalItems);
       } else if (!isDispatched && req.status !== 'Closed') {
-        if (req.requirement_items && req.requirement_items.length > 0) {
-          group.total_qty += req.requirement_items.reduce((acc, i) => acc + (Number(i.quantity) || 0), 0);
-        } else if (req.product_type !== 'General Requirement') {
-          group.total_qty += Number(req.required_quantity) || 0;
-        }
+        group.active_items.push(...canonicalItems);
       }
-      if (req.requirement_items && req.requirement_items.length > 0) {
-        req.requirement_items.forEach(item => group.products.add(item.product_name));
-      } else if (req.product_type && req.product_type !== 'General Requirement') {
-        group.products.add(req.product_type);
-      }
+
+      canonicalItems.forEach(item => {
+        if (item.product_name) group.products.add(item.product_name);
+      });
       
       const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status) && !isDispatched;
       const isOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
@@ -968,6 +968,11 @@ export default function RequirementList() {
           group.earliest_date = req.expected_date;
         }
       }
+    });
+
+    map.forEach(group => {
+      group.total_qty_display = formatCompatibleUnitTotals(group.active_items);
+      group.product_names = getDistinctProductNames(group.active_items);
     });
 
     groupedCustomers.push(...Array.from(map.values()));
@@ -1222,8 +1227,9 @@ export default function RequirementList() {
         <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
           {groupedCustomers.map(group => {
             const isExpanded = expandedCustomers.has(group.party_id || group.customer_name);
-            const productArr = Array.from(group.products);
-            const productDisplay = productArr.slice(0, 2).join(', ') + (productArr.length > 2 ? ` + ${productArr.length - 2} more` : '');
+            const productDisplay = group.product_names?.length > 0
+              ? group.product_names.join(', ')
+              : (Array.from(group.products).join(', ') || '-');
             
             return (
               <div key={group.party_id || group.customer_name} className="glass-panel" style={{background: '#ffffff', borderRadius: '12px', border: group.has_overdue ? '1px solid var(--danger)' : '1px solid #E5E7EB', overflow: 'hidden'}}>
@@ -1252,7 +1258,7 @@ export default function RequirementList() {
                            {getFriendlyDate(group.earliest_date)}
                          </span>
                       )}
-                      <span style={{color: 'var(--text-primary)', fontWeight: 600}}>• {group.total_qty} total active qty</span>
+                      <span style={{color: 'var(--text-primary)', fontWeight: 600}}>• {group.total_qty_display ? `${group.total_qty_display} total active qty` : '0 active qty'}</span>
                       <span className="text-muted">• Owner: {group.owner_email.split('@')[0]}</span>
                     </div>
                     
@@ -1346,109 +1352,152 @@ export default function RequirementList() {
                         </thead>
                         <tbody>
                           {group.requirements.map(req => {
-                            const actualTotalRequired = req.requirement_items?.length > 0 ? req.requirement_items.reduce((acc, i) => acc + (i.quantity || 0), 0) : (req.required_quantity || req.quantity || 0);
+                            const canonicalItems = getCanonicalRequirementItems(req);
+                            const actualTotalRequired = canonicalItems.reduce((acc, i) => acc + (i.quantity || 0), 0);
                             const actualPending = Math.max(0, actualTotalRequired - (req.total_dispatched_quantity || 0));
                             const isDispatched = req.status === 'Dispatched' || req.dispatch_progress === 'Fully Dispatched' || (Number(req.total_dispatched_quantity) > 0 && actualPending === 0);
                             const isActualPending = actualPending > 0 && !['Closed', 'Fulfilled', 'Completed', 'Cancelled', 'Lost', 'Won', 'Dispatched'].includes(req.status) && !isDispatched;
                             const isReqOverdue = req.expected_date && new Date(req.expected_date) < new Date(new Date().toDateString()) && isActualPending;
                             const isPartiallyDispatched = (Number(req.total_dispatched_quantity) > 0 && actualPending > 0);
-                            return (
-                              <tr 
-                                key={req.id} 
-                                style={{
-                                  borderBottom: '1px solid #E5E7EB', 
-                                  transition: 'background 0.2s', 
-                                  cursor: 'default',
-                                  background: isDispatched ? 'rgba(59, 130, 246, 0.04)' : 'transparent'
-                                }} 
-                                onMouseEnter={e => e.currentTarget.style.background = isDispatched ? 'rgba(59, 130, 246, 0.08)' : '#F3F4F6'} 
-                                onMouseLeave={e => e.currentTarget.style.background = isDispatched ? 'rgba(59, 130, 246, 0.04)' : 'transparent'}
-                              >
-                                <td style={{padding: '12px'}}><Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>
-                                  {req.demand_ref ? <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)'}}>{req.demand_ref}</span> : null}
-                                  {getProductName(req)}
-                                </Link></td>
-                                <td style={{padding: '12px', fontWeight: 500}}>
-                                  {getProductQuantity(req)} {getProductUnit(req)}
-                                  {isPartiallyDispatched && !isDispatched && (
-                                    <div style={{fontSize: '0.72rem', color: '#065F46', marginTop: '2px'}}>
-                                      Disp: {req.total_dispatched_quantity} | Pend: {actualPending}
-                                    </div>
-                                  )}
-                                </td>
-                                <td style={{padding: '12px'}}>{formatRate(req.expected_rate)}</td>
-                                <td style={{padding: '12px', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>
-                                  {isDispatched ? formatDate(req.expected_date) : getFriendlyDate(req.expected_date)}
-                                </td>
-                                <td style={{padding: '12px'}}>
-                                  {isDispatched ? (
-                                    <div style={{display: 'flex', flexDirection: 'column', gap: '3px'}}>
-                                      <span className="badge badge-dispatched" style={{fontSize: '0.75rem', padding: '3px 8px', width: 'fit-content'}}>
-                                        DISPATCHED
-                                      </span>
-                                      {(req.transporter_info?.date || req.latest_dispatch_date) && (
-                                        <div style={{fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                          <Calendar size={12} /> {formatDisplayDate(req.transporter_info?.date || req.latest_dispatch_date)}
-                                        </div>
-                                      )}
-                                      <div style={{fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px'}}>
-                                        <Package size={12} /> {getProductQuantity(req)} {getProductUnit(req)}
+                            const rowCount = Math.max(1, canonicalItems.length);
+
+                            return canonicalItems.map((item, itemIdx) => {
+                              const isFirstItem = itemIdx === 0;
+                              const isLastItem = itemIdx === rowCount - 1;
+                              const itemFormatted = formatItemQtyAndWeight(item);
+
+                              return (
+                                <tr 
+                                  key={`${req.id}-${item.id || itemIdx}`} 
+                                  style={{
+                                    borderBottom: isLastItem ? '2px solid #E5E7EB' : '1px dashed #E2E8F0', 
+                                    transition: 'background 0.2s', 
+                                    cursor: 'default',
+                                    background: isDispatched ? 'rgba(59, 130, 246, 0.04)' : 'transparent'
+                                  }} 
+                                  onMouseEnter={e => e.currentTarget.style.background = isDispatched ? 'rgba(59, 130, 246, 0.08)' : '#F3F4F6'} 
+                                  onMouseLeave={e => e.currentTarget.style.background = isDispatched ? 'rgba(59, 130, 246, 0.04)' : 'transparent'}
+                                >
+                                  {/* Product Name */}
+                                  <td style={{padding: '10px 12px', verticalAlign: 'top'}}>
+                                    {isFirstItem ? (
+                                      <Link to={`/requirements/${req.id}`} style={{color: 'var(--primary)', fontWeight: 600, textDecoration: 'none'}}>
+                                        {req.demand_ref ? <span style={{display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)'}}>{req.demand_ref}</span> : null}
+                                        <span>{item.product_name}</span>
+                                        {item.category && item.category !== 'Pallet' && (
+                                          <span style={{marginLeft: '6px', fontSize: '0.72rem', background: '#F1F5F9', color: '#475569', padding: '1px 6px', borderRadius: '4px', fontWeight: 500}}>
+                                            {item.category}
+                                          </span>
+                                        )}
+                                      </Link>
+                                    ) : (
+                                      <div style={{paddingLeft: '8px', borderLeft: '2px solid #CBD5E1', display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                        <span style={{fontWeight: 600, color: 'var(--text-primary)'}}>{item.product_name}</span>
+                                        {item.category && item.category !== 'Pallet' && (
+                                          <span style={{fontSize: '0.72rem', background: '#F1F5F9', color: '#475569', padding: '1px 6px', borderRadius: '4px', fontWeight: 500}}>
+                                            {item.category}
+                                          </span>
+                                        )}
                                       </div>
-                                    </div>
-                                  ) : (
-                                    <span className={getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '3px 8px'}}>
-                                      {req.status}
-                                    </span>
+                                    )}
+                                  </td>
+
+                                  {/* Qty & Packaging Weight */}
+                                  <td style={{padding: '10px 12px', verticalAlign: 'top', fontWeight: 500}}>
+                                    <div style={{fontWeight: 600, color: 'var(--text-primary)'}}>{itemFormatted.primary}</div>
+                                    {itemFormatted.weightSub && (
+                                      <div style={{fontSize: '0.74rem', color: '#64748B', marginTop: '1px'}}>
+                                        {itemFormatted.weightSub}
+                                      </div>
+                                    )}
+                                    {isFirstItem && isPartiallyDispatched && !isDispatched && (
+                                      <div style={{fontSize: '0.72rem', color: '#065F46', marginTop: '3px'}}>
+                                        Disp: {req.total_dispatched_quantity} | Pend: {actualPending}
+                                      </div>
+                                    )}
+                                  </td>
+
+                                  {/* Requirement-level columns spanned across rows */}
+                                  {isFirstItem && (
+                                    <>
+                                      <td rowSpan={rowCount} style={{padding: '10px 12px', verticalAlign: 'top'}}>
+                                        {formatRate(req.expected_rate)}
+                                      </td>
+                                      <td rowSpan={rowCount} style={{padding: '10px 12px', verticalAlign: 'top', color: isReqOverdue ? 'var(--danger)' : 'inherit', fontWeight: isReqOverdue ? 600 : 400}}>
+                                        {isDispatched ? formatDate(req.expected_date) : getFriendlyDate(req.expected_date)}
+                                      </td>
+                                      <td rowSpan={rowCount} style={{padding: '10px 12px', verticalAlign: 'top'}}>
+                                        {isDispatched ? (
+                                          <div style={{display: 'flex', flexDirection: 'column', gap: '3px'}}>
+                                            <span className="badge badge-dispatched" style={{fontSize: '0.75rem', padding: '3px 8px', width: 'fit-content'}}>
+                                              DISPATCHED
+                                            </span>
+                                            {(req.transporter_info?.date || req.latest_dispatch_date) && (
+                                              <div style={{fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                                <Calendar size={12} /> {formatDisplayDate(req.transporter_info?.date || req.latest_dispatch_date)}
+                                              </div>
+                                            )}
+                                            <div style={{fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                              <Package size={12} /> {formatCompatibleUnitTotals(canonicalItems)}
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <span className={getStatusBadge(req.status)} style={{fontSize: '0.75rem', padding: '3px 8px'}}>
+                                            {req.status}
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td rowSpan={rowCount} style={{padding: '10px 12px', verticalAlign: 'top'}}>
+                                        <TransporterCell info={req.transporter_info} />
+                                      </td>
+                                      <td rowSpan={rowCount} style={{padding: '10px 12px', verticalAlign: 'top'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                                          <div style={{width: '8px', height: '8px', borderRadius: '50%', backgroundColor: getPriorityColor(req.priority)}}></div>
+                                          {req.priority || 'Normal'}
+                                        </div>
+                                      </td>
+                                      <td rowSpan={rowCount} style={{padding: '10px 12px', verticalAlign: 'top', textAlign: 'right'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px'}}>
+                                          <button onClick={() => navigate(`/requirements/${req.id}/edit`)} className="btn-icon" title="Edit requirement" style={{padding: '6px', color: 'var(--text-muted)'}}>
+                                            <Edit size={16}/>
+                                          </button>
+                                          <button onClick={(e) => openDeleteModal(e, req)} className="btn-icon" title="Delete requirement" style={{padding: '6px', color: 'var(--danger)'}}>
+                                            <Trash2 size={16}/>
+                                          </button>
+                                          
+                                          {/* Action Dropdown Menu */}
+                                          <div style={{position: 'relative'}}>
+                                            <button 
+                                              type="button"
+                                              onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                if (openMenuId === req.id) {
+                                                  setOpenMenuId(null);
+                                                } else {
+                                                  const rect = e.currentTarget.getBoundingClientRect();
+                                                  setMenuPosition({ top: rect.bottom + window.scrollY, right: rect.right });
+                                                  setOpenMenuId(req.id);
+                                                }
+                                              }}
+                                              className="btn-icon"
+                                              style={{padding: '6px', color: 'var(--text-muted)'}}
+                                              aria-label="More actions"
+                                            >
+                                              <MoreVertical size={16} />
+                                            </button>
+                                            <ActionMenu 
+                                              req={req} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} 
+                                              navigate={navigate} openCancelModal={openCancelModal} openDeleteModal={openDeleteModal} 
+                                              openDispatchModal={openDispatchModal} openUndispatchModal={openUndispatchModal} isAdmin={isAdmin} menuPosition={menuPosition}
+                                            />
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </>
                                   )}
-                                </td>
-                                <td style={{padding: '12px'}}>
-                                  <TransporterCell info={req.transporter_info} />
-                                </td>
-                                <td style={{padding: '12px'}}>
-                                  <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
-                                    <div style={{width: '8px', height: '8px', borderRadius: '50%', backgroundColor: getPriorityColor(req.priority)}}></div>
-                                    {req.priority || 'Normal'}
-                                  </div>
-                                </td>
-                                <td style={{padding: '12px', textAlign: 'right'}}>
-                                  <div style={{display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px'}}>
-                                    <button onClick={() => navigate(`/requirements/${req.id}/edit`)} className="btn-icon" title="Edit requirement" style={{padding: '6px', color: 'var(--text-muted)'}}>
-                                      <Edit size={16}/>
-                                    </button>
-                                    <button onClick={(e) => openDeleteModal(e, req)} className="btn-icon" title="Delete requirement" style={{padding: '6px', color: 'var(--danger)'}}>
-                                      <Trash2 size={16}/>
-                                    </button>
-                                    
-                                    {/* Action Dropdown Menu */}
-                                    <div style={{position: 'relative'}}>
-                                      <button 
-                                        type="button"
-                                        onClick={(e) => { 
-                                          e.stopPropagation(); 
-                                          if (openMenuId === req.id) {
-                                            setOpenMenuId(null);
-                                          } else {
-                                            const rect = e.currentTarget.getBoundingClientRect();
-                                            setMenuPosition({ top: rect.bottom + window.scrollY, right: rect.right });
-                                            setOpenMenuId(req.id);
-                                          }
-                                        }}
-                                        className="btn-icon"
-                                        style={{padding: '6px', color: 'var(--text-muted)'}}
-                                        aria-label="More actions"
-                                      >
-                                        <MoreVertical size={16} />
-                                      </button>
-                                      <ActionMenu 
-                                        req={req} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId} 
-                                        navigate={navigate} openCancelModal={openCancelModal} openDeleteModal={openDeleteModal} 
-                                        openDispatchModal={openDispatchModal} openUndispatchModal={openUndispatchModal} isAdmin={isAdmin} menuPosition={menuPosition}
-                                      />
-                                    </div>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
+                                </tr>
+                              );
+                            });
                           })}
                         </tbody>
                       </table>
@@ -1522,45 +1571,108 @@ export default function RequirementList() {
                 </div>
                 
                 {/* 2. Main requirement summary */}
-                <div style={{display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px'}}>
-                  <div style={{display: 'flex', alignItems: 'baseline', gap: '6px'}}>
-                    <span style={{fontSize: '2rem', fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)'}}>{getProductQuantity(req)}</span>
-                    <span className="text-muted" style={{fontSize: '0.9rem'}}>{getProductUnit(req)}</span>
-                  </div>
-                  <div style={{fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '2px'}}>{req.demand_ref || `REQ-${req.id.substring(0, 5).toUpperCase()}`}</div>
-                  <div style={{fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)'}}>
-                    {getProductName(req)}
-                  </div>
-                  <div style={{marginTop: '4px'}}>
-                     <span style={{display: 'inline-block', fontSize: '0.75rem', padding: '2px 8px', background: '#F3F4F6', color: '#4B5563', borderRadius: '4px', fontWeight: 500}}>
-                       {req.intent_type || 'Product Interest'}
-                     </span>
-                  </div>
-                  {/* Requirement Date */}
-                  <div style={{ fontSize: '0.8rem', color: '#4B5563', marginTop: '2px' }}>
-                    Requirement Date: <strong style={{ color: '#0F172A' }}>{formatDate(req.expected_date)}</strong>
-                  </div>
+                {(() => {
+                  const canonicalItems = getCanonicalRequirementItems(req);
+                  const isMultiItem = canonicalItems.length > 1;
+                  const singleItem = canonicalItems[0] || {};
+                  const singleFormatted = formatItemQtyAndWeight(singleItem);
 
-                  {/* SL-REQUIREMENTS-TRANSPORTER-COLUMN-01: Transporter (Last Used) Section on Card */}
-                  <div style={{
-                    marginTop: '10px',
-                    padding: '8px 12px',
-                    background: isDispatched ? '#EFF6FF' : '#F9FAFB',
-                    border: isDispatched ? '1px solid #BFDBFE' : '1px solid #E5E7EB',
-                    borderRadius: '8px'
-                  }}>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 600, color: isDispatched ? '#1E40AF' : '#166534', marginBottom: '3px' }}>
-                      Transporter {req.transporter_info?.isSuggested ? '(Last Used)' : ''}
+                  return (
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px'}}>
+                      {/* Top Quantity & Reference */}
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline'}}>
+                        <div style={{display: 'flex', alignItems: 'baseline', gap: '6px'}}>
+                          <span style={{fontSize: '1.85rem', fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)'}}>
+                            {formatCompatibleUnitTotals(canonicalItems)}
+                          </span>
+                        </div>
+                        <div style={{fontSize: '0.8rem', color: 'var(--text-muted)'}}>
+                          {req.demand_ref || `REQ-${req.id.substring(0, 5).toUpperCase()}`}
+                        </div>
+                      </div>
+
+                      {/* Product Information */}
+                      {isMultiItem ? (
+                        <div style={{marginTop: '4px', border: '1px solid #E2E8F0', borderRadius: '8px', overflow: 'hidden', background: '#F8FAFC'}}>
+                          <div style={{padding: '6px 10px', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B', borderBottom: '1px solid #E2E8F0'}}>
+                            Ordered Products ({canonicalItems.length})
+                          </div>
+                          {canonicalItems.map((item, idx) => {
+                            const formatted = formatItemQtyAndWeight(item);
+                            return (
+                              <div 
+                                key={idx} 
+                                style={{
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  padding: '7px 10px', 
+                                  fontSize: '0.85rem', 
+                                  borderBottom: idx < canonicalItems.length - 1 ? '1px solid #E2E8F0' : 'none',
+                                  background: idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC'
+                                }}
+                              >
+                                <div>
+                                  <strong style={{color: 'var(--text-primary)'}}>{item.product_name}</strong>
+                                  {item.category && item.category !== 'Pallet' && (
+                                    <span style={{marginLeft: '6px', fontSize: '0.7rem', color: '#64748B'}}>({item.category})</span>
+                                  )}
+                                </div>
+                                <div style={{textAlign: 'right'}}>
+                                  <span style={{fontWeight: 600, color: '#0F172A'}}>{formatted.primary}</span>
+                                  {formatted.weightSub && (
+                                    <span style={{fontSize: '0.72rem', color: '#64748B', display: 'block'}}>{formatted.weightSub}</span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{marginTop: '2px'}}>
+                          <div style={{fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)'}}>
+                            {singleItem.product_name || '-'}
+                          </div>
+                          {singleFormatted.weightSub && (
+                            <div style={{fontSize: '0.78rem', color: '#64748B', marginTop: '2px'}}>
+                              {singleFormatted.weightSub}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div style={{marginTop: '4px'}}>
+                         <span style={{display: 'inline-block', fontSize: '0.75rem', padding: '2px 8px', background: '#F3F4F6', color: '#4B5563', borderRadius: '4px', fontWeight: 500}}>
+                           {req.intent_type || 'Product Interest'}
+                         </span>
+                      </div>
+                      {/* Requirement Date */}
+                      <div style={{ fontSize: '0.8rem', color: '#4B5563', marginTop: '2px' }}>
+                        Requirement Date: <strong style={{ color: '#0F172A' }}>{formatDate(req.expected_date)}</strong>
+                      </div>
+
+                      {/* SL-REQUIREMENTS-TRANSPORTER-COLUMN-01: Transporter (Last Used) Section on Card */}
+                      <div style={{
+                        marginTop: '10px',
+                        padding: '8px 12px',
+                        background: isDispatched ? '#EFF6FF' : '#F9FAFB',
+                        border: isDispatched ? '1px solid #BFDBFE' : '1px solid #E5E7EB',
+                        borderRadius: '8px'
+                      }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 600, color: isDispatched ? '#1E40AF' : '#166534', marginBottom: '3px' }}>
+                          Transporter {req.transporter_info?.isSuggested ? '(Last Used)' : ''}
+                        </div>
+                        <TransporterCell info={req.transporter_info} />
+                      </div>
+                      {isPartiallyDispatched && !isDispatched && (
+                        <div style={{ fontSize: '0.8rem', padding: '6px 10px', background: '#ECFDF5', borderRadius: '4px', border: '1px solid #D1FAE5', color: '#065F46', display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                          <span>Dispatched: {req.total_dispatched_quantity}</span>
+                          <strong style={{color: '#B45309'}}>Pending: {actualPending}</strong>
+                        </div>
+                      )}
                     </div>
-                    <TransporterCell info={req.transporter_info} />
-                  </div>
-                  {isPartiallyDispatched && !isDispatched && (
-                    <div style={{ fontSize: '0.8rem', padding: '6px 10px', background: '#ECFDF5', borderRadius: '4px', border: '1px solid #D1FAE5', color: '#065F46', display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-                      <span>Dispatched: {req.total_dispatched_quantity}</span>
-                      <strong style={{color: '#B45309'}}>Pending: {actualPending}</strong>
-                    </div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 {/* 3. Commercial and timeline details */}
                 <hr style={{border: 'none', borderTop: '1px solid #F0F1F3', margin: '0 0 16px 0'}} />
@@ -1616,9 +1728,13 @@ export default function RequirementList() {
             <h3 style={{ margin: '0 0 1rem 0', color: 'var(--text-primary)', fontSize: '1.25rem' }}>Cancel this requirement?</h3>
             <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
               <div><strong>Customer:</strong> {reqToCancel.customer_name}</div>
-              <div><strong>Product:</strong> {getProductName(reqToCancel)}</div>
-              <div><strong>Quantity:</strong> {getProductQuantity(reqToCancel)} {getProductUnit(reqToCancel)}</div>
-              <div><strong>Required By:</strong> {formatDate(reqToCancel.expected_date)}</div>
+              <div style={{marginTop: '4px'}}><strong>Products & Quantities:</strong></div>
+              {getCanonicalRequirementItems(reqToCancel).map((it, idx) => (
+                <div key={idx} style={{paddingLeft: '8px', color: '#334155', fontSize: '0.85rem'}}>
+                  • {it.product_name} – {formatItemQtyAndWeight(it).fullLabel}
+                </div>
+              ))}
+              <div style={{marginTop: '4px'}}><strong>Required By:</strong> {formatDate(reqToCancel.expected_date)}</div>
             </div>
             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
               This will cancel <strong>only this requirement</strong>. Other requirements for this customer will remain active.
@@ -1640,8 +1756,12 @@ export default function RequirementList() {
             <h3 style={{ margin: '0 0 1rem 0', color: 'var(--danger)', fontSize: '1.25rem' }}>Delete requirement?</h3>
             <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
               <div><strong>Customer:</strong> {reqToDelete.customer_name}</div>
-              <div><strong>Product:</strong> {getProductName(reqToDelete)}</div>
-              <div><strong>Quantity:</strong> {getProductQuantity(reqToDelete)} {getProductUnit(reqToDelete)}</div>
+              <div style={{marginTop: '4px'}}><strong>Products & Quantities:</strong></div>
+              {getCanonicalRequirementItems(reqToDelete).map((it, idx) => (
+                <div key={idx} style={{paddingLeft: '8px', color: '#334155', fontSize: '0.85rem'}}>
+                  • {it.product_name} – {formatItemQtyAndWeight(it).fullLabel}
+                </div>
+              ))}
             </div>
             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
               This action cannot be undone.
@@ -1664,9 +1784,6 @@ export default function RequirementList() {
           onConfirm={handleConfirmDispatch}
           isDispatching={isDispatching}
           transporterOptions={transporterOptions}
-          productName={getProductName(reqToDispatch)}
-          quantity={getProductQuantity(reqToDispatch)}
-          unit={getProductUnit(reqToDispatch)}
         />
       )}
       {/* Undispatch Modal */}
@@ -1676,8 +1793,12 @@ export default function RequirementList() {
             <h3 style={{ margin: '0 0 1rem 0', color: 'var(--warning)', fontSize: '1.25rem' }}>Mark this requirement as not dispatched?</h3>
             <div style={{ background: 'var(--bg-base)', padding: '1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem' }}>
               <div><strong>Customer:</strong> {reqToUndispatch.customer_name}</div>
-              <div><strong>Product:</strong> {getProductName(reqToUndispatch)}</div>
-              <div><strong>Quantity:</strong> {getProductQuantity(reqToUndispatch)} {getProductUnit(reqToUndispatch)}</div>
+              <div style={{marginTop: '4px'}}><strong>Products & Quantities:</strong></div>
+              {getCanonicalRequirementItems(reqToUndispatch).map((it, idx) => (
+                <div key={idx} style={{paddingLeft: '8px', color: '#334155', fontSize: '0.85rem'}}>
+                  • {it.product_name} – {formatItemQtyAndWeight(it).fullLabel}
+                </div>
+              ))}
             </div>
             <p style={{ margin: '0 0 1.5rem 0', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.9rem' }}>
               This will correct its dispatch status. The dispatch record is kept and marked cancelled.

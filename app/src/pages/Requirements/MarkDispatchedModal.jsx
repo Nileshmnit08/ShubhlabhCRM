@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Truck, Check, AlertCircle, Info } from 'lucide-react';
 import { findTransporterByMobile, validateTransportDetails } from '../../lib/transporterDispatch';
+import { getCanonicalRequirementItems, formatItemQtyAndWeight } from '../../lib/canonicalRequirements';
 
 /**
  * MarkDispatchedModal
@@ -187,12 +188,32 @@ export default function MarkDispatchedModal({
           <div style={{ marginBottom: '4px' }}>
             <strong>Customer:</strong> {req.customer_name}
           </div>
-          <div style={{ marginBottom: '4px' }}>
-            <strong>Product:</strong> {productName}
-          </div>
-          <div>
-            <strong>Quantity:</strong> {quantity} {unit}
-          </div>
+          {(() => {
+            const items = getCanonicalRequirementItems(req);
+            if (items.length > 1) {
+              return (
+                <div style={{ marginTop: '6px', borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
+                  <strong>Ordered Products ({items.length}):</strong>
+                  {items.map((it, idx) => (
+                    <div key={idx} style={{ paddingLeft: '8px', color: 'var(--text-secondary)', fontSize: '0.84rem', marginTop: '2px' }}>
+                      • {it.product_name} – {formatItemQtyAndWeight(it).fullLabel}
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            const single = items[0];
+            return (
+              <>
+                <div style={{ marginBottom: '4px' }}>
+                  <strong>Product:</strong> {single?.product_name || productName || '-'}
+                </div>
+                <div>
+                  <strong>Quantity:</strong> {single ? formatItemQtyAndWeight(single).fullLabel : `${quantity} ${unit}`}
+                </div>
+              </>
+            );
+          })()}
         </div>
 
         {/* Transport Details Section */}

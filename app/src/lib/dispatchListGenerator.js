@@ -12,6 +12,7 @@
  */
 
 import { isRequirementDispatched } from './dispatchedTransportSummary.js';
+import { getCanonicalRequirementItems } from './canonicalRequirements.js';
 
 /**
  * Formats a Date object or date string into "DD MMM YYYY" (e.g. "25 Nov 2026").
@@ -103,19 +104,12 @@ export function normalizeTransporterName(name) {
  * Extracts and consolidates product items for a requirement.
  */
 export function extractRequirementItems(req) {
-  if (Array.isArray(req.requirement_items) && req.requirement_items.length > 0) {
-    return req.requirement_items.map(item => ({
-      product: (item.product_name || req.product_type || 'Feed').trim(),
-      quantity: Number(item.quantity) || 0,
-      unit: (item.unit || req.unit || 'Bags').trim()
-    }));
-  }
-
-  return [{
-    product: (req.product_type || 'Feed').trim(),
-    quantity: Number(req.required_quantity || req.quantity) || 0,
-    unit: (req.unit || 'Bags').trim()
-  }];
+  const canonical = getCanonicalRequirementItems(req);
+  return canonical.map(item => ({
+    product: item.product_name,
+    quantity: item.quantity,
+    unit: item.unit
+  }));
 }
 
 /**

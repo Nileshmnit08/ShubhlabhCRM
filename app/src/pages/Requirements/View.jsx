@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { ArrowLeft, Clock, Save, History, Edit2, Calendar, Plus } from 'lucide-react';
 import CallAction from '../../components/CallAction';
 import WhatsAppAction from '../../components/WhatsAppAction';
+import { getCanonicalRequirementItems, formatCompatibleUnitTotals } from '../../lib/canonicalRequirements';
 
 const STATUS_OPTIONS = [
   'Identified', 'Engaged', 'Qualified', 'Commercial Intent', 'Won', 'Dispatched', 'Lost', 'On Hold'
@@ -418,7 +419,7 @@ export default function RequirementView() {
                     <div>
                       <label className="text-muted" style={{fontSize: '0.85rem'}}>Required</label>
                       <div style={{fontWeight: 600, fontSize: '1.1rem'}}>
-                        {requirementItems.length > 0 ? requirementItems.reduce((acc, i) => acc + (i.quantity || 0), 0) : req.quantity} {requirementItems.length > 0 ? requirementItems[0].unit : req.unit}
+                        {formatCompatibleUnitTotals(getCanonicalRequirementItems(req))}
                       </div>
                     </div>
                     <div>
