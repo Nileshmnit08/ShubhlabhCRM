@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   parseProductWeight,
   calculateItemTotalWeightKg,
+  calculateItemWeightDetails,
   formatItemQtyAndWeight,
   normalizeRequirementItem,
   getCanonicalRequirementItems,
@@ -145,4 +146,43 @@ test('7. getDistinctProductNames: returns unique product names', () => {
     { requirement_items: [{ product_name: 'Diamond', unit: 'Bags' }, { product_name: 'Dry Mix', unit: 'Bags' }] }
   ];
   assert.deepEqual(getDistinctProductNames(reqs), ['Diamond', 'Naman', 'Dry Mix']);
+});
+
+test('8. calculateItemWeightDetails: bag-based, MT-based, and non-bag calculations', () => {
+  // Bag-based with explicit weight
+  const bagsWithWeight = calculateItemWeightDetails(70, 'Bags', 45);
+  assert.equal(bagsWithWeight.isBagBased, true);
+  assert.equal(bagsWithWeight.quantity, 70);
+  assert.equal(bagsWithWeight.weight, 45);
+  assert.equal(bagsWithWeight.totalWeightKg, 3150);
+  assert.equal(bagsWithWeight.totalWeightMt, 3.15);
+  assert.equal(bagsWithWeight.equivalentBags, 70);
+
+  // Bag-based without weight
+  const bagsNoWeight = calculateItemWeightDetails(60, 'Bags', null);
+  assert.equal(bagsNoWeight.isBagBased, true);
+  assert.equal(bagsNoWeight.weight, null);
+  assert.equal(bagsNoWeight.totalWeightKg, null);
+  assert.equal(bagsNoWeight.totalWeightMt, null);
+  assert.equal(bagsNoWeight.equivalentBags, 60);
+
+  // MT-based with bag weight (Yashika Agro Chana Churi 3 MT @ 40 kg/bag)
+  const mtWithWeight = calculateItemWeightDetails(3, 'MT', 40);
+  assert.equal(mtWithWeight.isBagBased, false);
+  assert.equal(mtWithWeight.totalWeightKg, 3000);
+  assert.equal(mtWithWeight.totalWeightMt, 3);
+  assert.equal(mtWithWeight.equivalentBags, 75);
+
+  // MT-based without bag weight
+  const mtNoWeight = calculateItemWeightDetails(10, 'MT', '');
+  assert.equal(mtNoWeight.isBagBased, false);
+  assert.equal(mtNoWeight.totalWeightKg, 10000);
+  assert.equal(mtNoWeight.totalWeightMt, 10);
+  assert.equal(mtNoWeight.equivalentBags, null);
+
+  // Quintal
+  const qtl = calculateItemWeightDetails(50, 'Quintal', 50);
+  assert.equal(qtl.totalWeightKg, 5000);
+  assert.equal(qtl.totalWeightMt, 5);
+  assert.equal(qtl.equivalentBags, 100);
 });

@@ -102,6 +102,64 @@ export function calculateItemTotalWeightKg(quantity, unit, bagWeight) {
 }
 
 /**
+ * Calculates complete quantity and weight mapping for an editable product item.
+ * Supports Bags, MT, Quintal, Kg.
+ * Rules:
+ * - Bags: Total Weight (KG) = Bags * Bag Weight. Total Weight (MT) = Total Weight (KG) / 1000.
+ * - MT: Total Weight (KG) = MT * 1000. Equivalent Bags = Total Weight (KG) / Bag Weight (if weight specified).
+ * - Quintal: Total Weight (KG) = Qtl * 100.
+ * - Kg: Total Weight (KG) = Kg.
+ */
+export function calculateItemWeightDetails(quantity, unit, weight) {
+  const q = Number(quantity);
+  const w = weight !== undefined && weight !== null && weight !== '' ? Number(weight) : null;
+  const normalizedUnit = (unit || 'Bags').trim();
+  const isBagBased = /^bag/i.test(normalizedUnit);
+
+  let totalWeightKg = null;
+  let totalWeightMt = null;
+  let equivalentBags = null;
+
+  if (!isNaN(q) && q > 0) {
+    if (isBagBased) {
+      if (w !== null && !isNaN(w) && w > 0) {
+        totalWeightKg = q * w;
+        totalWeightMt = totalWeightKg / 1000;
+      }
+      equivalentBags = q;
+    } else if (/^mt$/i.test(normalizedUnit) || /^metric\s*tonne/i.test(normalizedUnit)) {
+      totalWeightKg = q * 1000;
+      totalWeightMt = q;
+      if (w !== null && !isNaN(w) && w > 0) {
+        equivalentBags = Math.round(totalWeightKg / w);
+      }
+    } else if (/^qtl$/i.test(normalizedUnit) || /^quintal/i.test(normalizedUnit)) {
+      totalWeightKg = q * 100;
+      totalWeightMt = totalWeightKg / 1000;
+      if (w !== null && !isNaN(w) && w > 0) {
+        equivalentBags = Math.round(totalWeightKg / w);
+      }
+    } else if (/^kg$/i.test(normalizedUnit) || /^kilogram/i.test(normalizedUnit)) {
+      totalWeightKg = q;
+      totalWeightMt = q / 1000;
+      if (w !== null && !isNaN(w) && w > 0) {
+        equivalentBags = Math.round(totalWeightKg / w);
+      }
+    }
+  }
+
+  return {
+    isBagBased,
+    quantity: !isNaN(q) ? q : 0,
+    unit: normalizedUnit,
+    weight: w !== null && !isNaN(w) && w > 0 ? w : null,
+    totalWeightKg,
+    totalWeightMt,
+    equivalentBags
+  };
+}
+
+/**
  * Formats quantity and weight for clear UI display.
  * Returns { primary, weightSub, fullLabel }.
  * Example:
